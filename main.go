@@ -8,13 +8,14 @@ import (
 	"strconv"
 	"net/http"
 	"path/filepath"
+  //_ "net/http/pprof"
 
-	"github.com/boltdb/bolt"
 	"github.com/op/go-logging"
 	"github.com/scakemyer/quasar/api"
 	"github.com/scakemyer/quasar/lockfile"
 	"github.com/scakemyer/quasar/bittorrent"
 	"github.com/scakemyer/quasar/config"
+	"github.com/scakemyer/quasar/database"
 	"github.com/scakemyer/quasar/trakt"
 	"github.com/scakemyer/quasar/util"
 	"github.com/scakemyer/quasar/xbmc"
@@ -64,24 +65,26 @@ func ensureSingleInstance(conf *config.Configuration) (lock *lockfile.LockFile, 
 
 func makeBTConfiguration(conf *config.Configuration) *bittorrent.BTConfiguration {
 	btConfig := &bittorrent.BTConfiguration{
-		SpoofUserAgent:      conf.SpoofUserAgent,
-		BufferSize:          conf.BufferSize,
+		// SpoofUserAgent:      conf.SpoofUserAgent,
+		DownloadStorage:     conf.DownloadStorage,
+		MemorySize:          int64(conf.MemorySize),
+		BufferSize:          int64(conf.BufferSize),
 		MaxUploadRate:       conf.UploadRateLimit,
 		MaxDownloadRate:     conf.DownloadRateLimit,
 		LimitAfterBuffering: conf.LimitAfterBuffering,
 		ConnectionsLimit:    conf.ConnectionsLimit,
-		SessionSave:         conf.SessionSave,
-		ShareRatioLimit:     conf.ShareRatioLimit,
-		SeedTimeRatioLimit:  conf.SeedTimeRatioLimit,
+		// SessionSave:         conf.SessionSave,
+		// ShareRatioLimit:     conf.ShareRatioLimit,
+		// SeedTimeRatioLimit:  conf.SeedTimeRatioLimit,
 		SeedTimeLimit:       conf.SeedTimeLimit,
 		DisableDHT:          conf.DisableDHT,
-		DisableUPNP:         conf.DisableUPNP,
+		// DisableUPNP:         conf.DisableUPNP,
 		EncryptionPolicy:    conf.EncryptionPolicy,
 		LowerListenPort:     conf.BTListenPortMin,
 		UpperListenPort:     conf.BTListenPortMax,
 		ListenInterfaces:    conf.ListenInterfaces,
 		OutgoingInterfaces:  conf.OutgoingInterfaces,
-		TunedStorage:        conf.TunedStorage,
+		// TunedStorage:        conf.TunedStorage,
 		DownloadPath:        conf.DownloadPath,
 		TorrentsPath:        conf.TorrentsPath,
 		DisableBgProgress:   conf.DisableBgProgress,
@@ -90,15 +93,15 @@ func makeBTConfiguration(conf *config.Configuration) *bittorrent.BTConfiguration
 		CompletedShowsPath:  conf.CompletedShowsPath,
 	}
 
-	if conf.SocksEnabled == true {
-		btConfig.Proxy = &bittorrent.ProxySettings{
-			Type:     conf.ProxyType,
-			Hostname: conf.SocksHost,
-			Port:     conf.SocksPort,
-			Username: conf.SocksLogin,
-			Password: conf.SocksPassword,
-		}
-	}
+	// if conf.SocksEnabled == true {
+	// 	btConfig.Proxy = &bittorrent.ProxySettings{
+	// 		Type:     conf.ProxyType,
+	// 		Hostname: conf.SocksHost,
+	// 		Port:     conf.SocksPort,
+	// 		Username: conf.SocksLogin,
+	// 		Password: conf.SocksPassword,
+	// 	}
+	// }
 
 	return btConfig
 }
@@ -130,22 +133,22 @@ func main() {
 
 	wasFirstRun := Migrate()
 
-	db, err := bolt.Open(filepath.Join(conf.Info.Profile, "library.db"), 0600, &bolt.Options{
-		ReadOnly: false,
-		Timeout: 15 * time.Second,
-	})
+	db, err := database.InitDB(conf)
 	if err != nil {
 		log.Error(err)
 		return
 	}
-	defer db.Close()
 
-	btService := bittorrent.NewBTService(*makeBTConfiguration(conf), db)
+	api.InitDB()
+	bittorrent.InitDB()
+
+	btService := bittorrent.NewBTService(*makeBTConfiguration(conf))
 
 	var shutdown = func() {
 		log.Info("Shutting down...")
 		api.CloseLibrary()
 		btService.Close()
+		db.Close()
 		log.Info("Goodbye")
 		os.Exit(0)
 	}
@@ -163,10 +166,7 @@ func main() {
 	go watchParentProcess()
 
 	http.Handle("/", api.Routes(btService))
-	http.Handle("/files/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler := http.StripPrefix("/files/", http.FileServer(bittorrent.NewTorrentFS(btService, config.Get().DownloadPath)))
-		handler.ServeHTTP(w, r)
-	}))
+	http.Handle("/files/", bittorrent.TorrentFSHandler(btService, config.Get().DownloadPath))
 	http.Handle("/reload", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		btService.Reconfigure(*makeBTConfiguration(config.Reload()))
 	}))
@@ -185,7 +185,7 @@ func main() {
 		xbmc.ResetRPC()
 	}()
 
-	go api.LibraryUpdate(db)
+	go api.LibraryUpdate()
 	go api.LibraryListener()
 	go trakt.TokenRefreshHandler()
 

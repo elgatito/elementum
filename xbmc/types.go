@@ -171,6 +171,18 @@ type Resume struct {
 	Total    float64 `json:"total"`
 }
 
+type PlayerItemInfo struct {
+	Info struct {
+		Id   int    `json:"id"`
+		Type string `json:"type"`
+	} `json:"item"`
+}
+
+type ActivePlayers []struct {
+	Id   int    `json:"playerid"`
+	Type string `json:"type"`
+}
+
 func NewView(contentType string, items ListItems) *View {
 	return &View{
 		ContentType: contentType,

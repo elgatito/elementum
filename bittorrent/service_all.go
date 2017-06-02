@@ -2,8 +2,11 @@
 
 package bittorrent
 
-import "github.com/scakemyer/libtorrent-go"
+import (
+	gotorrent "github.com/anacrolix/torrent"
+	// "github.com/scakemyer/libtorrent-go"
+)
 
 // Nothing to do on regular devices
-func setPlatformSpecificSettings(settings libtorrent.SettingsPack) {
+func setPlatformSpecificSettings(settings gotorrent.Config) {
 }

@@ -2,7 +2,7 @@ package api
 
 import (
 	"strconv"
-
+	
 	"github.com/op/go-logging"
 	"github.com/scakemyer/quasar/broadcast"
 	"github.com/scakemyer/quasar/bittorrent"
@@ -35,15 +35,27 @@ func updateWatchedForItem(item *bittorrent.PlayingItem) {
 		return
 	}
 
-	if item.DBItem.Type == "movie" {
-		xbmcItem := FindByIdMovieInLibrary(strconv.Itoa(item.DBItem.ID))
-		if xbmcItem != nil {
-			UpdateMovieWatched(xbmcItem, item.WatchedTime, item.Duration)
+	if item.DBTYPE == "movie" {
+		if item.DBID == 0 {
+			xbmcItem := FindByIdMovieInLibrary(strconv.Itoa(item.TMDBID))
+			if xbmcItem != nil {
+				item.DBID = xbmcItem.ID
+			}
 		}
-	} else if item.DBItem.Type == "episode" {
-		xbmcItem := FindByIdEpisodeInLibrary(item.DBItem.ShowID, item.DBItem.Season, item.DBItem.Episode)
-		if xbmcItem != nil {
-			UpdateEpisodeWatched(xbmcItem, item.WatchedTime, item.Duration)
+
+		if item.DBID != 0 {
+			UpdateMovieWatched(item.DBID, item.WatchedTime, item.Duration)
+		}
+	} else if item.DBTYPE == "episode" {
+		if item.DBID == 0 {
+			xbmcItem := FindByIdEpisodeInLibrary(item.TMDBID, item.Season, item.Episode)
+			if xbmcItem != nil {
+				item.DBID = xbmcItem.ID
+			}
+		}
+
+		if item.DBID != 0 {
+			UpdateEpisodeWatched(item.DBID, item.WatchedTime, item.Duration)
 		}
 	}
 }

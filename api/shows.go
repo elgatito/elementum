@@ -348,7 +348,7 @@ func ShowEpisodes(ctx *gin.Context) {
 	ctx.JSON(200, xbmc.NewView("episodes", items))
 }
 
-func showSeasonLinks(showId int, seasonNumber int) ([]*bittorrent.Torrent, error) {
+func showSeasonLinks(showId int, seasonNumber int) ([]*bittorrent.TorrentFile, error) {
 	log.Println("Searching links for TMDB Id:", showId)
 
 	show := tmdb.GetShow(showId, config.Get().Language)
@@ -493,7 +493,7 @@ func ShowSeasonLinks(btService *bittorrent.BTService, fromLibrary bool) gin.Hand
 	}
 }
 
-func showEpisodeLinks(showId int, seasonNumber int, episodeNumber int) ([]*bittorrent.Torrent, error) {
+func showEpisodeLinks(showId int, seasonNumber int, episodeNumber int) ([]*bittorrent.TorrentFile, error) {
 	log.Println("Searching links for TMDB Id:", showId)
 
 	show := tmdb.GetShow(showId, config.Get().Language)

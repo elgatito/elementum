@@ -4,7 +4,6 @@ import (
 	"os"
 	"fmt"
 	"time"
-	"bytes"
 	"errors"
 	"strconv"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"encoding/json"
 	"encoding/base64"
 
-	"github.com/boltdb/bolt"
 	"github.com/gin-gonic/gin"
 	"github.com/op/go-logging"
 	"github.com/scakemyer/quasar/util"
@@ -21,6 +19,7 @@ import (
 	"github.com/scakemyer/quasar/tmdb"
 	"github.com/scakemyer/quasar/trakt"
 	"github.com/scakemyer/quasar/config"
+	"github.com/scakemyer/quasar/database"
 	"github.com/scakemyer/quasar/bittorrent"
 )
 
@@ -57,8 +56,8 @@ var (
 	libraryPath       string
 	moviesLibraryPath string
 	showsLibraryPath  string
-	DB                *bolt.DB
-	bucket            = "Library"
+	db                *database.Database
+	Bucket            = database.LibraryBucket
 	closing           = make(chan struct{})
 	removedEpisodes   = make(chan *removedEpisode)
 	scanning          = false
@@ -77,6 +76,10 @@ type removedEpisode struct {
 	ShowName  string
 	Season    int
 	Episode   int
+}
+
+func InitDB() {
+	db, _ = database.NewDB()
 }
 
 func clearPageCache(ctx *gin.Context) {
@@ -166,30 +169,30 @@ func updateLibraryEpisodes(showId int) {
 //
 // Watched handling
 //
-func UpdateMovieWatched(item *xbmc.VideoLibraryMovieItem, watchedTime float64, videoDuration float64) {
+func UpdateMovieWatched(itemID int, watchedTime float64, videoDuration float64) {
 	progress := watchedTime / videoDuration * 100
 
-	libraryLog.Infof("Currently at %f%%, DBID: %d", progress, item.ID)
+	libraryLog.Infof("Currently at %f%%, DBID: %d", progress, itemID)
 
 	if progress > 90 {
-		xbmc.SetMovieWatched(item.ID, 1, 0, 0)
+		xbmc.SetMovieWatched(itemID, 1, 0, 0)
 	} else if watchedTime > 180 {
-		xbmc.SetMovieWatched(item.ID, 0, int(watchedTime), int(videoDuration))
+		xbmc.SetMovieWatched(itemID, 0, int(watchedTime), int(videoDuration))
 	} else {
 		time.Sleep(200 * time.Millisecond)
 		xbmc.Refresh()
 	}
 }
 
-func UpdateEpisodeWatched(item *xbmc.VideoLibraryEpisodeItem, watchedTime float64, videoDuration float64) {
+func UpdateEpisodeWatched(itemID int, watchedTime float64, videoDuration float64) {
 	progress := watchedTime / videoDuration * 100
 
-	libraryLog.Infof("Currently at %f%%, DBID: %d", progress, item.ID)
+	libraryLog.Infof("Currently at %f%%, DBID: %d", progress, itemID)
 
 	if progress > 90 {
-		xbmc.SetEpisodeWatched(item.ID, 1, 0, 0)
+		xbmc.SetEpisodeWatched(itemID, 1, 0, 0)
 	} else if watchedTime > 180 {
-		xbmc.SetEpisodeWatched(item.ID, 0, int(watchedTime), int(videoDuration))
+		xbmc.SetEpisodeWatched(itemID, 0, int(watchedTime), int(videoDuration))
 	} else {
 		time.Sleep(200 * time.Millisecond)
 		xbmc.Refresh()
@@ -220,28 +223,9 @@ func isDuplicateMovie(tmdbId string) (*tmdb.Movie, error) {
 
 func isDuplicateShow(tmdbId string) (*tmdb.Show, error) {
 	show := tmdb.GetShowById(tmdbId, "en")
-	if show == nil || show.ExternalIDs == nil {
-		return show, nil
-	}
-	var showId string
-	switch config.Get().TvScraper {
-	case TMDBScraper:
-		showId = tmdbId
-	case TVDBScraper:
-		if show.ExternalIDs == nil || show.ExternalIDs.TVDBID == nil {
-			libraryLog.Warningf("No external IDs for TVDB show from TMDB ID %s", tmdbId)
-			return show, nil
-		}
-		showId = strconv.Itoa(util.StrInterfaceToInt(show.ExternalIDs.TVDBID))
-	case TraktScraper:
-		traktShow := trakt.GetShowByTMDB(tmdbId)
-		if traktShow == nil || traktShow.IDs == nil || traktShow.IDs.Trakt == 0 {
-			libraryLog.Warningf("No external IDs from Trakt show for TMDB ID %s", tmdbId)
-			return show, nil
-		}
-		showId = strconv.Itoa(traktShow.IDs.Trakt)
-	}
-	if libraryShows == nil {
+	showId := GetShowUniqueID(show)
+
+	if len(showId) == 0 || libraryShows == nil {
 		return show, nil
 	}
 	for _, existingShow := range libraryShows.Shows {
@@ -335,18 +319,14 @@ func isDuplicateEpisode(tmdbShowId int, seasonNumber int, episodeNumber int) (ep
 }
 
 func isAddedToLibrary(id string, addedType int) (isAdded bool) {
-	DB.View(func(tx *bolt.Tx) error {
-		c := tx.Bucket([]byte(bucket)).Cursor()
-		prefix := []byte(fmt.Sprintf("%d_", addedType))
-		for k, _ := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, _ = c.Next() {
-			itemID := strings.Split(string(k), "_")[1]
-			if itemID == id {
-				isAdded = true
-				return nil
-			}
+	db.Seek(Bucket, fmt.Sprintf("%d_", addedType), func(key []byte, value []byte) {
+		itemID := strings.Split(string(key), "_")[1]
+		if itemID == id {
+			isAdded = true
+			return
 		}
-		return nil
 	})
+
 	return
 }
 
@@ -354,85 +334,49 @@ func isAddedToLibrary(id string, addedType int) (isAdded bool) {
 //
 // Database updates
 //
-func updateDB(Operation int, Type int, IDs []string, TVShowID int) (err error) {
+func updateDB(Operation int, Type int, IDs []string, TVShowID int) error {
 	switch Operation {
-	case Delete:
-		err = DB.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(bucket))
-			if err := b.Delete([]byte(fmt.Sprintf("%d_%s", Type, IDs[0]))); err != nil {
-				return err
-			}
-			return nil
-		})
 	case Update:
-		err = DB.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(bucket))
+		item := DBItem{
+			ID:       IDs[0],
+			Type:     Type,
+			TVShowID: TVShowID,
+		}
+
+		return db.SetObject(Bucket, fmt.Sprintf("%d_%s", Type, IDs[0]), item)
+	case Batch:
+		objects := map[string]interface{}{}
+		for _, id := range IDs {
 			item := DBItem{
-				ID: IDs[0],
-				Type: Type,
+				ID:       id,
+				Type:     Type,
 				TVShowID: TVShowID,
 			}
-			if buf, err := json.Marshal(item); err != nil {
-				return err
-			} else if err := b.Put([]byte(fmt.Sprintf("%d_%s", Type, IDs[0])), buf); err != nil {
-				return err
-			}
-			return nil
-		})
-	case Batch:
-		err = DB.Batch(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(bucket))
-			for _, id := range IDs {
-				item := DBItem{
-					ID: id,
-					Type: Type,
-					TVShowID: TVShowID,
-				}
-				if buf, err := json.Marshal(item); err != nil {
-					libraryLog.Error(err)
-					return err
-				} else if err := b.Put([]byte(fmt.Sprintf("%d_%s", Type, id)), buf); err != nil {
-					libraryLog.Error(err)
-					return err
-				}
-			}
-			return nil
-		})
+			objects[fmt.Sprintf("%d_%s", Type, id)] = item
+		}
+
+		return db.BatchSetObject(Bucket, objects)
+	case Delete:
+		return db.Delete(Bucket, fmt.Sprintf("%d_%s", Type, IDs[0]))
 	case BatchDelete:
-		err = DB.Batch(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(bucket))
-			for _, id := range IDs {
-				if err := b.Delete([]byte(fmt.Sprintf("%d_%s", Type, id))); err != nil {
-					return err
-				}
-			}
-			return nil
-		})
+		items := make([]string, len(IDs))
+		for i, key := range IDs {
+			items[i] = fmt.Sprintf("%d_%s", Type, key)
+		}
+
+		return db.BatchDelete(Bucket, items)
 	case DeleteTorrent:
-		err = DB.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(bittorrent.Bucket))
-			if err := b.Delete([]byte(IDs[0])); err != nil {
-				return err
-			}
-			return nil
-		})
+		return db.Delete(bittorrent.Bucket, IDs[0])
 	}
-	return err
+
+	return nil
 }
 
 func wasRemoved(id string, removedType int) (wasRemoved bool) {
-	DB.View(func(tx *bolt.Tx) error {
-		c := tx.Bucket([]byte(bucket)).Cursor()
-		prefix := []byte(fmt.Sprintf("%d_", removedType))
-		for k, _ := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, _ = c.Next() {
-			itemID := strings.Split(string(k), "_")[1]
-			if itemID == id {
-				wasRemoved = true
-				return nil
-			}
-		}
-		return nil
-	})
+	if v, err := db.Get(Bucket, fmt.Sprintf("%d_%s", removedType, id)); err == nil && len(v) > 0 {
+		wasRemoved = true
+	}
+
 	return
 }
 
@@ -444,19 +388,14 @@ func doUpdateLibrary() error {
 		return err
 	}
 
-	DB.View(func(tx *bolt.Tx) error {
-		c := tx.Bucket([]byte(bucket)).Cursor()
-		prefix := []byte(fmt.Sprintf("%d_", Show))
-		for k, v := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, v = c.Next() {
-			var item *DBItem
-			if err := json.Unmarshal(v, &item); err != nil {
-				return err
-			}
-			if _, err := writeShowStrm(item.ID, false); err != nil {
-				libraryLog.Error(err)
-			}
+	db.Seek(Bucket, fmt.Sprintf("%d_", Show), func(key []byte, value []byte) {
+		item := &DBItem{}
+		if err := json.Unmarshal(value, &item); err != nil {
+			return
 		}
-		return nil
+		if _, err := writeShowStrm(item.ID, false); err != nil {
+			libraryLog.Error(err)
+		}
 	})
 
 	libraryLog.Notice("Library updated")
@@ -1002,7 +941,7 @@ func RemoveShow(ctx *gin.Context) {
 //
 // Library update loop
 //
-func LibraryUpdate(db *bolt.DB) {
+func LibraryUpdate() {
 	if err := checkMoviesPath(); err != nil {
 		xbmc.Notify("Quasar", err.Error(), config.AddonIcon())
 		return
@@ -1011,17 +950,6 @@ func LibraryUpdate(db *bolt.DB) {
 		xbmc.Notify("Quasar", err.Error(), config.AddonIcon())
 		return
 	}
-
-	db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte(bucket))
-		if err != nil {
-			libraryLog.Error(err)
-			xbmc.Notify("Quasar", err.Error(), config.AddonIcon())
-			return err
-		}
-		return nil
-	})
-	DB = db
 
 	// Migrate old QuasarDB.json
 	if _, err := os.Stat(filepath.Join(libraryPath, "QuasarDB.json")); err == nil {
@@ -1229,37 +1157,33 @@ func LibraryUpdate(db *bolt.DB) {
 				}
 			}
 		case <- markedForRemovalTicker.C:
-			DB.View(func(tx *bolt.Tx) error {
-				b := tx.Bucket([]byte(bittorrent.Bucket))
-				b.ForEach(func(k, v []byte) error {
-					var item *bittorrent.DBItem
-					if err := json.Unmarshal(v, &item); err != nil {
-						libraryLog.Error(err)
-						return err
-					}
-					if item.State > bittorrent.Remove {
-						return nil
-					}
-
-					// Remove from Quasar's library to prevent duplicates
-					if item.Type == "movie" {
-						if _, err := isDuplicateMovie(strconv.Itoa(item.ID)); err != nil {
-							removeMovie(nil, strconv.Itoa(item.ID))
-							if err := removeMovie(nil, strconv.Itoa(item.ID)); err != nil {
-								libraryLog.Warning("Nothing left to remove from Quasar")
-							}
-						}
-					} else {
-						if scraperId, err := isDuplicateEpisode(item.ShowID, item.Season, item.Episode); err != nil {
-							if err := removeEpisode(strconv.Itoa(item.ID), strconv.Itoa(item.ShowID), scraperId, item.Season, item.Episode); err != nil {
-								libraryLog.Warning(err)
-							}
-						}
-					}
-					updateDB(DeleteTorrent, 0, []string{string(k)}, 0)
-					libraryLog.Infof("Removed %s from database", k)
+			db.ForEach(bittorrent.Bucket, func(key []byte, value []byte) error {
+				item := &bittorrent.DBItem{}
+				if err := json.Unmarshal(value, &item); err != nil {
+					libraryLog.Error(err)
+					return err
+				}
+				if item.State > bittorrent.Remove {
 					return nil
-				})
+				}
+
+				// Remove from Quasar's library to prevent duplicates
+				if item.Type == "movie" {
+					if _, err := isDuplicateMovie(strconv.Itoa(item.ID)); err != nil {
+						removeMovie(nil, strconv.Itoa(item.ID))
+						if err := removeMovie(nil, strconv.Itoa(item.ID)); err != nil {
+							libraryLog.Warning("Nothing left to remove from Quasar")
+						}
+					}
+				} else {
+					if scraperId, err := isDuplicateEpisode(item.ShowID, item.Season, item.Episode); err != nil {
+						if err := removeEpisode(strconv.Itoa(item.ID), strconv.Itoa(item.ShowID), scraperId, item.Season, item.Episode); err != nil {
+							libraryLog.Warning(err)
+						}
+					}
+				}
+				updateDB(DeleteTorrent, 0, []string{string(key)}, 0)
+				libraryLog.Infof("Removed %s from database", key)
 				return nil
 			})
 		case <- closing:
@@ -1326,40 +1250,103 @@ func FindMovieInLibrary(movie *tmdb.Movie) *xbmc.VideoLibraryMovieItem {
 }
 
 func FindEpisodeInLibrary(show *tmdb.Show, episode *tmdb.Episode) *xbmc.VideoLibraryEpisodeItem {
-	noExternalIDs := fmt.Sprintf("No external IDs found for S%02dE%02d (%d)", episode.SeasonNumber, episode.EpisodeNumber, show.Id)
-	if episode == nil || episode.ExternalIDs == nil {
-		libraryLog.Warning(noExternalIDs)
+	if episode == nil || show == nil {
 		return nil
 	}
 
-	episodeId := strconv.Itoa(episode.Id)
+	episodeId := GetEpisodeUniqueID(show, episode)
+	if len(episodeId) > 0 {
+		for _, episodes := range libraryEpisodes {
+			if episodes == nil || episodes.Episodes == nil {
+				continue
+			}
+
+			for _, existingEpisode := range episodes.Episodes {
+				if existingEpisode.UniqueIDs.ID == episodeId {
+					return existingEpisode
+				}
+			}
+		}
+	}
+
+	showId := GetShowUniqueID(show)
+	if len(showId) > 0 {
+		for _, episodes := range libraryEpisodes {
+			if episodes == nil || episodes.Episodes == nil {
+				continue
+			}
+
+			for _, existingEpisode := range episodes.Episodes {
+				if strconv.Itoa(existingEpisode.TVShowID) == showId &&
+				 	 	existingEpisode.Season == episode.SeasonNumber &&
+					 	existingEpisode.Episode == episode.EpisodeNumber {
+					return existingEpisode
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func GetShowUniqueID(show *tmdb.Show) (showId string) {
+	if show == nil || show.ExternalIDs == nil {
+		return
+	}
+
+	tmdbId := strconv.Itoa(show.Id)
+	switch config.Get().TvScraper {
+	case TMDBScraper:
+		showId = tmdbId
+	case TVDBScraper:
+		if show.ExternalIDs == nil || show.ExternalIDs.TVDBID == nil {
+			libraryLog.Warningf("No external IDs for TVDB show from TMDB ID %s", tmdbId)
+			return
+		}
+		showId = strconv.Itoa(util.StrInterfaceToInt(show.ExternalIDs.TVDBID))
+	case TraktScraper:
+		traktShow := trakt.GetShowByTMDB(tmdbId)
+		if traktShow == nil || traktShow.IDs == nil || traktShow.IDs.Trakt == 0 {
+			libraryLog.Warningf("No external IDs from Trakt show for TMDB ID %s", tmdbId)
+			return
+		}
+		showId = strconv.Itoa(traktShow.IDs.Trakt)
+	}
+
+	return
+}
+
+func GetEpisodeUniqueID(show *tmdb.Show, episode *tmdb.Episode) (episodeId string) {
+	noExternalIDs := fmt.Sprintf("No external IDs found for S%02dE%02d (%d)", episode.SeasonNumber, episode.EpisodeNumber, show.Id)
+	if episode == nil || episode.ExternalIDs == nil {
+		libraryLog.Warning(noExternalIDs)
+		return
+	}
+
+	episodeId = strconv.Itoa(episode.Id)
 	switch config.Get().TvScraper {
 	case TMDBScraper:
 		break
 	case TVDBScraper:
 		if episode.ExternalIDs == nil || episode.ExternalIDs.TVDBID == nil {
 			libraryLog.Warningf(noExternalIDs)
-			return nil
+			return
 		}
 		episodeId = strconv.Itoa(util.StrInterfaceToInt(episode.ExternalIDs.TVDBID))
 	case TraktScraper:
 		traktEpisode := trakt.GetEpisodeByTMDB(episodeId)
 		if traktEpisode == nil || traktEpisode.IDs == nil || traktEpisode.IDs.Trakt == 0 {
 			libraryLog.Warning(noExternalIDs + " from Trakt episode")
-			return nil
+			return
 		}
 		episodeId = strconv.Itoa(traktEpisode.IDs.Trakt)
 	}
 
-	for _, episodes := range libraryEpisodes {
-		for _, existingEpisode := range episodes.Episodes {
-			if existingEpisode.UniqueIDs.ID == episodeId {
-				return existingEpisode
-			}
-		}
+	if len(episodeId) == 0 {
+		libraryLog.Warning(noExternalIDs)
 	}
 
-	return nil
+	return
 }
 
 //
@@ -1443,6 +1430,10 @@ func Notification(btService *bittorrent.BTService) gin.HandlerFunc {
 				}
 				var episode *xbmc.VideoLibraryEpisodeItem
 				for _, episodes := range libraryEpisodes {
+					if episodes == nil || episodes.Episodes == nil {
+						continue
+					}
+
 					for _, existingEpisode := range episodes.Episodes {
 						if existingEpisode.ID == started.Item.ID {
 							episode = existingEpisode
@@ -1457,7 +1448,16 @@ func Notification(btService *bittorrent.BTService) gin.HandlerFunc {
 					libraryLog.Warningf("No episode found with ID: %d", started.Item.ID)
 					return
 				}
-				longName := fmt.Sprintf("%s S%02dE%02d", episode.Title, episode.Season, episode.Episode)
+				if libraryShows == nil {
+					return
+				}
+				showTitle := ""
+				for _, show := range libraryShows.Shows {
+					if show.ScraperID == strconv.Itoa(episode.TVShowID) {
+						showTitle = show.Title
+					}
+				}
+				longName := fmt.Sprintf("%s S%02dE%02d", showTitle, episode.Season, episode.Episode)
 				if libraryResume == 2 && ExistingTorrent(btService, longName) == "" {
 					return
 				}
@@ -1550,6 +1550,10 @@ func Notification(btService *bittorrent.BTService) gin.HandlerFunc {
 					break
 				}
 				for _, episodes := range libraryEpisodes {
+					if episodes == nil || episodes.Episodes == nil {
+						continue
+					}
+
 					for _, existingEpisode := range episodes.Episodes {
 						if existingEpisode.ID == item.ID {
 							episode = existingEpisode

@@ -166,7 +166,7 @@ func (tracker *Tracker) doScrape(infoHashes [][]byte) []ScrapeResponseEntry {
 	return entries
 }
 
-func (tracker *Tracker) Scrape(torrents []*Torrent) []ScrapeResponseEntry {
+func (tracker *Tracker) Scrape(torrents []*TorrentFile) []ScrapeResponseEntry {
 	entries := make([]ScrapeResponseEntry, 0, len(torrents))
 
 	infoHashes := make([][]byte, 0, len(torrents))

@@ -204,8 +204,8 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 	}
 }
 
-func (as *AddonSearcher) call(method string, searchObject interface{}) []*bittorrent.Torrent {
-	torrents := make([]*bittorrent.Torrent, 0)
+func (as *AddonSearcher) call(method string, searchObject interface{}) []*bittorrent.TorrentFile {
+	torrents := make([]*bittorrent.TorrentFile, 0)
 	cid, c := GetCallback()
 	cbUrl := fmt.Sprintf("%s/callbacks/%s", util.GetHTTPHost(), cid)
 
@@ -233,18 +233,18 @@ func (as *AddonSearcher) call(method string, searchObject interface{}) []*bittor
 	return torrents
 }
 
-func (as *AddonSearcher) SearchLinks(query string) []*bittorrent.Torrent {
+func (as *AddonSearcher) SearchLinks(query string) []*bittorrent.TorrentFile {
 	return as.call("search", query)
 }
 
-func (as *AddonSearcher) SearchMovieLinks(movie *tmdb.Movie) []*bittorrent.Torrent {
+func (as *AddonSearcher) SearchMovieLinks(movie *tmdb.Movie) []*bittorrent.TorrentFile {
 	return as.call("search_movie", as.GetMovieSearchObject(movie))
 }
 
-func (as *AddonSearcher) SearchSeasonLinks(show *tmdb.Show, season *tmdb.Season) []*bittorrent.Torrent {
+func (as *AddonSearcher) SearchSeasonLinks(show *tmdb.Show, season *tmdb.Season) []*bittorrent.TorrentFile {
 	return as.call("search_season", as.GetSeasonSearchObject(show, season))
 }
 
-func (as *AddonSearcher) SearchEpisodeLinks(show *tmdb.Show, episode *tmdb.Episode) []*bittorrent.Torrent {
+func (as *AddonSearcher) SearchEpisodeLinks(show *tmdb.Show, episode *tmdb.Episode) []*bittorrent.TorrentFile {
 	return as.call("search_episode", as.GetEpisodeSearchObject(show, episode))
 }

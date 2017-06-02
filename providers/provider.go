@@ -6,17 +6,17 @@ import (
 )
 
 type Searcher interface {
-	SearchLinks(query string) []*bittorrent.Torrent
+	SearchLinks(query string) []*bittorrent.TorrentFile
 }
 
 type MovieSearcher interface {
-	SearchMovieLinks(movie *tmdb.Movie) []*bittorrent.Torrent
+	SearchMovieLinks(movie *tmdb.Movie) []*bittorrent.TorrentFile
 }
 
 type SeasonSearcher interface {
-	SearchSeasonLinks(show *tmdb.Show, season *tmdb.Season) []*bittorrent.Torrent
+	SearchSeasonLinks(show *tmdb.Show, season *tmdb.Season) []*bittorrent.TorrentFile
 }
 
 type EpisodeSearcher interface {
-	SearchEpisodeLinks(show *tmdb.Show, episode *tmdb.Episode) []*bittorrent.Torrent
+	SearchEpisodeLinks(show *tmdb.Show, episode *tmdb.Episode) []*bittorrent.TorrentFile
 }

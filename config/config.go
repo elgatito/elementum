@@ -24,10 +24,10 @@ type Configuration struct {
 	Platform            *xbmc.Platform
 	Language            string
 	ProfilePath         string
-	SpoofUserAgent      int
-	BackgroundHandling  bool
-	KeepFilesAfterStop  bool
-	KeepFilesAsk        bool
+	// SpoofUserAgent      int
+	KeepDownloading     int
+	KeepFilesPlaying    int
+	KeepFilesFinished   int
 	DisableBgProgress   bool
 	ResultsPerPage      int
 	EnableOverlayStatus bool
@@ -36,23 +36,25 @@ type Configuration struct {
 	AddSpecials         bool
 	ShowUnairedSeasons  bool
 	ShowUnairedEpisodes bool
+	DownloadStorage     int
+	MemorySize          int
 	BufferSize          int
 	UploadRateLimit     int
 	DownloadRateLimit   int
 	LimitAfterBuffering bool
 	ConnectionsLimit    int
-	SessionSave         int
-	ShareRatioLimit     int
-	SeedTimeRatioLimit  int
+	// SessionSave         int
+	// ShareRatioLimit     int
+	// SeedTimeRatioLimit  int
 	SeedTimeLimit       int
 	DisableDHT          bool
-	DisableUPNP         bool
+	// DisableUPNP         bool
 	EncryptionPolicy    int
 	BTListenPortMin     int
 	BTListenPortMax     int
 	ListenInterfaces    string
 	OutgoingInterfaces  string
-	TunedStorage        bool
+	// TunedStorage        bool
 	Scrobble            bool
 	TraktUsername       string
 	TraktToken          string
@@ -79,12 +81,12 @@ type Configuration struct {
 	CustomProviderTimeoutEnabled bool
 	CustomProviderTimeout        int
 
-	ProxyType     int
-	SocksEnabled  bool
-	SocksHost     string
-	SocksPort     int
-	SocksLogin    string
-	SocksPassword string
+	// ProxyType     int
+	// SocksEnabled  bool
+	// SocksHost     string
+	// SocksPort     int
+	// SocksLogin    string
+	// SocksPassword string
 
 	CompletedMove       bool
 	CompletedMoviesPath string
@@ -139,7 +141,7 @@ func Reload() *Configuration {
 		xbmc.AddonSettings("plugin.video.quasar")
 		go waitSettingsSet()
 	} else if err := IsWritablePath(downloadPath); err != nil {
-		log.Error(err)
+		log.Errorf("Cannot write to location '%s': %#v", downloadPath, err)
 		xbmc.Dialog("Quasar", err.Error())
 		xbmc.AddonSettings("plugin.video.quasar")
 	} else {
@@ -191,6 +193,15 @@ func Reload() *Configuration {
 		}
 	}
 
+	defer func() {
+		if r := recover(); r != nil {
+			log.Warningf("Addon settings not properly set, opening settings window: %#v", r)
+			xbmc.Dialog("Quasar", "LOCALIZE[30314]")
+			xbmc.AddonSettings("plugin.video.quasar")
+			os.Exit(0)
+	 	}
+	}()
+
 	newConfig := Configuration{
 		DownloadPath:        downloadPath,
 		LibraryPath:         libraryPath,
@@ -199,14 +210,16 @@ func Reload() *Configuration {
 		Platform:            platform,
 		Language:            xbmc.GetLanguageISO_639_1(),
 		ProfilePath:         info.Profile,
+		DownloadStorage:     settings["download_storage"].(int),
+		MemorySize:          settings["memory_size"].(int) * 1024 * 1024,
 		BufferSize:          settings["buffer_size"].(int) * 1024 * 1024,
 		UploadRateLimit:     settings["max_upload_rate"].(int) * 1024,
 		DownloadRateLimit:   settings["max_download_rate"].(int) * 1024,
-		SpoofUserAgent:      settings["spoof_user_agent"].(int),
+		// SpoofUserAgent:      settings["spoof_user_agent"].(int),
 		LimitAfterBuffering: settings["limit_after_buffering"].(bool),
-		BackgroundHandling:  settings["background_handling"].(bool),
-		KeepFilesAfterStop:  settings["keep_files"].(bool),
-		KeepFilesAsk:        settings["keep_files_ask"].(bool),
+		KeepDownloading:     settings["keep_downloading"].(int),
+		KeepFilesPlaying:    settings["keep_files_playing"].(int),
+		KeepFilesFinished:   settings["keep_files_finished"].(int),
 		DisableBgProgress:   settings["disable_bg_progress"].(bool),
 		ResultsPerPage:      settings["results_per_page"].(int),
 		EnableOverlayStatus: settings["enable_overlay_status"].(bool),
@@ -215,19 +228,19 @@ func Reload() *Configuration {
 		AddSpecials:         settings["add_specials"].(bool),
 		ShowUnairedSeasons:  settings["unaired_seasons"].(bool),
 		ShowUnairedEpisodes: settings["unaired_episodes"].(bool),
-		ShareRatioLimit:     settings["share_ratio_limit"].(int),
-		SeedTimeRatioLimit:  settings["seed_time_ratio_limit"].(int),
-		SeedTimeLimit:       settings["seed_time_limit"].(int) * 3600,
+		// ShareRatioLimit:     settings["share_ratio_limit"].(int),
+		// SeedTimeRatioLimit:  settings["seed_time_ratio_limit"].(int),
+		SeedTimeLimit:       settings["seed_time_limit"].(int),
 		DisableDHT:          settings["disable_dht"].(bool),
-		DisableUPNP:         settings["disable_upnp"].(bool),
+		// DisableUPNP:         settings["disable_upnp"].(bool),
 		EncryptionPolicy:    settings["encryption_policy"].(int),
 		BTListenPortMin:     settings["listen_port_min"].(int),
 		BTListenPortMax:     settings["listen_port_max"].(int),
 		ListenInterfaces:    settings["listen_interfaces"].(string),
 		OutgoingInterfaces:  settings["outgoing_interfaces"].(string),
-		TunedStorage:        settings["tuned_storage"].(bool),
+		// TunedStorage:        settings["tuned_storage"].(bool),
 		ConnectionsLimit:    settings["connections_limit"].(int),
-		SessionSave:         settings["session_save"].(int),
+		// SessionSave:         settings["session_save"].(int),
 		Scrobble:            settings["trakt_scrobble"].(bool),
 		TraktUsername:       settings["trakt_username"].(string),
 		TraktToken:          settings["trakt_token"].(string),
@@ -254,12 +267,12 @@ func Reload() *Configuration {
 		CustomProviderTimeoutEnabled: settings["custom_provider_timeout_enabled"].(bool),
 		CustomProviderTimeout:        settings["custom_provider_timeout"].(int),
 
-		ProxyType:     settings["proxy_type"].(int),
-		SocksEnabled:  settings["socks_enabled"].(bool),
-		SocksHost:     settings["socks_host"].(string),
-		SocksPort:     settings["socks_port"].(int),
-		SocksLogin:    settings["socks_login"].(string),
-		SocksPassword: settings["socks_password"].(string),
+		// ProxyType:     settings["proxy_type"].(int),
+		// SocksEnabled:  settings["socks_enabled"].(bool),
+		// SocksHost:     settings["socks_host"].(string),
+		// SocksPort:     settings["socks_port"].(int),
+		// SocksLogin:    settings["socks_login"].(string),
+		// SocksPassword: settings["socks_password"].(string),
 
 		CompletedMove:       settings["completed_move"].(bool),
 		CompletedMoviesPath: settings["completed_movies_path"].(string),
@@ -282,17 +295,17 @@ func AddonResource(args ...string) string {
 }
 
 func IsWritablePath(path string) error {
-	if path == "." {
-		return errors.New("Path not set")
-	}
-	if strings.HasPrefix(path, "nfs") || strings.HasPrefix(path, "smb") {
-		return errors.New(fmt.Sprintf("Network paths are not supported, change %s to a locally mounted path by the OS", path))
-	}
+	// if path == "." {
+	// 	return errors.New("Path not set")
+	// }
+	// if strings.HasPrefix(path, "nfs") || strings.HasPrefix(path, "smb") {
+	// 	return errors.New(fmt.Sprintf("Network paths are not supported, change %s to a locally mounted path by the OS", path))
+	// }
 	if p, err := os.Stat(path); err != nil || !p.IsDir() {
 		if err != nil {
 			return err
 		}
-	    return errors.New(fmt.Sprintf("%s is not a valid directory", path))
+	  return errors.New(fmt.Sprintf("%s is not a valid directory", path))
 	}
 	writableFile := filepath.Join(path, ".writable")
 	if writable, err := os.Create(writableFile); err != nil {

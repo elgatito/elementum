@@ -309,7 +309,7 @@ func SearchMovies(ctx *gin.Context) {
 	renderMovies(ctx, movies, page, total, query)
 }
 
-func movieLinks(tmdbId string) []*bittorrent.Torrent {
+func movieLinks(tmdbId string) []*bittorrent.TorrentFile {
 	log.Println("Searching links for:", tmdbId)
 
 	movie := tmdb.GetMovieById(tmdbId, config.Get().Language)
