@@ -21,6 +21,8 @@ import (
 	"github.com/anacrolix/torrent/storage"
 	"github.com/anacrolix/torrent/iplist"
 
+	fat32storage "github.com/iamacarpet/go-torrent-storage-fat32"
+
 	// "github.com/scakemyer/quasar/broadcast"
 	"github.com/scakemyer/quasar/database"
 	"github.com/scakemyer/quasar/diskusage"
@@ -328,8 +330,16 @@ func (s *BTService) configure() {
 
 		DownloadRateLimiter:   s.DownloadLimiter,
 		UploadRateLimiter:     s.UploadLimiter,
+	}
 
-		DefaultStorage:        storage.NewFileWithCompletion(config.Get().DownloadPath, s.PieceCompletion),
+	if config.Get().DownloadStorage == 2 {
+		// FAT32 File Storage Driver
+		s.ClientConfig.DefaultStorage = fat32storage.NewFat32Storage(config.Get().DownloadPath)
+	/*} else if config.Get().DownloadStorage == 1 {
+		// In-Memory Storage Driver
+	*/} else {
+		// Default to the file based driver.
+		s.ClientConfig.DefaultStorage = storage.NewFileWithCompletion(config.Get().DownloadPath, s.PieceCompletion)
 	}
 
 	if !s.config.LimitAfterBuffering {
