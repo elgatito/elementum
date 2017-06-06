@@ -260,7 +260,7 @@ func (t *Torrent) Watch() {
 
 				t.IsSeeding = true
 				t.needSeeding = false
-				t.seedTicker = time.NewTicker(time.Duration(t.Service.GetSeedTime()) * time.Hour)
+				t.seedTicker = time.NewTicker(time.Duration(t.Service.GetSeedTime()) * time.Second)
 
 				t.muSeeding.Unlock()
 			}
