@@ -3,26 +3,21 @@ package api
 import (
 	"os"
 	"fmt"
-	// "time"
 	"errors"
 	"strings"
 	"strconv"
 	"unicode"
-	// "io/ioutil"
-	// "encoding/hex"
 	"path/filepath"
 
 	"github.com/op/go-logging"
 	"github.com/gin-gonic/gin"
-	// gotorrent "github.com/anacrolix/torrent"
 	"github.com/dustin/go-humanize"
 	"github.com/cloudflare/ahocorasick"
-	// "github.com/scakemyer/libtorrent-go"
+
 	"github.com/scakemyer/quasar/bittorrent"
 	"github.com/scakemyer/quasar/config"
 	"github.com/scakemyer/quasar/util"
 	"github.com/scakemyer/quasar/xbmc"
-	// "github.com/zeebo/bencode"
 )
 
 var torrentsLog = logging.MustGetLogger("torrents")
@@ -328,21 +323,18 @@ func ResumeTorrent(btService *bittorrent.BTService) gin.HandlerFunc {
 
 func MoveTorrent(btService *bittorrent.BTService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		// TODO Add Move torrents
-		// btService.Session.GetHandle().GetTorrents()
-		// torrentsVector := btService.Session.GetHandle().GetTorrents()
-		// torrentId := ctx.Params.ByName("torrentId")
-		// torrentIndex, _ := strconv.Atoi(torrentId)
-		// torrentHandle := torrentsVector.Get(torrentIndex)
-		// if torrentHandle.IsValid() == false {
-		// 	ctx.Error(errors.New("Invalid torrent handle"))
-		// }
-		//
-		// torrentsLog.Infof("Marking %s to be moved...", torrentHandle.Status(uint(libtorrent.TorrentHandleQueryName)).GetName())
-		// btService.MarkedToMove = torrentIndex
-		//
-		// xbmc.Refresh()
-		// ctx.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		torrentId := ctx.Params.ByName("torrentId")
+		torrentIndex, _ := strconv.Atoi(torrentId)
+
+		if len(btService.Torrents) >= torrentIndex {
+			ctx.Error(errors.New(fmt.Sprintf("Unable to pause torrent with index %d", torrentIndex)))
+		}
+
+		torrentsLog.Infof("Marking %s to be moved...", btService.Torrents[torrentIndex].Name())
+		btService.MarkedToMove = torrentIndex
+
+		xbmc.Refresh()
+		ctx.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		ctx.String(200, "")
 	}
 }

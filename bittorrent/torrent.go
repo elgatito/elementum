@@ -58,7 +58,10 @@ var StatusStrings = []string{
 
 type Torrent struct {
 	*gotorrent.Torrent
-	*Reader
+
+	bufferReader             *Reader
+	postReader               *Reader
+
 	ChosenFiles 						 []*gotorrent.File
 	TorrentPath              string
 
@@ -151,7 +154,6 @@ func (t *Torrent) Watch() {
 			}
 			i := _i.(gotorrent.PieceStateChange).Index
 
-			// log.Debugf("Piece tick: %#v", t.PieceState(i))
 			t.muBuffer.RLock()
 			if _, ok := t.BufferPiecesProgress[i]; !ok {
 				t.muBuffer.RUnlock()
@@ -179,6 +181,7 @@ func (t *Torrent) Watch() {
 
 		case <- bufferTicker.C:
 			t.muBuffer.Lock()
+
 			log.Noticef(strings.Repeat("=", 20))
 			for i :=  range t.BufferPiecesProgress {
 				if t.PieceState(i).Complete {
@@ -192,12 +195,6 @@ func (t *Torrent) Watch() {
 			if t.IsBuffering {
 				for i := range t.BufferPiecesProgress {
 					t.BufferPiecesProgress[i] = float64(t.PieceBytesMissing(i))
-					// state := t.PieceState(i)
-					// if state.Partial {
-					// 	t.BufferPiecesProgress[i] = 0.5
-					// } else if state.Complete {
-					// 	t.BufferPiecesProgress[i] = 1
-					// }
 				}
 
 				progressCount := 0.0
@@ -208,8 +205,6 @@ func (t *Torrent) Watch() {
 				total := float64(len(t.BufferPiecesProgress)) * pieceLength
 				t.BufferProgress = (total - progressCount) / total * 100
 
-				// t.BufferProgress = progressCount / float64(len(t.BufferPiecesProgress)) * pieceLength * 100
-				// t.BufferProgress = progressCount / float64(len(t.BufferPiecesProgress)) * 100
 				if t.BufferProgress >= 100 {
 					bufferFinished <- struct{}{}
 				}
@@ -228,14 +223,25 @@ func (t *Torrent) Watch() {
 			bufferTicker.Stop()
 			t.Service.RestoreLimits()
 
-			if t.Reader != nil {
-				t.Reader.Close()
-				t.Reader = nil
+			if t.bufferReader != nil {
+				t.bufferReader.Close()
+				t.bufferReader = nil
+			}
+			if t.postReader != nil {
+				t.postReader.Close()
+				t.postReader = nil
 			}
 
 		case <- progressTicker.C:
-			// t.DownloadRate = t.Torrent.BytesCompleted() - downloaded
-			// t.UploadRate   = t.Torrent.Stats().DataBytesWritten - uploaded
+			// log.Noticef(strings.Repeat("=", 20))
+			// for i := 0; i < 10; i++ {
+			// 	log.Debugf("Progress Piece: %d, %#v", i, t.PieceState(i))
+			// }
+			// log.Noticef(strings.Repeat("=", 10))
+			// for i := t.Torrent.NumPieces() - 5; i < t.Torrent.NumPieces(); i++ {
+			// 	log.Debugf("Progress Piece: %d, %#v", i, t.PieceState(i))
+			// }
+			// log.Noticef(strings.Repeat("=", 20))
 
 			downRates[rateCounter] = t.Torrent.BytesCompleted() - downloaded
 			upRates[rateCounter]   = t.Torrent.Stats().DataBytesWritten - uploaded
@@ -243,15 +249,13 @@ func (t *Torrent) Watch() {
 			downloaded = t.Torrent.BytesCompleted()
 			uploaded   = t.Torrent.Stats().DataBytesWritten
 
+			t.DownloadRate = int64(average(downRates))
+			t.UploadRate   = int64(average(upRates))
+
 			rateCounter++
 			if rateCounter == len(downRates) - 1 {
 				rateCounter = 0
 			}
-
-			t.DownloadRate = int64(average(downRates))
-			t.UploadRate   = int64(average(upRates))
-			// t.DownloadRate = int64((downRates[0] + downRates[1] + downRates[2]) / 3)
-			// t.UploadRate   = int64((upRates[0]   + upRates[1]   + upRates[2])   / 3)
 
 			log.Debugf("ProgressTicker: %s; %#v/%#v; %#v = %#v ", t.Name(), t.DownloadRate, t.UploadRate, t.GetStateString(), t.GetProgress())
 			if t.needSeeding && t.Service.GetSeedTime() > 0 && t.GetProgress() >= 100 {
@@ -304,6 +308,10 @@ func (t *Torrent) Watch() {
 	}
 }
 
+// Define buffer pieces for downloading prior to sending file to Kodi.
+// Kodi sends two requests, one for onecoming file read handler,
+// another for a piece of file from the end (probably to get codec descriptors and so on)
+// We set it as post-buffer and include in required buffer pieces array.
 func (t *Torrent) Buffer(file *gotorrent.File) {
 	if file == nil {
 		return
@@ -312,9 +320,14 @@ func (t *Torrent) Buffer(file *gotorrent.File) {
 	pieceLength  := file.Torrent().Info().PieceLength
 	bufferPieces := int64(math.Ceil(float64(t.Service.GetBufferSize()) / float64(pieceLength)))
 
-	startPiece, _, _ := t.getFilePiecesAndOffset(file)
+	startPiece, endPiece, _ := t.getFilePiecesAndOffset(file)
+
 	endBufferPiece  := startPiece + bufferPieces - 1
 	endBufferLength := bufferPieces * int64(pieceLength)
+
+	postBufferPiece := endPiece - 2
+	postBufferOffset := postBufferPiece * int64(pieceLength)
+	postBufferLength := (endPiece - postBufferPiece + 1) * int64(pieceLength)
 
 	t.muBuffer.Lock()
 	t.IsBuffering = true
@@ -323,19 +336,23 @@ func (t *Torrent) Buffer(file *gotorrent.File) {
 	for i := startPiece; i <= endBufferPiece; i++ {
 		t.BufferPiecesProgress[int(i)]	= 0
 	}
+	for i := postBufferPiece; i <= endPiece; i++ {
+		t.BufferPiecesProgress[int(i)]	= 0
+	}
+
 	t.muBuffer.Unlock()
 
 	log.Debugf("Setting buffer for file: %s. Pieces: %#v-%#v, Length: %#v / %#v, Offset: %#v ", file.DisplayPath(), startPiece, endBufferPiece, pieceLength, endBufferLength, file.Offset())
 
-	t.Service.SetBufferLimits()
+	t.Service.SetBufferingLimits()
 
-	t.Reader = t.NewReader(file)
-	t.Reader.SetReadahead(endBufferLength)
-	t.Reader.Seek(file.Offset(), os.SEEK_SET)
+	t.bufferReader = t.NewReader(file)
+	t.bufferReader.SetReadahead(endBufferLength)
+	t.bufferReader.Seek(file.Offset(), os.SEEK_SET)
 
-	if endFileBuffer := file.Length() - 3 * 1024 * 1024; endFileBuffer > 0 {
-		file.PrioritizeRegion(endFileBuffer, 3*1024*1024)
-	}
+	t.postReader = t.NewReader(file)
+	t.postReader.SetReadahead(postBufferLength)
+	t.postReader.Seek(file.Offset() + postBufferOffset, os.SEEK_SET)
 }
 
 func (t *Torrent) pieceFromOffset(offset int64) (int64, int64) {
@@ -498,7 +515,7 @@ func (t *Torrent) Resume() {
 }
 
 func (t *Torrent) GetDBID() {
-	if t.DBID == 0 && t.needDBID {
+	if t.DBID == 0 && t.needDBID == true {
 		log.Debugf("Getting DBID for torrent: %s", t.Name())
 		t.dbidTicker = time.NewTicker(10 * time.Second)
 	}

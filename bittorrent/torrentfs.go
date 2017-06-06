@@ -3,6 +3,7 @@ package bittorrent
 import (
 	"os"
 	"time"
+	"errors"
 	"net/http"
 	"path/filepath"
 
@@ -18,8 +19,7 @@ var tfsLog = logging.MustGetLogger("torrentfs")
 
 func TorrentFSHandler(btService *BTService, downloadPath string)  http.Handler {
 	return http.StripPrefix("/files", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		entry, err := NewTorrentFS(btService, downloadPath).
-								 Open(r.URL.Path)
+		entry, err := NewTorrentFS(btService, downloadPath, r.URL.Path)
 
 		if err == nil && entry != nil {
 			defer entry.Close()
@@ -31,29 +31,25 @@ func TorrentFSHandler(btService *BTService, downloadPath string)  http.Handler {
 	}))
 }
 
-func NewTorrentFS(service *BTService, path string) *TorrentFS {
-	return &TorrentFS{
+func NewTorrentFS(service *BTService, path string, url string) (*FileEntry, error) {
+	tfs := &TorrentFS{
 		service: service,
 		Dir:     http.Dir(path),
 	}
-}
 
-func (tfs *TorrentFS) Open(name string) (*FileEntry, error) {
-	file, err := os.Open(filepath.Join(string(tfs.Dir), name))
-	if err != nil {
-		return nil, err
-	}
-	// make sure we don't open a file that's locked, as it can happen
-	// on BSD systems (darwin included)
-	if unlockerr := unlockFile(file); unlockerr != nil {
-		tfsLog.Errorf("Unable to unlock file because: %s", unlockerr)
+	if file, err := os.Open(filepath.Join(string(tfs.Dir), url)); err == nil {
+		// make sure we don't open a file that's locked, as it can happen
+		// on BSD systems (darwin included)
+		if unlockerr := unlockFile(file); unlockerr != nil {
+			tfsLog.Errorf("Unable to unlock file because: %s", unlockerr)
+		}
 	}
 
-	tfsLog.Infof("Opening %s", name)
+	tfsLog.Infof("Opening %s", url)
 	for _, torrent := range tfs.service.Torrents {
 		for _, f := range torrent.Files() {
-			if name[1:] == f.Path() {
-				tfsLog.Noticef("%s belongs to torrent %s", name, torrent.Name())
+			if url[1:] == f.Path() {
+				tfsLog.Noticef("%s belongs to torrent %s", url, torrent.Name())
 				if entry, createerr := NewFileReader(torrent, &f, !torrent.IsRarArchive); createerr == nil {
 					torrent.GetDBID()
 					return entry, nil
@@ -62,5 +58,5 @@ func (tfs *TorrentFS) Open(name string) (*FileEntry, error) {
 		}
 	}
 
-	return nil, err
+	return nil, errors.New("Could not find torrent handle for requested file path")
 }
