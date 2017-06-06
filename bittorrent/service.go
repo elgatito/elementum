@@ -2,10 +2,8 @@ package bittorrent
 
 import (
 	"os"
-	// "io"
 	"fmt"
 	"time"
-	// "bytes"
 	"errors"
 	"regexp"
 	"strings"
@@ -14,14 +12,13 @@ import (
 	"math/rand"
 	"path/filepath"
 
+	"golang.org/x/time/rate"
 	"github.com/op/go-logging"
 	"github.com/dustin/go-humanize"
-	"golang.org/x/time/rate"
-	gotorrent "github.com/anacrolix/torrent"
-	"github.com/anacrolix/torrent/storage"
 	"github.com/anacrolix/torrent/iplist"
+	"github.com/anacrolix/torrent/storage"
+	gotorrent "github.com/anacrolix/torrent"
 
-	// "github.com/scakemyer/quasar/broadcast"
 	"github.com/scakemyer/quasar/database"
 	"github.com/scakemyer/quasar/diskusage"
 	"github.com/scakemyer/quasar/config"
@@ -74,6 +71,7 @@ const (
 	_ = iota
 	StorageFile
 	StorageMemory
+	StorageFat32
 )
 
 // const (
@@ -95,7 +93,7 @@ const (
 // }
 
 type BTConfiguration struct {
-	// SpoofUserAgent      int
+	SpoofUserAgent      int
 	DownloadStorage     int
 	MemorySize          int64
 	BufferSize          int64
@@ -103,24 +101,25 @@ type BTConfiguration struct {
 	MaxDownloadRate     int
 	LimitAfterBuffering bool
 	ConnectionsLimit    int
-	// SessionSave         int
-	// ShareRatioLimit     int
-	// SeedTimeRatioLimit  int
 	SeedTimeLimit       int
 	DisableDHT          bool
-	// DisableUPNP         bool
 	EncryptionPolicy    int
 	LowerListenPort     int
 	UpperListenPort     int
 	ListenInterfaces    string
 	OutgoingInterfaces  string
-	// TunedStorage        bool
 	DownloadPath        string
 	TorrentsPath        string
 	DisableBgProgress   bool
 	CompletedMove       bool
 	CompletedMoviesPath string
 	CompletedShowsPath  string
+
+	// SessionSave         int
+	// ShareRatioLimit     int
+	// SeedTimeRatioLimit  int
+	// DisableUPNP         bool
+	// TunedStorage        bool
 	// Proxy               *ProxySettings
 }
 
@@ -131,17 +130,13 @@ type BTService struct {
 	DownloadLimiter   *rate.Limiter
 	UploadLimiter     *rate.Limiter
 	Torrents 					[]*Torrent
+	UserAgent         string
 
 	config            *BTConfiguration
 	log               *logging.Logger
-	gotorrentLog      *logging.Logger
-	// alertsBroadcaster *broadcast.Broadcaster
 	dialogProgressBG  *xbmc.DialogProgressBG
-	// packSettings      libtorrent.SettingsPack
 	SpaceChecked      map[string]bool
 	MarkedToMove      int
-	UserAgent         string
-	closing           chan interface{}
 }
 
 type DBItem struct {
@@ -166,11 +161,6 @@ type PlayingItem struct {
 	Duration    float64
 }
 
-type ResumeFile struct {
-	InfoHash string     `bencode:"info-hash"`
-	Trackers [][]string `bencode:"trackers"`
-}
-
 type activeTorrent struct {
 	torrentName  string
 	downloadRate float64
@@ -185,13 +175,12 @@ func InitDB() {
 func NewBTService(conf BTConfiguration) *BTService {
 	s := &BTService{
 		log:               logging.MustGetLogger("btservice"),
-		gotorrentLog:      logging.MustGetLogger("gotorrent"),
+		config:            &conf,
+
 		SpaceChecked:      make(map[string]bool, 0),
 		MarkedToMove:      -1,
-		config:            &conf,
-		closing:           make(chan interface{}),
-		Torrents:  				 []*Torrent{},
 
+		Torrents:  				 []*Torrent{},
 		DownloadLimiter:   rate.NewLimiter(rate.Inf, 1<<20),
 		UploadLimiter:     rate.NewLimiter(rate.Inf, 256<<10),
 	}
@@ -209,11 +198,10 @@ func NewBTService(conf BTConfiguration) *BTService {
 	}
 
 	s.configure()
-	s.startServices()
 
 	tmdb.CheckApiKey()
 
-	// go s.loadTorrentFiles()
+	go s.loadTorrentFiles()
 	go s.downloadProgress()
 
 	return s
@@ -222,7 +210,6 @@ func NewBTService(conf BTConfiguration) *BTService {
 func (s *BTService) Close() {
 	s.log.Info("Stopping BT Services...")
 	s.stopServices()
-	close(s.closing)
 	s.Client.Close()
 }
 
@@ -230,15 +217,10 @@ func (s *BTService) Reconfigure(config BTConfiguration) {
 	s.stopServices()
 	s.config = &config
 	s.configure()
-	s.startServices()
-	// s.loadTorrentFiles()
+	s.loadTorrentFiles()
 }
 
 func (s *BTService) configure() {
-	// settings := libtorrent.NewSettingsPack()
-	// s.Session = libtorrent.NewSession(settings, int(libtorrent.SessionHandleAddDefaultPlugins))
-
-	// s.log.Info("Applying session settings...")
 	s.log.Info("Configuring client...")
 
 	var listenPorts []string
@@ -260,53 +242,61 @@ func (s *BTService) configure() {
 		}
 	}
 
-	// userAgent := util.UserAgent()
-	// if s.config.SpoofUserAgent > 0 {
-	// 	switch s.config.SpoofUserAgent {
-	// 	case 1:
-	// 		userAgent = ""
-	// 		break
-	// 	case 2:
-	// 		userAgent = "libtorrent (Rasterbar) 1.1.0"
-	// 		break
-	// 	case 3:
-	// 		userAgent = "BitTorrent 7.5.0"
-	// 		break
-	// 	case 4:
-	// 		userAgent = "BitTorrent 7.4.3"
-	// 		break
-	// 	case 5:
-	// 		userAgent = "µTorrent 3.4.9"
-	// 		break
-	// 	case 6:
-	// 		userAgent = "µTorrent 3.2.0"
-	// 		break
-	// 	case 7:
-	// 		userAgent = "µTorrent 2.2.1"
-	// 		break
-	// 	case 8:
-	// 		userAgent = "Transmission 2.92"
-	// 		break
-	// 	case 9:
-	// 		userAgent = "Deluge 1.3.6.0"
-	// 		break
-	// 	case 10:
-	// 		userAgent = "Deluge 1.3.12.0"
-	// 		break
-	// 	case 11:
-	// 		userAgent = "Vuze 5.7.3.0"
-	// 		break
-	// 	}
-	// 	if userAgent != "" {
-	// 		s.log.Infof("UserAgent: %s", userAgent)
-	// 	}
-	// } else {
-	// 	s.log.Infof("UserAgent: %s", util.UserAgent())
-	// }
-
 	blocklist, err := iplist.MMapPacked("packed-blocklist")
 	if err != nil {
 		s.log.Debug(err)
+	}
+
+	userAgent := util.UserAgent()
+	if s.config.SpoofUserAgent > 0 {
+		switch s.config.SpoofUserAgent {
+		case 1:
+			userAgent = ""
+			break
+		case 2:
+			userAgent = "libtorrent (Rasterbar) 1.1.0"
+			break
+		case 3:
+			userAgent = "BitTorrent 7.5.0"
+			break
+		case 4:
+			userAgent = "BitTorrent 7.4.3"
+			break
+		case 5:
+			userAgent = "µTorrent 3.4.9"
+			break
+		case 6:
+			userAgent = "µTorrent 3.2.0"
+			break
+		case 7:
+			userAgent = "µTorrent 2.2.1"
+			break
+		case 8:
+			userAgent = "Transmission 2.92"
+			break
+		case 9:
+			userAgent = "Deluge 1.3.6.0"
+			break
+		case 10:
+			userAgent = "Deluge 1.3.12.0"
+			break
+		case 11:
+			userAgent = "Vuze 5.7.3.0"
+			break
+		}
+		if userAgent != "" {
+			s.log.Infof("UserAgent: %s", userAgent)
+		}
+	} else {
+		s.log.Infof("UserAgent: %s", util.UserAgent())
+	}
+
+	if userAgent != "" {
+		s.UserAgent = userAgent
+	}
+
+	if s.config.ConnectionsLimit == 0 {
+		setPlatformSpecificSettings(s.config)
 	}
 
 	s.ClientConfig = &gotorrent.Config{
@@ -318,8 +308,6 @@ func (s *BTService) configure() {
 
 		Seed: 					       s.config.SeedTimeLimit > 0,
 		NoUpload:              s.config.SeedTimeLimit == 0,
-
-		//PeerID:          userAgent,
 
 		DisableEncryption:     s.config.EncryptionPolicy == 0,
 		ForceEncryption:       s.config.EncryptionPolicy  == 2,
@@ -337,239 +325,6 @@ func (s *BTService) configure() {
 	}
 
 	s.Client, err = gotorrent.NewClient(s.ClientConfig)
-
-
-
-	// userAgent := util.UserAgent()
-	// if s.config.SpoofUserAgent > 0 {
-	// 	switch s.config.SpoofUserAgent {
-	// 	case 1:
-	// 		userAgent = ""
-	// 		break
-	// 	case 2:
-	// 		userAgent = "libtorrent (Rasterbar) 1.1.0"
-	// 		break
-	// 	case 3:
-	// 		userAgent = "BitTorrent 7.5.0"
-	// 		break
-	// 	case 4:
-	// 		userAgent = "BitTorrent 7.4.3"
-	// 		break
-	// 	case 5:
-	// 		userAgent = "µTorrent 3.4.9"
-	// 		break
-	// 	case 6:
-	// 		userAgent = "µTorrent 3.2.0"
-	// 		break
-	// 	case 7:
-	// 		userAgent = "µTorrent 2.2.1"
-	// 		break
-	// 	case 8:
-	// 		userAgent = "Transmission 2.92"
-	// 		break
-	// 	case 9:
-	// 		userAgent = "Deluge 1.3.6.0"
-	// 		break
-	// 	case 10:
-	// 		userAgent = "Deluge 1.3.12.0"
-	// 		break
-	// 	case 11:
-	// 		userAgent = "Vuze 5.7.3.0"
-	// 		break
-	// 	}
-	// 	if userAgent != "" {
-	// 		s.log.Infof("UserAgent: %s", userAgent)
-	// 	} else {
-	// 		s.log.Infof("UserAgent: libtorrent/%s", libtorrent.Version())
-	// 	}
-	// } else {
-	// 	s.log.Infof("UserAgent: %s", util.UserAgent())
-	// }
-	//
-	// if userAgent != "" {
-	// 	s.UserAgent = userAgent
-	// 	settings.SetStr(libtorrent.SettingByName("user_agent"), userAgent)
-	// }
-	// settings.SetInt(libtorrent.SettingByName("request_timeout"), 2)
-	// settings.SetInt(libtorrent.SettingByName("peer_connect_timeout"), 2)
-	// settings.SetBool(libtorrent.SettingByName("strict_end_game_mode"), true)
-	// settings.SetBool(libtorrent.SettingByName("announce_to_all_trackers"), true)
-	// settings.SetBool(libtorrent.SettingByName("announce_to_all_tiers"), true)
-	// settings.SetInt(libtorrent.SettingByName("connection_speed"), 500)
-	// settings.SetInt(libtorrent.SettingByName("download_rate_limit"), 0)
-	// settings.SetInt(libtorrent.SettingByName("upload_rate_limit"), 0)
-	// settings.SetInt(libtorrent.SettingByName("choking_algorithm"), 0)
-	// settings.SetInt(libtorrent.SettingByName("share_ratio_limit"), 0)
-	// settings.SetInt(libtorrent.SettingByName("seed_time_ratio_limit"), 0)
-	// settings.SetInt(libtorrent.SettingByName("seed_time_limit"), 0)
-	// settings.SetInt(libtorrent.SettingByName("peer_tos"), ipToSLowCost)
-	// settings.SetInt(libtorrent.SettingByName("torrent_connect_boost"), 0)
-	// settings.SetBool(libtorrent.SettingByName("rate_limit_ip_overhead"), true)
-	// settings.SetBool(libtorrent.SettingByName("no_atime_storage"), true)
-	// settings.SetBool(libtorrent.SettingByName("announce_double_nat"), true)
-	// settings.SetBool(libtorrent.SettingByName("prioritize_partial_pieces"), false)
-	// settings.SetBool(libtorrent.SettingByName("free_torrent_hashes"), true)
-	// settings.SetBool(libtorrent.SettingByName("use_parole_mode"), true)
-	// settings.SetInt(libtorrent.SettingByName("seed_choking_algorithm"), int(libtorrent.SettingsPackFastestUpload))
-	// settings.SetBool(libtorrent.SettingByName("upnp_ignore_nonrouters"), true)
-	// settings.SetBool(libtorrent.SettingByName("lazy_bitfields"), true)
-	// settings.SetInt(libtorrent.SettingByName("stop_tracker_timeout"), 1)
-	// settings.SetInt(libtorrent.SettingByName("auto_scrape_interval"), 1200)
-	// settings.SetInt(libtorrent.SettingByName("auto_scrape_min_interval"), 900)
-	// settings.SetBool(libtorrent.SettingByName("ignore_limits_on_local_network"), true)
-	// settings.SetBool(libtorrent.SettingByName("rate_limit_utp"), true)
-	// settings.SetInt(libtorrent.SettingByName("mixed_mode_algorithm"), int(libtorrent.SettingsPackPreferTcp))
-
-	// // For Android external storage / OS-mounted NAS setups
-	// if s.config.TunedStorage {
-	// 	settings.SetBool(libtorrent.SettingByName("use_read_cache"), true)
-	// 	settings.SetBool(libtorrent.SettingByName("coalesce_reads"), true)
-	// 	settings.SetBool(libtorrent.SettingByName("coalesce_writes"), true)
-	// 	settings.SetInt(libtorrent.SettingByName("max_queued_disk_bytes"), 10 * 1024 * 1024)
-	// 	settings.SetInt(libtorrent.SettingByName("cache_size"), -1)
-	// }
-	//
-	// if s.config.ConnectionsLimit > 0 {
-	// 	settings.SetInt(libtorrent.SettingByName("connections_limit"), s.config.ConnectionsLimit)
-	// } else {
-	// 	setPlatformSpecificSettings(settings)
-	// }
-	//
-	// if s.config.LimitAfterBuffering == false {
-	// 	if s.config.MaxDownloadRate > 0 {
-	// 		s.log.Infof("Rate limiting download to %dkB/s", s.config.MaxDownloadRate / 1024)
-	// 		settings.SetInt(libtorrent.SettingByName("download_rate_limit"), s.config.MaxDownloadRate)
-	// 	}
-	// 	if s.config.MaxUploadRate > 0 {
-	// 		s.log.Infof("Rate limiting upload to %dkB/s", s.config.MaxUploadRate / 1024)
-	// 		// If we have an upload rate, use the nicer bittyrant choker
-	// 		settings.SetInt(libtorrent.SettingByName("upload_rate_limit"), s.config.MaxUploadRate)
-	// 		settings.SetInt(libtorrent.SettingByName("choking_algorithm"), int(libtorrent.SettingsPackBittyrantChoker))
-	// 	}
-	// }
-
-	// if s.config.ShareRatioLimit > 0 {
-	// 	settings.SetInt(libtorrent.SettingByName("share_ratio_limit"), s.config.ShareRatioLimit)
-	// }
-	// if s.config.SeedTimeRatioLimit > 0 {
-	// 	settings.SetInt(libtorrent.SettingByName("seed_time_ratio_limit"), s.config.SeedTimeRatioLimit)
-	// }
-	// if s.config.SeedTimeLimit > 0 {
-	// 	settings.SetInt(libtorrent.SettingByName("seed_time_limit"), s.config.SeedTimeLimit)
-	// }
-	//
-	// s.log.Info("Applying encryption settings...")
-	// if s.config.EncryptionPolicy > 0 {
-	// 	policy := int(libtorrent.SettingsPackPeDisabled)
-	// 	level := int(libtorrent.SettingsPackPeBoth)
-	// 	preferRc4 := false
-	//
-	// 	if s.config.EncryptionPolicy == 2 {
-	// 		policy = int(libtorrent.SettingsPackPeForced)
-	// 		level = int(libtorrent.SettingsPackPeRc4)
-	// 		preferRc4 = true
-	// 	}
-	//
-	// 	settings.SetInt(libtorrent.SettingByName("out_enc_policy"), policy)
-	// 	settings.SetInt(libtorrent.SettingByName("in_enc_policy"), policy)
-	// 	settings.SetInt(libtorrent.SettingByName("allowed_enc_level"), level)
-	// 	settings.SetBool(libtorrent.SettingByName("prefer_rc4"), preferRc4)
-	// }
-
-	// if s.config.Proxy != nil {
-	// 	s.log.Info("Applying proxy settings...")
-	// 	proxy_type := s.config.Proxy.Type + 1
-	// 	settings.SetInt(libtorrent.SettingByName("proxy_type"), proxy_type)
-	// 	settings.SetInt(libtorrent.SettingByName("proxy_port"), s.config.Proxy.Port)
-	// 	settings.SetStr(libtorrent.SettingByName("proxy_hostname"), s.config.Proxy.Hostname)
-	// 	settings.SetStr(libtorrent.SettingByName("proxy_username"), s.config.Proxy.Username)
-	// 	settings.SetStr(libtorrent.SettingByName("proxy_password"), s.config.Proxy.Password)
-	// 	settings.SetBool(libtorrent.SettingByName("proxy_tracker_connections"), true)
-	// 	settings.SetBool(libtorrent.SettingByName("proxy_peer_connections"), true)
-	// 	settings.SetBool(libtorrent.SettingByName("proxy_hostnames"), true)
-	// 	settings.SetBool(libtorrent.SettingByName("force_proxy"), true)
-	// 	if proxy_type == ProxyTypeI2PSAM {
-	// 		settings.SetInt(libtorrent.SettingByName("i2p_port"), s.config.Proxy.Port)
-	// 		settings.SetStr(libtorrent.SettingByName("i2p_hostname"), s.config.Proxy.Hostname)
-	// 		settings.SetBool(libtorrent.SettingByName("allows_i2p_mixed"), false)
-	// 		settings.SetBool(libtorrent.SettingByName("allows_i2p_mixed"), true)
-	// 	}
-	// }
-
-	// Set alert_mask here so it also applies on reconfigure...
-	// settings.SetInt(libtorrent.SettingByName("alert_mask"), int(
-	// 	libtorrent.AlertStatusNotification |
-	// 	libtorrent.AlertStorageNotification |
-	// 	libtorrent.AlertErrorNotification))
-	//
-	// s.packSettings = settings
-	// s.Session.GetHandle().ApplySettings(s.packSettings)
-}
-
-// func (s *BTService) WriteState(f io.Writer) error {
-// 	entry := libtorrent.NewEntry()
-// 	defer libtorrent.DeleteEntry(entry)
-// 	s.Session.GetHandle().SaveState(entry, 0xFFFF)
-// 	_, err := f.Write([]byte(libtorrent.Bencode(entry)))
-// 	return err
-// }
-
-// func (s *BTService) LoadState(f io.Reader) error {
-// 	data, err := ioutil.ReadAll(f)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	entry := libtorrent.NewEntry()
-// 	defer libtorrent.DeleteEntry(entry)
-// 	libtorrent.Bdecode(string(data), entry)
-// 	s.Session.GetHandle().LoadState(entry)
-// 	return nil
-// }
-
-func (s *BTService) startServices() {
-	// var listenPorts []string
-	// for p := s.config.LowerListenPort; p <= s.config.UpperListenPort; p++ {
-	// 	listenPorts = append(listenPorts, strconv.Itoa(p))
-	// }
-	// rand.Seed(time.Now().UTC().UnixNano())
-	//
-	// listenInterfaces := []string{"0.0.0.0"}
-	// if strings.TrimSpace(s.config.ListenInterfaces) != "" {
-	// 	listenInterfaces = strings.Split(strings.Replace(strings.TrimSpace(s.config.ListenInterfaces), " ", "", -1), ",")
-	// }
-	//
-	// listenInterfacesStrings := make([]string, 0)
-	// for _, listenInterface := range listenInterfaces {
-	// 	listenInterfacesStrings = append(listenInterfacesStrings, listenInterface + ":" + listenPorts[rand.Intn(len(listenPorts))])
-	// 	if len(listenPorts) > 1 {
-	// 		listenInterfacesStrings = append(listenInterfacesStrings, listenInterface + ":" + listenPorts[rand.Intn(len(listenPorts))])
-	// 	}
-	// }
-	// s.packSettings.SetStr(libtorrent.SettingByName("listen_interfaces"), strings.Join(listenInterfacesStrings, ","))
-	//
-	// if strings.TrimSpace(s.config.OutgoingInterfaces) != "" {
-	// 	s.packSettings.SetStr(libtorrent.SettingByName("outgoing_interfaces"), strings.Replace(strings.TrimSpace(s.config.OutgoingInterfaces), " ", "", -1))
-	// }
-
-	// s.log.Info("Starting LSD...")
-	// s.packSettings.SetBool(libtorrent.SettingByName("enable_lsd"), true)
-
-	// if s.config.DisableDHT == false {
-	// 	s.log.Info("Starting DHT...")
-	// 	bootstrap_nodes := strings.Join(dhtBootstrapNodes, ":6881,") + ":6881"
-	// 	s.packSettings.SetStr(libtorrent.SettingByName("dht_bootstrap_nodes"), bootstrap_nodes)
-	// 	s.packSettings.SetBool(libtorrent.SettingByName("enable_dht"), true)
-	// }
-
-	// if s.config.DisableUPNP == false {
-	// 	s.log.Info("Starting UPNP...")
-	// 	s.packSettings.SetBool(libtorrent.SettingByName("enable_upnp"), true)
-	//
-	// 	s.log.Info("Starting NATPMP...")
-	// 	s.packSettings.SetBool(libtorrent.SettingByName("enable_natpmp"), true)
-	// }
-	//
-	// s.Session.GetHandle().ApplySettings(s.packSettings)
 }
 
 func (s *BTService) stopServices() {
@@ -580,24 +335,6 @@ func (s *BTService) stopServices() {
 	xbmc.ResetRPC()
 
 	s.Client.Close()
-
-	// s.log.Info("Stopping LSD...")
-	// s.packSettings.SetBool(libtorrent.SettingByName("enable_lsd"), false)
-	//
-	// if s.config.DisableDHT == false {
-	// 	s.log.Info("Stopping DHT...")
-	// 	s.packSettings.SetBool(libtorrent.SettingByName("enable_dht"), false)
-	// }
-	//
-	// if s.config.DisableUPNP == false {
-	// 	s.log.Info("Stopping UPNP...")
-	// 	s.packSettings.SetBool(libtorrent.SettingByName("enable_upnp"), false)
-	//
-	// 	s.log.Info("Stopping NATPMP...")
-	// 	s.packSettings.SetBool(libtorrent.SettingByName("enable_natpmp"), false)
-	// }
-	//
-	// s.Session.GetHandle().ApplySettings(s.packSettings)
 }
 
 func (s *BTService) CheckAvailableSpace(torrent *Torrent) bool {
@@ -677,15 +414,6 @@ func (s *BTService) AddTorrent(uri string) (*Torrent, error) {
 			return nil, err
 		}
 	}
-
-	// for _, f := range torrentHandle.Files() {
-	// 	f.Cancel()
-	//
-	// 	// path := filepath.Join(s.ClientConfig.DataDir, f.Path())
-	// 	// if _, err := os.Stat(path); err == nil {
-	// 	// 	defer os.Remove(path)
-	// 	// }
-	// }
 
 	torrent := NewTorrent(s, torrentHandle, uri)
 	if s.config.ConnectionsLimit > 0 {
@@ -775,19 +503,19 @@ func (s *BTService) downloadProgress() {
 
 			activeTorrents := make([]*activeTorrent, 0)
 
-			for _, torrentHandle := range s.Torrents {
+			for i, torrentHandle := range s.Torrents {
 				if torrentHandle == nil {
 					continue
 				}
 
 				torrentName := torrentHandle.Info().Name
 				progress    := int(torrentHandle.GetProgress())
-				status      := torrentHandle.GetStateString()
+				status      := torrentHandle.GetState()
 
 				totalDownloadRate += torrentHandle.DownloadRate
 				totalUploadRate   += torrentHandle.UploadRate
 
-				if progress < 100 && status != "Paused" {
+				if progress < 100 && status != STATUS_PAUSED {
 					activeTorrents = append(activeTorrents, &activeTorrent{
 						torrentName:  torrentName,
 						downloadRate: float64(torrentHandle.DownloadRate),
@@ -798,10 +526,15 @@ func (s *BTService) downloadProgress() {
 					continue
 				}
 
+				if s.MarkedToMove >= 0 && i == s.MarkedToMove {
+					s.MarkedToMove = -1
+					status = STATUS_SEEDING
+				}
+
 				//
 				// Handle moving completed downloads
 				//
-				if !s.config.CompletedMove || status != "Seeded" || Playing {
+				if !s.config.CompletedMove || status != STATUS_SEEDING || Playing {
 					continue
 				}
 				if xbmc.PlayerIsPlaying() {
@@ -956,7 +689,6 @@ func (s *BTService) downloadProgress() {
 					if s.dialogProgressBG == nil {
 						s.dialogProgressBG = xbmc.NewDialogProgressBG("Quasar", "")
 					}
-					// s.log.Debugf("Dialog progress: %#v, %#v", showProgress, showTorrent)
 					s.dialogProgressBG.Update(showProgress, "Quasar", showTorrent)
 				}
 			} else if !s.config.DisableBgProgress && s.dialogProgressBG != nil {
@@ -1033,7 +765,7 @@ func (s *BTService) RestoreLimits() {
 	}
 }
 
-func (s *BTService) SetBufferLimits() {
+func (s *BTService) SetBufferingLimits() {
 	if s.config.LimitAfterBuffering {
 		s.SetDownloadLimit(0)
 		s.log.Info("Resetting rate limited download for buffering")

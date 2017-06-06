@@ -4,12 +4,9 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-	// "encoding/hex"
 
 	"github.com/gin-gonic/gin"
 	"github.com/scakemyer/quasar/bittorrent"
-	// "github.com/scakemyer/libtorrent-go"
-	// gotorrent "github.com/anacrolix/torrent"
 	"github.com/scakemyer/quasar/util"
 	"github.com/scakemyer/quasar/xbmc"
 )
@@ -132,7 +129,6 @@ func PlayURI(btService *bittorrent.BTService) gin.HandlerFunc {
 			torrentHandle := btService.Client.Torrents()[resumeIndex]
 
 			if torrentHandle != nil {
-				//status := torrentHandle.Status(uint(libtorrent.TorrentHandleQueryName))
 				infoHash := torrentHandle.InfoHash().AsString()
 				dbItem := btService.GetDBItem(infoHash)
 				if dbItem.Type != "" {

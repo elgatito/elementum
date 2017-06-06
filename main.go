@@ -65,10 +65,10 @@ func ensureSingleInstance(conf *config.Configuration) (lock *lockfile.LockFile, 
 
 func makeBTConfiguration(conf *config.Configuration) *bittorrent.BTConfiguration {
 	btConfig := &bittorrent.BTConfiguration{
-		// SpoofUserAgent:      conf.SpoofUserAgent,
 		DownloadStorage:     conf.DownloadStorage,
 		MemorySize:          int64(conf.MemorySize),
 		BufferSize:          int64(conf.BufferSize),
+		SpoofUserAgent:      conf.SpoofUserAgent,
 		MaxUploadRate:       conf.UploadRateLimit,
 		MaxDownloadRate:     conf.DownloadRateLimit,
 		LimitAfterBuffering: conf.LimitAfterBuffering,

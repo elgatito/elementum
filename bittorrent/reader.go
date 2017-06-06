@@ -17,6 +17,7 @@ type Reader struct {
 
 func (t *Torrent) NewReader(f *gotorrent.File) *Reader {
 	rand.Seed(time.Now().UTC().UnixNano())
+
 	reader := &Reader{
 		Reader: t.Torrent.NewReader(),
 		File:   f,

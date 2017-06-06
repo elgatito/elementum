@@ -24,7 +24,7 @@ type Configuration struct {
 	Platform            *xbmc.Platform
 	Language            string
 	ProfilePath         string
-	// SpoofUserAgent      int
+	SpoofUserAgent      int
 	KeepDownloading     int
 	KeepFilesPlaying    int
 	KeepFilesFinished   int
@@ -215,7 +215,7 @@ func Reload() *Configuration {
 		BufferSize:          settings["buffer_size"].(int) * 1024 * 1024,
 		UploadRateLimit:     settings["max_upload_rate"].(int) * 1024,
 		DownloadRateLimit:   settings["max_download_rate"].(int) * 1024,
-		// SpoofUserAgent:      settings["spoof_user_agent"].(int),
+		SpoofUserAgent:      settings["spoof_user_agent"].(int),
 		LimitAfterBuffering: settings["limit_after_buffering"].(bool),
 		KeepDownloading:     settings["keep_downloading"].(int),
 		KeepFilesPlaying:    settings["keep_files_playing"].(int),
@@ -295,12 +295,12 @@ func AddonResource(args ...string) string {
 }
 
 func IsWritablePath(path string) error {
-	// if path == "." {
-	// 	return errors.New("Path not set")
-	// }
-	// if strings.HasPrefix(path, "nfs") || strings.HasPrefix(path, "smb") {
-	// 	return errors.New(fmt.Sprintf("Network paths are not supported, change %s to a locally mounted path by the OS", path))
-	// }
+	if path == "." {
+		return errors.New("Path not set")
+	}
+	if strings.HasPrefix(path, "nfs") || strings.HasPrefix(path, "smb") {
+		return errors.New(fmt.Sprintf("Network paths are not supported, change %s to a locally mounted path by the OS", path))
+	}
 	if p, err := os.Stat(path); err != nil || !p.IsDir() {
 		if err != nil {
 			return err
