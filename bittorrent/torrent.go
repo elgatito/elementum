@@ -26,6 +26,7 @@ import (
 	// "github.com/zeebo/bencode"
 
 	"github.com/scakemyer/quasar/xbmc"
+	qstorage "github.com/scakemyer/quasar/storage"
 )
 
 var log = logging.MustGetLogger("torrent")
@@ -72,6 +73,7 @@ type Torrent struct {
 	BufferProgress 					 float64
 	BufferPiecesProgress     map[int]float64
 
+	IsPlaying                bool
 	IsPaused 								 bool
 	IsBuffering 						 bool
 	IsSeeding                bool
@@ -93,6 +95,7 @@ type Torrent struct {
 	seedTicker               *time.Ticker
 	dbidTicker               *time.Ticker
 }
+
 
 func NewTorrent(service *BTService, handle *gotorrent.Torrent, path string) *Torrent {
 	t := &Torrent{
@@ -155,6 +158,7 @@ func (t *Torrent) Watch() {
 			i := _i.(gotorrent.PieceStateChange).Index
 
 			t.muBuffer.RLock()
+
 			if _, ok := t.BufferPiecesProgress[i]; !ok {
 				t.muBuffer.RUnlock()
 				continue
@@ -209,6 +213,7 @@ func (t *Torrent) Watch() {
 					bufferFinished <- struct{}{}
 				}
 			}
+
 			t.muBuffer.Unlock()
 
 		case <- bufferFinished:
@@ -273,6 +278,17 @@ func (t *Torrent) Watch() {
 				t.GetDBItem()
 			}
 
+			for i := 0; i < t.Torrent.NumPieces(); i++ {
+				state := t.Torrent.PieceState(i)
+				if state.Priority == 1 {
+					continue
+				} else if state.Priority == 0 && state.Complete == false {
+					continue
+				}
+
+				log.Debugf("Piece with priority: %#v, %#v", i, state)
+			}
+
 		case <- t.seedTicker.C:
 			log.Debugf("Stopping seeding for: %s", t.Info().Name)
 			t.Torrent.SetMaxEstablishedConns(0)
@@ -281,7 +297,6 @@ func (t *Torrent) Watch() {
 
 		case <- t.dbidTicker.C:
 			dbidTries++
-			t.needDBID = false
 
 			if t.DBID != 0 {
 				t.dbidTicker.Stop()
@@ -325,8 +340,8 @@ func (t *Torrent) Buffer(file *gotorrent.File) {
 	endBufferPiece  := startPiece + bufferPieces - 1
 	endBufferLength := bufferPieces * int64(pieceLength)
 
-	postBufferPiece := endPiece - 2
-	postBufferOffset := postBufferPiece * int64(pieceLength)
+	postBufferPiece, _ := t.pieceFromOffset(file.Offset() + file.Length() - 3 * 1024 * 1024)
+	// postBufferOffset := postBufferPiece * int64(pieceLength)
 	postBufferLength := (endPiece - postBufferPiece + 1) * int64(pieceLength)
 
 	t.muBuffer.Lock()
@@ -342,7 +357,7 @@ func (t *Torrent) Buffer(file *gotorrent.File) {
 
 	t.muBuffer.Unlock()
 
-	log.Debugf("Setting buffer for file: %s. Pieces: %#v-%#v, Length: %#v / %#v, Offset: %#v ", file.DisplayPath(), startPiece, endBufferPiece, pieceLength, endBufferLength, file.Offset())
+	log.Debugf("Setting buffer for file: %s. Pieces: %#v-%#v + %#v-%#v, Length: %#v / %#v, Offset: %#v ", file.DisplayPath(), startPiece, endBufferPiece, postBufferPiece, endPiece, pieceLength, endBufferLength, file.Offset())
 
 	t.Service.SetBufferingLimits()
 
@@ -350,9 +365,10 @@ func (t *Torrent) Buffer(file *gotorrent.File) {
 	t.bufferReader.SetReadahead(endBufferLength)
 	t.bufferReader.Seek(file.Offset(), os.SEEK_SET)
 
+	log.Debugf("POSTBUF: %#v -- %#v -- %#v", postBufferPiece, postBufferLength, endPiece)
 	t.postReader = t.NewReader(file)
 	t.postReader.SetReadahead(postBufferLength)
-	t.postReader.Seek(file.Offset() + postBufferOffset, os.SEEK_SET)
+	t.postReader.Seek(file.Offset() + file.Length() - postBufferLength, os.SEEK_SET)
 }
 
 func (t *Torrent) pieceFromOffset(offset int64) (int64, int64) {
@@ -471,7 +487,9 @@ func (t *Torrent) DownloadFile(f *gotorrent.File) {
 	t.ChosenFiles = append(t.ChosenFiles, f)
 	log.Debugf("Choosing file for download: %s", f.DisplayPath())
 	log.Debugf("Offset: %#v", f.Offset())
-	f.Download()
+	if t.Service.config.DownloadStorage != 1 {
+		f.Download()
+	}
 }
 
 func (t *Torrent) InfoHash() string {
@@ -517,6 +535,7 @@ func (t *Torrent) Resume() {
 func (t *Torrent) GetDBID() {
 	if t.DBID == 0 && t.needDBID == true {
 		log.Debugf("Getting DBID for torrent: %s", t.Name())
+		t.needDBID = false
 		t.dbidTicker = time.NewTicker(10 * time.Second)
 	}
 }
@@ -545,6 +564,18 @@ func (t *Torrent) GetPlayingItem() *PlayingItem {
 
 		WatchedTime:  WatchedTime,
 		Duration:     VideoDuration,
+	}
+}
+
+func (t *Torrent) CurrentPos(pos int64, f *gotorrent.File) {
+	log.Debugf("CurrentPos: %#v, %#v, %#v", pos, t.IsBuffering, t.IsPlaying)
+	if t.IsBuffering == false && t.IsPlaying == true {
+		t.Service.StorageChanges.Publish(qstorage.StorageChange{
+			InfoHash: t.InfoHash(),
+			Pos: pos,
+			FileLength: f.Length(),
+			FileOffset: f.Offset(),
+		})
 	}
 }
 

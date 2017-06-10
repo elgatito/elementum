@@ -279,6 +279,16 @@ func Reload() *Configuration {
 		CompletedShowsPath:  settings["completed_shows_path"].(string),
 	}
 
+	// For memory we are changing configuration
+	if newConfig.DownloadStorage == 1 {
+		newConfig.CompletedMove = false
+		newConfig.KeepDownloading = 2
+		newConfig.KeepFilesFinished = 2
+		newConfig.KeepFilesPlaying = 2
+		newConfig.LimitAfterBuffering = false
+		newConfig.SeedTimeLimit = 0
+	}
+
 	lock.Lock()
 	config = &newConfig
 	lock.Unlock()

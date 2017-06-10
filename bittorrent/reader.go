@@ -10,6 +10,7 @@ import (
 type Reader struct {
 	*gotorrent.Reader
 	*gotorrent.File
+	*Torrent
 
 	id int32
 	closing chan struct{}
@@ -21,6 +22,7 @@ func (t *Torrent) NewReader(f *gotorrent.File) *Reader {
 	reader := &Reader{
 		Reader: t.Torrent.NewReader(),
 		File:   f,
+		Torrent: t,
 
 		id: rand.Int31(),
 		closing: make(chan struct{}),
@@ -38,7 +40,9 @@ func (r *Reader) Watch() {
 	for {
 		select {
 		case <- ticker.C:
-			tfsLog.Debugf("Current position for %d: %#v", r.id, r.Reader.CurrentPos())
+			log.Debugf("CurrentPos from Tick (%d): %d", r.id, r.Reader.CurrentPos())
+			r.Torrent.CurrentPos(r.Reader.CurrentPos(), r.File)
+			//tfsLog.Debugf("Current position for %d: %#v", r.id, r.Reader.CurrentPos())
 		case <- r.closing:
 			return
 		}
@@ -53,9 +57,8 @@ func (r *Reader) Close() error {
 	return r.Reader.Close()
 }
 
-// func (r *Reader) Seek(off int64, whence int) (ret int64, err error) {
-// 	log.Debugf("Seek s %d: %#v -- %#v, %#v", r.id, r.Reader.CurrentPos(), off, whence)
-// 	ret, err = r.Reader.Seek(off, whence)
-// 	log.Debugf("Seek f %d: %#v -- %#v, %#v", r.id, r.Reader.CurrentPos(), ret, err)
-// 	return
+// func (r *Reader) Seek(off int64, whence int) (int64, error) {
+// 	log.Debugf("CurrentPos from Seek: %d", r.Reader.CurrentPos())
+// 	r.Torrent.CurrentPos(r.Reader.CurrentPos(), r.File)
+// 	return r.Reader.Seek(off, whence)
 // }
