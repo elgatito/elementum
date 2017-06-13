@@ -340,7 +340,7 @@ func (btp *BTPlayer) chooseFile() (*gotorrent.File, error) {
 			var foundMatches int
 			// Case-insensitive, starting with a line-start or non-ascii, can have leading zeros, followed by non-ascii
 			// TODO: Add logic for matching S01E0102 (double episode filename)
-			re := regexp.MustCompile(fmt.Sprintf("(?i)(^|\\W)S0*?%dE0*?%d\\W", btp.season, btp.episode))
+			re := regexp.MustCompile(fmt.Sprintf("(?i)(^|\\W)(S0*?%dE0*?%d|%dx0*?%d)\\W", btp.season, btp.episode, btp.season, btp.episode))
 			for index, choice := range choices {
 				if re.MatchString(choice.Filename) {
 					lastMatched = index
