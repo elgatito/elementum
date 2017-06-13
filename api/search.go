@@ -7,30 +7,34 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/op/go-logging"
 	"github.com/scakemyer/quasar/bittorrent"
-	"github.com/scakemyer/quasar/providers"
 	"github.com/scakemyer/quasar/config"
+	"github.com/scakemyer/quasar/database"
+	"github.com/scakemyer/quasar/providers"
 	"github.com/scakemyer/quasar/xbmc"
 )
 
 var searchLog = logging.MustGetLogger("search")
-var searchHistory []string
+var historyMaxSize = 50
+
+type SearchHistory []string
 
 func Search(btService *bittorrent.BTService) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctx.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		query := ctx.Query("q")
+		keyboard := ctx.Query("keyboard")
 
-		if len(searchHistory) > 0 && xbmc.DialogConfirm("Quasar", "LOCALIZE[30262]") {
-			choice := xbmc.ListDialog("LOCALIZE[30261]", searchHistory...)
-			query = searchHistory[choice]
-		} else if query == "" {
-			query = xbmc.Keyboard("", "LOCALIZE[30209]")
-			if query == "" {
-				return
+		if len(query) == 0 {
+			historyType := ""
+			if len(keyboard) > 0 || searchHistoryEmpty(historyType) {
+				query = xbmc.Keyboard("", "LOCALIZE[30206]")
+				if len(query) == 0 {
+					return
+				}
+				searchHistoryAppend(ctx, historyType, query)
+			} else if !searchHistoryEmpty(historyType) {
+				searchHistoryList(ctx, historyType)
 			}
-			searchHistory = append(searchHistory, query)
-		}
-		if query == "" {
 			return
 		}
 
@@ -96,4 +100,87 @@ func Search(btService *bittorrent.BTService) gin.HandlerFunc {
 			xbmc.PlayURL(UrlQuery(UrlForXBMC("/play"), "uri", torrents[choice].URI))
 		}
 	}
+}
+
+func searchHistoryEmpty(historyType string) bool {
+	historyList := SearchHistory{}
+	db.GetObject(database.HistoryBucket, "list" + historyType, &historyList)
+
+	return historyList == nil || len(historyList) == 0
+}
+
+func searchHistoryAppend(ctx *gin.Context, historyType string, query string) {
+	historyList := SearchHistory{}
+	db.GetObject(database.HistoryBucket, "list" + historyType, &historyList)
+
+	found := -1
+	for i, v := range historyList {
+		if v == query {
+			found = i
+			break
+		}
+	}
+
+	if found > -1 {
+		historyList = append(historyList[:found], historyList[found+1:]...)
+	}
+
+	historyLength := len(historyList)
+	if historyLength == 0 || historyLength < historyMaxSize {
+		historyList = append(SearchHistory{query}, historyList...)
+	} else {
+		historyList = append(SearchHistory{query}, historyList[:historyMaxSize-1]...)
+	}
+
+	db.SetObject(database.HistoryBucket, "list" + historyType, &historyList)
+
+	xbmc.UpdatePath(searchHistoryGetXbmcUrl(historyType, query))
+	ctx.String(200, "")
+	return
+}
+
+func searchHistoryList(ctx *gin.Context, historyType string) {
+	historyList := &SearchHistory{}
+	db.GetObject(database.HistoryBucket, "list" + historyType, historyList)
+
+	urlPrefix := ""
+	if len(historyType) > 0 {
+		urlPrefix = "/" + historyType
+	}
+
+	items := make(xbmc.ListItems, 0, len(*historyList) + 1)
+	items = append(items, &xbmc.ListItem{
+		Label: "LOCALIZE[30323]",
+		Path: UrlQuery(UrlForXBMC(urlPrefix + "/search"), "keyboard", "1"),
+		Thumbnail: config.AddonResource("img", "search.png"),
+		Icon: config.AddonResource("img", "search.png"),
+	})
+
+	for _, query := range *historyList {
+		item := &xbmc.ListItem{
+			Label: query,
+			Path: searchHistoryGetXbmcUrl(historyType, query),
+		}
+		items = append(items, item)
+	}
+
+	ctx.JSON(200, xbmc.NewView("", items))
+}
+
+func searchHistoryGetXbmcUrl(historyType string, query string) string {
+	urlPrefix := ""
+	if len(historyType) > 0 {
+		urlPrefix = "/" + historyType
+	}
+
+	return UrlQuery(UrlForXBMC(urlPrefix + "/search"), "q", query)
+}
+
+func searchHistoryGetHTTPUrl(historyType string, query string) string {
+	urlPrefix := ""
+	if len(historyType) > 0 {
+		urlPrefix = "/" + historyType
+	}
+
+	return UrlQuery(UrlForHTTP(urlPrefix + "/search"), "q", query)
 }

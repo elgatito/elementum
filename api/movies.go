@@ -289,21 +289,22 @@ func MoviesMostVoted(ctx *gin.Context) {
 func SearchMovies(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 	query := ctx.Query("q")
-	if query == "" {
-		if len(searchHistory) > 0 && xbmc.DialogConfirm("Quasar", "LOCALIZE[30262]") {
-			choice := xbmc.ListDialog("LOCALIZE[30261]", searchHistory...)
-			query = searchHistory[choice]
-		} else {
+	keyboard := ctx.Query("keyboard")
+
+	if len(query) == 0 {
+		historyType := "movies"
+		if len(keyboard) > 0 || searchHistoryEmpty(historyType) {
 			query = xbmc.Keyboard("", "LOCALIZE[30206]")
-			if query == "" {
+			if len(query) == 0 {
 				return
 			}
-			searchHistory = append(searchHistory, query)
+			searchHistoryAppend(ctx, historyType, query)
+		} else if !searchHistoryEmpty(historyType) {
+			searchHistoryList(ctx, historyType)
 		}
-	}
-	if query == "" {
 		return
 	}
+
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	movies, total := tmdb.SearchMovies(query, config.Get().Language, page)
 	renderMovies(ctx, movies, page, total, query)

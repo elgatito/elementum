@@ -237,21 +237,22 @@ func TVMostVoted(ctx *gin.Context) {
 func SearchShows(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 	query := ctx.Query("q")
-	if query == "" {
-		if len(searchHistory) > 0 && xbmc.DialogConfirm("Quasar", "LOCALIZE[30262]") {
-			choice := xbmc.ListDialog("LOCALIZE[30261]", searchHistory...)
-			query = searchHistory[choice]
-		} else {
-			query = xbmc.Keyboard("", "LOCALIZE[30201]")
-			if query == "" {
+	keyboard := ctx.Query("keyboard")
+
+	if len(query) == 0 {
+		historyType := "shows"
+		if len(keyboard) > 0 || searchHistoryEmpty(historyType) {
+			query = xbmc.Keyboard("", "LOCALIZE[30206]")
+			if len(query) == 0 {
 				return
 			}
-			searchHistory = append(searchHistory, query)
+			searchHistoryAppend(ctx, historyType, query)
+		} else if !searchHistoryEmpty(historyType) {
+			searchHistoryList(ctx, historyType)
 		}
-	}
-	if query == "" {
 		return
 	}
+
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	shows, total := tmdb.SearchShows(query, config.Get().Language, page)
 	renderShows(ctx, shows, page, total, query)

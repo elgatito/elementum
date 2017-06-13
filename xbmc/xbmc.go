@@ -136,6 +136,11 @@ func TranslatePath(path string) (retVal string) {
 	return
 }
 
+func UpdatePath(path string) (retVal string) {
+	executeJSONRPCEx("Update", &retVal, Args{path})
+	return
+}
+
 func PlayURL(url string) {
 	retVal := ""
 	executeJSONRPCEx("Player_Open", &retVal, Args{url})

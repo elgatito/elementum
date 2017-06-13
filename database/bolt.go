@@ -37,12 +37,14 @@ var (
 var (
 	LibraryBucket     = []byte("Library")
 	BitTorrentBucket  = []byte("BitTorrent")
+	HistoryBucket     = []byte("History")
 	SearchCacheBucket = []byte("SearchCache")
 )
 
 var Buckets = [][]byte {
 	LibraryBucket,
 	BitTorrentBucket,
+	HistoryBucket,
 	SearchCacheBucket,
 }
 
@@ -298,6 +300,10 @@ func (database *Database) GetObject(bucket []byte, key string, item interface{})
 	v, err := database.GetBytes(bucket, key)
 	if err != nil {
 		return err
+	}
+
+	if len(v) == 0 {
+		return
 	}
 
 	if err = json.Unmarshal(v, &item); err != nil {
