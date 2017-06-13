@@ -596,6 +596,7 @@ func (btp *BTPlayer) playerLoop() {
 playbackWaitLoop:
 	for {
 		if xbmc.PlayerIsPlaying() {
+			btp.Torrent.IsPlaying = true
 			break playbackWaitLoop
 		}
 		select {
@@ -610,6 +611,7 @@ playbackWaitLoop:
 	btp.log.Info("Playback loop")
 	overlayStatusActive := false
 	playing := true
+	btp.Torrent.IsPlaying = true
 
 	updateWatchTimes()
 
@@ -621,6 +623,7 @@ playbackWaitLoop:
 playbackLoop:
 	for {
 		if xbmc.PlayerIsPlaying() == false {
+			btp.Torrent.IsPlaying = false
 			break playbackLoop
 		}
 		select {

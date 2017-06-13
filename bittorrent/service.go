@@ -17,12 +17,14 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/anacrolix/torrent/iplist"
 	"github.com/anacrolix/torrent/storage"
+	"github.com/anacrolix/missinggo/pubsub"
 	gotorrent "github.com/anacrolix/torrent"
 	fat32storage "github.com/iamacarpet/go-torrent-storage-fat32"
 
 	"github.com/scakemyer/quasar/database"
 	"github.com/scakemyer/quasar/diskusage"
 	"github.com/scakemyer/quasar/config"
+	qstorage "github.com/scakemyer/quasar/storage"
 	"github.com/scakemyer/quasar/tmdb"
 	"github.com/scakemyer/quasar/util"
 	"github.com/scakemyer/quasar/xbmc"
@@ -69,8 +71,7 @@ var (
 )
 
 const (
-	_ = iota
-	StorageFile
+	StorageFile = iota
 	StorageMemory
 	StorageFat32
 )
@@ -128,6 +129,8 @@ type BTService struct {
 	Client            *gotorrent.Client
 	ClientConfig      *gotorrent.Config
 	PieceCompletion   storage.PieceCompletion
+	DefaultStorage    storage.ClientImpl
+  StorageEvents     *pubsub.PubSub
 	DownloadLimiter   *rate.Limiter
 	UploadLimiter     *rate.Limiter
 	Torrents 					[]*Torrent
@@ -138,6 +141,7 @@ type BTService struct {
 	dialogProgressBG  *xbmc.DialogProgressBG
 	SpaceChecked      map[string]bool
 	MarkedToMove      int
+	closing           chan struct{}
 }
 
 type DBItem struct {
@@ -180,6 +184,7 @@ func NewBTService(conf BTConfiguration) *BTService {
 
 		SpaceChecked:      make(map[string]bool, 0),
 		MarkedToMove:      -1,
+		StorageEvents:     pubsub.NewPubSub(),
 
 		Torrents:  				 []*Torrent{},
 		DownloadLimiter:   rate.NewLimiter(rate.Inf, 1<<20),
@@ -210,6 +215,7 @@ func NewBTService(conf BTConfiguration) *BTService {
 
 func (s *BTService) Close() {
 	s.log.Info("Stopping BT Services...")
+	s.closing <- struct{}{}
 	s.stopServices()
 	s.Client.Close()
 }
@@ -300,6 +306,32 @@ func (s *BTService) configure() {
 		setPlatformSpecificSettings(s.config)
 	}
 
+	if s.config.DownloadStorage == StorageMemory {
+		memSize := int64(config.Get().MemorySize)
+		if memSize < s.config.BufferSize {
+			memSize = s.config.BufferSize
+			s.log.Noticef("Using buffer size setting (%d) to fill all the buffer in memory", memSize)
+		} else if memSize > s.config.BufferSize {
+			s.config.BufferSize = memSize + 5 * 1024 * 1024
+			s.log.Noticef("Lowering buffer size to %d bytes, to fit in memory", memSize)
+		}
+
+		if s.config.BufferSize + 15*1024*1024 > memSize {
+			s.config.BufferSize -= 15*1024*1024
+		}
+
+		// s.DefaultStorage, s.StorageChanges = qstorage.NewMemoryStorage(memSize)
+		s.DefaultStorage = qstorage.NewMemoryStorage(memSize, s.StorageEvents)
+		// go s.Watch()
+	} else if s.config.DownloadStorage == StorageFat32 {
+		// FAT32 File Storage Driver
+		s.ClientConfig.DefaultStorage = fat32storage.NewFat32Storage(config.Get().DownloadPath)
+	} else {
+		s.DefaultStorage = storage.NewFileWithCompletion(config.Get().DownloadPath, s.PieceCompletion)
+	}
+
+	s.closing = make(chan struct{}, 1)
+
 	s.ClientConfig = &gotorrent.Config{
 		DataDir:               config.Get().DownloadPath,
 
@@ -319,16 +351,6 @@ func (s *BTService) configure() {
 		UploadRateLimiter:     s.UploadLimiter,
 	}
 
-	if config.Get().DownloadStorage == 2 {
-		// FAT32 File Storage Driver
-		s.ClientConfig.DefaultStorage = fat32storage.NewFat32Storage(config.Get().DownloadPath)
-	/*} else if config.Get().DownloadStorage == 1 {
-		// In-Memory Storage Driver
-	*/} else {
-		// Default to the file based driver.
-		s.ClientConfig.DefaultStorage = storage.NewFileWithCompletion(config.Get().DownloadPath, s.PieceCompletion)
-	}
-
 	if !s.config.LimitAfterBuffering {
 		s.RestoreLimits()
 	}
@@ -345,6 +367,35 @@ func (s *BTService) stopServices() {
 
 	s.Client.Close()
 }
+
+// func (s *BTService) Watch() {
+// 	defer close(s.closing)
+// 	defer s.StorageChanges.Close()
+//
+// 	for {
+// 		select {
+// 		case _item, ok := <- s.StorageChanges.Values:
+// 			if !ok {
+// 				continue
+// 			}
+// 			item := _item.(qstorage.StorageStateChange)
+// 			log.Debugf("Got change: %#v", item)
+// 			h := string(item.InfoHash[:])
+//
+// 			for _, t := range s.Torrents {
+// 				if t.InfoHash() == h {
+// 					if item.Status {
+// 						t.DownloadPieces(item.Index, item.Index)
+// 					} else {
+// 						t.CancelPieces(item.Index, item.Index)
+// 					}
+// 				}
+// 			}
+// 		case <- s.closing:
+// 			return
+// 		}
+// 	}
+// }
 
 func (s *BTService) CheckAvailableSpace(torrent *Torrent) bool {
 	diskStatus := &diskusage.DiskStatus{}
@@ -791,4 +842,12 @@ func (s *BTService) GetBufferSize() int64 {
 	} else {
 		return s.config.BufferSize
 	}
+}
+
+func (s *BTService) GetMemorySize() int64 {
+	return s.config.MemorySize
+}
+
+func (s *BTService) GetStorageType() int {
+	return s.config.DownloadStorage
 }

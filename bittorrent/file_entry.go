@@ -38,7 +38,12 @@ func NewFileReader(t *Torrent, f *gotorrent.File, sequential bool) (*FileEntry, 
 		reader.SetResponsive()
 	}
 
-	reader.SetReadahead(t.Service.GetBufferSize())
+	if t.Service.GetStorageType() == StorageMemory && t.Service.GetBufferSize() > t.Service.GetMemorySize() {
+		reader.SetReadahead(t.Service.GetMemorySize())
+	} else {
+		reader.SetReadahead(t.Service.GetBufferSize())
+	}
+
 	if _, err := reader.Seek(f.Offset(), os.SEEK_SET); err != nil {
 		return nil, err
 	}
