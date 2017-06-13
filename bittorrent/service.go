@@ -325,7 +325,7 @@ func (s *BTService) configure() {
 		// go s.Watch()
 	} else if s.config.DownloadStorage == StorageFat32 {
 		// FAT32 File Storage Driver
-		s.ClientConfig.DefaultStorage = fat32storage.NewFat32Storage(config.Get().DownloadPath)
+		s.DefaultStorage = fat32storage.NewFat32Storage(config.Get().DownloadPath)
 	} else {
 		s.DefaultStorage = storage.NewFileWithCompletion(config.Get().DownloadPath, s.PieceCompletion)
 	}
@@ -349,6 +349,8 @@ func (s *BTService) configure() {
 
 		DownloadRateLimiter:   s.DownloadLimiter,
 		UploadRateLimiter:     s.UploadLimiter,
+
+		DefaultStorage:        s.DefaultStorage,
 	}
 
 	if !s.config.LimitAfterBuffering {
