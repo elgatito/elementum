@@ -19,6 +19,7 @@ import (
 	"github.com/anacrolix/torrent/storage"
 	"github.com/anacrolix/missinggo/pubsub"
 	gotorrent "github.com/anacrolix/torrent"
+	fat32storage "github.com/iamacarpet/go-torrent-storage-fat32"
 
 	"github.com/scakemyer/quasar/database"
 	"github.com/scakemyer/quasar/diskusage"
@@ -323,7 +324,8 @@ func (s *BTService) configure() {
 		s.DefaultStorage = qstorage.NewMemoryStorage(memSize, s.StorageEvents)
 		// go s.Watch()
 	} else if s.config.DownloadStorage == StorageFat32 {
-
+		// FAT32 File Storage Driver
+		s.DefaultStorage = fat32storage.NewFat32Storage(config.Get().DownloadPath)
 	} else {
 		s.DefaultStorage = storage.NewFileWithCompletion(config.Get().DownloadPath, s.PieceCompletion)
 	}
