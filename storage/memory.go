@@ -1,77 +1,52 @@
 package storage
 
 import (
-	// "fmt"
 	"io"
 	"math"
 	"sync"
-	// "time"
-	// "bufio"
-	// "bytes"
-	// "errors"
-	// "os"
-	// "path/filepath"
+	"time"
+	"runtime"
 
-
-	// "github.com/anacrolix/missinggo"
-	// "github.com/edsrzf/mmap-go"
-
-	// "github.com/anacrolix/torrent/metainfo"
-	// "github.com/anacrolix/torrent/mmap_span"
-
-	"github.com/op/go-logging"
 	"github.com/anacrolix/missinggo/pubsub"
+	"github.com/op/go-logging"
 
-	// gotorrent "github.com/anacrolix/torrent"
-	"github.com/anacrolix/torrent/storage"
 	"github.com/anacrolix/torrent/metainfo"
-
-	// "github.com/scakemyer/quasar/bittorrent"
+	"github.com/anacrolix/torrent/storage"
 )
 
 var log = logging.MustGetLogger("memory")
 
-const (
-	chunkSize = 1 << 14
-)
-
 type memoryStorage struct {
-	maxMemSize   int64
+	maxMemorySize int64
 
-	changes *pubsub.PubSub
-	pc      *memoryPieceCompletion
+	readerEvents *pubsub.PubSub
+	pc           *memoryPieceCompletion
 }
 
 type memoryTorrentStorage struct {
-	bufContainer     [][]byte
-	bufAllocated     map[int]int
-	// bufRead          map[int]int
-	bufQueue 	       map[int]int
-	bufSize          int
+	bufContainer [][]byte
+	bufAllocated map[int]int
+	bufQueue     map[int]int
+	bufSize      int
 
-	// lastStoredPiece  int
+	mu      sync.Mutex
+	pl      int64
+	closing chan struct{}
 
-	mu               sync.Mutex
-	maxMemSize       int64
-	pl               int64
-	isReady          bool
-	closing          chan struct{}
-
-  changes          *pubsub.Subscription
-	s                *memoryStorage
-	pc               *memoryPieceCompletion
-	infoHash         metainfo.Hash
+	readerChanges *pubsub.Subscription
+	s             *memoryStorage
+	infoHash      metainfo.Hash
 }
 
 type memoryStoragePiece struct {
-	rl      sync.Mutex
-	index   int
-	ts      *memoryTorrentStorage
-	pc      *memoryPieceCompletion
-	p       metainfo.Piece
-	ih      metainfo.Hash
-	// io.ReaderAt
-	// io.WriterAt
+	index int
+
+	ts *memoryTorrentStorage
+	pc *memoryPieceCompletion
+	mu sync.Mutex
+
+	p  metainfo.Piece
+	ih metainfo.Hash
 }
 
 type memoryPieceCompletion struct {
@@ -80,51 +55,52 @@ type memoryPieceCompletion struct {
 }
 
 type StorageChange struct {
-	InfoHash     string
-	Pos          int64
-	FileLength   int64
-	FileOffset   int64
+	InfoHash   string
+	Pos        int64
+	FileLength int64
+	FileOffset int64
 }
 
-
-
-
-func NewMemoryStorage(maxMemSize int64, changes *pubsub.PubSub) *memoryStorage {
+func NewMemoryStorage(maxMemorySize int64, readerEvents *pubsub.PubSub) *memoryStorage {
 	return &memoryStorage{
-		maxMemSize: 	maxMemSize,
-		changes:      changes,
-		pc:           NewMemoryPieceCompletion(),
+		maxMemorySize: maxMemorySize,
+		readerEvents:  readerEvents,
+		pc:            NewMemoryPieceCompletion(),
 	}
 }
 
 func (s *memoryStorage) OpenTorrent(info *metainfo.Info, infoHash metainfo.Hash) (storage.TorrentImpl, error) {
-	bufSize := int(math.Ceil(float64(s.maxMemSize + (info.PieceLength * 4)) / float64(info.PieceLength)))
+	// Adding 1 reserved Piece space, 3MB to allow postbuffer storage
+	postbufferSize := info.PieceLength
+	for postbufferSize < 3*1024*1024 {
+		postbufferSize += info.PieceLength
+	}
+
+	bufSize := int(math.Ceil(float64(s.maxMemorySize+postbufferSize+(2*info.PieceLength)) / float64(info.PieceLength)))
 	buffers := make([][]byte, bufSize)
 	for i := range buffers {
 		// buffers[i] = make([]byte, 0, info.PieceLength)
 		buffers[i] = make([]byte, info.PieceLength)
 	}
 
-	log.Debugf("Opening memory storage for %d pieces (%d limit)", bufSize, s.maxMemSize)
+	log.Debugf("Opening memory storage for %d pieces (%d limit, %d postbuffer)", bufSize, s.maxMemorySize, postbufferSize)
 
+	// Forcing PieceCompletion cleanup to avoid caching
 	s.pc = NewMemoryPieceCompletion()
 
 	t := &memoryTorrentStorage{
-		bufContainer:     buffers,
-		bufSize:          bufSize,
+		bufContainer: buffers,
+		bufSize:      bufSize,
 
-		bufAllocated:     map[int]int{},
-		// bufRead:          map[int]int{},
-		bufQueue: 	      map[int]int{},
+		bufAllocated: map[int]int{},
+		bufQueue:     map[int]int{},
 
-		changes:          s.changes.Subscribe(),
-		closing:          make(chan struct{}, 1),
+		readerChanges: s.readerEvents.Subscribe(),
+		closing:       make(chan struct{}, 1),
 
-		maxMemSize:       s.maxMemSize,
-		s:                s,
-		pc:               s.pc,
-		pl:               info.PieceLength,
-		infoHash:         infoHash,
+		s:        s,
+		pl:       info.PieceLength,
+		infoHash: infoHash,
 	}
 	go t.Watch()
 
@@ -136,12 +112,17 @@ func (s *memoryStorage) Close() error {
 }
 
 func (ts *memoryTorrentStorage) Watch() {
+	minute := time.NewTicker(1 * time.Minute)
+
+	defer minute.Stop()
 	defer close(ts.closing)
-	defer ts.changes.Close()
+	defer ts.readerChanges.Close()
+
+	var m runtime.MemStats
 
 	for {
 		select {
-		case _i, ok := <- ts.changes.Values:
+		case _i, ok := <-ts.readerChanges.Values:
 			if !ok {
 				continue
 			}
@@ -149,23 +130,27 @@ func (ts *memoryTorrentStorage) Watch() {
 			i := _i.(StorageChange)
 			ts.UpdateBuffers(i)
 
-		case <- ts.closing:
+		case <-ts.closing:
 			return
+
+		case <- minute.C:
+			runtime.ReadMemStats(&m)
+			log.Debugf("Memory: %d, %d, %d, %d", m.HeapSys, m.HeapAlloc, m.HeapIdle, m.HeapReleased)
 		}
 	}
 }
 
 func (ts *memoryTorrentStorage) UpdateBuffers(sc StorageChange) {
-	log.Debugf("RESET FOR %#v", sc)
-	if sc.Pos > sc.FileOffset + sc.FileLength - (5 * 1024 * 1024) {
-		return
-	}
+	// log.Debugf("RF %v", sc)
+	// if sc.Pos > sc.FileOffset+sc.FileLength-(5*1024*1024) {
+	// 	return
+	// }
 
 	for index := range ts.bufAllocated {
 		pieceOffset := ts.pl * int64(index)
-		if pieceOffset < sc.Pos - (ts.pl * 2) {
+		if pieceOffset < sc.Pos-(ts.pl*2) {
 			ts.ResetBuffer(index)
-		} else if pieceOffset > (sc.Pos + ts.maxMemSize + ts.pl) {
+		} else if pieceOffset > (sc.Pos + ts.s.maxMemorySize + ts.pl) {
 			ts.ResetBuffer(index)
 		}
 	}
@@ -188,7 +173,6 @@ func (ts *memoryTorrentStorage) GetBuffer(index int, create bool) (int, bool) {
 				return i, true
 			}
 
-
 		}
 
 		log.Debugf("GET FAILED %d: Q:%#v", index, ts.bufQueue)
@@ -203,14 +187,14 @@ func (ts *memoryTorrentStorage) ResetBuffer(index int) bool {
 
 	if i, ok := ts.bufAllocated[index]; ok {
 		if _, ok := ts.bufQueue[i]; ok {
-			log.Debugf("RESET %d: Q:%#v, A:%#v", index, ts.bufQueue, ts.bufAllocated)
+			log.Debugf("RB %d: Q:%v, A:%v", index, ts.bufQueue, ts.bufAllocated)
 			delete(ts.bufQueue, i)
 			delete(ts.bufAllocated, index)
 			ts.bufContainer[i] = make([]byte, ts.pl)
 
-			ts.pc.Set(metainfo.PieceKey{
+			ts.s.pc.Set(metainfo.PieceKey{
 				InfoHash: ts.infoHash,
-				Index: index,
+				Index:    index,
 			}, false)
 			return true
 		}
@@ -221,24 +205,22 @@ func (ts *memoryTorrentStorage) ResetBuffer(index int) bool {
 
 func (ts *memoryTorrentStorage) Piece(p metainfo.Piece) storage.PieceImpl {
 	return &memoryStoragePiece{
-		index:    p.Index(),
-		pc:       ts.pc,
-		p:        p,
-		ts: 			ts,
+		index: p.Index(),
+		pc:    ts.s.pc,
+		p:     p,
+		ts:    ts,
 	}
 }
 
 func (ts *memoryTorrentStorage) Close() error {
-	ts.pc.Close()
 	ts.closing <- struct{}{}
 	return nil
 }
 
-
 func (me *memoryStoragePiece) pieceKey() metainfo.PieceKey {
 	return metainfo.PieceKey{
 		InfoHash: me.ih,
-		Index: me.p.Index(),
+		Index:    me.p.Index(),
 	}
 }
 
@@ -265,8 +247,8 @@ func (sp *memoryStoragePiece) ReadAt(b []byte, off int64) (n int, err error) {
 		return 0, io.ErrUnexpectedEOF
 	}
 
-	sp.rl.Lock()
-	defer sp.rl.Unlock()
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
 
 	// 	log.Debugf("Trying to read %d: %d (%d), BL: %#v", sp.index, off, sp.p.Length(), len(sp.ts.bufContainer[bufIndex]))
 
@@ -311,8 +293,8 @@ func (sp *memoryStoragePiece) WriteAt(b []byte, off int64) (n int, err error) {
 		return
 	}
 
-	sp.rl.Lock()
-	defer sp.rl.Unlock()
+	sp.mu.Lock()
+	defer sp.mu.Unlock()
 
 	// 	log.Debugf("TB %d: %d (%d), WL: %#v, BL: %#v", sp.index, off, sp.p.Length(), len(b), len(sp.ts.bufContainer[bufIndex]))
 
@@ -335,7 +317,7 @@ func (sp *memoryStoragePiece) WriteAt(b []byte, off int64) (n int, err error) {
 
 	// n += _n
 	// for sp.ts.isReady
- // 	<- sp.ts.ready
+	// 	<- sp.ts.ready
 	// <- sp.ts.empty
 
 	// sp.buf = append(sp.buf[:off+1], b...)

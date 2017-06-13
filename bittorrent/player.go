@@ -611,6 +611,7 @@ playbackWaitLoop:
 	btp.log.Info("Playback loop")
 	overlayStatusActive := false
 	playing := true
+	btp.Torrent.IsPlaying = true
 
 	updateWatchTimes()
 

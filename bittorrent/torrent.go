@@ -282,9 +282,12 @@ func (t *Torrent) Watch() {
 				state := t.Torrent.PieceState(i)
 				if state.Priority == 1 {
 					continue
-				} else if state.Priority == 0 && state.Complete == false {
+				} else if state.Priority == 0 {
 					continue
 				}
+				// } else if state.Priority == 0 && state.Complete == false {
+				// 	continue
+				// }
 
 				log.Debugf("Piece with priority: %#v, %#v", i, state)
 			}
@@ -568,11 +571,11 @@ func (t *Torrent) GetPlayingItem() *PlayingItem {
 }
 
 func (t *Torrent) CurrentPos(pos int64, f *gotorrent.File) {
-	log.Debugf("CurrentPos: %#v, %#v, %#v", pos, t.IsBuffering, t.IsPlaying)
+	// log.Debugf("CurrentPos: %#v, %#v, %#v", pos, t.IsBuffering, t.IsPlaying)
 	if t.IsBuffering == false && t.IsPlaying == true {
-		t.Service.StorageChanges.Publish(qstorage.StorageChange{
-			InfoHash: t.InfoHash(),
-			Pos: pos,
+		t.Service.StorageEvents.Publish(qstorage.StorageChange{
+			InfoHash:   t.InfoHash(),
+			Pos:        pos,
 			FileLength: f.Length(),
 			FileOffset: f.Offset(),
 		})

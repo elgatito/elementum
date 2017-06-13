@@ -25,10 +25,10 @@ func (t *Torrent) NewReader(f *gotorrent.File) *Reader {
 		Torrent: t,
 
 		id: rand.Int31(),
-		closing: make(chan struct{}),
+		closing: make(chan struct{}, 1),
 	}
 
-	go reader.Watch()
+	// go reader.Watch()
 	return reader
 }
 
@@ -40,7 +40,7 @@ func (r *Reader) Watch() {
 	for {
 		select {
 		case <- ticker.C:
-			log.Debugf("CurrentPos from Tick (%d): %d", r.id, r.Reader.CurrentPos())
+			// log.Debugf("CurrentPos from Tick (%d): %d", r.id, r.Reader.CurrentPos())
 			r.Torrent.CurrentPos(r.Reader.CurrentPos(), r.File)
 			//tfsLog.Debugf("Current position for %d: %#v", r.id, r.Reader.CurrentPos())
 		case <- r.closing:
@@ -57,8 +57,8 @@ func (r *Reader) Close() error {
 	return r.Reader.Close()
 }
 
-// func (r *Reader) Seek(off int64, whence int) (int64, error) {
-// 	log.Debugf("CurrentPos from Seek: %d", r.Reader.CurrentPos())
-// 	r.Torrent.CurrentPos(r.Reader.CurrentPos(), r.File)
-// 	return r.Reader.Seek(off, whence)
-// }
+func (r *Reader) Seek(off int64, whence int) (int64, error) {
+	// log.Debugf("CurrentPos from Seek: %d", r.Reader.CurrentPos())
+	r.Torrent.CurrentPos(r.Reader.CurrentPos(), r.File)
+	return r.Reader.Seek(off, whence)
+}

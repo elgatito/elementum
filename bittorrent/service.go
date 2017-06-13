@@ -129,7 +129,7 @@ type BTService struct {
 	ClientConfig      *gotorrent.Config
 	PieceCompletion   storage.PieceCompletion
 	DefaultStorage    storage.ClientImpl
-  StorageChanges    *pubsub.PubSub
+  StorageEvents     *pubsub.PubSub
 	DownloadLimiter   *rate.Limiter
 	UploadLimiter     *rate.Limiter
 	Torrents 					[]*Torrent
@@ -183,7 +183,7 @@ func NewBTService(conf BTConfiguration) *BTService {
 
 		SpaceChecked:      make(map[string]bool, 0),
 		MarkedToMove:      -1,
-		StorageChanges:    pubsub.NewPubSub(),
+		StorageEvents:     pubsub.NewPubSub(),
 
 		Torrents:  				 []*Torrent{},
 		DownloadLimiter:   rate.NewLimiter(rate.Inf, 1<<20),
@@ -310,10 +310,17 @@ func (s *BTService) configure() {
 		if memSize < s.config.BufferSize {
 			memSize = s.config.BufferSize
 			s.log.Noticef("Using buffer size setting (%d) to fill all the buffer in memory", memSize)
+		} else if memSize > s.config.BufferSize {
+			s.config.BufferSize = memSize + 5 * 1024 * 1024
+			s.log.Noticef("Lowering buffer size to %d bytes, to fit in memory", memSize)
+		}
+
+		if s.config.BufferSize + 15*1024*1024 > memSize {
+			s.config.BufferSize -= 15*1024*1024
 		}
 
 		// s.DefaultStorage, s.StorageChanges = qstorage.NewMemoryStorage(memSize)
-		s.DefaultStorage = qstorage.NewMemoryStorage(memSize, s.StorageChanges)
+		s.DefaultStorage = qstorage.NewMemoryStorage(memSize, s.StorageEvents)
 		// go s.Watch()
 	} else if s.config.DownloadStorage == StorageFat32 {
 
