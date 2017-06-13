@@ -32,6 +32,7 @@ type Configuration struct {
 	ResultsPerPage      int
 	EnableOverlayStatus bool
 	ChooseStreamAuto    bool
+	ForceLinkType 		  bool
 	UseOriginalTitle    bool
 	AddSpecials         bool
 	ShowUnairedSeasons  bool
@@ -224,6 +225,7 @@ func Reload() *Configuration {
 		ResultsPerPage:      settings["results_per_page"].(int),
 		EnableOverlayStatus: settings["enable_overlay_status"].(bool),
 		ChooseStreamAuto:    settings["choose_stream_auto"].(bool),
+		ForceLinkType:       settings["force_link_type"].(bool),
 		UseOriginalTitle:    settings["use_original_title"].(bool),
 		AddSpecials:         settings["add_specials"].(bool),
 		ShowUnairedSeasons:  settings["unaired_seasons"].(bool),

@@ -325,6 +325,25 @@ func movieLinks(tmdbId string) []*bittorrent.TorrentFile {
 	return providers.SearchMovie(searchers, movie)
 }
 
+func MoviePlaySelector(link string, btService *bittorrent.BTService, fromLibrary bool) gin.HandlerFunc {
+	play := link == "play"
+
+	if config.Get().ForceLinkType {
+		if config.Get().ChooseStreamAuto {
+			play = true
+		} else {
+			play = false
+		}
+	}
+
+
+	if play {
+		return MoviePlay(btService, fromLibrary)
+	} else {
+		return MovieLinks(btService, fromLibrary)
+	}
+}
+
 func MovieLinks(btService *bittorrent.BTService, fromLibrary bool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctx.Writer.Header().Set("Access-Control-Allow-Origin", "*")

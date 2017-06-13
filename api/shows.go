@@ -519,6 +519,24 @@ func showEpisodeLinks(showId int, seasonNumber int, episodeNumber int) ([]*bitto
 	return providers.SearchEpisode(searchers, show, episode), nil
 }
 
+func ShowEpisodePlaySelector(link string, btService *bittorrent.BTService, fromLibrary bool) gin.HandlerFunc {
+	play := link == "play"
+
+	if config.Get().ForceLinkType {
+		if config.Get().ChooseStreamAuto {
+			play = true
+		} else {
+			play = false
+		}
+	}
+
+	if play {
+		return ShowEpisodePlay(btService, fromLibrary)
+	} else {
+		return ShowEpisodeLinks(btService, fromLibrary)
+	}
+}
+
 func ShowEpisodeLinks(btService *bittorrent.BTService, fromLibrary bool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ctx.Writer.Header().Set("Access-Control-Allow-Origin", "*")
