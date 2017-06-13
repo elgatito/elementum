@@ -61,6 +61,7 @@ type TorrentFileRaw struct {
 
 const (
 	ResolutionUnknown = iota
+	Resolution240p
 	Resolution480p
 	Resolution720p
 	Resolution1080p
@@ -70,14 +71,22 @@ const (
 
 var (
 	resolutionTags = map[*regexp.Regexp]int{
-		regexp.MustCompile(`\W+(480p|xvid|dvd|hdtv)\W*`):         Resolution480p,
-		regexp.MustCompile(`\W+(720p|hdrip|bluray|b[rd]rip)\W*`): Resolution720p,
-		regexp.MustCompile(`\W+(1080p|fullhd|fhd)\W*`):           Resolution1080p,
-		regexp.MustCompile(`\W+1440p\W*`):                        Resolution1440p,
-		regexp.MustCompile(`\W+(4K|2160p)\W*`):                   Resolution4k,
+		regexp.MustCompile(`\W+240p\W*`):                      Resolution240p,
+		regexp.MustCompile(`\W+480p\W*`):                      Resolution480p,
+		regexp.MustCompile(`\W+720p\W*`):                      Resolution720p,
+		regexp.MustCompile(`\W+1080p\W*`):                     Resolution1080p,
+		regexp.MustCompile(`\W+1440p\W*`):                     Resolution1440p,
+		regexp.MustCompile(`\W+2160p\W*`):                     Resolution4k,
+
+		regexp.MustCompile(`\W+(tvrip|satrip|vhsrip)\W*`):     Resolution240p,
+		regexp.MustCompile(`\W+(xvid|dvd|hdtv)\W*`):           Resolution480p,
+		regexp.MustCompile(`\W+(hdrip|bluray|b[rd]rip)\W*`):   Resolution720p,
+		regexp.MustCompile(`\W+(fullhd|fhd)\W*`):              Resolution1080p,
+		regexp.MustCompile(`\W+2K\W*`):                        Resolution1440p,
+		regexp.MustCompile(`\W+4K\W*`):                        Resolution4k,
 	}
-	Resolutions = []string{"", "480p", "720p", "1080p", "1440p", "4K"}
-	Colors = []string{"", "FFA56F01", "FF539A02", "FF0166FC", "FFF15052", "FF6BB9EC"}
+	Resolutions = []string{"", "240p", "480p", "720p", "1080p", "1440p", "4K"}
+	Colors = []string{"", "FFFC3401", "FFA56F01", "FF539A02", "FF0166FC", "FFF15052", "FF6BB9EC"}
 )
 
 const (
