@@ -131,6 +131,16 @@ func (ts *memoryTorrentStorage) Watch() {
 			ts.UpdateBuffers(i)
 
 		case <-ts.closing:
+			runtime.ReadMemStats(&m)
+			log.Debugf("Pre-Close Memory: %d, %d, %d, %d", m.HeapSys, m.HeapAlloc, m.HeapIdle, m.HeapReleased)
+
+			ts.bufContainer = nil
+
+			runtime.GC()
+
+			runtime.ReadMemStats(&m)
+			log.Debugf("Post-Close Memory: %d, %d, %d, %d", m.HeapSys, m.HeapAlloc, m.HeapIdle, m.HeapReleased)
+
 			return
 
 		case <- minute.C:
