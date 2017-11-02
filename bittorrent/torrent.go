@@ -265,11 +265,12 @@ func (t *Torrent) Watch() {
 			// log.Debugf("ProgressTicker: %s; %#v/%#v; %#v = %#v ", t.Name(), t.DownloadRate, t.UploadRate, t.GetStateString(), t.GetProgress())
 			if t.needSeeding && t.Service.GetSeedTime() > 0 && t.GetProgress() >= 100 {
 				t.muSeeding.Lock()
-				log.Debugf("Starting seeding timer for: %s", t.Info().Name)
+				seedingTime := time.Duration(t.Service.GetSeedTime()) * time.Hour
+				log.Debugf("Starting seeding timer (%s) for: %s", seedingTime, t.Info().Name)
 
 				t.IsSeeding = true
 				t.needSeeding = false
-				t.seedTicker = time.NewTicker(time.Duration(t.Service.GetSeedTime()) * time.Second)
+				t.seedTicker = time.NewTicker(seedingTime)
 
 				t.muSeeding.Unlock()
 			}
