@@ -29,6 +29,7 @@ import (
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
+	fat32storage "github.com/iamacarpet/go-torrent-storage-fat32"
 )
 
 const (
@@ -309,9 +310,9 @@ func (s *BTService) configure() {
 		setPlatformSpecificSettings(s.config)
 	}
 
-	s.closing      = make(chan struct{}, 5)
+	s.closing = make(chan struct{}, 5)
 	s.bufferEvents = make(chan int, 5)
-	s.pieceEvents  = make(chan qstorage.PieceChange, 5)
+	s.pieceEvents = make(chan qstorage.PieceChange, 5)
 
 	if s.config.DownloadStorage == StorageMemory {
 		memSize := int64(config.Get().MemorySize)
@@ -387,7 +388,7 @@ func (s *BTService) Watch() {
 		// 	if change.State == "complete" {
 		// 		s.Torrents[0].Torrent.UpdatePieceCompletion(change.Index)
 		// 	}
-		case <- s.closing:
+		case <-s.closing:
 			return
 		}
 	}
