@@ -481,7 +481,7 @@ func saveTorrentFile(file multipart.File, header *multipart.FileHeader) (string,
 	}
 
 	var err error
-	path := filepath.Join(config.Get().TemporaryPath, filepath.Base(header.Filename))
+	path := filepath.Join(config.Get().TorrentsPath, filepath.Base(header.Filename))
 	log.Debugf("Saving incoming torrent file to: %s", path)
 
 	if _, err = os.Stat(path); err != nil && !os.IsNotExist(err) {
