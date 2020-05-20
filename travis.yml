@@ -1,9 +1,56 @@
-  
+sudo: required
 language: go
-sudo: false
-
 go:
-  - 1.9.x
-  - 1.10.x
-  - 1.11.x
-  - tip
+  - "1.10.x"
+
+cache:
+  bundler: true
+  directories:
+    - $HOME/docker
+before_cache:
+  # Save tagged docker images
+  - >
+    mkdir -p $HOME/docker && docker images -a --filter='dangling=false' --format '{{.Repository}}:{{.Tag}} {{.ID}}'
+    | xargs -n 2 -t sh -c 'test -e $HOME/docker/$1.tar.gz || docker save $0 | gzip -2 > $HOME/docker/$1.tar.gz'
+before_install:
+  # Load cached docker images
+  - if [[ -d $HOME/docker ]]; then ls $HOME/docker/*.tar.gz | xargs -I {file} sh -c "zcat {file} | docker load"; fi
+
+env:
+  - PLATFORM=all
+  # - PLATFORM=android-16/arm
+  # - PLATFORM=android-16/amd64
+  # - PLATFORM=android-16/386
+  # - PLATFORM=darwin-10.6/amd64
+  # - PLATFORM=darwin-10.6/386
+  # - PLATFORM=ios-8.1/arm64
+  # - PLATFORM=ios-8.1/armv7
+  # - PLATFORM=linux/arm-6
+  # - PLATFORM=linux/arm-7
+  # - PLATFORM=linux/arm64
+  # - PLATFORM=linux/amd64
+  # - PLATFORM=linux/386
+  # - PLATFORM=windows/amd64
+  # - PLATFORM=windows/386
+
+services:
+  - docker
+
+# before_install:
+  # - travis_wait 60 docker pull karalabe/xgo-latest
+  # - travis_wait 60 docker pull karalabe/xgo-1.8.3
+
+install:
+  #- travis_wait 60 docker pull karalabe/xgo-1.8.3
+  - travis_wait 60 docker pull elgatito/xgo-1.10.3
+  - go get github.com/karalabe/xgo
+  - go get -u ./...
+
+script:
+  - go tool vet -unsafeptr=false .
+  - make $PLATFORM
+  - sudo chown -R travis:travis /home/travis/
+  # - |
+  #   if [ "${TRAVIS_PULL_REQUEST}" = "false" ] && [ -n "${TRAVIS_TAG}" ]; then
+  #     travis_retry ./push-binaries.sh
+  #   fi
