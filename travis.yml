@@ -54,3 +54,38 @@ script:
   #   if [ "${TRAVIS_PULL_REQUEST}" = "false" ] && [ -n "${TRAVIS_TAG}" ]; then
   #     travis_retry ./push-binaries.sh
   #   fi
+
+{
+  "go": [
+    "1.10.x"
+  ],
+  "env": [
+    "PLATFORM=all"
+  ],
+  "sudo": "required",
+  "cache": {
+    "bundler": true,
+    "directories": [
+      "$HOME/docker"
+    ]
+  },
+  "script": [
+    "go tool vet -unsafeptr=false .",
+    "make $PLATFORM",
+    "sudo chown -R travis:travis /home/travis/"
+  ],
+  "install": [
+    "travis_wait 60 docker pull elgatito/xgo-1.10.3",
+    "go get github.com/karalabe/xgo",
+    "go get -u ./..."
+  ],
+  "language": "go",
+  "services": [
+    "docker"
+  ],
+  "before_cache": [
+    "mkdir -p $HOME/docker && docker images -a --filter='dangling=false' --format '{{.Repository}}:{{.Tag}} {{.ID}}' | xargs -n 2 -t sh -c 'test -e $HOME/docker/$1.tar.gz || docker save $0 | gzip -2 > $HOME/docker/$1.tar.gz'\n"
+  ],
+  "before_install": [
+    "if [[ -d $HOME/docker ]]; then ls $HOME/docker/*.tar.gz | xargs -I {file} sh -c \"zcat {file} | docker load\"; fi"
+  ]
