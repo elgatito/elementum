@@ -47,7 +47,7 @@ install:
   - go get -u ./...
 
 script:
-  - go tool vet -unsafeptr=false .
+  - go tool get -unsafeptr=false .
   - make $PLATFORM
   - sudo chown -R travis:travis /home/travis/
   # - |
