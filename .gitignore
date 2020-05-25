@@ -27,3 +27,4 @@ _testmain.go
 /debug
 
 # Custom shell scripts
+build
