@@ -30,7 +30,7 @@ require (
 	github.com/jmcvetta/napping v3.2.0+incompatible
 	github.com/jmcvetta/randutil v0.0.0-20150817122601-2bb1b664bcff // indirect
 	github.com/karrick/godirwalk v1.15.6
-	github.com/klauspost/compress v1.10.5
+	github.com/klauspost/compress v1.10.8
 	github.com/kolo/xmlrpc v0.0.0-20200310150728-e0350524596b
 	github.com/likexian/doh-go v0.6.4
 	github.com/likexian/gokit v0.23.3 // indirect
