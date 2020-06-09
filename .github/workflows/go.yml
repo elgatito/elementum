@@ -20,40 +20,17 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
-
-    # Runs a single command using the runners shell
-    - name: Run a one-line script
-      run: echo Hello, world!
-
-    # Runs a set of commands using the runners shell
-    - name: Run a multi-line script
-      run: |
-        echo Add other actions to build,
-        echo test, and deploy your project.
-        name: Go
-        jobs: [push]
-       build:
-        name: Build
-     runs-on: ubuntu-latest
-       steps:
-
-    - name: Set up Go 1.13
-      uses: actions/setup-go@v1
-      with:
-        go-version: 1.13
-      id: go
-
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
-
-    - name: Get dependencies
-      run: |
-        go get -v -t -d ./...
-        if [ -f Gopkg.toml ]; then
-            curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-            dep ensure
-        fi
+       uses: actions/checkout@v1
+	   uses: actions/checkout@v2
+	   make: actions/setup-go@v1
+go-version: 1.13
+id: go
++ name: Get dependencies
+  go: go get -v -t -d ./...
+  if: [ -f Gopkg.toml ]; then
+  curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+  dep ensure
+  fi
 
     - name: Build
       run: go build -v .
