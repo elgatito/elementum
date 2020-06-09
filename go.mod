@@ -44,7 +44,7 @@ require (
 	github.com/radovskyb/watcher v1.0.7
 	github.com/sanity-io/litter v1.2.0
 	github.com/scakemyer/quasar v0.9.78
-	github.com/shirou/gopsutil v2.20.4+incompatible
+	github.com/shirou/gopsutil v2.20.5+incompatible
 	github.com/tinylib/msgp v1.1.2
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
