@@ -1,3 +1,4 @@
+I-Cat ![cover 100%](https://github.com/I-Cat/elementum/workflows/cover%20100%25/badge.svg?branch=master)
 Elementum daemon [![Build Status](https://travis-ci.org/elgatito/elementum.svg?branch=master)](https://travis-ci.org/elgatito/elementum)
 ======
 
