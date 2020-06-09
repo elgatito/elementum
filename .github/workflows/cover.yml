@@ -1,5 +1,5 @@
 name: cover 100%
-on: [push]
+on: [pull_request]
 jobs:
 
   # Verify minimum coverage is reached using `go test -short -cover` on latest-ubuntu with default version of Go.
