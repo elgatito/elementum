@@ -1,0 +1,10 @@
+dist: bionic
+language: python
+python: 3.8
+
+install:
+  - pip install kodi-addon-checker
+
+# command to run our tests
+script:
+  - kodi-addon-checker . --branch=BRANCH_NAME
