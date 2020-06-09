@@ -1,1 +1,14 @@
-pip install kodi-addon-checker==0.0.19
+On: Ubuntu
+Sudo: |
+         su
+         
+Jobs: |
+         sudo: apt-get pythin
+          pip: install kodi-addon-checker==0.0.19 ]  
+          pip: pip kodi-addon-checker <https://github.com/I-Cat/elementum/> 
+#     defaults:
+#          run: |
+#              sudo
+#              ls 
+fi: |
+exit
