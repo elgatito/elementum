@@ -21,8 +21,8 @@ jobs:
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
        uses: actions/checkout@v1
-	   uses: actions/checkout@v2
-	   make: actions/setup-go@v1
+uses: actions/checkout@v2
+make: actions/setup-go@v1
 go-version: 1.13
 id: go
 + name: Get dependencies
