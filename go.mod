@@ -49,7 +49,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/vmihailenco/msgpack v4.0.4+incompatible
 	github.com/zeebo/bencode v1.0.0
-	go.etcd.io/bbolt v1.3.4
+	go.etcd.io/bbolt v1.3.5
 	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37 // indirect
 	golang.org/x/net v0.0.0-20200520004742-59133d7f0dd7 // indirect
 	golang.org/x/sync v0.0.0-20200317015054-43a5402ce75a // indirect
