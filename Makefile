@@ -140,9 +140,9 @@ vendor_windows:
 
 vendor_android:
 	cp $(CROSS_ROOT)/sysroot/usr/lib/$(CROSS_TRIPLE)/libc++_shared.so $(BUILD_PATH)
-	chmod +rx $(BUILD_PATH)/libc++_shared.so
+	chmod +rwx $(BUILD_PATH)/libc++_shared.so
 	# cp $(CROSS_ROOT)/$(CROSS_TRIPLE)/lib/libgnustl_shared.so $(BUILD_PATH)
-	# chmod +rx $(BUILD_PATH)/libgnustl_shared.so
+	# chmod +rwx $(BUILD_PATH)/libgnustl_shared.so
 
 vendor_libs_windows:
 
