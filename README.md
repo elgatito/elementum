@@ -1,3 +1,5 @@
+[![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/elgatito/elementum)
+
 # I-Cat ![Build cover 100%](https://github.com/I-Cat/elementum/workflows/cover%20100%25/badge.svg?branch=master)
 ## Elementum daemon [![Build Status](https://travis-ci.org/elgatito/elementum.svg?branch=master)](https://travis-ci.org/elgatito/elementum)
 ======
