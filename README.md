@@ -1,6 +1,14 @@
-# I-Cat ![Build cover 100%](https://github.com/I-Cat/elementum/workflows/cover%20100%25/badge.svg?branch=master)
-## Elementum daemon [![Build Status](https://travis-ci.org/elgatito/elementum.svg?branch=master)](https://travis-ci.org/elgatito/elementum)
-======
+# Gitpod
+
+[![Gitpod ready-to-code](https://img.shields.io/badge/Gitpod-ready--to--code-blue?logo=gitpod)](https://gitpod.io/#https://github.com/I-Cat/elementum)
+
+# I-Cat
+
+![Build cover 100%](https://github.com/I-Cat/elementum/workflows/cover%20100%25/badge.svg?branch=master)
+
+## Elementum daemon
+
+[![Build Status](https://travis-ci.org/elgatito/elementum.svg?branch=master)](https://travis-ci.org/elgatito/elementum)
 
 Fork of the great [Pulsar daemon](https://github.com/steeve/pulsar) and [Quasar daemon](https://github.com/scakemyer/quasar)
 

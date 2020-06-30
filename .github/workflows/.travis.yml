@@ -1,0 +1,32 @@
+On windows
+gh 
+run
+python
+       3.6
+
+env
+  global
+      ADDON_CHECK_PATH=$HOME/addon-check/
+      ADDON_PYTHON_PATH=$TRAVIS_BUILD_DIR/resources/lib/
+      KODI_MIN_VERSION=matrix
+
+before_install
+    |
+    gh clone https://github.com/xbmc/addon-check $https://github.com/I-Cat/plugin.video.elementum
+    #ADDON_CHECK_PATH
+
+   
+    pip install isort
+    pip install pylint
+    pip install $https://github.com/xbmc/addon-check $https://github.com/I-Cat/plugin.video.elementum
+    #ADDON_CHECK_PATH
+
+before_script
+    |
+    rm -f .gitattributes
+    mv .pylintrc $HOME
+    cd $HOME
+script:
+    kodi-addon-checker $TRAVIS_BUILD_DIR --leia=$KODI_MIN_VERSION
+    pylint $ADDON_PYTHON_PATH
+    isort -sl -rc $ADDON_PYTHON_PATH --diff
