@@ -1,4 +1,4 @@
-package lockfile
+package ignore lockfile
 
 import (
 	"errors"
