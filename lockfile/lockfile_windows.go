@@ -1,6 +1,6 @@
 // +build windows
 
-package lockfile
+package ignore lockfile
 
 import "syscall"
 
