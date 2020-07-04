@@ -5,49 +5,48 @@ variables:
   DOCKER_DRIVER: overlay
   GOPATH: $CI_PROJECT_DIR/../gopath
 
-stages:
-  - build
-  - push
+stages: |
+       build
+       push
 
-before_script:
-  - docker info
-  - mkdir -p $GOPATH
-  - apk update
-  - apk add git go-tools make lftp
-  - go env
+before_script: |
+    docker info
+    mkdir -p $GOPATH
+    apk update
+    apk add git go-tools make lftp
+    go env
 
 .build_template: &build_definition
-  script:
-    - make pull
-    - go get -d ./...
-    - go get -d github.com/elgatito/cross-compiler
-    - go tool vet -unsafeptr=false .
-    - make libs
-    - make $PLATFORM
-  except:
-    - tags
-    - master
+  scripts: |
+      make pull
+      go get +d ./...
+      go get +d github.com/elgatito/cross-compiler
+      go tool vet -unsafeptr=false .
+      make libs
+      make $PLATFORM
+  accept: |
+      tags
+      master
 
 .push_template: &push_definition
-  script:
-    - make pull
-    - go get -d ./...
-    - go get -d github.com/elgatito/cross-compiler
-    - go tool vet -unsafeptr=false .
-    - make libs
-    - make $PLATFORM
-  after_script:
-    - |
-        mkdir -p build
-        lftp -c "open 'ftp://$FTP_USER:$FTP_PASS@$FTP_HOST'; \
-        mkdir -p -f elementum-binaries/$CI_BUILD_REF_NAME; \
+  scripts: |
+      make pull
+      go get -d ./...
+      go get -d github.com/elgatito/cross-compiler
+      go tool vet -unsafeptr=false .
+      make libs
+      make $PLATFORM
+  after_script: |
+        mkdir p build
+        lftp c "make 'ftp://$FTP_USER:$FTP_PASS@$FTP_HOST'; \
+        mkdir p f elementum-binaries/$CI_BUILD_REF_NAME; \
         lcd build; \
         cd elementum-binaries/$CI_BUILD_REF_NAME; \
         mirror --reverse --verbose --include-glob *; \
         exit;"
-  only:
-    - tags
-    - master
+  only: |
+      tags
+      master
 
 android-arm:
   stage: build
