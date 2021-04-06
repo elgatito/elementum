@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"net"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/proxy"
 	"github.com/elgatito/elementum/util"
 )
@@ -211,23 +213,30 @@ func (tracker *Tracker) String() string {
 	return tracker.URL.String()
 }
 
-// UpdateDefaultTrackers fetches default trackers from predefined page
+// UpdateDefaultTrackers fetches extra trackers from predefined page
 func UpdateDefaultTrackers() {
-	resp, err := proxy.GetClient().Get(defaultTrackersURL)
-	if err != nil || resp == nil {
-		return
-	} else if err == nil && resp.StatusCode != 200 {
-		return
-	}
-	defer resp.Body.Close()
+	if config.Get().AddExtraTrackers != addExtraTrackersNone {
+		// add Minimum set by default
+		extraTrackers = append(extraTrackers, defaultTrackers...)
 
-	bodyBytes, _ := ioutil.ReadAll(resp.Body)
-	scanner := bufio.NewScanner(bytes.NewReader(bodyBytes))
-	extraTrackers = append([]string(nil), defaultTrackers...)
-	for scanner.Scan() {
-		tracker := strings.TrimSpace(scanner.Text())
-		if !util.StringSliceContains(extraTrackers, tracker) {
-			extraTrackers = append(extraTrackers, tracker)
+		if config.Get().AddExtraTrackers != addExtraTrackersMinimum {
+			finalExtraTrackersURL := fmt.Sprintf(extraTrackersURLTemplate, addExtraTrackersMap[config.Get().AddExtraTrackers])
+			resp, err := proxy.GetClient().Get(finalExtraTrackersURL)
+			if err != nil || resp == nil {
+				return
+			} else if err == nil && resp.StatusCode != 200 {
+				return
+			}
+			defer resp.Body.Close()
+
+			bodyBytes, _ := ioutil.ReadAll(resp.Body)
+			scanner := bufio.NewScanner(bytes.NewReader(bodyBytes))
+			for scanner.Scan() {
+				tracker := strings.TrimSpace(scanner.Text())
+				if !util.StringSliceContains(extraTrackers, tracker) {
+					extraTrackers = append(extraTrackers, tracker)
+				}
+			}
 		}
 	}
 }
