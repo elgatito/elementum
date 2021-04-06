@@ -452,7 +452,7 @@ func (show *Show) GetSeasonEpisodes(season int) int {
 	}
 
 	for _, s := range show.Seasons {
-		if s.Season == season {
+		if s != nil && s.Season == season {
 			return s.EpisodeCount
 		}
 	}

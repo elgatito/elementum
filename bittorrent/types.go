@@ -85,9 +85,10 @@ const (
 )
 
 const (
-	magnetEnricherAsIs = iota
-	magnetEnricherClear
-	magnetEnricherAdd
+	addExtraTrackersNone = iota
+	addExtraTrackersAll
+	addExtraTrackersBest
+	addExtraTrackersMinimum
 )
 
 const (
@@ -107,8 +108,11 @@ var dhtBootstrapNodes = []string{
 }
 
 var (
-	defaultTrackersURL = "https://raw.githubusercontent.com/ngosang/trackerslist/master/trackers_all.txt"
-	defaultTrackers    = []string{
+	extraTrackersURLTemplate = "https://ngosang.github.io/trackerslist/trackers_%s.txt"
+	addExtraTrackersMap      = map[int]string{
+		addExtraTrackersAll:  "all",
+		addExtraTrackersBest: "best"}
+	defaultTrackers = []string{
 		"http://bt4.t-ru.org/ann",
 		"http://retracker.mgts.by:80/announce",
 		"http://tracker.city9x.com:2710/announce",
@@ -125,7 +129,7 @@ var (
 		"udp://46.148.18.250:2710",
 		"udp://opentor.org:2710",
 	}
-	extraTrackers = append([]string(nil), defaultTrackers...)
+	extraTrackers = [][]string{}
 )
 
 const (

@@ -115,7 +115,10 @@ func NewService() *Service {
 
 	go tmdb.CheckAPIKey()
 
-	go s.loadTorrentFiles()
+	go func() {
+		UpdateDefaultTrackers()
+		s.loadTorrentFiles()
+	}()
 	go s.downloadProgress()
 
 	return s
@@ -161,12 +164,12 @@ func (s *Service) Reconfigure() {
 
 	config.Reload()
 	proxy.Reload()
+	UpdateDefaultTrackers()
 
 	s.config = config.Get()
 	s.configure()
 
 	s.startServices()
-	s.loadTorrentFiles()
 
 	// After re-configure check Trakt authorization
 	if config.Get().TraktToken != "" && !config.Get().TraktAuthorized {
@@ -177,6 +180,7 @@ func (s *Service) Reconfigure() {
 func (s *Service) configure() {
 	log.Info("Configuring client...")
 
+	proxy.Reload()
 	if s.config.InternalProxyEnabled {
 		log.Infof("Starting internal proxy")
 		s.InternalProxy = proxy.StartProxy()
@@ -669,29 +673,23 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 		// Remove all spaces in magnet
 		uri = strings.Replace(uri, " ", "", -1)
 
-		torrent := NewTorrentFile(uri)
-
-		if torrent.IsMagnet() {
-			torrent.Magnet()
-
-			log.Infof("Using modified magnet: %s", torrent.URI)
-			if err := torrent.IsValidMagnet(); err == nil {
-				torrentParams.SetUrl(torrent.URI)
-			} else {
-				return nil, err
-			}
-		} else {
-			torrent.Resolve()
+		ec := lt.NewErrorCode()
+		defer lt.DeleteErrorCode(ec)
+		lt.ParseMagnetUri(uri, torrentParams, ec)
+		if ec.Failed() {
+			return nil, errors.New(ec.Message().(string))
 		}
 
-		uri = torrent.URI
-		infoHash = torrent.InfoHash
+		shaHash := torrentParams.GetInfoHash().ToString()
+		infoHash = hex.EncodeToString([]byte(shaHash))
+
+		log.Debugf("Magnet has %d trackers", torrentParams.GetTrackers().Size())
 	} else {
 		if strings.HasPrefix(uri, "http") {
 			torrent := NewTorrentFile(uri)
 
 			if err = torrent.Resolve(); err != nil {
-				log.Warningf("Could not resolve torrent %s: %#v", uri, err)
+				log.Warningf("Could not resolve torrent %s: %s", uri, err)
 				return nil, err
 			}
 			uri = torrent.URI
@@ -710,26 +708,12 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 
 		shaHash := info.InfoHash().ToString()
 		infoHash = hex.EncodeToString([]byte(shaHash))
+
+		log.Debugf("Torrent file has %d trackers", torrentParams.GetTorrentInfo().Trackers().Size())
 	}
 
 	log.Infof("Setting save path to %s", s.config.DownloadPath)
 	torrentParams.SetSavePath(s.config.DownloadPath)
-
-	// Add extra trackers to each added torrent.
-	if len(extraTrackers) > 0 && config.Get().MagnetTrackers == magnetEnricherAdd {
-		trackers := lt.NewStdVectorString()
-		defer lt.DeleteStdVectorString(trackers)
-
-		for _, t := range extraTrackers {
-			if t == "" {
-				continue
-			}
-
-			trackers.Add(t)
-		}
-
-		torrentParams.SetTrackers(trackers)
-	}
 
 	skipPriorities := false
 	if downloadStorage != StorageMemory {
@@ -795,7 +779,52 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 	t.onMetadataReceived()
 	t.init()
 
+	// modify trackers if chosen
+	var originalTrackers []string
+	var lastFreeTier byte = 0
+	if config.Get().RemoveOriginalTrackers {
+		log.Debug("Remove original trackers from torrent")
+		t.ti.Trackers().Clear()
+	} else {
+		originalTrackersSize := int(t.ti.Trackers().Size())
+		for i := 0; i < originalTrackersSize; i++ {
+			announceEntry := t.ti.Trackers().Get(i)
+			url := announceEntry.GetUrl()
+			originalTrackers = append(originalTrackers, url)
+			currentTier := announceEntry.GetTier()
+			if currentTier > lastFreeTier {
+				lastFreeTier = currentTier
+			}
+		}
+		if originalTrackersSize > 0 {
+			lastFreeTier++
+		}
+
+	}
+	if len(extraTrackers) > 0 && config.Get().AddExtraTrackers != addExtraTrackersNone {
+		count := 0
+		for _, tier := range extraTrackers {
+			for _, tracker := range tier {
+				if tracker == "" {
+					continue
+				}
+
+				// AddTracker can add duplicates to torrent's trackers list, so need to filter
+				if !util.StringSliceContains(originalTrackers, tracker) {
+					t.ti.AddTracker(tracker, int(lastFreeTier)) // will automatically decrease tier if needed
+					count++
+				} else {
+					log.Debugf("Skip duplicate tracker %s", tracker)
+				}
+			}
+			lastFreeTier++
+		}
+		log.Debugf("Added %d extra trackers", count)
+	}
+
 	go t.Watch()
+
+	log.Infof("t.ti.Trackers(): %#v", t.ti.Trackers().Size())
 
 	return t, nil
 }

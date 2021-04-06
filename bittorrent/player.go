@@ -235,12 +235,12 @@ func (btp *Player) PlayURL() string {
 func (btp *Player) Buffer() error {
 	if btp.p.ResumeHash != "" {
 		if err := btp.resumeTorrent(); err != nil {
-			log.Errorf("Error resuming torrent: %#v", err)
+			log.Errorf("Error resuming torrent: %s", err)
 			return err
 		}
 	} else {
 		if err := btp.addTorrent(); err != nil {
-			log.Errorf("Error adding torrent: %#v", err)
+			log.Errorf("Error adding torrent: %s", err)
 			return err
 		}
 	}

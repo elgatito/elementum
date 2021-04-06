@@ -115,3 +115,16 @@ func IntSliceContains(ary []int, q int) bool {
 
 	return false
 }
+
+// SliceStringSliceContains ...
+func SliceStringSliceContains(ary [][]string, q string) bool {
+	for _, i := range ary {
+		for _, j := range i {
+			if j == q {
+				return true
+			}
+		}
+	}
+
+	return false
+}

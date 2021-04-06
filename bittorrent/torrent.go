@@ -1082,7 +1082,7 @@ func (t *Torrent) Name() string {
 		return t.name
 	}
 
-	if t.th == nil {
+	if t.ti.Swigcptr() == 0 {
 		return ""
 	}
 
@@ -1965,6 +1965,10 @@ func (t *Torrent) ChooseFile(btp *Player) (*File, int, error) {
 	if btp == nil {
 		t.DownloadFile(files[biggestFile])
 		t.SaveDBFiles()
+	}
+
+	if len(files) == 0 {
+		return nil, -1, fmt.Errorf("files list is empty")
 	}
 
 	return files[biggestFile], -1, nil

@@ -370,7 +370,10 @@ func (t *TorrentFile) Magnet() {
 
 	params := url.Values{}
 	params.Set("dn", t.Name)
-	if config.Get().MagnetTrackers != magnetEnricherClear {
+
+	if config.Get().RemoveOriginalTrackers {
+		t.Trackers = []string{}
+	} else {
 		if len(t.Trackers) != 0 {
 			for _, tracker := range t.Trackers {
 				params.Add("tr", tracker)
@@ -380,11 +383,11 @@ func (t *TorrentFile) Magnet() {
 
 	t.URI = fmt.Sprintf("magnet:?xt=urn:btih:%s&%s", t.InfoHash, params.Encode())
 
-	if t.IsValidMagnet() == nil {
+	/*if t.IsValidMagnet() == nil {
 		params.Add("as", t.URI)
 	} else {
 		params.Add("as", fmt.Sprintf(torCache, t.InfoHash))
-	}
+	}*/
 }
 
 // LoadFromBytes ...
@@ -460,10 +463,12 @@ func (t *TorrentFile) Download() ([]byte, error) {
 	}
 
 	// Try to get local file
-	if strings.HasSuffix(t.URI, "/") {
+	if strings.HasPrefix(t.URI, "/") {
 		_, err := os.Stat(t.URI)
 		if err == nil {
 			return ioutil.ReadFile(t.URI)
+		} else {
+			log.Errorf("Get local file failed: %s", err)
 		}
 	}
 
@@ -531,9 +536,11 @@ func (t *TorrentFile) Resolve() error {
 
 // EnrichTrackers ...
 func (t *TorrentFile) EnrichTrackers() {
-	for _, trackerURL := range extraTrackers {
-		if !util.StringSliceContains(t.Trackers, trackerURL) {
-			t.Trackers = append(t.Trackers, trackerURL)
+	for _, tier := range extraTrackers {
+		for _, trackerURL := range tier {
+			if !util.StringSliceContains(t.Trackers, trackerURL) {
+				t.Trackers = append(t.Trackers, trackerURL)
+			}
 		}
 	}
 }
