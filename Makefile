@@ -103,7 +103,7 @@ all:
 		$(MAKE) $$i; \
 	done
 
-client: 
+client:
 	mkdir -p $(BUILD_PATH)/client
 
 $(PLATFORMS):
@@ -169,7 +169,7 @@ prepare_windows:
 build: force
 ifeq ($(TARGET_OS), windows)
 	GOOS=windows $(GO) get -u github.com/StackExchange/wmi
-endif	
+endif
 	$(DOCKER) run --rm -v $(GOPATH):/go -e GOPATH=/go -v $(shell pwd):/go/src/$(GO_PKG) --ulimit memlock=67108864 -w /go/src/$(GO_PKG) $(DOCKER_IMAGE):$(TARGET_OS)-$(TARGET_ARCH) make dist TARGET_OS=$(TARGET_OS) TARGET_ARCH=$(TARGET_ARCH) GIT_VERSION=$(GIT_VERSION)
 
 docker: force
