@@ -363,23 +363,26 @@ func (t *TorrentFile) initializeFromMagnet() {
 }
 
 // Magnet ...
-func (t *TorrentFile) Magnet() {
+func (t *TorrentFile) Magnet(firstTime bool) {
 	if t.hasResolved == false {
 		t.Resolve()
 	}
 
 	params := url.Values{}
 	params.Set("dn", t.Name)
-	if config.Get().MagnetTrackers != magnetEnricherClear {
+	if !(firstTime && config.Get().RemoveOriginalTrackers) {
 		if len(t.Trackers) != 0 {
 			for _, tracker := range t.Trackers {
 				params.Add("tr", tracker)
 			}
 		}
+	} else {
+		t.Trackers = []string{}
 	}
 
 	t.URI = fmt.Sprintf("magnet:?xt=urn:btih:%s&%s", t.InfoHash, params.Encode())
 
+	//FIXME: what's the point of this?
 	if t.IsValidMagnet() == nil {
 		params.Add("as", t.URI)
 	} else {
@@ -460,10 +463,12 @@ func (t *TorrentFile) Download() ([]byte, error) {
 	}
 
 	// Try to get local file
-	if strings.HasSuffix(t.URI, "/") {
+	if strings.HasPrefix(t.URI, "/") {
 		_, err := os.Stat(t.URI)
 		if err == nil {
 			return ioutil.ReadFile(t.URI)
+		} else {
+			log.Errorf("Get local file failed: %s", err)
 		}
 	}
 

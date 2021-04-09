@@ -85,11 +85,6 @@ const (
 )
 
 const (
-	magnetEnricherAsIs = iota
-	magnetEnricherClear
-)
-
-const (
 	addExtraTrackersAll = iota
 	addExtraTrackersNone
 	addExtraTrackersMinimum

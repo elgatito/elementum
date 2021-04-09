@@ -630,7 +630,7 @@ func (s *Service) checkAvailableSpace(t *Torrent) bool {
 }
 
 // AddTorrent ...
-func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Torrent, error) {
+func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, firstTime bool) (*Torrent, error) {
 	defer perf.ScopeTimer()()
 
 	// To make sure no spaces coming from Web UI
@@ -656,6 +656,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 	var err error
 	var th lt.TorrentHandle
 	var infoHash string
+	var originalTrackers []string
 
 	// Dummy check if torrent file is a file containing a magnet link
 	if _, err := os.Stat(uri); err == nil {
@@ -672,10 +673,11 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 		torrent := NewTorrentFile(uri)
 
 		if torrent.IsMagnet() {
-			torrent.Magnet()
+			torrent.Magnet(firstTime)
 
 			log.Infof("Using modified magnet: %s", torrent.URI)
 			if err := torrent.IsValidMagnet(); err == nil {
+				//TODO: better to use parse_magnet_uri(), but it must be added to swig first, since it will populate trackers
 				torrentParams.SetUrl(torrent.URI)
 			} else {
 				return nil, err
@@ -686,16 +688,17 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 
 		uri = torrent.URI
 		infoHash = torrent.InfoHash
+		originalTrackers = torrent.Trackers
 	} else {
-		if strings.HasPrefix(uri, "http") {
-			torrent := NewTorrentFile(uri)
+		//if strings.HasPrefix(uri, "http") {
+		torrent := NewTorrentFile(uri)
 
-			if err = torrent.Resolve(); err != nil {
-				log.Warningf("Could not resolve torrent %s: %#v", uri, err)
-				return nil, err
-			}
-			uri = torrent.URI
+		if err = torrent.Resolve(); err != nil {
+			log.Warningf("Could not resolve torrent %s: %s", uri, err)
+			return nil, err
 		}
+		uri = torrent.URI
+		//}
 
 		if _, err := os.Stat(uri); err != nil {
 			log.Warningf("Cannot open torrent file at %s: %s", uri, err)
@@ -707,9 +710,22 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 		info := lt.NewTorrentInfo(uri)
 		defer lt.DeleteTorrentInfo(info)
 		torrentParams.SetTorrentInfo(info)
+		if firstTime && config.Get().RemoveOriginalTrackers {
+			torrentParams.GetTorrentInfo().Trackers().Clear()
+		} else {
+			originalTrackers = torrent.Trackers
+		}
 
 		shaHash := info.InfoHash().ToString()
 		infoHash = hex.EncodeToString([]byte(shaHash))
+		//if we decide not to pass local torrent files to NewTorrentFile() like it was before
+		//then this is the only way to get originalTrackers. but it is complicated.
+		/*originalTrackersSize := int(torrentParams.GetTorrentInfo().Trackers().Size())
+		for i := 0; i < originalTrackersSize; i++ {
+			announceEntry := torrentParams.GetTorrentInfo().Trackers().Get(i)
+			url := announceEntry.GetUrl()
+			originalTrackers = append(originalTrackers, url)
+		}*/
 	}
 
 	log.Infof("Setting save path to %s", s.config.DownloadPath)
@@ -725,7 +741,10 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 				continue
 			}
 
-			trackers.Add(t)
+			//SetTrackers can add duplicates to torrent's trackers list, so need to filter
+			if !util.StringSliceContains(originalTrackers, t) {
+				trackers.Add(t)
+			}
 		}
 
 		torrentParams.SetTrackers(trackers)
@@ -794,6 +813,26 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 	// Saving torrent file
 	t.onMetadataReceived()
 	t.init()
+
+	//we might want to save original torrent first, so then we can dynamically remove/add trackers
+	//without saving these runtime changes to file (b/c we don't override file after first save), thus user can rollback to original state anytime.
+	//in this case we need to remove/add trackers here and not above in the code (not before onMetadataReceived).
+	//the only issue is with magnets - we have to use original trackers to resolve it
+	//while user may expect that we removed them (or added new trackers) in the very beggining.
+	//idea is: t.ti.Trackers().Clear() and then t.ti.AddTracker(tracker, tier) for all extraTrackers
+	//also we don't need torrent/magnet specific code to remove initial trackers in this case.
+	/*if firstTime && config.Get().RemoveOriginalTrackers {
+		t.ti.Trackers().Clear()
+	}*/
+	/*if len(extraTrackers) > 0 && config.Get().AddExtraTrackers != addExtraTrackersNone {
+		for _, tracker := range extraTrackers {
+			if tracker == "" {
+				continue
+			}
+
+			t.ti.AddTracker(tracker, int(addExtraTrackersTier))
+		}
+	}*/
 
 	go t.Watch()
 
@@ -1121,7 +1160,7 @@ func (s *Service) loadTorrentFiles() {
 		filePath := filepath.Join(s.config.TorrentsPath, torrentFile.Name())
 		log.Infof("Loading torrent file %s", torrentFile.Name())
 
-		t, err := s.AddTorrent(filePath, s.config.AutoloadTorrentsPaused, config.Get().DownloadStorage)
+		t, err := s.AddTorrent(filePath, s.config.AutoloadTorrentsPaused, config.Get().DownloadStorage, false)
 		if err != nil {
 			log.Warningf("Cannot add torrent from existing file %s: %s", filePath, err)
 			continue
