@@ -814,13 +814,15 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 	t.onMetadataReceived()
 	t.init()
 
-	//we might want to save original torrent first, so then we can dynamically remove/add trackers
+	//We might want to save original torrent first, so then we can dynamically remove/add trackers
 	//without saving these runtime changes to file (b/c we don't override file after first save), thus user can rollback to original state anytime.
-	//in this case we need to remove/add trackers here and not above in the code (not before onMetadataReceived).
-	//the only issue is with magnets - we have to use original trackers to resolve it
+	//In this case we need to remove/add trackers here and not above in the code (not before onMetadataReceived).
+	//The only issue is with magnets - we have to use original trackers to resolve it
 	//while user may expect that we removed them (or added new trackers) in the very beggining.
-	//idea is: t.ti.Trackers().Clear() and then t.ti.AddTracker(tracker, tier) for all extraTrackers
-	//also we don't need torrent/magnet specific code to remove initial trackers in this case.
+	//Idea is: t.ti.Trackers().Clear() and then t.ti.AddTracker(tracker, tier) for all extraTrackers.
+	//Also we don't need torrent/magnet specific code to remove initial trackers in this case.
+	//And we can properly use tiers - currently extraTrackers added to tier 0, which may not be ideal.
+    //As a drawback: we might need to wait for UpdateDefaultTrackers completion or make this func synchronous (with timeouts).
 	/*if firstTime && config.Get().RemoveOriginalTrackers {
 		t.ti.Trackers().Clear()
 	}*/
@@ -830,7 +832,10 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 				continue
 			}
 
-			t.ti.AddTracker(tracker, int(addExtraTrackersTier))
+			//AddTracker can add duplicates to torrent's trackers list, so need to filter
+			if !util.StringSliceContains(originalTrackers, tracker) {
+				t.ti.AddTracker(tracker, 99) //will automatically pick the next available tier
+			}
 		}
 	}*/
 
