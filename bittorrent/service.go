@@ -675,18 +675,19 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 		uri = strings.Replace(uri, " ", "", -1)
 
 		torrent := NewTorrentFile(uri)
+		// This is making proper magnet url from existing parameters inside TorrentFile
+		torrent.Magnet()
 
-		if torrent.IsMagnet() {
-			torrent.Magnet()
-
-			log.Infof("Using modified magnet: %s", torrent.URI)
-			if err := torrent.IsValidMagnet(); err == nil {
-				torrentParams.SetUrl(torrent.URI)
-			} else {
-				return nil, err
+		log.Infof("Using modified magnet: %s", torrent.URI)
+		if err := torrent.IsValidMagnet(); err == nil {
+			ec := lt.NewErrorCode()
+			defer lt.DeleteErrorCode(ec)
+			lt.ParseMagnetUri(torrent.URI, torrentParams, ec)
+			if ec.Failed() {
+				return nil, errors.New(ec.Message().(string))
 			}
 		} else {
-			torrent.Resolve()
+			return nil, err
 		}
 
 		uri = torrent.URI
