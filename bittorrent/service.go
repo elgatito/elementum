@@ -170,7 +170,6 @@ func (s *Service) Reconfigure() {
 	s.configure()
 
 	s.startServices()
-	s.loadTorrentFiles()
 
 	// After re-configure check Trakt authorization
 	if config.Get().TraktToken != "" && !config.Get().TraktAuthorized {
