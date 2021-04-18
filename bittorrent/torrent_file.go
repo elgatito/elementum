@@ -370,14 +370,15 @@ func (t *TorrentFile) Magnet(firstTime bool) {
 
 	params := url.Values{}
 	params.Set("dn", t.Name)
-	if !(firstTime && config.Get().RemoveOriginalTrackers) {
+
+	if (firstTime && config.Get().RemoveOriginalTrackers == removeOriginalTrackersNew) || config.Get().RemoveOriginalTrackers == removeOriginalTrackersAll {
+		t.Trackers = []string{}
+	} else {
 		if len(t.Trackers) != 0 {
 			for _, tracker := range t.Trackers {
 				params.Add("tr", tracker)
 			}
 		}
-	} else {
-		t.Trackers = []string{}
 	}
 
 	t.URI = fmt.Sprintf("magnet:?xt=urn:btih:%s&%s", t.InfoHash, params.Encode())

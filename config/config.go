@@ -153,7 +153,7 @@ type Configuration struct {
 	LibtorrentProfile        int
 	MagnetResolveTimeout     int
 	AddExtraTrackers         int
-	RemoveOriginalTrackers   bool
+	RemoveOriginalTrackers   int
 	Scrobble                 bool
 
 	AutoScrapeEnabled        bool
@@ -594,7 +594,7 @@ func Reload() *Configuration {
 		LibtorrentProfile:          settings["libtorrent_profile"].(int),
 		MagnetResolveTimeout:       settings["magnet_resolve_timeout"].(int),
 		AddExtraTrackers:           settings["add_extra_trackers"].(int),
-		RemoveOriginalTrackers:     settings["remove_original_trackers"].(bool),
+		RemoveOriginalTrackers:     settings["remove_original_trackers"].(int),
 		ConnectionsLimit:           settings["connections_limit"].(int),
 		ConnTrackerLimit:           settings["conntracker_limit"].(int),
 		ConnTrackerLimitAuto:       settings["conntracker_limit_auto"].(bool),

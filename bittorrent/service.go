@@ -714,7 +714,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 		info := lt.NewTorrentInfo(uri)
 		defer lt.DeleteTorrentInfo(info)
 		torrentParams.SetTorrentInfo(info)
-		if firstTime && config.Get().RemoveOriginalTrackers {
+		if (firstTime && config.Get().RemoveOriginalTrackers == removeOriginalTrackersNew) || config.Get().RemoveOriginalTrackers == removeOriginalTrackersAll {
 			torrentParams.GetTorrentInfo().Trackers().Clear()
 		} else {
 			originalTrackers = torrent.Trackers
@@ -827,7 +827,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 	//Also we don't need torrent/magnet specific code to remove initial trackers in this case.
 	//And we can properly use tiers - currently extraTrackers added to tier 0, which may not be ideal.
 	//As a drawback: we might need to wait for UpdateDefaultTrackers completion or make this func synchronous (with timeouts).
-	/*if firstTime && config.Get().RemoveOriginalTrackers {
+	/*if (firstTime && config.Get().RemoveOriginalTrackers == removeOriginalTrackersNew) || config.Get().RemoveOriginalTrackers == removeOriginalTrackersAll {
 		t.ti.Trackers().Clear()
 	}*/
 	/*if len(extraTrackers) > 0 && config.Get().AddExtraTrackers != addExtraTrackersNone {

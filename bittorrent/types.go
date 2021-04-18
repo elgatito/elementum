@@ -92,6 +92,12 @@ const (
 )
 
 const (
+	removeOriginalTrackersNone = iota
+	removeOriginalTrackersNew
+	removeOriginalTrackersAll
+)
+
+const (
 	ipToSDefault     = iota
 	ipToSLowDelay    = 1 << iota
 	ipToSReliability = 1 << iota
