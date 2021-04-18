@@ -677,11 +677,10 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 		torrent := NewTorrentFile(uri)
 
 		if torrent.IsMagnet() {
-			torrent.Magnet(firstTime)
+			torrent.Magnet()
 
 			log.Infof("Using modified magnet: %s", torrent.URI)
 			if err := torrent.IsValidMagnet(); err == nil {
-				//TODO: better to use parse_magnet_uri(), but it must be added to swig first, since it will populate trackers
 				torrentParams.SetUrl(torrent.URI)
 			} else {
 				return nil, err
