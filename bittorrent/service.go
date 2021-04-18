@@ -170,6 +170,7 @@ func (s *Service) Reconfigure() {
 	s.configure()
 
 	s.startServices()
+	s.loadTorrentFiles()
 
 	// After re-configure check Trakt authorization
 	if config.Get().TraktToken != "" && !config.Get().TraktAuthorized {
@@ -826,7 +827,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 	//Idea is: t.ti.Trackers().Clear() and then t.ti.AddTracker(tracker, tier) for all extraTrackers.
 	//Also we don't need torrent/magnet specific code to remove initial trackers in this case.
 	//And we can properly use tiers - currently extraTrackers added to tier 0, which may not be ideal.
-    //As a drawback: we might need to wait for UpdateDefaultTrackers completion or make this func synchronous (with timeouts).
+	//As a drawback: we might need to wait for UpdateDefaultTrackers completion or make this func synchronous (with timeouts).
 	/*if firstTime && config.Get().RemoveOriginalTrackers {
 		t.ti.Trackers().Clear()
 	}*/
