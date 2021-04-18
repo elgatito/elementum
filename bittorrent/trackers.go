@@ -215,6 +215,7 @@ func (tracker *Tracker) String() string {
 
 // UpdateDefaultTrackers fetches extra trackers from predefined page
 func UpdateDefaultTrackers() {
+	extraTrackers = []string{}
 	if config.Get().AddExtraTrackers != addExtraTrackersNone {
 		// add Minimum set by default
 		extraTrackers = append(extraTrackers, defaultTrackers...)
