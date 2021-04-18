@@ -111,9 +111,10 @@ func (seasons SeasonList) ToListItems(show *Show) []*xbmc.ListItem {
 	wg.Wait()
 
 	for _, season := range seasons {
-		if season.EpisodeCount == 0 {
+		if season == nil || season.EpisodeCount == 0 {
 			continue
 		}
+
 		if config.Get().ShowUnairedSeasons == false {
 			firstAired, _ := time.Parse("2006-01-02", season.AirDate)
 			if firstAired.After(now) || firstAired.Equal(now) {

@@ -54,6 +54,10 @@ func (episodes EpisodeList) ToListItems(show *Show, season *Season) []*xbmc.List
 
 	now := util.UTCBod()
 	for _, episode := range episodes {
+		if episode == nil {
+			continue
+		}
+
 		if config.Get().ShowUnairedEpisodes == false {
 			if episode.AirDate == "" {
 				continue
