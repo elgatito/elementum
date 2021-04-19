@@ -780,7 +780,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 			}
 		}
 
-		log.Debugf("Adding %d extraTrackers", count)
+		log.Debugf("Adding %d extra trackers", count)
 		torrentParams.SetTrackers(trackers)
 	}
 	log.Infof("after extraTrackers torrentParams.GetTrackers().Size(): %#v", torrentParams.GetTrackers().Size())
@@ -859,9 +859,18 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 	//And we can properly use tiers - currently extraTrackers added to tier 0, which may not be ideal.
 	//As a drawback: we might need to wait for UpdateDefaultTrackers completion or make this func synchronous (with timeouts).
 	/*if (firstTime && config.Get().RemoveOriginalTrackers == removeOriginalTrackersNew) || config.Get().RemoveOriginalTrackers == removeOriginalTrackersAll {
+		log.Debug("Remove original trackers from torrent")
 		t.ti.Trackers().Clear()
+	} else {
+		originalTrackersSize := int(t.ti.Trackers().Size())
+		for i := 0; i < originalTrackersSize; i++ {
+			announceEntry := t.ti.Trackers().Get(i)
+			url := announceEntry.GetUrl()
+			originalTrackers = append(originalTrackers, url)
+		}
 	}*/
 	/*if len(extraTrackers) > 0 && config.Get().AddExtraTrackers != addExtraTrackersNone {
+		count := 0
 		for _, tracker := range extraTrackers {
 			if tracker == "" {
 				continue
@@ -869,9 +878,13 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 
 			//AddTracker can add duplicates to torrent's trackers list, so need to filter
 			if !util.StringSliceContains(originalTrackers, tracker) {
-				t.ti.AddTracker(tracker, 99) //will automatically pick the next available tier
+				t.ti.AddTracker(tracker, 99) //will automatically pick the lowest available tier
+				count++
+			} else {
+				log.Debugf("Skip duplicate tracker %s", tracker)
 			}
 		}
+		log.Debugf("Added %d extra trackers", count)
 	}*/
 
 	go t.Watch()
