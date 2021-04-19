@@ -384,11 +384,11 @@ func (t *TorrentFile) Magnet(firstTime bool) {
 	t.URI = fmt.Sprintf("magnet:?xt=urn:btih:%s&%s", t.InfoHash, params.Encode())
 
 	//FIXME: what's the point of this?
-	if t.IsValidMagnet() == nil {
+	/*if t.IsValidMagnet() == nil {
 		params.Add("as", t.URI)
 	} else {
 		params.Add("as", fmt.Sprintf(torCache, t.InfoHash))
-	}
+	}*/
 }
 
 // LoadFromBytes ...
