@@ -85,10 +85,10 @@ const (
 )
 
 const (
-	addExtraTrackersAll = iota
-	addExtraTrackersNone
-	addExtraTrackersMinimum
+	addExtraTrackersNone = iota
+	addExtraTrackersAll
 	addExtraTrackersBest
+	addExtraTrackersMinimum
 )
 
 const (
