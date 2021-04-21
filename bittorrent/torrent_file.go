@@ -564,6 +564,7 @@ func (t *TorrentFile) SaveToFile(b []byte) error {
 			err = cerr
 		}
 	}()
+	log.Infof("Write file to %s", fileName)
 	if _, err := out.Write(b); err != nil {
 		return err
 	}

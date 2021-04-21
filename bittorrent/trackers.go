@@ -237,6 +237,8 @@ func UpdateDefaultTrackers() {
 				tracker := strings.TrimSpace(scanner.Text())
 				if !util.SliceStringSliceContains(extraTrackers, tracker) {
 					downloadedTrackers = append(downloadedTrackers, tracker)
+				} else {
+					log.Debugf("Skip duplicate tracker %s", tracker)
 				}
 			}
 			extraTrackers = append(extraTrackers, downloadedTrackers)

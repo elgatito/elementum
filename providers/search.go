@@ -360,6 +360,7 @@ func processLinks(torrentsChan chan *bittorrent.TorrentFile, sortType int, isSil
 			continue
 		}
 
+		log.Infof("Write file to %s", t.URI)
 		err = ioutil.WriteFile(t.URI, out, 0666)
 		if err != nil {
 			log.Debugf("Cannot write torrent file: %s", err)
