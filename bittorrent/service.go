@@ -771,7 +771,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 		th.Resume()
 	}
 
-	log.Infof("current th.Trackers().Size(): %#v", th.Trackers().Size()) //FIXME: delete
+	log.Debugf("Loaded torrent has %d trackers", th.Trackers().Size())
 	if config.Get().RemoveOriginalTrackers {
 		log.Debug("Remove original trackers from torrent")
 		trackers := lt.NewStdVectorAnnounceEntry()
@@ -809,6 +809,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 
 		log.Infof("Done AddTracker for: %#v", th.Trackers().Size()) //FIXME: delete
 	}
+	log.Debugf("After modifications loaded torrent has %d trackers", th.Trackers().Size())
 
 	log.Infof("Setting sequential download to: %v", downloadStorage != StorageMemory)
 	th.SetSequentialDownload(downloadStorage != StorageMemory)
