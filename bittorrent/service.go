@@ -778,19 +778,16 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 	if len(extraTrackers) > 0 && config.Get().AddExtraTrackers != addExtraTrackersNone {
 		log.Infof("Do AddTracker for: %#v", th.Trackers().Size()) //FIXME: delete
 
-		for _, trackers := range extraTrackers {
-			for _, tracker := range trackers {
-				if tracker == "" {
-					continue
-				}
-
-				announceEntry := lt.NewAnnounceEntry(tracker)
-				announceEntry.SetTier(lastFreeTier)
-				defer lt.DeleteAnnounceEntry(announceEntry)
-				th.AddTracker(announceEntry)
+		for _, tracker := range extraTrackers {
+			if tracker == "" {
+				continue
 			}
-			lastFreeTier++
+
+			announceEntry := lt.NewAnnounceEntry(tracker)
+			defer lt.DeleteAnnounceEntry(announceEntry)
+			th.AddTracker(announceEntry)
 		}
+
 		newTrackersSize := int(th.Trackers().Size())
 		log.Debugf("Added %d extra trackers", newTrackersSize-originalTrackersSize)
 

@@ -215,10 +215,10 @@ func (tracker *Tracker) String() string {
 
 // UpdateDefaultTrackers fetches extra trackers from predefined page
 func UpdateDefaultTrackers() {
-	extraTrackers = [][]string{}
+	extraTrackers = []string{}
 	if config.Get().AddExtraTrackers != addExtraTrackersNone {
 		// add Minimum set by default
-		extraTrackers = append(extraTrackers, defaultTrackers)
+		extraTrackers = append(extraTrackers, defaultTrackers...)
 
 		if config.Get().AddExtraTrackers != addExtraTrackersMinimum {
 			finalExtraTrackersURL := fmt.Sprintf(extraTrackersURLTemplate, addExtraTrackersMap[config.Get().AddExtraTrackers])
@@ -230,18 +230,14 @@ func UpdateDefaultTrackers() {
 			}
 			defer resp.Body.Close()
 
-			downloadedTrackers := []string{}
 			bodyBytes, _ := ioutil.ReadAll(resp.Body)
 			scanner := bufio.NewScanner(bytes.NewReader(bodyBytes))
 			for scanner.Scan() {
 				tracker := strings.TrimSpace(scanner.Text())
-				if !util.SliceStringSliceContains(extraTrackers, tracker) {
-					downloadedTrackers = append(downloadedTrackers, tracker)
-				} else {
-					log.Debugf("Skip duplicate tracker %s", tracker)
+				if !util.StringSliceContains(extraTrackers, tracker) {
+					extraTrackers = append(extraTrackers, tracker)
 				}
 			}
-			extraTrackers = append(extraTrackers, downloadedTrackers)
 		}
 	}
 }

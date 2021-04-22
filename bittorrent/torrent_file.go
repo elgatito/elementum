@@ -536,11 +536,9 @@ func (t *TorrentFile) Resolve() error {
 
 // EnrichTrackers ...
 func (t *TorrentFile) EnrichTrackers() {
-	for _, trackers := range extraTrackers {
-		for _, trackerURL := range trackers {
-			if !util.StringSliceContains(t.Trackers, trackerURL) {
-				t.Trackers = append(t.Trackers, trackerURL)
-			}
+	for _, trackerURL := range extraTrackers {
+		if !util.StringSliceContains(t.Trackers, trackerURL) {
+			t.Trackers = append(t.Trackers, trackerURL)
 		}
 	}
 }

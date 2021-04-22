@@ -129,7 +129,7 @@ var (
 		"udp://46.148.18.250:2710",
 		"udp://opentor.org:2710",
 	}
-	extraTrackers = [][]string{}
+	extraTrackers = []string{}
 )
 
 const (
