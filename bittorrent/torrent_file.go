@@ -363,7 +363,7 @@ func (t *TorrentFile) initializeFromMagnet() {
 }
 
 // Magnet ...
-func (t *TorrentFile) Magnet() {
+func (t *TorrentFile) Magnet(firstTime bool) {
 	if t.hasResolved == false {
 		t.Resolve()
 	}
@@ -371,7 +371,7 @@ func (t *TorrentFile) Magnet() {
 	params := url.Values{}
 	params.Set("dn", t.Name)
 
-	if config.Get().RemoveOriginalTrackers {
+	if firstTime && config.Get().RemoveOriginalTrackers {
 		t.Trackers = []string{}
 	} else {
 		if len(t.Trackers) != 0 {

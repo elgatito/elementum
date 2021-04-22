@@ -189,7 +189,7 @@ func (btp *Player) addTorrent() error {
 			storage = StorageFile
 		}
 
-		torrent, err := btp.s.AddTorrent(btp.p.URI, false, storage)
+		torrent, err := btp.s.AddTorrent(btp.p.URI, false, storage, true)
 		if err != nil {
 			log.Errorf("Error adding torrent to player: %s", err)
 			return err

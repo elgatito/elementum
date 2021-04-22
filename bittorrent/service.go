@@ -634,7 +634,7 @@ func (s *Service) checkAvailableSpace(t *Torrent) bool {
 }
 
 // AddTorrent ...
-func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Torrent, error) {
+func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, firstTime bool) (*Torrent, error) {
 	defer perf.ScopeTimer()()
 
 	// To make sure no spaces coming from Web UI
@@ -660,8 +660,6 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 	var err error
 	var th lt.TorrentHandle
 	var infoHash string
-	var originalTrackers []string
-	var originalTrackersSize int
 
 	// Dummy check if torrent file is a file containing a magnet link
 	if _, err := os.Stat(uri); err == nil {
@@ -682,12 +680,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 			return nil, errors.New(ec.Message().(string))
 		}
 
-		originalTrackersSize = int(torrentParams.GetTrackers().Size())
-		for i := 0; i < originalTrackersSize; i++ {
-			url := torrentParams.GetTrackers().Get(i)
-			originalTrackers = append(originalTrackers, url)
-		}
-		log.Debugf("Magnet has %d trackers", originalTrackersSize)
+		log.Debugf("Magnet has %d trackers", torrentParams.GetTrackers().Size())
 
 		shaHash := torrentParams.GetInfoHash().ToString()
 		infoHash = hex.EncodeToString([]byte(shaHash))
@@ -713,13 +706,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 		defer lt.DeleteTorrentInfo(info)
 		torrentParams.SetTorrentInfo(info)
 
-		originalTrackersSize = int(torrentParams.GetTorrentInfo().Trackers().Size())
-		for i := 0; i < originalTrackersSize; i++ {
-			announceEntry := torrentParams.GetTorrentInfo().Trackers().Get(i)
-			url := announceEntry.GetUrl()
-			originalTrackers = append(originalTrackers, url)
-		}
-		log.Debugf("Torrent file has %d trackers", originalTrackersSize)
+		log.Debugf("Torrent file has %d trackers", torrentParams.GetTorrentInfo().Trackers().Size())
 
 		shaHash := info.InfoHash().ToString()
 		infoHash = hex.EncodeToString([]byte(shaHash))
@@ -772,42 +759,33 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 	}
 
 	log.Infof("current th.Trackers().Size(): %#v", th.Trackers().Size()) //FIXME: delete
-	if config.Get().RemoveOriginalTrackers {
-		log.Debug("Remove original trackers from torrent")
-		trackers := lt.NewStdVectorAnnounceEntry()
-		defer lt.DeleteStdVectorAnnounceEntry(trackers)
-		th.ReplaceTrackers(trackers)
-		originalTrackersSize = 0
-	} else {
-		// replace previous state with original trackers
-		trackers := lt.NewStdVectorAnnounceEntry()
-		defer lt.DeleteStdVectorAnnounceEntry(trackers)
-
-		for _, tracker := range originalTrackers {
-			announceEntry := lt.NewAnnounceEntry(tracker)
-			defer lt.DeleteAnnounceEntry(announceEntry)
-			trackers.Add(announceEntry)
+	if firstTime {
+		if config.Get().RemoveOriginalTrackers {
+			log.Debug("Remove original trackers from torrent")
+			trackers := lt.NewStdVectorAnnounceEntry()
+			defer lt.DeleteStdVectorAnnounceEntry(trackers)
+			th.ReplaceTrackers(trackers)
 		}
 
-		th.ReplaceTrackers(trackers)
-	}
-	if len(extraTrackers) > 0 && config.Get().AddExtraTrackers != addExtraTrackersNone {
-		log.Infof("Do AddTracker for: %#v", th.Trackers().Size()) //FIXME: delete
+		if len(extraTrackers) > 0 && config.Get().AddExtraTrackers != addExtraTrackersNone {
+			log.Infof("Do AddTracker for: %#v", th.Trackers().Size()) //FIXME: delete
+			originalTrackersSize := int(th.Trackers().Size())
 
-		for _, tracker := range extraTrackers {
-			if tracker == "" {
-				continue
+			for _, tracker := range extraTrackers {
+				if tracker == "" {
+					continue
+				}
+
+				announceEntry := lt.NewAnnounceEntry(tracker)
+				defer lt.DeleteAnnounceEntry(announceEntry)
+				th.AddTracker(announceEntry)
 			}
 
-			announceEntry := lt.NewAnnounceEntry(tracker)
-			defer lt.DeleteAnnounceEntry(announceEntry)
-			th.AddTracker(announceEntry)
+			newTrackersSize := int(th.Trackers().Size())
+			log.Debugf("Added %d extra trackers", newTrackersSize-originalTrackersSize)
+
+			log.Infof("Done AddTracker for: %#v", th.Trackers().Size()) //FIXME: delete
 		}
-
-		newTrackersSize := int(th.Trackers().Size())
-		log.Debugf("Added %d extra trackers", newTrackersSize-originalTrackersSize)
-
-		log.Infof("Done AddTracker for: %#v", th.Trackers().Size()) //FIXME: delete
 	}
 
 	log.Infof("Setting sequential download to: %v", downloadStorage != StorageMemory)
@@ -1161,7 +1139,7 @@ func (s *Service) loadTorrentFiles() {
 		filePath := filepath.Join(s.config.TorrentsPath, torrentFile.Name())
 		log.Infof("Loading torrent file %s", torrentFile.Name())
 
-		t, err := s.AddTorrent(filePath, s.config.AutoloadTorrentsPaused, config.Get().DownloadStorage)
+		t, err := s.AddTorrent(filePath, s.config.AutoloadTorrentsPaused, config.Get().DownloadStorage, false)
 		if err != nil {
 			log.Warningf("Cannot add torrent from existing file %s: %s", filePath, err)
 			continue
