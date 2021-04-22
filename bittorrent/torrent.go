@@ -1272,7 +1272,6 @@ func (t *Torrent) SaveMetainfo(path string) (string, error) {
 	}
 
 	out, _ := t.UpdateDatabaseMetadata(t.GetMetadata())
-	log.Infof("Write file to %s", path)
 	ioutil.WriteFile(path, out, 0644)
 
 	return path, nil
@@ -1520,51 +1519,6 @@ func (t *Torrent) onMetadataReceived() {
 	t.fastResumeFile = filepath.Join(t.Service.config.TorrentsPath, fmt.Sprintf("%s.fastresume", infoHash))
 	t.partsFile = filepath.Join(t.Service.config.DownloadPath, fmt.Sprintf(".%s.parts", infoHash))
 
-	// modify trackers if chosen
-	// if placed here - all changes will be saved into torrent file
-	/*var originalTrackers []string
-	var lastFreeTier byte = 0
-	if config.Get().RemoveOriginalTrackers {
-		log.Debug("Remove original trackers from torrent")
-		t.ti.Trackers().Clear()
-	} else {
-		originalTrackersSize := int(t.ti.Trackers().Size())
-		for i := 0; i < originalTrackersSize; i++ {
-			announceEntry := t.ti.Trackers().Get(i)
-			url := announceEntry.GetUrl()
-			originalTrackers = append(originalTrackers, url)
-			currentTier := announceEntry.GetTier()
-			if currentTier > lastFreeTier {
-				lastFreeTier = currentTier
-			}
-		}
-		if originalTrackersSize > 0 {
-			lastFreeTier++
-		}
-
-	}
-	if len(extraTrackers) > 0 && config.Get().AddExtraTrackers != addExtraTrackersNone {
-		count := 0
-		for _, tier := range extraTrackers {
-			for _, tracker := range tier {
-				if tracker == "" {
-					continue
-				}
-
-				// AddTracker can add duplicates to torrent's trackers list, so need to filter
-				if !util.StringSliceContains(originalTrackers, tracker) {
-					t.ti.AddTracker(tracker, int(lastFreeTier)) // will automatically decrease tier if needed
-					count++
-				} else {
-					log.Debugf("Skip duplicate tracker %s", tracker)
-				}
-			}
-			lastFreeTier++
-		}
-		log.Debugf("Added %d extra trackers", count)
-	}
-	log.Infof("t.ti.Trackers(): %#v", t.ti.Trackers().Size())*/
-
 	go func() {
 		// After metadata is fetched for a torrent, we should
 		// save it to torrent file for re-adding after program restart.
@@ -1581,51 +1535,6 @@ func (t *Torrent) onMetadataReceived() {
 		}
 
 		t.SaveMetainfo(config.Get().Info.TempPath)
-
-		// modify trackers if chosen
-		// if placed here - all changes will live only in runtime
-		/*var originalTrackers []string
-		var lastFreeTier byte = 0
-		if config.Get().RemoveOriginalTrackers {
-			log.Debug("Remove original trackers from torrent")
-			t.ti.Trackers().Clear()
-		} else {
-			originalTrackersSize := int(t.ti.Trackers().Size())
-			for i := 0; i < originalTrackersSize; i++ {
-				announceEntry := t.ti.Trackers().Get(i)
-				url := announceEntry.GetUrl()
-				originalTrackers = append(originalTrackers, url)
-				currentTier := announceEntry.GetTier()
-				if currentTier > lastFreeTier {
-					lastFreeTier = currentTier
-				}
-			}
-			if originalTrackersSize > 0 {
-				lastFreeTier++
-			}
-
-		}
-		if len(extraTrackers) > 0 && config.Get().AddExtraTrackers != addExtraTrackersNone {
-			count := 0
-			for _, tier := range extraTrackers {
-				for _, tracker := range tier {
-					if tracker == "" {
-						continue
-					}
-
-					// AddTracker can add duplicates to torrent's trackers list, so need to filter
-					if !util.StringSliceContains(originalTrackers, tracker) {
-						t.ti.AddTracker(tracker, int(lastFreeTier)) // will automatically decrease tier if needed
-						count++
-					} else {
-						log.Debugf("Skip duplicate tracker %s", tracker)
-					}
-				}
-				lastFreeTier++
-			}
-			log.Debugf("Added %d extra trackers", count)
-		}
-		log.Infof("t.ti.Trackers(): %#v", t.ti.Trackers().Size())*/
 	}()
 }
 

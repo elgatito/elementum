@@ -651,8 +651,6 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 	torrentParams := lt.NewAddTorrentParams()
 	defer lt.DeleteAddTorrentParams(torrentParams)
 
-	//torrentParams.SetFlags(uint64(lt.AddTorrentParamsFlagMergeResumeTrackers)) //FIXME: delete
-
 	if downloadStorage == StorageMemory {
 		torrentParams.SetMemoryStorage(s.GetMemorySize())
 	}
@@ -662,7 +660,6 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 	var err error
 	var th lt.TorrentHandle
 	var infoHash string
-	//var originalTrackers []string //FIXME: delete
 
 	// Dummy check if torrent file is a file containing a magnet link
 	if _, err := os.Stat(uri); err == nil {
@@ -687,17 +684,6 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 		infoHash = hex.EncodeToString([]byte(shaHash))
 
 		log.Debugf("Magnet has %d trackers", torrentParams.GetTrackers().Size())
-
-		/*if config.Get().RemoveOriginalTrackers {
-			log.Debug("Remove original trackers from magnet")
-			torrentParams.GetTrackers().Clear()
-		} else {
-			originalTrackersSize := int(torrentParams.GetTrackers().Size())
-			for i := 0; i < originalTrackersSize; i++ {
-				url := torrentParams.GetTrackers().Get(i)
-				originalTrackers = append(originalTrackers, url)
-			}
-		}*/
 	} else {
 		if strings.HasPrefix(uri, "http") {
 			torrent := NewTorrentFile(uri)
@@ -724,61 +710,10 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 		infoHash = hex.EncodeToString([]byte(shaHash))
 
 		log.Debugf("Torrent file has %d trackers", torrentParams.GetTorrentInfo().Trackers().Size())
-
-		/*if config.Get().RemoveOriginalTrackers {
-			log.Debug("Remove original trackers from torrent file")
-			torrentParams.GetTorrentInfo().Trackers().Clear()
-		} else {
-			//originalTrackers = torrent.Trackers
-
-			//if we decide not to pass local torrent files to NewTorrentFile() like it was before
-			//then this is the only way to get originalTrackers. but it is complicated.
-			originalTrackersSize := int(torrentParams.GetTorrentInfo().Trackers().Size())
-			for i := 0; i < originalTrackersSize; i++ {
-				announceEntry := torrentParams.GetTorrentInfo().Trackers().Get(i)
-				url := announceEntry.GetUrl()
-				originalTrackers = append(originalTrackers, url)
-			}
-		}*/
 	}
 
 	log.Infof("Setting save path to %s", s.config.DownloadPath)
 	torrentParams.SetSavePath(s.config.DownloadPath)
-
-	/*log.Infof("before extraTrackers torrentParams.GetTrackers().Size(): %#v", torrentParams.GetTrackers().Size())
-	// Add extra trackers to each added torrent.
-	if len(extraTrackers) > 0 && config.Get().AddExtraTrackers != addExtraTrackersNone {
-		trackers := lt.NewStdVectorString()
-		defer lt.DeleteStdVectorString(trackers)
-
-		//this needed b/c SetTrackers() will overwrite current trackers
-		if torrentParams.GetTrackers().Size() > 0 { // currently only magnets have add_torrent_params.trackers, files have add_torrent_params.ti.trackers
-			for _, t := range originalTrackers {
-				trackers.Add(t)
-			}
-		}
-
-		count := 0
-		for _, tier := range extraTrackers {
-			for _, tracker := range tier {
-				if tracker == "" {
-					continue
-				}
-
-				//SetTrackers can add duplicates to torrent's trackers list, so need to filter
-				if !util.StringSliceContains(originalTrackers, tracker) {
-					trackers.Add(tracker)
-					count++
-				} else {
-					log.Debugf("Skip duplicate tracker %s", tracker)
-				}
-			}
-		}
-
-		log.Debugf("Adding %d extra trackers", count)
-		torrentParams.SetTrackers(trackers)
-	}
-	log.Infof("after extraTrackers torrentParams.GetTrackers().Size(): %#v", torrentParams.GetTrackers().Size())*/
 
 	skipPriorities := false
 	if downloadStorage != StorageMemory {
@@ -796,7 +731,9 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 			for _, c := range fastResumeData {
 				fastResumeVector.Add(c)
 			}
-			torrentParams.SetResumeData(fastResumeVector) //вот тут не будет трекеров новых есди добавлять не через th
+			// currently we don't need to merge trackers from resume data
+			// but we can with smth like torrentParams.SetFlags(uint64(lt.AddTorrentParamsFlagMergeResumeTrackers))
+			torrentParams.SetResumeData(fastResumeVector)
 
 			skipPriorities = true
 		}
@@ -812,18 +749,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 		torrentParams.SetFilePriorities(filesPriorities)
 	}
 
-	/*log.Infof("before extraTrackers torrentParams.GetTrackers().Size(): %#v", torrentParams.GetTrackers().Size())
-	if true {
-		trackers := lt.NewStdVectorString()
-		defer lt.DeleteStdVectorString(trackers)
-		trackers.Add("http://torrentParams.local:8080")
-		log.Debug("Adding extra trackers via SetTrackers")
-		torrentParams.SetTrackers(trackers)
-	}
-	log.Infof("after extraTrackers torrentParams.GetTrackers().Size(): %#v", torrentParams.GetTrackers().Size())*/
-
 	// Call torrent creation
-	//тут уже в библиотеке, добавлять надо ДО
 	th, err = s.Session.AddTorrent(torrentParams)
 	if err != nil {
 		return nil, err
@@ -832,12 +758,10 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 		th.Resume()
 	}
 
-	//var originalTrackers []string
 	var lastFreeTier byte = 0
 	originalTrackersSize := int(th.Trackers().Size())
 	if config.Get().RemoveOriginalTrackers {
 		log.Debug("Remove original trackers from torrent")
-		//th.Trackers().Clear() не работает
 		trackers := lt.NewStdVectorAnnounceEntry()
 		defer lt.DeleteStdVectorAnnounceEntry(trackers)
 		th.ReplaceTrackers(trackers)
@@ -852,7 +776,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 		}
 	}
 	if len(extraTrackers) > 0 && config.Get().AddExtraTrackers != addExtraTrackersNone {
-		log.Infof("Do AddTracker for: %#v", th.Trackers().Size())
+		log.Infof("Do AddTracker for: %#v", th.Trackers().Size()) //FIXME: delete
 
 		for _, trackers := range extraTrackers {
 			for _, tracker := range trackers {
@@ -870,7 +794,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 		newTrackersSize := int(th.Trackers().Size())
 		log.Debugf("Added %d extra trackers", newTrackersSize-originalTrackersSize)
 
-		log.Infof("Done AddTracker for: %#v", th.Trackers().Size())
+		log.Infof("Done AddTracker for: %#v", th.Trackers().Size()) //FIXME: delete
 	}
 
 	log.Infof("Setting sequential download to: %v", downloadStorage != StorageMemory)
@@ -896,14 +820,9 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 	t.onMetadataReceived()
 	t.init()
 
-	if true {
-		log.Debug("Adding extra trackers via t.ti.AddTracker")
-		t.ti.AddTracker("http://ti.local:8080", 0)
-	}
-
 	go t.Watch()
 
-	log.Infof("t.ti.Trackers(): %#v", t.ti.Trackers().Size())
+	log.Infof("t.ti.Trackers(): %#v", t.ti.Trackers().Size()) //FIXME: delete
 
 	return t, nil
 }

@@ -536,8 +536,8 @@ func (t *TorrentFile) Resolve() error {
 
 // EnrichTrackers ...
 func (t *TorrentFile) EnrichTrackers() {
-	for _, tier := range extraTrackers {
-		for _, trackerURL := range tier {
+	for _, trackers := range extraTrackers {
+		for _, trackerURL := range trackers {
 			if !util.StringSliceContains(t.Trackers, trackerURL) {
 				t.Trackers = append(t.Trackers, trackerURL)
 			}
@@ -564,7 +564,6 @@ func (t *TorrentFile) SaveToFile(b []byte) error {
 			err = cerr
 		}
 	}()
-	log.Infof("Write file to %s", fileName)
 	if _, err := out.Write(b); err != nil {
 		return err
 	}
