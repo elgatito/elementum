@@ -682,15 +682,15 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 			return nil, errors.New(ec.Message().(string))
 		}
 
-		shaHash := torrentParams.GetInfoHash().ToString()
-		infoHash = hex.EncodeToString([]byte(shaHash))
-
 		originalTrackersSize = int(torrentParams.GetTrackers().Size())
 		for i := 0; i < originalTrackersSize; i++ {
 			url := torrentParams.GetTrackers().Get(i)
 			originalTrackers = append(originalTrackers, url)
 		}
 		log.Debugf("Magnet has %d trackers", originalTrackersSize)
+
+		shaHash := torrentParams.GetInfoHash().ToString()
+		infoHash = hex.EncodeToString([]byte(shaHash))
 	} else {
 		if strings.HasPrefix(uri, "http") {
 			torrent := NewTorrentFile(uri)
@@ -713,17 +713,16 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 		defer lt.DeleteTorrentInfo(info)
 		torrentParams.SetTorrentInfo(info)
 
-		shaHash := info.InfoHash().ToString()
-		infoHash = hex.EncodeToString([]byte(shaHash))
-
 		originalTrackersSize = int(torrentParams.GetTorrentInfo().Trackers().Size())
 		for i := 0; i < originalTrackersSize; i++ {
 			announceEntry := torrentParams.GetTorrentInfo().Trackers().Get(i)
 			url := announceEntry.GetUrl()
 			originalTrackers = append(originalTrackers, url)
 		}
-
 		log.Debugf("Torrent file has %d trackers", originalTrackersSize)
+
+		shaHash := info.InfoHash().ToString()
+		infoHash = hex.EncodeToString([]byte(shaHash))
 	}
 
 	log.Infof("Setting save path to %s", s.config.DownloadPath)
