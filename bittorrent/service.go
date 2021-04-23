@@ -768,7 +768,6 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 		}
 
 		if len(extraTrackers) > 0 && config.Get().AddExtraTrackers != addExtraTrackersNone {
-			log.Infof("Do AddTracker for: %#v", th.Trackers().Size()) //FIXME: delete
 			originalTrackersSize := int(th.Trackers().Size())
 
 			for _, tracker := range extraTrackers {
@@ -783,8 +782,6 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 
 			newTrackersSize := int(th.Trackers().Size())
 			log.Debugf("Added %d extra trackers", newTrackersSize-originalTrackersSize)
-
-			log.Infof("Done AddTracker for: %#v", th.Trackers().Size()) //FIXME: delete
 		}
 		log.Debugf("After modifications loaded torrent has %d trackers", th.Trackers().Size())
 	}
@@ -813,8 +810,6 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 	t.init()
 
 	go t.Watch()
-
-	log.Infof("t.ti.Trackers(): %#v", t.ti.Trackers().Size()) //FIXME: delete
 
 	return t, nil
 }
