@@ -662,6 +662,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 	var infoHash string
 	var originalTrackers []string
 	var originalTrackersSize int
+	var private bool
 
 	// Dummy check if torrent file is a file containing a magnet link
 	if _, err := os.Stat(uri); err == nil {
@@ -710,14 +711,17 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 		log.Debugf("Adding torrent: %#v", uri)
 
 		info := lt.NewTorrentInfo(uri)
+		private = info.Priv()
 		defer lt.DeleteTorrentInfo(info)
 		torrentParams.SetTorrentInfo(info)
 
 		originalTrackersSize = int(torrentParams.GetTorrentInfo().Trackers().Size())
-		for i := 0; i < originalTrackersSize; i++ {
-			announceEntry := torrentParams.GetTorrentInfo().Trackers().Get(i)
-			url := announceEntry.GetUrl()
-			originalTrackers = append(originalTrackers, url)
+		if !private {
+			for i := 0; i < originalTrackersSize; i++ {
+				announceEntry := torrentParams.GetTorrentInfo().Trackers().Get(i)
+				url := announceEntry.GetUrl()
+				originalTrackers = append(originalTrackers, url)
+			}
 		}
 		log.Debugf("Torrent file has %d trackers", originalTrackersSize)
 
@@ -771,41 +775,44 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int) (*Tor
 		th.Resume()
 	}
 
+	// modify trackers
 	log.Debugf("Loaded torrent has %d trackers", th.Trackers().Size())
-	if config.Get().RemoveOriginalTrackers {
-		log.Debug("Remove original trackers from torrent")
-		trackers := lt.NewStdVectorAnnounceEntry()
-		defer lt.DeleteStdVectorAnnounceEntry(trackers)
-		th.ReplaceTrackers(trackers)
-		originalTrackersSize = 0
-	} else {
-		// replace previous state with original trackers
-		trackers := lt.NewStdVectorAnnounceEntry()
-		defer lt.DeleteStdVectorAnnounceEntry(trackers)
+	if !private {
+		if config.Get().RemoveOriginalTrackers {
+			log.Debug("Remove original trackers from torrent")
+			trackers := lt.NewStdVectorAnnounceEntry()
+			defer lt.DeleteStdVectorAnnounceEntry(trackers)
+			th.ReplaceTrackers(trackers)
+			originalTrackersSize = 0
+		} else {
+			// replace previous state with original trackers
+			trackers := lt.NewStdVectorAnnounceEntry()
+			defer lt.DeleteStdVectorAnnounceEntry(trackers)
 
-		for _, tracker := range originalTrackers {
-			announceEntry := lt.NewAnnounceEntry(tracker)
-			defer lt.DeleteAnnounceEntry(announceEntry)
-			trackers.Add(announceEntry)
-		}
-
-		th.ReplaceTrackers(trackers)
-	}
-	if len(extraTrackers) > 0 && config.Get().AddExtraTrackers != addExtraTrackersNone {
-		for _, tracker := range extraTrackers {
-			if tracker == "" {
-				continue
+			for _, tracker := range originalTrackers {
+				announceEntry := lt.NewAnnounceEntry(tracker)
+				defer lt.DeleteAnnounceEntry(announceEntry)
+				trackers.Add(announceEntry)
 			}
 
-			announceEntry := lt.NewAnnounceEntry(tracker)
-			defer lt.DeleteAnnounceEntry(announceEntry)
-			th.AddTracker(announceEntry)
+			th.ReplaceTrackers(trackers)
 		}
+		if len(extraTrackers) > 0 && config.Get().AddExtraTrackers != addExtraTrackersNone {
+			for _, tracker := range extraTrackers {
+				if tracker == "" {
+					continue
+				}
 
-		newTrackersSize := int(th.Trackers().Size())
-		log.Debugf("Added %d extra trackers", newTrackersSize-originalTrackersSize)
+				announceEntry := lt.NewAnnounceEntry(tracker)
+				defer lt.DeleteAnnounceEntry(announceEntry)
+				th.AddTracker(announceEntry)
+			}
+
+			newTrackersSize := int(th.Trackers().Size())
+			log.Debugf("Added %d extra trackers", newTrackersSize-originalTrackersSize)
+		}
+		log.Debugf("After modifications loaded torrent has %d trackers", th.Trackers().Size())
 	}
-	log.Debugf("After modifications loaded torrent has %d trackers", th.Trackers().Size())
 
 	log.Infof("Setting sequential download to: %v", downloadStorage != StorageMemory)
 	th.SetSequentialDownload(downloadStorage != StorageMemory)
