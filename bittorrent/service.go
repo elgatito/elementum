@@ -660,6 +660,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 	var err error
 	var th lt.TorrentHandle
 	var infoHash string
+	var private bool
 
 	// Dummy check if torrent file is a file containing a magnet link
 	if _, err := os.Stat(uri); err == nil {
@@ -703,6 +704,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 		log.Debugf("Adding torrent: %#v", uri)
 
 		info := lt.NewTorrentInfo(uri)
+		private = info.Priv()
 		defer lt.DeleteTorrentInfo(info)
 		torrentParams.SetTorrentInfo(info)
 
@@ -758,8 +760,9 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 		th.Resume()
 	}
 
+	// modify trackers
 	log.Debugf("Loaded torrent has %d trackers", th.Trackers().Size())
-	if firstTime {
+	if firstTime && !private {
 		if config.Get().RemoveOriginalTrackers {
 			log.Debug("Remove original trackers from torrent")
 			trackers := lt.NewStdVectorAnnounceEntry()
