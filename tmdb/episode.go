@@ -63,7 +63,7 @@ func (episodes EpisodeList) ToListItems(show *Show, season *Season) []*xbmc.List
 				continue
 			}
 			firstAired, _ := time.Parse("2006-01-02", episode.AirDate)
-			if firstAired.After(now) || firstAired.Equal(now) {
+			if firstAired.After(now) || (!config.Get().ShowEpisodesOnReleaseDay && firstAired.Equal(now)) {
 				continue
 			}
 		}

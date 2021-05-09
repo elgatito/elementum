@@ -88,6 +88,7 @@ type Configuration struct {
 	AddEpisodeNumbers          bool
 	ShowUnairedSeasons         bool
 	ShowUnairedEpisodes        bool
+	ShowEpisodesOnReleaseDay   bool
 	ShowSeasonsAll             bool
 	ShowSeasonsOrder           int
 	ShowSeasonsSpecials        bool
@@ -553,6 +554,7 @@ func Reload() *Configuration {
 		AddEpisodeNumbers:          settings["add_episode_numbers"].(bool),
 		ShowUnairedSeasons:         settings["unaired_seasons"].(bool),
 		ShowUnairedEpisodes:        settings["unaired_episodes"].(bool),
+		ShowEpisodesOnReleaseDay:   settings["show_episodes_on_release_day"].(bool),
 		ShowSeasonsAll:             settings["seasons_all"].(bool),
 		ShowSeasonsOrder:           settings["seasons_order"].(int),
 		ShowSeasonsSpecials:        settings["seasons_specials"].(bool),

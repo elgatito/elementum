@@ -576,7 +576,7 @@ func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
 		}
 		if config.Get().ShowUnairedSeasons == false {
 			firstAired, _ := time.Parse("2006-01-02", show.FirstAirDate)
-			if firstAired.After(now) || firstAired.Equal(now) {
+			if firstAired.After(now) || (!config.Get().ShowEpisodesOnReleaseDay && firstAired.Equal(now)) {
 				continue
 			}
 		}
@@ -601,7 +601,7 @@ func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
 					continue
 				}
 				firstAired, _ := time.Parse("2006-01-02", episode.AirDate)
-				if firstAired.After(now) || firstAired.Equal(now) {
+				if firstAired.After(now) || (!config.Get().ShowEpisodesOnReleaseDay && firstAired.Equal(now)) {
 					continue
 				}
 			}

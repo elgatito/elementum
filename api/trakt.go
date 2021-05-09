@@ -1360,7 +1360,7 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 			}
 
 			aired, errDate := time.Parse("2006-01-02", airDate)
-			if config.Get().TraktProgressUnaired && errDate == nil && (aired.After(now) || aired.Equal(now)) {
+			if config.Get().TraktProgressUnaired && errDate == nil && (aired.After(now) || (!config.Get().ShowEpisodesOnReleaseDay && aired.Equal(now))) {
 				return
 			}
 

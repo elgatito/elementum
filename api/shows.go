@@ -457,7 +457,7 @@ func ShowEpisodes(ctx *gin.Context) {
 			}
 			if config.Get().ShowUnairedSeasons == false {
 				firstAired, _ := time.Parse("2006-01-02", s.AirDate)
-				if firstAired.After(now) || firstAired.Equal(now) {
+				if firstAired.After(now) || (!config.Get().ShowEpisodesOnReleaseDay && firstAired.Equal(now)) {
 					continue
 				}
 			}

@@ -117,7 +117,7 @@ func (seasons SeasonList) ToListItems(show *Show) []*xbmc.ListItem {
 
 		if config.Get().ShowUnairedSeasons == false {
 			firstAired, _ := time.Parse("2006-01-02", season.AirDate)
-			if firstAired.After(now) || firstAired.Equal(now) {
+			if firstAired.After(now) || (!config.Get().ShowEpisodesOnReleaseDay && firstAired.Equal(now)) {
 				continue
 			}
 		}
