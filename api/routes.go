@@ -332,6 +332,9 @@ func Routes(s *bittorrent.Service) *gin.Engine {
 
 	r.GET("/versions", Versions(s))
 
+	r.GET("/info", s.InfoWeb)
+	r.GET("/info/*ident", s.InfoWeb)
+
 	cmd := r.Group("/cmd")
 	{
 		cmd.GET("/clear_cache_key/:key", ClearCache)

@@ -163,7 +163,7 @@ func main() {
 
 	http.Handle("/", api.Routes(s))
 
-	http.Handle("/info", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	http.Handle("/info_old", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.ClientInfo(w)
 	}))
 	http.Handle("/debug/all", bittorrent.DebugAll(s))

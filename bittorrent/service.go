@@ -23,6 +23,7 @@ import (
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/cespare/xxhash"
 	"github.com/dustin/go-humanize"
+	"github.com/gin-gonic/gin"
 	"github.com/radovskyb/watcher"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/zeebo/bencode"
@@ -1609,9 +1610,46 @@ func (s *Service) ClientInfo(_w io.Writer) {
 			continue
 		}
 
-		t.TorrentInfo(w)
+		t.TorrentInfo(w, true)
 
 		fmt.Fprint(w, "\n\n")
+	}
+}
+
+// InfoWeb ...
+func (s *Service) InfoWeb(ctx *gin.Context) {
+	if s.Closer.IsSet() {
+		return
+	}
+
+	defer perf.ScopeTimer()()
+
+	ctx.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+	ctx.Header("Content-Type", "text/plain; charset=utf-8")
+
+	torrentID := ctx.Query("torrentid")
+
+	showTrackersQ := ctx.Query("showtrackers")
+	showTrackers := true
+	if showTrackersQ == "false" {
+		showTrackers = false
+	}
+
+	if torrentID != "" {
+		t := s.GetTorrentByHash(torrentID)
+		if t != nil && t.th != nil {
+			t.TorrentInfo(ctx.Writer, showTrackers)
+		}
+	} else {
+		for _, t := range s.q.All() {
+			if t == nil || t.th == nil {
+				continue
+			}
+
+			t.TorrentInfo(ctx.Writer, showTrackers)
+
+			fmt.Fprint(ctx.Writer, "\n\n")
+		}
 	}
 }
 

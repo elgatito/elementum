@@ -2019,7 +2019,7 @@ func (t *Torrent) GetPlayURL(fileIndex string) string {
 }
 
 // TorrentInfo writes torrent status to io.Writer
-func (t *Torrent) TorrentInfo(w io.Writer) {
+func (t *Torrent) TorrentInfo(w io.Writer, showTrackers bool) {
 	if t.Closer.IsSet() {
 		return
 	}
@@ -2086,29 +2086,31 @@ func (t *Torrent) TorrentInfo(w io.Writer) {
 	lt.DeleteStdVectorInt(filePriorities)
 
 	fmt.Fprint(w, "\n")
-	fmt.Fprint(w, "    Libtorrent Trackers:\n")
+	if showTrackers {
+		fmt.Fprint(w, "    Libtorrent Trackers:\n")
 
-	trackers := t.th.Trackers()
-	trackersSize := trackers.Size()
-	for i := 0; i < int(trackersSize); i++ {
-		tracker := trackers.Get(i)
-		fmt.Fprintf(w, "        %-60s: %-3s seeds, %-3s peers, updating: %-5v, is_working: %-5v, message: %s\n",
-			tracker.GetUrl(),
-			peerNumToString(tracker.GetScrapeComplete()),
-			peerNumToString(tracker.GetScrapeIncomplete()),
-			tracker.GetUpdating(),
-			tracker.IsWorking(),
-			tracker.GetMessage())
+		trackers := t.th.Trackers()
+		trackersSize := trackers.Size()
+		for i := 0; i < int(trackersSize); i++ {
+			tracker := trackers.Get(i)
+			fmt.Fprintf(w, "        %-60s: %-3s seeds, %-3s peers, updating: %-5v, is_working: %-5v, message: %s\n",
+				tracker.GetUrl(),
+				peerNumToString(tracker.GetScrapeComplete()),
+				peerNumToString(tracker.GetScrapeIncomplete()),
+				tracker.GetUpdating(),
+				tracker.IsWorking(),
+				tracker.GetMessage())
+		}
+
+		fmt.Fprint(w, "\n")
+		fmt.Fprint(w, "    Invernal Trackers:\n")
+
+		t.trackers.Range(func(t, p interface{}) bool {
+			fmt.Fprintf(w, "        %-60s: %-3d peers\n", t, p)
+			return true
+		})
+		fmt.Fprint(w, "\n")
 	}
-
-	fmt.Fprint(w, "\n")
-	fmt.Fprint(w, "    Invernal Trackers:\n")
-
-	t.trackers.Range(func(t, p interface{}) bool {
-		fmt.Fprintf(w, "        %-60s: %-3d peers\n", t, p)
-		return true
-	})
-	fmt.Fprint(w, "\n")
 
 	if t.Closer.IsSet() || t.ti == nil || t.ti.Swigcptr() == 0 || t.th == nil || t.th.Swigcptr() == 0 {
 		return
