@@ -10,6 +10,7 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/providers"
 	"github.com/elgatito/elementum/xbmc"
+	"github.com/gin-contrib/gzip"
 
 	"github.com/gin-gonic/gin"
 	"github.com/op/go-logging"
@@ -32,6 +33,7 @@ func Routes(s *bittorrent.Service) *gin.Engine {
 	r.Use(gin.Recovery())
 	r.Use(gin.LoggerWithWriter(gin.DefaultWriter, "/torrents/list", "/notification"))
 	r.Use(IPLogger())
+	r.Use(gzip.Gzip(gzip.DefaultCompression))
 
 	gin.SetMode(gin.ReleaseMode)
 
