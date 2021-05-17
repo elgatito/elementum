@@ -155,7 +155,7 @@ func Notify(header string, message string, image string) {
 // InfoLabels ...
 func InfoLabels(labels ...string) map[string]string {
 	var retVal map[string]string
-	executeJSONRPC("GetInfoLabels", &retVal, Args{labels})
+	executeJSONRPC("XBMC.GetInfoLabels", &retVal, Args{labels})
 	return retVal
 }
 
