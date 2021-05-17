@@ -1247,7 +1247,7 @@ func (s *Service) downloadProgress() {
 
 				t := s.GetTorrentByHash(infoHash)
 				if t != nil {
-					status = t.GetStateString()
+					status, _ = t.GetStateString()
 				} else {
 					continue
 				}

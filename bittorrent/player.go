@@ -413,7 +413,7 @@ func (btp *Player) statusStrings(progress float64, status lt.TorrentStatus) (str
 		progress = 0
 	}
 
-	statusName := btp.t.GetStateString()
+	statusName, _ := btp.t.GetStateString()
 	line1 := fmt.Sprintf("%s (%.2f%%)", statusName, progress)
 
 	// Adding buffer size to progress window
