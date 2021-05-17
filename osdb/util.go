@@ -170,6 +170,7 @@ func GetPayloads(searchString string, languages []string, preferredLanguage stri
 func appendLocalFilePayloads(playingFile string, payloads *[]SearchPayload) error {
 	file, err := os.Open(playingFile)
 	if err != nil {
+		log.Debug(err)
 		return err
 	}
 	defer file.Close()
