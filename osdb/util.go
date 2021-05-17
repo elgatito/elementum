@@ -101,7 +101,7 @@ func GetPayloads(searchString string, languages []string, preferredLanguage stri
 		"VideoPlayer.Title",
 		"VideoPlayer.OriginalTitle",
 		"VideoPlayer.Year",
-		"VideoPlayer.TVshowtitle",
+		"VideoPlayer.TVShowTitle",
 		"VideoPlayer.Season",
 		"VideoPlayer.Episode",
 		"VideoPlayer.IMDBNumber",
@@ -130,10 +130,10 @@ func GetPayloads(searchString string, languages []string, preferredLanguage stri
 		// If player ListItem has IMDBNumber specified - we try to get TMDB item from it.
 		// If not - we can use localized show/movie name - which is not always found on OSDB.
 		if strings.HasPrefix(labels["VideoPlayer.IMDBNumber"], "tt") {
-			if labels["VideoPlayer.TVshowtitle"] != "" {
+			if labels["VideoPlayer.TVShowTitle"] != "" {
 				r := tmdb.Find(labels["VideoPlayer.IMDBNumber"], "imdb_id")
 				if r != nil && len(r.TVResults) > 0 {
-					labels["VideoPlayer.TVshowtitle"] = r.TVResults[0].OriginalName
+					labels["VideoPlayer.TVShowTitle"] = r.TVResults[0].OriginalName
 				}
 			} else {
 				r := tmdb.Find(labels["VideoPlayer.IMDBNumber"], "imdb_id")
@@ -146,7 +146,7 @@ func GetPayloads(searchString string, languages []string, preferredLanguage stri
 		var err error
 		if showID != 0 {
 			err = appendEpisodePayloads(showID, labels, &payloads)
-		} else if err == nil {
+		} else {
 			err = appendMoviePayloads(labels, &payloads)
 		}
 
@@ -234,7 +234,7 @@ func appendEpisodePayloads(showID int, labels map[string]string, payloads *[]Sea
 	}
 
 	if season >= 0 && episode > 0 {
-		title := labels["VideoPlayer.TVshowtitle"]
+		title := labels["VideoPlayer.TVShowTitle"]
 		if showID != 0 {
 			// Trying to get Original name of the show, otherwise we will likely fail to find anything.
 			show := tmdb.GetShow(showID, config.Get().Language)
