@@ -388,7 +388,8 @@ func PauseSession(s *bittorrent.Service) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		defer perf.ScopeTimer()()
 
-		// TODO: Add Global Pause
+		s.Session.Pause()
+
 		xbmc.Refresh()
 		ctx.String(200, "")
 	}
@@ -399,7 +400,8 @@ func ResumeSession(s *bittorrent.Service) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		defer perf.ScopeTimer()()
 
-		// TODO: Add Global Resume
+		s.Session.Resume()
+
 		xbmc.Refresh()
 		ctx.String(200, "")
 	}
