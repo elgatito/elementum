@@ -62,6 +62,7 @@ func Routes(s *bittorrent.Service) *gin.Engine {
 	r.GET("/status", Status)
 
 	r.Any("/info", s.ClientInfo)
+	r.Any("/info/*ident", s.ClientInfo)
 
 	history := r.Group("/history")
 	{
