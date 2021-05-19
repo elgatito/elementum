@@ -1530,8 +1530,8 @@ func (t *Torrent) onMetadataReceived() {
 	infoHash := t.InfoHash()
 	t.fastResumeFile = filepath.Join(t.Service.config.TorrentsPath, fmt.Sprintf("%s.fastresume", infoHash))
 	t.partsFile = filepath.Join(t.Service.config.DownloadPath, fmt.Sprintf(".%s.parts", infoHash))
-	t.memoryStorageFile = filepath.Join(t.Service.config.DownloadPath, fmt.Sprintf(".%s.memory", infoHash))
-	t.fileStorageFile = filepath.Join(t.Service.config.DownloadPath, fmt.Sprintf(".%s.file", infoHash))
+	t.memoryStorageFile = filepath.Join(t.Service.config.TorrentsPath, fmt.Sprintf(".%s.memory", infoHash))
+	t.fileStorageFile = filepath.Join(t.Service.config.TorrentsPath, fmt.Sprintf(".%s.file", infoHash))
 
 	go func() {
 		if t.IsMemoryStorage() {

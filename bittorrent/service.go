@@ -1133,7 +1133,7 @@ func (s *Service) loadTorrentFiles() {
 			continue
 		}
 		if s.IsMemoryStorage() &&
-			!util.FileExists(filepath.Join(s.config.TorrentsPath, util.FileWithoutExtension(torrentFile.Name())+".file")) {
+			!util.FileExists(filepath.Join(s.config.TorrentsPath, fmt.Sprintf(".%s.file", util.FileWithoutExtension(torrentFile.Name())))) {
 			continue
 		}
 
