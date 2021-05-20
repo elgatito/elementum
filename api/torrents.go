@@ -435,10 +435,27 @@ func AddTorrent(s *bittorrent.Service) gin.HandlerFunc {
 		}
 		torrentsLog.Infof("Adding torrent from %s", uri)
 
-		t, err := s.AddTorrent(uri, false, config.Get().DownloadStorage, true)
-		if err != nil {
-			ctx.String(404, err.Error())
-			return
+		var t *bittorrent.Torrent
+		var resume string
+		if t = s.GetTorrentByURI(uri); t == nil {
+			//try to get hash so we can try to find torrent by hash later
+			torrent := bittorrent.NewTorrentFile(uri)
+			if err := torrent.Resolve(); err == nil {
+				resume = torrent.InfoHash
+			}
+		}
+
+		if resume != "" {
+			t = s.GetTorrentByHash(resume)
+		}
+
+		if t == nil {
+			var err error
+			t, err = s.AddTorrent(uri, false, config.Get().DownloadStorage, true)
+			if err != nil {
+				ctx.String(404, err.Error())
+				return
+			}
 		}
 
 		// Create initial BTItem entry

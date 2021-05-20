@@ -92,11 +92,28 @@ func Play(s *bittorrent.Service) gin.HandlerFunc {
 
 		player := bittorrent.NewPlayer(s, params)
 		log.Infof("Playing item: %s", litter.Sdump(params))
-		if t := s.GetTorrentByHash(resume); resume != "" && t != nil {
-			player.SetTorrent(t)
-		} else if t := s.GetTorrentByURI(uri); t != nil {
-			resume = t.InfoHash()
-			player.SetTorrent(t)
+
+		if uri != "" {
+			if t := s.GetTorrentByURI(uri); t != nil {
+				player.Params().ResumeHash = t.InfoHash()
+				player.SetTorrent(t)
+			} else {
+				//try to get hash so we can try to find torrent by hash later
+				torrent := bittorrent.NewTorrentFile(uri)
+				if err := torrent.Resolve(); err == nil {
+					resume = torrent.InfoHash
+					player.Params().ResumeHash = resume
+				}
+			}
+		}
+
+		if resume != "" {
+			if t := s.GetTorrentByHash(resume); t != nil {
+				player.SetTorrent(t)
+			} else {
+				//wrong "resume" was provided by user or "resume" from url not in the queue
+				player.Params().ResumeHash = ""
+			}
 		}
 
 		if player.Buffer() != nil || !player.HasChosenFile() || player.Params().Background {
