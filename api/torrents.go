@@ -354,8 +354,8 @@ func ListTorrentsWeb(s *bittorrent.Service) gin.HandlerFunc {
 				seedingTime = time.Duration(finishedTime) * time.Second
 			}
 
-			size := humanize.Bytes(uint64(t.GetSelectedSize()))
 			sizeBytes := t.GetSelectedSize()
+			size := humanize.Bytes(uint64(sizeBytes))
 
 			downloadRate := float64(torrentStatus.GetDownloadPayloadRate()) / 1024
 			uploadRate := float64(torrentStatus.GetUploadPayloadRate()) / 1024
