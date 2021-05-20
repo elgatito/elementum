@@ -1280,7 +1280,7 @@ func (s *Service) downloadProgress() {
 					seedingTime = finishedTime
 				}
 
-				if !t.IsMemoryStorage() && s.config.SeedTimeLimit > 0 {
+				if !t.IsMemoryStorage() && s.config.SeedTimeLimit > 0 && !s.config.SeedForever {
 					if seedingTime >= s.config.SeedTimeLimit {
 						if !isPaused {
 							log.Warningf("Seeding time limit reached, pausing %s", torrentName)
@@ -1291,7 +1291,7 @@ func (s *Service) downloadProgress() {
 						status = StatusStrings[StatusSeeding]
 					}
 				}
-				if !t.IsMemoryStorage() && s.config.SeedTimeRatioLimit > 0 {
+				if !t.IsMemoryStorage() && s.config.SeedTimeRatioLimit > 0 && !s.config.SeedForever {
 					timeRatio := 0
 					downloadTime := ts.GetActiveTime() - seedingTime
 					if downloadTime > 1 {
@@ -1307,7 +1307,7 @@ func (s *Service) downloadProgress() {
 						status = StatusStrings[StatusSeeding]
 					}
 				}
-				if !t.IsMemoryStorage() && s.config.ShareRatioLimit > 0 {
+				if !t.IsMemoryStorage() && s.config.ShareRatioLimit > 0 && !s.config.SeedForever {
 					ratio := int64(0)
 					allTimeDownload := ts.GetAllTimeDownload()
 					if allTimeDownload > 0 {
