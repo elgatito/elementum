@@ -1217,12 +1217,7 @@ func (btp *Player) SetSubtitles() {
 
 		for _, f := range btp.t.files {
 			if strings.Contains(f.Path, currentPath) && util.HasSubtitlesExt(f.Path) {
-				escapedPath := f.Path
-				if u, err := url.Parse(f.Path); err == nil {
-					//if path has " " for example
-					escapedPath = u.EscapedPath()
-				}
-				collected = append(collected, util.GetHTTPHost()+"/files/"+escapedPath)
+				collected = append(collected, util.GetHTTPHost()+"/files/"+util.EncodeFileURL(f.Path))
 			}
 		}
 
