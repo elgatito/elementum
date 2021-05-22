@@ -272,7 +272,6 @@ type XbmcSettings map[string]interface{}
 var (
 	config          = &Configuration{}
 	lock            = sync.RWMutex{}
-	settingsAreSet  = false
 	settingsWarning = ""
 
 	proxyTypes = []string{
@@ -288,11 +287,11 @@ var (
 	Args = struct {
 		DisableBackup bool `help:"Disable database backup"`
 
-		RemoteHost string `help:"remote host, default is '127.0.0.1'"`
-		RemotePort int    `help:"remote port, default is '65221'"`
+		RemoteHost string `help:"remote host"`
+		RemotePort int    `help:"remote port"`
 
-		LocalHost string `help:"local host, default is '0.0.0.0'"`
-		LocalPort int    `help:"local port, default is '65220'"`
+		LocalHost string `help:"local host"`
+		LocalPort int    `help:"local port"`
 	}{
 		DisableBackup: false,
 
@@ -319,6 +318,7 @@ func Reload() *Configuration {
 	log.Infof("Setting remote address to %s:%d", Args.RemoteHost, Args.RemotePort)
 	xbmc.XBMCJSONRPCHosts = []string{net.JoinHostPort(Args.RemoteHost, "9090")}
 	xbmc.XBMCExJSONRPCHosts = []string{net.JoinHostPort(Args.RemoteHost, strconv.Itoa(Args.RemotePort))}
+	xbmc.XBMCExJSONRPCPort = strconv.Itoa(Args.RemotePort)
 
 	defer func() {
 		if r := recover(); r != nil {
