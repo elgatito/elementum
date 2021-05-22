@@ -30,6 +30,7 @@ var (
 	// LastCallerIP represents the IP of last request, made by client to backend.
 	LastCallerIP = ""
 
+	// XBMCExJSONRPCPort is a port for XBMCExJSONRPC (RCP of python part of the plugin)
 	XBMCExJSONRPCPort = "65221"
 )
 
