@@ -33,6 +33,7 @@ var (
 type TorrentsWeb struct {
 	ID            string  `json:"id"`
 	Name          string  `json:"name"`
+	AddedTime     int64   `json:"added_time"`
 	Size          string  `json:"size"`
 	SizeBytes     int64   `json:"size_bytes"`
 	Status        string  `json:"status"`
@@ -329,6 +330,7 @@ func ListTorrentsWeb(s *bittorrent.Service) gin.HandlerFunc {
 			torrentStatus := t.GetLastStatus(false)
 
 			torrentName := torrentStatus.GetName()
+			addedTime := t.GetAddedTime().Unix()
 			progress := float64(torrentStatus.GetProgress()) * 100
 
 			infoHash := t.InfoHash()
@@ -365,6 +367,7 @@ func ListTorrentsWeb(s *bittorrent.Service) gin.HandlerFunc {
 			ti := &TorrentsWeb{
 				ID:            infoHash,
 				Name:          torrentName,
+				AddedTime:     addedTime,
 				Size:          size,
 				SizeBytes:     sizeBytes,
 				Status:        status,
@@ -454,7 +457,7 @@ func AddTorrent(s *bittorrent.Service) gin.HandlerFunc {
 
 		if t == nil {
 			var err error
-			t, err = s.AddTorrent(uri, false, config.Get().DownloadStorage, true)
+			t, err = s.AddTorrent(uri, false, config.Get().DownloadStorage, true, time.Now())
 			if err != nil {
 				ctx.String(404, err.Error())
 				return

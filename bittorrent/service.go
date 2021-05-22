@@ -634,7 +634,7 @@ func (s *Service) checkAvailableSpace(t *Torrent) bool {
 }
 
 // AddTorrent ...
-func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, firstTime bool) (*Torrent, error) {
+func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, firstTime bool, addedTime time.Time) (*Torrent, error) {
 	defer perf.ScopeTimer()()
 
 	// To make sure no spaces coming from Web UI
@@ -799,7 +799,7 @@ func (s *Service) AddTorrent(uri string, paused bool, downloadStorage int, first
 		t.MemorySize = s.GetMemorySize()
 	}
 
-	t.addedTime = time.Now()
+	t.addedTime = addedTime
 	s.q.Add(t)
 
 	if !t.HasMetadata() {
@@ -1140,7 +1140,7 @@ func (s *Service) loadTorrentFiles() {
 		filePath := filepath.Join(s.config.TorrentsPath, torrentFile.Name())
 		log.Infof("Loading torrent file %s", torrentFile.Name())
 
-		t, err := s.AddTorrent(filePath, s.config.AutoloadTorrentsPaused, StorageFile, false)
+		t, err := s.AddTorrent(filePath, s.config.AutoloadTorrentsPaused, StorageFile, false, torrentFile.ModTime())
 		if err != nil {
 			log.Warningf("Cannot add torrent from existing file %s: %s", filePath, err)
 			continue
