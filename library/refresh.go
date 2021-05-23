@@ -976,6 +976,8 @@ func PlanShowsUpdate() {
 
 // PlanShowUpdate ...
 func PlanShowUpdate(showID int) {
+	lock.Lock()
 	pendingShows[showID] = true
+	lock.Unlock()
 	l.Pending.IsEpisodes = true
 }

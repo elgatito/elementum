@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/anacrolix/missinggo/perf"
@@ -105,6 +106,8 @@ var (
 	resolveRegexp = regexp.MustCompile(`^plugin://plugin.video.elementum.*?(\d+)(\W|$)`)
 
 	pendingShows = map[int]bool{}
+
+	lock = sync.Mutex{}
 )
 
 var l = &Library{
