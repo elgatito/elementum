@@ -1185,7 +1185,11 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 
 			if !config.Get().ForceUseTrakt && showListing.Show.IDs.TMDB != 0 {
 				show = tmdb.GetShow(showListing.Show.IDs.TMDB, language)
-				season = tmdb.GetSeason(showListing.Show.IDs.TMDB, epi.Season, language, len(show.Seasons))
+				seasonsCount := 0
+				if show != nil {
+					seasonsCount = len(show.Seasons)
+				}
+				season = tmdb.GetSeason(showListing.Show.IDs.TMDB, epi.Season, language, seasonsCount)
 				episode = tmdb.GetEpisode(showListing.Show.IDs.TMDB, epi.Season, epi.Number, language)
 
 				if episode != nil {
