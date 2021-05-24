@@ -150,22 +150,19 @@ func RefreshTrakt() error {
 
 	// Seasons
 	if isFirstRun || lastActivities.Seasons.WatchlistedAt.After(previousActivities.Seasons.WatchlistedAt) {
-		err := RefreshTraktWatchlisted(SeasonType, lastActivities.Seasons.WatchlistedAt.After(previousActivities.Seasons.WatchlistedAt))
-		if err != nil {
+		if err := RefreshTraktWatchlisted(SeasonType, lastActivities.Seasons.WatchlistedAt.After(previousActivities.Seasons.WatchlistedAt)); err != nil {
 			isErrored = true
 		}
 	}
 	if isFirstRun || lastActivities.Seasons.HiddenAt.After(previousActivities.Seasons.HiddenAt) {
-		err := RefreshTraktHidden(SeasonType, lastActivities.Seasons.HiddenAt.After(previousActivities.Seasons.HiddenAt))
-		if err != nil {
+		if err := RefreshTraktHidden(SeasonType, lastActivities.Seasons.HiddenAt.After(previousActivities.Seasons.HiddenAt)); err != nil {
 			isErrored = true
 		}
 	}
 
 	// Lists
 	if isFirstRun || lastActivities.Lists.UpdatedAt.After(previousActivities.Lists.UpdatedAt) {
-		err := RefreshTraktLists(lastActivities.Lists.UpdatedAt.After(previousActivities.Lists.UpdatedAt))
-		if err != nil {
+		if err := RefreshTraktLists(lastActivities.Lists.UpdatedAt.After(previousActivities.Lists.UpdatedAt)); err != nil {
 			isErrored = true
 		}
 	}
@@ -767,6 +764,19 @@ func RefreshTraktPaused(itemType int, isRefreshNeeded bool) error {
 func RefreshTraktHidden(itemType int, isRefreshNeeded bool) error {
 	if config.Get().TraktToken == "" || !config.Get().TraktSyncHidden {
 		return nil
+	}
+
+	// https://trakt.docs.apiary.io/#reference/users/hidden-items/get-hidden-items
+	if itemType == ShowType {
+		// calendar and recommendations for shows are handled on trakt side, progress_watched should be handled manually
+		if _, err := trakt.ListHiddenShows("progress_watched", isRefreshNeeded); err != nil {
+			log.Warningf("TraktSync: Got error from SyncShowsList for Watched Progress: %s", err)
+			return err
+		}
+	} else if itemType == MovieType {
+		// calendar and recommendations for movies are handled on trakt side, and they are the only options
+	} else if itemType == SeasonType {
+		// looks like website does not allow to hide seasons, so we also can ignore them
 	}
 
 	return nil

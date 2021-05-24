@@ -254,6 +254,13 @@ type CollectedEpisode struct {
 	Number      int    `json:"number"`
 }
 
+// HiddenShow ...
+type HiddenShow struct {
+	HiddenAt string `json:"hidden_at"`
+	Type     string `json:"type"`
+	Show     *Show  `json:"show"`
+}
+
 // Images ...
 type Images struct {
 	Poster     *Sizes `json:"poster"`
