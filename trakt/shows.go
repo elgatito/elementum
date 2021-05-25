@@ -762,30 +762,63 @@ func WatchedShowsProgress() (shows []*ProgressShow, err error) {
 	}
 	wg.Wait()
 
+	// first approach
+	hiddenShowsMap := GetHiddenShowsMap("progress_watched")
 	for _, s := range showsList {
-		if s != nil && !ShowIsHidden("progress_watched", s.Show.IDs.Trakt) {
-			shows = append(shows, s)
+		if s != nil {
+			if !hiddenShowsMap[s.Show.IDs.Trakt] {
+				shows = append(shows, s)
+			} else {
+				log.Debugf("Will supress hidden show: %s", s.Show.Title)
+			}
 		}
 	}
+
+	// second approach
+	//shows = FilterHiddenProgressShows(showsList)
 
 	return
 }
 
-// ShowIsHidden ...
-func ShowIsHidden(section string, traktID int) bool {
+// GetHiddenShowsMap returns a map with hidden shows that can be used for filtering
+func GetHiddenShowsMap(section string) map[int]bool {
+	hiddenShowsMap := make(map[int]bool)
 	if config.Get().TraktToken == "" || !config.Get().TraktSyncHidden {
-		return false
+		return hiddenShowsMap
 	}
 
 	hiddenShowsProgress, _ := ListHiddenShows(section, false)
 	for _, show := range hiddenShowsProgress {
-		if show.Show.IDs.Trakt == traktID {
-			log.Debugf("Found hidden show: %s", show.Show.Title)
-			return true
+		hiddenShowsMap[show.Show.IDs.Trakt] = true
+	}
+
+	return hiddenShowsMap
+}
+
+// FilterHiddenProgressShows returns a slice of ProgressShow without hidden shows
+func FilterHiddenProgressShows(inShows []*ProgressShow) (outShows []*ProgressShow) {
+	hiddenShowsMap := make(map[int]bool)
+	if config.Get().TraktToken == "" || !config.Get().TraktSyncHidden {
+		return inShows
+	}
+
+	hiddenShowsProgress, _ := ListHiddenShows("progress_watched", false)
+	for _, show := range hiddenShowsProgress {
+		hiddenShowsMap[show.Show.IDs.Trakt] = true
+	}
+
+	for _, s := range inShows {
+		if s != nil {
+			if !hiddenShowsMap[s.Show.IDs.Trakt] {
+				// append to new instead of delete in old b/c delete is O(n)
+				outShows = append(outShows, s)
+			} else {
+				log.Debugf("Will supress hidden show: %s", s.Show.Title)
+			}
 		}
 	}
 
-	return false
+	return outShows
 }
 
 // ListHiddenShows updates list of hidden shows for a given section
