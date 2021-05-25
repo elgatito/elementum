@@ -762,7 +762,6 @@ func WatchedShowsProgress() (shows []*ProgressShow, err error) {
 	}
 	wg.Wait()
 
-	// first approach
 	hiddenShowsMap := GetHiddenShowsMap("progress_watched")
 	for _, s := range showsList {
 		if s != nil {
@@ -773,9 +772,6 @@ func WatchedShowsProgress() (shows []*ProgressShow, err error) {
 			}
 		}
 	}
-
-	// second approach
-	//shows = FilterHiddenProgressShows(showsList)
 
 	return
 }
@@ -797,15 +793,11 @@ func GetHiddenShowsMap(section string) map[int]bool {
 
 // FilterHiddenProgressShows returns a slice of ProgressShow without hidden shows
 func FilterHiddenProgressShows(inShows []*ProgressShow) (outShows []*ProgressShow) {
-	hiddenShowsMap := make(map[int]bool)
 	if config.Get().TraktToken == "" || !config.Get().TraktSyncHidden {
 		return inShows
 	}
 
-	hiddenShowsProgress, _ := ListHiddenShows("progress_watched", false)
-	for _, show := range hiddenShowsProgress {
-		hiddenShowsMap[show.Show.IDs.Trakt] = true
-	}
+	hiddenShowsMap := GetHiddenShowsMap("progress_watched")
 
 	for _, s := range inShows {
 		if s != nil {
