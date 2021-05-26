@@ -92,6 +92,11 @@ const (
 )
 
 const (
+	modifyTrackersFirstTime = iota
+	modifyTrackersEveryTime
+)
+
+const (
 	ipToSDefault     = iota
 	ipToSLowDelay    = 1 << iota
 	ipToSReliability = 1 << iota

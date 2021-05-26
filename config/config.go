@@ -156,6 +156,7 @@ type Configuration struct {
 	MagnetResolveTimeout     int
 	AddExtraTrackers         int
 	RemoveOriginalTrackers   bool
+	ModifyTrackersStrategy   int
 	Scrobble                 bool
 
 	AutoScrapeEnabled        bool
@@ -600,6 +601,7 @@ func Reload() *Configuration {
 		MagnetResolveTimeout:       settings.ToInt("magnet_resolve_timeout"),
 		AddExtraTrackers:           settings.ToInt("add_extra_trackers"),
 		RemoveOriginalTrackers:     settings.ToBool("remove_original_trackers"),
+		ModifyTrackersStrategy:     settings.ToInt("modify_trackers_strategy"),
 		ConnectionsLimit:           settings.ToInt("connections_limit"),
 		ConnTrackerLimit:           settings.ToInt("conntracker_limit"),
 		ConnTrackerLimitAuto:       settings.ToBool("conntracker_limit_auto"),

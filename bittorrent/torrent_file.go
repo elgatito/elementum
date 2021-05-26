@@ -371,7 +371,7 @@ func (t *TorrentFile) Magnet(firstTime bool) {
 	params := url.Values{}
 	params.Set("dn", t.Name)
 
-	if firstTime && config.Get().RemoveOriginalTrackers {
+	if ((config.Get().ModifyTrackersStrategy == modifyTrackersFirstTime && firstTime) || config.Get().ModifyTrackersStrategy == modifyTrackersEveryTime) && config.Get().RemoveOriginalTrackers {
 		t.Trackers = []string{}
 	} else {
 		if len(t.Trackers) != 0 {
