@@ -317,7 +317,7 @@ func (d *StormDatabase) UpdateBTItem(infoHash string, mediaID int, mediaType str
 		ID:       mediaID,
 		Type:     mediaType,
 		InfoHash: infoHash,
-		State:    StatusActive,
+		State:    StateActive,
 		Files:    files,
 		Query:    query,
 	}

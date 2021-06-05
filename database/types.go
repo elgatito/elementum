@@ -117,10 +117,10 @@ var (
 )
 
 const (
-	// StatusRemove ...
-	StatusRemove = iota
-	// StatusActive ...
-	StatusActive
+	// StateDeleted ...
+	StateDeleted = iota
+	// StateActive ...
+	StateActive
 )
 
 const (
