@@ -24,7 +24,7 @@ import (
 )
 
 var log = logging.MustGetLogger("config")
-var privacyRegex = regexp.MustCompile(`(?i)(pass|password): "(.+?)"`)
+var privacyRegex = regexp.MustCompile(`(?i)(pass|password|token): "(.+?)"`)
 
 const (
 	maxMemorySize                = 300 * 1024 * 1024
