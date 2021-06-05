@@ -194,7 +194,7 @@ func ContextAssignTMDBEpisodeSelector(s *bittorrent.Service) gin.HandlerFunc {
 	}
 }
 
-// ContextActionFromKodiLibrarySelector do action for media in Kodi library
+// ContextActionFromKodiLibrarySelector does action for media in Kodi library (by Kodi library ID)
 func ContextActionFromKodiLibrarySelector(s *bittorrent.Service) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		action := ctx.Params.ByName("action")
