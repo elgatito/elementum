@@ -293,12 +293,12 @@ func Init() {
 
 	updateTicker := time.NewTicker(time.Duration(updateFrequency) * time.Hour)
 	traktSyncTicker := time.NewTicker(time.Duration(traktFrequency) * time.Minute)
-	markedForRemovalTicker := time.NewTicker(30 * time.Second)
+	//markedForRemovalTicker := time.NewTicker(30 * time.Second)
 	watcherTicker := time.NewTicker(1 * time.Second)
 
 	defer updateTicker.Stop()
 	defer traktSyncTicker.Stop()
-	defer markedForRemovalTicker.Stop()
+	//defer markedForRemovalTicker.Stop()
 	defer watcherTicker.Stop()
 
 	closing := closer.C()
@@ -333,30 +333,34 @@ func Init() {
 			}
 		case <-traktSyncTicker.C:
 			PlanTraktUpdate()
-		case <-markedForRemovalTicker.C:
-			var items []database.BTItem
-			database.GetStormDB().Select(q.Eq("State", database.StatusRemove)).Find(&items)
+		//case <-markedForRemovalTicker.C:
+		/*var items []database.BTItem
+		database.GetStormDB().Select(q.Eq("State", StateDeleted)).Find(&items)
 
-			infoHash := ""
-			for _, item := range items {
-				// Remove from Elementum's library to prevent duplicates
-				if item.Type == movieType {
-					if IsDuplicateMovie(strconv.Itoa(item.ID)) {
-						if _, _, err := RemoveMovie(item.ID); err != nil {
-							log.Warning("Nothing left to remove from Elementum")
-						}
-					}
-				} else {
-					if IsDuplicateEpisode(item.ShowID, item.Season, item.Episode) {
-						if err := RemoveEpisode(item.ID, item.ShowID, item.Season, item.Episode); err != nil {
-							log.Warning(err)
-						}
+		for _, item := range items {
+			// FIXME: Useless code?
+			// Remove from Elementum's library to prevent duplicates
+			if item.Type == movieType {
+				if IsDuplicateMovie(strconv.Itoa(item.ID)) {
+					if _, _, err := RemoveMovie(item.ID); err != nil {
+						log.Warning("Nothing left to remove from Elementum")
 					}
 				}
-
-				database.GetStormDB().DeleteStruct(&item)
-				log.Infof("Removed %s from database", infoHash)
+			} else {
+				// FIXME: StateDeleted is set in RemoveEpisode which invoked only from RefreshEpisode, but never with ActionDelete so code below will never run
+				if IsDuplicateEpisode(item.ShowID, item.Season, item.Episode) {
+					if err := RemoveEpisode(item.ID, item.ShowID, item.Season, item.Episode); err != nil {
+						log.Warning(err)
+					}
+				}
+				// TODO: add same for RemoveShow?
 			}
+
+			// FIXME: will this make wasRemoved useless?
+			database.GetStormDB().DeleteStruct(&item)
+			log.Infof("Removed %s from database", item.InfoHash)
+		}
+		*/
 		case <-closing:
 			return
 		}
@@ -470,6 +474,12 @@ func checkShowsPath() error {
 //
 
 func writeMovieStrm(tmdbID string, force bool) (*tmdb.Movie, error) {
+	// We should not write strm filex for movies that are marked as deleted
+	ID, _ := strconv.Atoi(tmdbID)
+	if wasRemoved(ID, MovieType) {
+		return nil, fmt.Errorf("Show is marked as removed")
+	}
+
 	movie := tmdb.GetMovieByID(tmdbID, config.Get().StrmLanguage)
 	if movie == nil {
 		return nil, errors.New("Can't find the movie")
@@ -1114,10 +1124,13 @@ func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err erro
 
 		tmdbID := strconv.Itoa(movie.Movie.IDs.TMDB)
 
+		// FIXME: 'updating' is always passed as false, so wasRemoved check is always ignored.
+		// also writeMovieStrm now has wasRemoved check.
 		if updating && wasRemoved(movie.Movie.IDs.TMDB, MovieType) {
 			continue
 		}
 
+		// FIXME: should it be like for shows - 'if !updating && !isUpdateNeeded && IsDuplicateShow(tmdbID) {' ?
 		if IsDuplicateMovie(tmdbID) {
 			continue
 		}

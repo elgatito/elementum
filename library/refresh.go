@@ -387,12 +387,15 @@ func RefreshEpisodes() error {
 
 // RefreshMovie ...
 func RefreshMovie(kodiID, action int) {
-	if action == ActionDelete || action == ActionSafeDelete {
-		uids := GetUIDsFromKodi(kodiID)
-		if uids == nil || uids.TMDB == 0 {
-			return
-		}
+	uids := GetUIDsFromKodi(kodiID)
+	if uids == nil || uids.TMDB == 0 {
+		return
+	}
+	PlanMoviesUpdate()
 
+	defer RefreshUIDs()
+
+	if action == ActionDelete || action == ActionSafeDelete {
 		if action == ActionDelete {
 			if _, _, err := RemoveMovie(uids.TMDB); err != nil {
 				log.Warning("Nothing left to remove from Elementum")
@@ -411,9 +414,9 @@ func RefreshMovie(kodiID, action int) {
 			l.Movies = append(l.Movies[:foundIndex], l.Movies[foundIndex+1:]...)
 		}
 		l.mu.Movies.Unlock()
+	} else if action == ActionUpdate {
+		deleteDBItem(uids.TMDB, ShowType, false)
 	}
-
-	RefreshUIDs()
 }
 
 // RefreshShow ...
@@ -457,39 +460,38 @@ func RefreshEpisode(kodiID, action int) {
 	if s == nil || e == nil {
 		return
 	}
-
 	PlanShowUpdate(s.UIDs.Kodi)
 
-	if action != ActionDelete && action != ActionSafeDelete {
-		return
-	}
+	defer RefreshUIDs()
 
-	if action == ActionDelete {
-		RemoveEpisode(e.UIDs.TMDB, s.UIDs.TMDB, e.Season, e.Episode)
-	}
-
-	l.mu.Shows.Lock()
-	sIndex := -1
-	eIndex := -1
-	for i, sh := range l.Shows {
-		if sh.ID == s.UIDs.Kodi {
-			sIndex = i
-			break
+	if action == ActionDelete || action == ActionSafeDelete {
+		if action == ActionDelete {
+			RemoveEpisode(e.UIDs.TMDB, s.UIDs.TMDB, e.Season, e.Episode)
 		}
-	}
 
-	for i, e := range l.Shows[sIndex].Episodes {
-		if e.ID == kodiID {
-			eIndex = i
-			break
+		l.mu.Shows.Lock()
+		sIndex := -1
+		eIndex := -1
+		for i, sh := range l.Shows {
+			if sh.ID == s.UIDs.Kodi {
+				sIndex = i
+				break
+			}
 		}
-	}
-	if eIndex != -1 {
-		l.Shows[sIndex].Episodes = append(l.Shows[sIndex].Episodes[:eIndex], l.Shows[sIndex].Episodes[eIndex+1:]...)
-	}
-	l.mu.Shows.Unlock()
 
-	RefreshUIDs()
+		for i, e := range l.Shows[sIndex].Episodes {
+			if e.ID == kodiID {
+				eIndex = i
+				break
+			}
+		}
+		if eIndex != -1 {
+			l.Shows[sIndex].Episodes = append(l.Shows[sIndex].Episodes[:eIndex], l.Shows[sIndex].Episodes[eIndex+1:]...)
+		}
+		l.mu.Shows.Unlock()
+	} else if action == ActionUpdate {
+		updateDBItem(e.UIDs.TMDB, StateDeleted, EpisodeType, s.UIDs.TMDB)
+	}
 }
 
 // RefreshUIDs updates unique IDs for each library item
