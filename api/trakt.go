@@ -1477,6 +1477,108 @@ func SelectTraktUserList(ctx *gin.Context) {
 	ctx.String(200, "")
 }
 
+// ToggleWatched mark as watched or unwatched in Trakt and Kodi library
+func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		defer perf.ScopeTimer()()
+
+		var watched *trakt.WatchedItem
+
+		// TODO: Make use of Playcount, possibly increment when Watched, use old value if in progress
+		if media == movieType {
+			movieID, _ := strconv.Atoi(ctx.Params.ByName("tmdbId"))
+
+			watched = &trakt.WatchedItem{
+				MediaType: media,
+				Movie:     movieID,
+				Watched:   setWatched,
+			}
+
+			movie, err := library.GetMovieByTMDB(movieID)
+			if err == nil {
+				playcount := 1
+				if !setWatched {
+					playcount = 0
+				}
+				log.Debugf("Toggle Kodi library watched for: %#v", movie)
+				xbmc.SetMovieWatched(movie.ID, playcount, 0, 0)
+			}
+		} else if media == episodeType {
+			showID, _ := strconv.Atoi(ctx.Params.ByName("showId"))
+			seasonNumber, _ := strconv.Atoi(ctx.Params.ByName("season"))
+			episodeNumber, _ := strconv.Atoi(ctx.Params.ByName("episode"))
+
+			watched = &trakt.WatchedItem{
+				MediaType: media,
+				Show:      showID,
+				Season:    seasonNumber,
+				Episode:   episodeNumber,
+				Watched:   setWatched,
+			}
+
+			show, err := library.GetShowByTMDB(showID)
+			episode := show.GetEpisode(seasonNumber, episodeNumber)
+			if err == nil {
+				playcount := 1
+				if !setWatched {
+					playcount = 0
+				}
+				log.Debugf("Toggle Kodi library watched for: %#v", episode)
+				xbmc.SetEpisodeWatched(episode.ID, playcount, 0, 0)
+			}
+		} else if media == seasonType {
+			showID, _ := strconv.Atoi(ctx.Params.ByName("showId"))
+			seasonNumber, _ := strconv.Atoi(ctx.Params.ByName("season"))
+
+			watched = &trakt.WatchedItem{
+				MediaType: media,
+				Show:      showID,
+				Season:    seasonNumber,
+				Episode:   0,
+				Watched:   setWatched,
+			}
+
+			show, err := library.GetShowByTMDB(showID)
+			season := show.GetSeason(seasonNumber)
+			if err == nil {
+				playcount := 1
+				if !setWatched {
+					playcount = 0
+				}
+				log.Debugf("Toggle Kodi library watched for: %#v", season)
+				xbmc.SetSeasonWatched(season.ID, playcount)
+			}
+		} else if media == showType {
+			showID, _ := strconv.Atoi(ctx.Params.ByName("showId"))
+
+			watched = &trakt.WatchedItem{
+				MediaType: media,
+				Show:      showID,
+				Season:    0,
+				Episode:   0,
+				Watched:   setWatched,
+			}
+
+			show, err := library.GetShowByTMDB(showID)
+			if err == nil {
+				playcount := 1
+				if !setWatched {
+					playcount = 0
+				}
+				log.Debugf("Toggle Kodi library watched for: %#v", show)
+				xbmc.SetShowWatched(show.ID, playcount)
+			}
+		}
+
+		if config.Get().TraktToken != "" && watched != nil {
+			log.Debugf("Toggle Trakt watched for: %#v", watched)
+			go trakt.SetWatched(watched)
+		}
+
+		xbmc.ToggleWatched()
+	}
+}
+
 func getProgressDateFormat() string {
 	return prepareDateFormat(config.Get().TraktProgressDateFormat)
 }
