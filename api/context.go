@@ -61,6 +61,12 @@ func ContextPlaySelector(s *bittorrent.Service) gin.HandlerFunc {
 				ctx.Redirect(302, URLQuery(URLForXBMC("/show/%d/season/%d/%s/%s", s.UIDs.TMDB, se.Season, mediaAction, url.PathEscape(title))))
 				return
 			}
+		} else if media == "tvshow" {
+			if s := library.GetLibraryShow(kodiID); s != nil && s.UIDs.TMDB != 0 {
+				title := fmt.Sprintf("%s", s.Title)
+				ctx.Redirect(302, URLQuery(URLForXBMC("/show/%d/%s/%s", s.UIDs.TMDB, mediaAction, url.PathEscape(title))))
+				return
+			}
 		}
 
 		err := fmt.Errorf("Cound not find TMDB entry for requested Kodi item %d of type %s", kodiID, media)
