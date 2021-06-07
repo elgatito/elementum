@@ -492,6 +492,16 @@ func SetEpisodePlaycount(episodeID int, playcount int) (ret string) {
 	return
 }
 
+// SetSeasonWatched marks season as watched in Kodi library
+func SetSeasonWatched(seasonID int, playcount int) (ret string) {
+	params := map[string]interface{}{
+		"seasonid":  seasonID,
+		"playcount": playcount,
+	}
+	executeJSONRPCO("VideoLibrary.SetSeasonDetails", &ret, params)
+	return
+}
+
 // SetFileWatched ...
 func SetFileWatched(file string, position int, total int) (ret string) {
 	params := map[string]interface{}{
