@@ -652,3 +652,10 @@ func SettingsGetSettingValue(setting string) string {
 	executeJSONRPCO("Settings.GetSettingValue", &resp, params)
 	return resp.Value
 }
+
+// ToggleWatched toggles watched/unwatched status for Videos
+func ToggleWatched() {
+	retVal := ""
+	executeJSONRPCEx("ToggleWatched", &retVal, nil)
+	return
+}
