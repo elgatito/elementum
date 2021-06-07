@@ -15,7 +15,7 @@ import (
 	"github.com/elgatito/elementum/xbmc"
 )
 
-// ContextPlaySelector plays/downloads media from Kodi in elementum
+// ContextPlaySelector plays/downloads/toggles_watched media from Kodi in elementum
 func ContextPlaySelector(s *bittorrent.Service) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		action := ctx.Params.ByName("action")
@@ -32,12 +32,16 @@ func ContextPlaySelector(s *bittorrent.Service) gin.HandlerFunc {
 			mediaAction = "forceplay"
 		}
 
-		if action == "download" {
+		if action == "download" || action == "watched" || action == "unwatched" {
 			mediaAction = action
 		}
 
 		if kodiID == 0 {
-			ctx.Redirect(302, URLQuery(URLForXBMC("/search"), "q", id, "action", mediaAction))
+			if mediaAction != "watched" && mediaAction != "unwatched" {
+				ctx.Redirect(302, URLQuery(URLForXBMC("/search"), "q", id, "action", mediaAction))
+			} else {
+				log.Error("Can't set %q for non-library item of type %q: %q", mediaAction, media, id)
+			}
 			return
 		} else if media == "movie" {
 			if m := library.GetLibraryMovie(kodiID); m != nil && m.UIDs.TMDB != 0 {
