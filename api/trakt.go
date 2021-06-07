@@ -1512,6 +1512,7 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 		defer perf.ScopeTimer()()
 
 		var watched *trakt.WatchedItem
+		var foundInLibrary bool
 
 		// TODO: Make use of Playcount, possibly increment when Watched, use old value if in progress
 		if media == movieType {
@@ -1525,10 +1526,13 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 
 			movie, err := library.GetMovieByTMDB(movieID)
 			if err == nil {
+				foundInLibrary = true
+
 				playcount := 1
 				if !setWatched {
 					playcount = 0
 				}
+
 				log.Debugf("Toggle Kodi library watched for: %#v", movie)
 				xbmc.SetMovieWatched(movie.ID, playcount, 0, 0)
 			}
@@ -1546,12 +1550,15 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 			}
 
 			show, err := library.GetShowByTMDB(showID)
-			episode := show.GetEpisode(seasonNumber, episodeNumber)
 			if err == nil {
+				foundInLibrary = true
+
 				playcount := 1
 				if !setWatched {
 					playcount = 0
 				}
+
+				episode := show.GetEpisode(seasonNumber, episodeNumber)
 				log.Debugf("Toggle Kodi library watched for: %#v", episode)
 				xbmc.SetEpisodeWatched(episode.ID, playcount, 0, 0)
 			}
@@ -1568,13 +1575,16 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 			}
 
 			show, err := library.GetShowByTMDB(showID)
-			season := show.GetSeason(seasonNumber)
 			if err == nil {
+				foundInLibrary = true
+
 				playcount := 1
 				if !setWatched {
 					playcount = 0
 				}
-				log.Debugf("Toggle Kodi library watched for: %#v", season)
+
+				season := show.GetSeason(seasonNumber)
+				log.Debugf("Set Kodi library watched to %t for: %#v", setWatched, season)
 				xbmc.SetSeasonWatched(season.ID, playcount)
 			}
 		} else if media == showType {
@@ -1590,21 +1600,26 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 
 			show, err := library.GetShowByTMDB(showID)
 			if err == nil {
+				foundInLibrary = true
+
 				playcount := 1
 				if !setWatched {
 					playcount = 0
 				}
+
 				log.Debugf("Toggle Kodi library watched for: %#v", show)
 				xbmc.SetShowWatched(show.ID, playcount)
 			}
 		}
 
 		if config.Get().TraktToken != "" && watched != nil {
-			log.Debugf("Toggle Trakt watched for: %#v", watched)
+			log.Debugf("Set Trakt watched to %t for: %#v", setWatched, watched)
 			go trakt.SetWatched(watched)
 		}
 
-		xbmc.ToggleWatched()
+		if !foundInLibrary {
+			xbmc.ToggleWatched()
+		}
 	}
 }
 

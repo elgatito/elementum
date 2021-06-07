@@ -319,6 +319,7 @@ func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, que
 		}
 
 		toggleWatchedAction := []string{"LOCALIZE[30667]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/movie/%d/watched", movie.ID))}
+		// TODO: maybe there is a better way to determine if item was watched.
 		if item.Info.PlayCount > 0 {
 			toggleWatchedAction = []string{"LOCALIZE[30668]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/movie/%d/unwatched", movie.ID))}
 		}
