@@ -490,7 +490,7 @@ func RefreshEpisode(kodiID, action int) {
 		}
 		l.mu.Shows.Unlock()
 	} else if action == ActionUpdate {
-		updateDBItem(e.UIDs.TMDB, StateDeleted, EpisodeType, s.UIDs.TMDB)
+		updateDBItem(e.UIDs.TMDB, StateActive, EpisodeType, s.UIDs.TMDB)
 	}
 }
 
