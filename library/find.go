@@ -168,3 +168,14 @@ func (s *Show) GetEpisode(season, episode int) *Episode {
 
 	return nil
 }
+
+// GetSeason returns season by Kodi library ID
+func (s *Show) GetSeason(season int) *Season {
+	for _, se := range s.Seasons {
+		if se.Season == season {
+			return se
+		}
+	}
+
+	return nil
+}
