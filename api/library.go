@@ -23,6 +23,7 @@ const (
 
 	movieType   = "movie"
 	showType    = "show"
+	seasonType  = "season"
 	episodeType = "episode"
 	searchType  = "search"
 
