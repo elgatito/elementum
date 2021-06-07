@@ -108,6 +108,8 @@ var (
 	pendingShows = map[int]bool{}
 
 	lock = sync.Mutex{}
+
+	ErrVideoRemoved = errors.New("Video is marked as removed")
 )
 
 var l = &Library{
@@ -470,10 +472,10 @@ func checkShowsPath() error {
 //
 
 func writeMovieStrm(tmdbID string, force bool) (*tmdb.Movie, error) {
-	// We should not write strm filex for movies that are marked as deleted
+	// We should not write strm files for movies that are marked as deleted
 	ID, _ := strconv.Atoi(tmdbID)
-	if wasRemoved(ID, MovieType) {
-		return nil, fmt.Errorf("Show is marked as removed")
+	if wasRemoved(ID, MovieType) && !force {
+		return nil, ErrVideoRemoved
 	}
 
 	movie := tmdb.GetMovieByID(tmdbID, config.Get().StrmLanguage)
@@ -549,9 +551,9 @@ https://www.themoviedb.org/movie/%v
 }
 
 func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
-	// We should not write strm filex for shows that are marked as deleted
-	if wasRemoved(showID, ShowType) {
-		return nil, fmt.Errorf("Show is marked as removed")
+	// We should not write strm files for shows that are marked as deleted
+	if wasRemoved(showID, ShowType) && !force {
+		return nil, ErrVideoRemoved
 	}
 
 	defer perf.ScopeTimer()()
@@ -980,6 +982,7 @@ func wasRemoved(id int, mediaType int) (wasRemoved bool) {
 
 	var li database.LibraryItem
 	if err := database.GetStormDB().Select(q.Eq("ID", id), q.Eq("MediaType", mediaType), q.Eq("State", StateDeleted)).First(&li); err == nil && li.ID != 0 {
+		log.Debugf("mediaType=%d id=%d marked as removed in database", mediaType, id)
 		return true
 	}
 
