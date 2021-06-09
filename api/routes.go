@@ -297,9 +297,9 @@ func Routes(s *bittorrent.Service) *gin.Engine {
 		torrents := context.Group("/torrents")
 		{
 			torrents.GET("/assign/:torrentId/kodi/:media/:kodiID", ContextAssignKodiSelector(s))
-			torrents.GET("/assign/:torrentId/tmdb/movie/:tmdbId", ContextAssignTMDBMovieSelector(s))
-			torrents.GET("/assign/:torrentId/tmdb/show/:tmdbId/season/:season", ContextAssignTMDBSeasonSelector(s))
-			torrents.GET("/assign/:torrentId/tmdb/show/:tmdbId/season/:season/episode/:episode", ContextAssignTMDBEpisodeSelector(s))
+			torrents.GET("/assign/:torrentId/tmdb/movie/:tmdbId", ContextAssignTMDBSelector(s, "movie"))
+			torrents.GET("/assign/:torrentId/tmdb/show/:tmdbId/season/:season", ContextAssignTMDBSelector(s, "season"))
+			torrents.GET("/assign/:torrentId/tmdb/show/:tmdbId/season/:season/episode/:episode", ContextAssignTMDBSelector(s, "episode"))
 		}
 	}
 
