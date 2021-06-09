@@ -709,15 +709,31 @@ func (show *Show) GetCountries() []string {
 
 // GetStudios returns list of studios
 func (show *Show) GetStudios() []string {
-	studios := make([]string, 0, len(show.ProductionCompanies)+len(show.Networks))
-	for _, company := range show.ProductionCompanies {
-		studios = append(studios, company.Name)
+	if config.Get().TMDBShowUseNetworkAsStudio {
+		return show.GetNetworks()
+	} else {
+		return show.GetProductionCompanies()
 	}
-	for _, company := range show.Networks {
-		studios = append(studios, company.Name)
+}
+
+// GetProductionCompanies returns list of production companies
+func (show *Show) GetProductionCompanies() []string {
+	companies := make([]string, 0, len(show.ProductionCompanies))
+	for _, company := range show.ProductionCompanies {
+		companies = append(companies, company.Name)
 	}
 
-	return studios
+	return companies
+}
+
+// GetNetworks returns list of networks
+func (show *Show) GetNetworks() []string {
+	networks := make([]string, 0, len(show.Networks))
+	for _, network := range show.Networks {
+		networks = append(networks, network.Name)
+	}
+
+	return networks
 }
 
 // GetGenred returns list of genres
