@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -169,6 +170,12 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 			PlayCount:     playcount.GetWatchedSeasonByTMDB(show.ID, season.Season).Int(),
 			Genre:         show.GetGenres(),
 			Studio:        show.GetStudios(),
+		},
+		Properties: map[string]string{
+			"TotalEpisodes": strconv.Itoa(season.EpisodeCount),
+			// TODO: calculate somehow these
+			//"WatchedEpisodes": "",
+			//"UnWatchedEpisodes": "",
 		},
 		Art: &xbmc.ListItemArt{
 			TvShowPoster: ImageURL(show.PosterPath, "w1280"),

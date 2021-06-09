@@ -148,6 +148,7 @@ type Season struct {
 	AiredEpisodes int     `json:"aired_episodes"`
 	Rating        float32 `json:"rating"`
 	Votes         int     `json:"votes"`
+	Network       string  `json:"network"`
 
 	Images *Images `json:"images"`
 	IDs    *IDs    `json:"ids"`

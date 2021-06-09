@@ -906,6 +906,14 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 				PlayCount:     playcount.GetWatchedShowByTMDB(show.IDs.TMDB).Int(),
 				DBTYPE:        "tvshow",
 				Mediatype:     "tvshow",
+				Studio:        []string{show.Network},
+			},
+			Properties: map[string]string{
+				"TotalEpisodes": strconv.Itoa(show.AiredEpisodes),
+				// TODO: calculate somehow these
+				//"TotalSeasons":  "",
+				//"WatchedEpisodes": "",
+				//"UnWatchedEpisodes": "",
 			},
 			Art: &xbmc.ListItemArt{
 				TvShowPoster: show.Images.Poster.Full,
@@ -968,6 +976,7 @@ func (episode *Episode) ToListItem(show *Show) *xbmc.ListItem {
 			PlayCount:     playcount.GetWatchedEpisodeByTMDB(show.IDs.TMDB, episode.Season, episode.Number).Int(),
 			DBTYPE:        "episode",
 			Mediatype:     "episode",
+			Studio:        []string{show.Network},
 		},
 		Art: &xbmc.ListItemArt{
 			TvShowPoster: show.Images.Poster.Full,
