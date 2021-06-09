@@ -207,12 +207,13 @@ type Configuration struct {
 	TraktCalendarsColorEpisode     string
 	TraktCalendarsColorUnaired     string
 
-	UpdateFrequency  int
-	UpdateDelay      int
-	UpdateAutoScan   bool
-	PlayResumeAction int
-	PlayResumeBack   int
-	TMDBApiKey       string
+	UpdateFrequency            int
+	UpdateDelay                int
+	UpdateAutoScan             bool
+	PlayResumeAction           int
+	PlayResumeBack             int
+	TMDBApiKey                 string
+	TMDBShowUseNetworkAsStudio bool
 
 	OSDBUser               string
 	OSDBPass               string
@@ -655,12 +656,13 @@ func Reload() *Configuration {
 		TraktCalendarsColorEpisode:     settings.ToString("trakt_calendars_color_episode"),
 		TraktCalendarsColorUnaired:     settings.ToString("trakt_calendars_color_unaired"),
 
-		UpdateFrequency:  settings.ToInt("library_update_frequency"),
-		UpdateDelay:      settings.ToInt("library_update_delay"),
-		UpdateAutoScan:   settings.ToBool("library_auto_scan"),
-		PlayResumeAction: settings.ToInt("play_resume_action"),
-		PlayResumeBack:   settings.ToInt("play_resume_back"),
-		TMDBApiKey:       settings.ToString("tmdb_api_key"),
+		UpdateFrequency:            settings.ToInt("library_update_frequency"),
+		UpdateDelay:                settings.ToInt("library_update_delay"),
+		UpdateAutoScan:             settings.ToBool("library_auto_scan"),
+		PlayResumeAction:           settings.ToInt("play_resume_action"),
+		PlayResumeBack:             settings.ToInt("play_resume_back"),
+		TMDBApiKey:                 settings.ToString("tmdb_api_key"),
+		TMDBShowUseNetworkAsStudio: settings.ToBool("tmdb_show_use_network_as_studio"),
 
 		OSDBUser:               settings.ToString("osdb_user"),
 		OSDBPass:               settings.ToString("osdb_pass"),
