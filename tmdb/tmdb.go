@@ -709,10 +709,10 @@ func (show *Show) GetCountries() []string {
 
 // GetStudios returns list of studios
 func (show *Show) GetStudios() []string {
-	if config.Get().TMDBShowUseNetworkAsStudio {
-		return show.GetNetworks()
-	} else {
+	if config.Get().TMDBShowUseProdCompanyAsStudio {
 		return show.GetProductionCompanies()
+	} else {
+		return show.GetNetworks()
 	}
 }
 
