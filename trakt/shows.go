@@ -192,6 +192,28 @@ func GetShowByTVDB(tvdbID string) (show *Show) {
 	return
 }
 
+// GetSeasons returns list of seasons for show
+func GetSeasons(showID int) (seasons []*Season) {
+	endPoint := fmt.Sprintf("shows/%d/seasons", showID)
+
+	params := napping.Params{"extended": "full"}.AsUrlValues()
+
+	cacheStore := cache.NewDBStore()
+	key := fmt.Sprintf(cache.TraktSeasonsKey, showID)
+	if err := cacheStore.Get(key, &seasons); err != nil {
+		resp, err := Get(endPoint, params)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		if err := resp.Unmarshal(&seasons); err != nil {
+			log.Warning(err)
+		}
+		cacheStore.Set(key, seasons, cache.TraktSeasonsExpire)
+	}
+	return
+}
+
 // GetSeasonEpisodes ...
 func GetSeasonEpisodes(showID, seasonNumber int) (episodes []*Episode) {
 	endPoint := fmt.Sprintf("shows/%d/seasons/%d", showID, seasonNumber)
@@ -886,6 +908,7 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 	}
 	if item == nil {
 		show = setShowFanart(show)
+		seasons := GetSeasons(show.IDs.Trakt)
 		item = &xbmc.ListItem{
 			Label: show.Title,
 			Info: &xbmc.ListItemInfo{
@@ -910,6 +933,7 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 			},
 			Properties: &xbmc.ListItemProperties{
 				TotalEpisodes: strconv.Itoa(show.AiredEpisodes),
+				TotalSeasons:  strconv.Itoa(len(seasons)),
 			},
 			Art: &xbmc.ListItemArt{
 				TvShowPoster: show.Images.Poster.Full,
