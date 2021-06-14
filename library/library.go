@@ -108,6 +108,8 @@ var (
 	pendingShows = map[int]bool{}
 
 	lock = sync.Mutex{}
+
+	ErrVideoRemoved = errors.New("Video is marked as removed")
 )
 
 var l = &Library{
@@ -335,9 +337,8 @@ func Init() {
 			PlanTraktUpdate()
 		case <-markedForRemovalTicker.C:
 			var items []database.BTItem
-			database.GetStormDB().Select(q.Eq("State", database.StatusRemove)).Find(&items)
+			database.GetStormDB().Select(q.Eq("State", database.StateDeleted)).Find(&items)
 
-			infoHash := ""
 			for _, item := range items {
 				// Remove from Elementum's library to prevent duplicates
 				if item.Type == movieType {
@@ -355,8 +356,9 @@ func Init() {
 				}
 
 				database.GetStormDB().DeleteStruct(&item)
-				log.Infof("Removed %s from database", infoHash)
+				log.Infof("Removed %s from database", item.InfoHash)
 			}
+
 		case <-closing:
 			return
 		}
@@ -470,6 +472,12 @@ func checkShowsPath() error {
 //
 
 func writeMovieStrm(tmdbID string, force bool) (*tmdb.Movie, error) {
+	// We should not write strm files for movies that are marked as deleted
+	ID, _ := strconv.Atoi(tmdbID)
+	if wasRemoved(ID, MovieType) && !force {
+		return nil, ErrVideoRemoved
+	}
+
 	movie := tmdb.GetMovieByID(tmdbID, config.Get().StrmLanguage)
 	if movie == nil {
 		return nil, errors.New("Can't find the movie")
@@ -543,9 +551,9 @@ https://www.themoviedb.org/movie/%v
 }
 
 func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
-	// We should not write strm filex for shows that are marked as deleted
-	if wasRemoved(showID, ShowType) {
-		return nil, fmt.Errorf("Show is marked as removed")
+	// We should not write strm files for shows that are marked as deleted
+	if wasRemoved(showID, ShowType) && !force {
+		return nil, ErrVideoRemoved
 	}
 
 	defer perf.ScopeTimer()()
@@ -974,6 +982,7 @@ func wasRemoved(id int, mediaType int) (wasRemoved bool) {
 
 	var li database.LibraryItem
 	if err := database.GetStormDB().Select(q.Eq("ID", id), q.Eq("MediaType", mediaType), q.Eq("State", StateDeleted)).First(&li); err == nil && li.ID != 0 {
+		log.Debugf("mediaType=%d id=%d marked as removed in database", mediaType, id)
 		return true
 	}
 
@@ -1114,10 +1123,13 @@ func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err erro
 
 		tmdbID := strconv.Itoa(movie.Movie.IDs.TMDB)
 
+		// FIXME: 'updating' is always passed as false, so wasRemoved check is always ignored.
+		// also writeMovieStrm now has wasRemoved check.
 		if updating && wasRemoved(movie.Movie.IDs.TMDB, MovieType) {
 			continue
 		}
 
+		// FIXME: should it be like for shows - 'if !updating && !isUpdateNeeded && IsDuplicateShow(tmdbID) {' ?
 		if IsDuplicateMovie(tmdbID) {
 			continue
 		}

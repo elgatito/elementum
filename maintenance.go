@@ -240,7 +240,6 @@ func Notification(r *http.Request, s *bittorrent.Service) {
 
 			if request.Item.Type == movieType {
 				library.RefreshMovie(request.Item.ID, library.ActionUpdate)
-				library.PlanMoviesUpdate()
 			} else if request.Item.Type == showType {
 				library.RefreshShow(request.Item.ID, library.ActionUpdate)
 			} else if request.Item.Type == episodeType {
@@ -259,6 +258,7 @@ func Notification(r *http.Request, s *bittorrent.Service) {
 		}
 
 		go func() {
+			// TODO: to implement auto-remove we will need to change ActionSafeDelete to ActionDelete
 			if item.Type == movieType {
 				library.RefreshMovie(item.ID, library.ActionSafeDelete)
 

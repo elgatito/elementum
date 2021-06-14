@@ -868,7 +868,6 @@ func (btp *Player) UpdateWatched() {
 	SetWatchedFile(btp.chosenFile.Path, btp.chosenFile.Size, btp.IsWatched())
 
 	if btp.IsWatched() {
-		log.Info("IsWatched")
 		var watched *trakt.WatchedItem
 
 		// TODO: Make use of Playcount, possibly increment when Watched, use old value if in progress

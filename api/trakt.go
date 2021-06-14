@@ -472,6 +472,11 @@ func renderTraktMovies(ctx *gin.Context, movies []*trakt.Movies, total int, page
 				libraryActions = append(libraryActions, []string{"LOCALIZE[30252]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/movie/add/%d", movieListing.Movie.IDs.TMDB))})
 			}
 
+			toggleWatchedAction := []string{"LOCALIZE[30667]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/movie/%d/watched", movieListing.Movie.IDs.TMDB))}
+			if item.Info.PlayCount > 0 {
+				toggleWatchedAction = []string{"LOCALIZE[30668]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/movie/%d/unwatched", movieListing.Movie.IDs.TMDB))}
+			}
+
 			watchlistAction := []string{"LOCALIZE[30255]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/movie/%d/watchlist/add", movieListing.Movie.IDs.TMDB))}
 			if inMoviesWatchlist(movieListing.Movie.IDs.TMDB) {
 				watchlistAction = []string{"LOCALIZE[30256]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/movie/%d/watchlist/remove", movieListing.Movie.IDs.TMDB))}
@@ -484,6 +489,7 @@ func renderTraktMovies(ctx *gin.Context, movies []*trakt.Movies, total int, page
 
 			item.ContextMenu = [][]string{
 				{"LOCALIZE[30619];;LOCALIZE[30214]", fmt.Sprintf("Container.Update(%s)", URLForXBMC("/movies/"))},
+				toggleWatchedAction,
 				watchlistAction,
 				collectionAction,
 				{"LOCALIZE[30034]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/movies"))},
@@ -719,6 +725,11 @@ func renderTraktShows(ctx *gin.Context, shows []*trakt.Shows, total int, page in
 			libraryActions = append(libraryActions, []string{"LOCALIZE[30252]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/show/add/%d", showListing.Show.IDs.TMDB))})
 		}
 
+		toggleWatchedAction := []string{"LOCALIZE[30667]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/show/%d/watched", showListing.Show.IDs.TMDB))}
+		if item.Info.PlayCount > 0 {
+			toggleWatchedAction = []string{"LOCALIZE[30668]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/show/%d/unwatched", showListing.Show.IDs.TMDB))}
+		}
+
 		watchlistAction := []string{"LOCALIZE[30255]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/show/%d/watchlist/add", showListing.Show.IDs.TMDB))}
 		if inShowsWatchlist(showListing.Show.IDs.TMDB) {
 			watchlistAction = []string{"LOCALIZE[30256]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/show/%d/watchlist/remove", showListing.Show.IDs.TMDB))}
@@ -731,6 +742,7 @@ func renderTraktShows(ctx *gin.Context, shows []*trakt.Shows, total int, page in
 
 		item.ContextMenu = [][]string{
 			{"LOCALIZE[30619];;LOCALIZE[30215]", fmt.Sprintf("Container.Update(%s)", URLForXBMC("/shows/"))},
+			toggleWatchedAction,
 			watchlistAction,
 			collectionAction,
 			{"LOCALIZE[30035]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/tvshows"))},
@@ -1076,6 +1088,11 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 				libraryActions = append(libraryActions, []string{"LOCALIZE[30252]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/movie/add/%d", movieListing.Movie.IDs.TMDB))})
 			}
 
+			toggleWatchedAction := []string{"LOCALIZE[30667]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/movie/%d/watched", movieListing.Movie.IDs.TMDB))}
+			if item.Info.PlayCount > 0 {
+				toggleWatchedAction = []string{"LOCALIZE[30668]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/movie/%d/unwatched", movieListing.Movie.IDs.TMDB))}
+			}
+
 			watchlistAction := []string{"LOCALIZE[30255]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/movie/%d/watchlist/add", movieListing.Movie.IDs.TMDB))}
 			if inMoviesWatchlist(movieListing.Movie.IDs.TMDB) {
 				watchlistAction = []string{"LOCALIZE[30256]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/movie/%d/watchlist/remove", movieListing.Movie.IDs.TMDB))}
@@ -1088,6 +1105,7 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 
 			item.ContextMenu = [][]string{
 				{"LOCALIZE[30619];;LOCALIZE[30214]", fmt.Sprintf("Container.Update(%s)", URLForXBMC("/movies/"))},
+				toggleWatchedAction,
 				watchlistAction,
 				collectionAction,
 				{"LOCALIZE[30034]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/movies"))},
@@ -1248,12 +1266,18 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 			}
 			item.Path = itemPath
 
+			// TODO: calendar show episodes, but libraryActions/watchlistAction/collectionAction are for shows, which might be confusing
 			libraryActions := [][]string{}
 			if library.IsDuplicateShow(tmdbID) || library.IsAddedToLibrary(tmdbID, library.ShowType) {
 				libraryActions = append(libraryActions, []string{"LOCALIZE[30283]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/show/add/%d?force=true", showListing.Show.IDs.TMDB))})
 				libraryActions = append(libraryActions, []string{"LOCALIZE[30253]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/show/remove/%d", showListing.Show.IDs.TMDB))})
 			} else {
 				libraryActions = append(libraryActions, []string{"LOCALIZE[30252]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/show/add/%d", showListing.Show.IDs.TMDB))})
+			}
+
+			toggleWatchedAction := []string{"LOCALIZE[30667]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/show/%d/season/%d/episode/%d/watched", showListing.Show.IDs.TMDB, epi.Number, epi.Season))}
+			if item.Info.PlayCount > 0 {
+				toggleWatchedAction = []string{"LOCALIZE[30668]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/show/%d/season/%d/episode/%d/unwatched", showListing.Show.IDs.TMDB, epi.Number, epi.Season))}
 			}
 
 			watchlistAction := []string{"LOCALIZE[30255]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/show/%d/watchlist/add", showListing.Show.IDs.TMDB))}
@@ -1268,6 +1292,7 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 
 			item.ContextMenu = [][]string{
 				{"LOCALIZE[30619];;LOCALIZE[30215]", fmt.Sprintf("Container.Update(%s)", URLForXBMC("/shows/"))},
+				toggleWatchedAction,
 				watchlistAction,
 				collectionAction,
 				{"LOCALIZE[30035]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/tvshows"))},
@@ -1395,12 +1420,6 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 				seasonNumber,
 				episodeNumber,
 			) + "%s/%s"
-			markWatchedLabel := "LOCALIZE[30313]"
-			markWatchedURL := URLForXBMC("/show/%d/season/%d/episode/%d/trakt/watched",
-				showListing.Show.IDs.TMDB,
-				seasonNumber,
-				episodeNumber,
-			)
 
 			contextLabel := playLabel
 			contextTitle := fmt.Sprintf("%s S%02dE%02d", showListing.Show.Title, seasonNumber, episodeNumber)
@@ -1411,11 +1430,21 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 
 			item.Path = contextPlayURL(thisURL, contextTitle, false)
 
-			item.ContextMenu = [][]string{
+			libraryActions := [][]string{
 				{contextLabel, fmt.Sprintf("PlayMedia(%s)", contextURL)},
-				{"LOCALIZE[30037]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/episodes"))},
-				{markWatchedLabel, fmt.Sprintf("RunPlugin(%s)", markWatchedURL)},
 			}
+
+			toggleWatchedAction := []string{"LOCALIZE[30667]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/show/%d/season/%d/episode/%d/watched", showListing.Show.IDs.TMDB, seasonNumber, episodeNumber))}
+			if item.Info.PlayCount > 0 {
+				toggleWatchedAction = []string{"LOCALIZE[30668]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/show/%d/season/%d/episode/%d/unwatched", showListing.Show.IDs.TMDB, seasonNumber, episodeNumber))}
+			}
+
+			item.ContextMenu = [][]string{
+				toggleWatchedAction,
+				{"LOCALIZE[30037]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/episodes"))},
+			}
+			item.ContextMenu = append(libraryActions, item.ContextMenu...)
+
 			if config.Get().Platform.Kodi < 17 {
 				item.ContextMenu = append(item.ContextMenu,
 					[]string{"LOCALIZE[30203]", "Action(Info)"},
@@ -1475,6 +1504,123 @@ func SelectTraktUserList(ctx *gin.Context) {
 	}
 
 	ctx.String(200, "")
+}
+
+// ToggleWatched mark as watched or unwatched in Trakt and Kodi library
+func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		defer perf.ScopeTimer()()
+
+		var watched *trakt.WatchedItem
+		var foundInLibrary bool
+
+		// TODO: Make use of Playcount, possibly increment when Watched, use old value if in progress
+		if media == movieType {
+			movieID, _ := strconv.Atoi(ctx.Params.ByName("tmdbId"))
+
+			watched = &trakt.WatchedItem{
+				MediaType: media,
+				Movie:     movieID,
+				Watched:   setWatched,
+			}
+
+			movie, err := library.GetMovieByTMDB(movieID)
+			if err == nil {
+				foundInLibrary = true
+
+				playcount := 1
+				if !setWatched {
+					playcount = 0
+				}
+
+				log.Debugf("Toggle Kodi library watched for: %#v", movie)
+				xbmc.SetMovieWatched(movie.ID, playcount, 0, 0)
+			}
+		} else if media == episodeType {
+			showID, _ := strconv.Atoi(ctx.Params.ByName("showId"))
+			seasonNumber, _ := strconv.Atoi(ctx.Params.ByName("season"))
+			episodeNumber, _ := strconv.Atoi(ctx.Params.ByName("episode"))
+
+			watched = &trakt.WatchedItem{
+				MediaType: media,
+				Show:      showID,
+				Season:    seasonNumber,
+				Episode:   episodeNumber,
+				Watched:   setWatched,
+			}
+
+			show, err := library.GetShowByTMDB(showID)
+			if err == nil {
+				foundInLibrary = true
+
+				playcount := 1
+				if !setWatched {
+					playcount = 0
+				}
+
+				episode := show.GetEpisode(seasonNumber, episodeNumber)
+				log.Debugf("Toggle Kodi library watched for: %#v", episode)
+				xbmc.SetEpisodeWatched(episode.ID, playcount, 0, 0)
+			}
+		} else if media == seasonType {
+			showID, _ := strconv.Atoi(ctx.Params.ByName("showId"))
+			seasonNumber, _ := strconv.Atoi(ctx.Params.ByName("season"))
+
+			watched = &trakt.WatchedItem{
+				MediaType: media,
+				Show:      showID,
+				Season:    seasonNumber,
+				Episode:   0,
+				Watched:   setWatched,
+			}
+
+			show, err := library.GetShowByTMDB(showID)
+			if err == nil {
+				foundInLibrary = true
+
+				playcount := 1
+				if !setWatched {
+					playcount = 0
+				}
+
+				season := show.GetSeason(seasonNumber)
+				log.Debugf("Set Kodi library watched to %t for: %#v", setWatched, season)
+				xbmc.SetSeasonWatched(season.ID, playcount)
+			}
+		} else if media == showType {
+			showID, _ := strconv.Atoi(ctx.Params.ByName("showId"))
+
+			watched = &trakt.WatchedItem{
+				MediaType: media,
+				Show:      showID,
+				Season:    0,
+				Episode:   0,
+				Watched:   setWatched,
+			}
+
+			show, err := library.GetShowByTMDB(showID)
+			if err == nil {
+				foundInLibrary = true
+
+				playcount := 1
+				if !setWatched {
+					playcount = 0
+				}
+
+				log.Debugf("Toggle Kodi library watched for: %#v", show)
+				xbmc.SetShowWatched(show.ID, playcount)
+			}
+		}
+
+		if config.Get().TraktToken != "" && watched != nil {
+			log.Debugf("Set Trakt watched to %t for: %#v", setWatched, watched)
+			go trakt.SetWatched(watched)
+		}
+
+		if !foundInLibrary {
+			xbmc.ToggleWatched()
+		}
+	}
 }
 
 func getProgressDateFormat() string {

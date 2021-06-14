@@ -179,6 +179,10 @@ func Routes(s *bittorrent.Service) *gin.Engine {
 		movie.GET("/:tmdbId/watchlist/remove", RemoveMovieFromWatchlist)
 		movie.GET("/:tmdbId/collection/add", AddMovieToCollection)
 		movie.GET("/:tmdbId/collection/remove", RemoveMovieFromCollection)
+		movie.GET("/:tmdbId/watched", ToggleWatched("movie", true))
+		movie.GET("/:tmdbId/watched/*ident", ToggleWatched("movie", true))
+		movie.GET("/:tmdbId/unwatched", ToggleWatched("movie", false))
+		movie.GET("/:tmdbId/unwatched/*ident", ToggleWatched("movie", false))
 	}
 
 	shows := r.Group("/shows")
@@ -238,6 +242,10 @@ func Routes(s *bittorrent.Service) *gin.Engine {
 	}
 	show := r.Group("/show")
 	{
+		show.GET("/:showId/watched", ToggleWatched("show", true))
+		show.GET("/:showId/watched/*ident", ToggleWatched("show", true))
+		show.GET("/:showId/unwatched", ToggleWatched("show", false))
+		show.GET("/:showId/unwatched/*ident", ToggleWatched("show", false))
 		show.GET("/:showId/seasons", ShowSeasons)
 		show.GET("/:showId/season/:season/download", ShowSeasonRun("download", s))
 		show.GET("/:showId/season/:season/download/*ident", ShowSeasonRun("download", s))
@@ -249,6 +257,10 @@ func Routes(s *bittorrent.Service) *gin.Engine {
 		show.GET("/:showId/season/:season/play/*ident", ShowSeasonRun("play", s))
 		show.GET("/:showId/season/:season/forceplay", ShowSeasonRun("forceplay", s))
 		show.GET("/:showId/season/:season/forceplay/*ident", ShowSeasonRun("forceplay", s))
+		show.GET("/:showId/season/:season/watched", ToggleWatched("season", true))
+		show.GET("/:showId/season/:season/watched/*ident", ToggleWatched("season", true))
+		show.GET("/:showId/season/:season/unwatched", ToggleWatched("season", false))
+		show.GET("/:showId/season/:season/unwatched/*ident", ToggleWatched("season", false))
 		show.GET("/:showId/season/:season/episodes", ShowEpisodes)
 		show.GET("/:showId/season/:season/episode/:episode/infolabels", InfoLabelsEpisode(s))
 		show.GET("/:showId/season/:season/episode/:episode/play", ShowEpisodeRun("play", s))
@@ -261,6 +273,10 @@ func Routes(s *bittorrent.Service) *gin.Engine {
 		show.GET("/:showId/season/:season/episode/:episode/links/*ident", ShowEpisodeRun("links", s))
 		show.GET("/:showId/season/:season/episode/:episode/forcelinks", ShowEpisodeRun("forcelinks", s))
 		show.GET("/:showId/season/:season/episode/:episode/forcelinks/*ident", ShowEpisodeRun("forcelinks", s))
+		show.GET("/:showId/season/:season/episode/:episode/watched", ToggleWatched("episode", true))
+		show.GET("/:showId/season/:season/episode/:episode/watched/*ident", ToggleWatched("episode", true))
+		show.GET("/:showId/season/:season/episode/:episode/unwatched", ToggleWatched("episode", false))
+		show.GET("/:showId/season/:season/episode/:episode/unwatched/*ident", ToggleWatched("episode", false))
 		show.GET("/:showId/watchlist/add", AddShowToWatchlist)
 		show.GET("/:showId/watchlist/remove", RemoveShowFromWatchlist)
 		show.GET("/:showId/collection/add", AddShowToCollection)
@@ -297,9 +313,9 @@ func Routes(s *bittorrent.Service) *gin.Engine {
 		torrents := context.Group("/torrents")
 		{
 			torrents.GET("/assign/:torrentId/kodi/:media/:kodiID", ContextAssignKodiSelector(s))
-			torrents.GET("/assign/:torrentId/tmdb/movie/:tmdbId", ContextAssignTMDBMovieSelector(s))
-			torrents.GET("/assign/:torrentId/tmdb/show/:tmdbId/season/:season", ContextAssignTMDBSeasonSelector(s))
-			torrents.GET("/assign/:torrentId/tmdb/show/:tmdbId/season/:season/episode/:episode", ContextAssignTMDBEpisodeSelector(s))
+			torrents.GET("/assign/:torrentId/tmdb/movie/:tmdbId", ContextAssignTMDBSelector(s, "movie"))
+			torrents.GET("/assign/:torrentId/tmdb/show/:tmdbId/season/:season", ContextAssignTMDBSelector(s, "season"))
+			torrents.GET("/assign/:torrentId/tmdb/show/:tmdbId/season/:season/episode/:episode", ContextAssignTMDBSelector(s, "episode"))
 		}
 	}
 

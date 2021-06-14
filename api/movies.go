@@ -318,6 +318,12 @@ func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, que
 			libraryActions = append(libraryActions, []string{"LOCALIZE[30252]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/movie/add/%d", movie.ID))})
 		}
 
+		toggleWatchedAction := []string{"LOCALIZE[30667]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/movie/%d/watched", movie.ID))}
+		// TODO: maybe there is a better way to determine if item was watched.
+		if item.Info.PlayCount > 0 {
+			toggleWatchedAction = []string{"LOCALIZE[30668]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/movie/%d/unwatched", movie.ID))}
+		}
+
 		watchlistAction := []string{"LOCALIZE[30255]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/movie/%d/watchlist/add", movie.ID))}
 		if inMoviesWatchlist(movie.ID) {
 			watchlistAction = []string{"LOCALIZE[30256]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/movie/%d/watchlist/remove", movie.ID))}
@@ -330,6 +336,7 @@ func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, que
 
 		item.ContextMenu = [][]string{
 			{"LOCALIZE[30619];;LOCALIZE[30214]", fmt.Sprintf("Container.Update(%s)", URLForXBMC("/movies/"))},
+			toggleWatchedAction,
 			watchlistAction,
 			collectionAction,
 			{"LOCALIZE[30034]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/movies"))},

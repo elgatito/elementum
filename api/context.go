@@ -15,7 +15,7 @@ import (
 	"github.com/elgatito/elementum/xbmc"
 )
 
-// ContextPlaySelector plays/downloads media from Kodi in elementum
+// ContextPlaySelector plays/downloads/toggles_watched media from Kodi in elementum
 func ContextPlaySelector(s *bittorrent.Service) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		action := ctx.Params.ByName("action")
@@ -32,12 +32,16 @@ func ContextPlaySelector(s *bittorrent.Service) gin.HandlerFunc {
 			mediaAction = "forceplay"
 		}
 
-		if action == "download" {
+		if action == "download" || action == "watched" || action == "unwatched" {
 			mediaAction = action
 		}
 
 		if kodiID == 0 {
-			ctx.Redirect(302, URLQuery(URLForXBMC("/search"), "q", id, "action", mediaAction))
+			if mediaAction != "watched" && mediaAction != "unwatched" {
+				ctx.Redirect(302, URLQuery(URLForXBMC("/search"), "q", id, "action", mediaAction))
+			} else {
+				log.Error("Can't set %q for non-library item of type %q: %q", mediaAction, media, id)
+			}
 			return
 		} else if media == "movie" {
 			if m := library.GetLibraryMovie(kodiID); m != nil && m.UIDs.TMDB != 0 {
@@ -55,6 +59,12 @@ func ContextPlaySelector(s *bittorrent.Service) gin.HandlerFunc {
 			if s, se := library.GetLibrarySeason(kodiID); s != nil && se != nil && s.UIDs.TMDB != 0 {
 				title := fmt.Sprintf("%s S%02d", s.Title, se.Season)
 				ctx.Redirect(302, URLQuery(URLForXBMC("/show/%d/season/%d/%s/%s", s.UIDs.TMDB, se.Season, mediaAction, url.PathEscape(title))))
+				return
+			}
+		} else if media == "tvshow" {
+			if s := library.GetLibraryShow(kodiID); s != nil && s.UIDs.TMDB != 0 {
+				title := fmt.Sprintf("%s", s.Title)
+				ctx.Redirect(302, URLQuery(URLForXBMC("/show/%d/%s/%s", s.UIDs.TMDB, mediaAction, url.PathEscape(title))))
 				return
 			}
 		}
@@ -107,90 +117,65 @@ func ContextAssignKodiSelector(s *bittorrent.Service) gin.HandlerFunc {
 	}
 }
 
-// ContextAssignTMDBMovieSelector assigns torrent to movie by TMDB ID
-func ContextAssignTMDBMovieSelector(s *bittorrent.Service) gin.HandlerFunc {
+// ContextAssignTMDBSelector assigns torrent to media by TMDB ID
+func ContextAssignTMDBSelector(s *bittorrent.Service, media string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		torrentID := ctx.Params.ByName("torrentId")
 		id := ctx.Params.ByName("tmdbId")
-		tmdbID, _ := strconv.Atoi(id)
-		media := ctx.Params.ByName("media")
 
-		if tmdbID != 0 {
+		var err error
+		var tmdbID int
+
+		if media == "movie" {
+			movieID, _ := strconv.Atoi(id)
+
+			if movieID != 0 {
+				tmdbID = movieID
+			} else {
+				err = fmt.Errorf("Cound not find TMDB entry for requested Kodi item %d of type %s", movieID, media)
+			}
+		} else if media == "season" {
+			showID, _ := strconv.Atoi(id)
+			seasonN := ctx.Params.ByName("season")
+			seasonNumber, _ := strconv.Atoi(seasonN)
+
+			if showID != 0 && seasonNumber != 0 {
+				season := tmdb.GetSeason(showID, seasonNumber, config.Get().Language, 0)
+				if season == nil {
+					err = errors.New("Unable to find season")
+				} else {
+					tmdbID = season.ID
+				}
+			} else {
+				err = fmt.Errorf("Cound not find TMDB entry for requested Kodi item %d of type %s #%d", showID, media, seasonNumber)
+			}
+		} else if media == "episode" {
+			showID, _ := strconv.Atoi(id)
+			seasonN := ctx.Params.ByName("season")
+			seasonNumber, _ := strconv.Atoi(seasonN)
+			episodeN := ctx.Params.ByName("episode")
+			episodeNumber, _ := strconv.Atoi(episodeN)
+
+			if showID != 0 && seasonNumber != 0 {
+				episode := tmdb.GetEpisode(showID, seasonNumber, episodeNumber, config.Get().Language)
+				if episode == nil {
+					err = errors.New("Unable to find episode")
+				} else {
+					tmdbID = episode.ID
+				}
+			} else {
+				err = fmt.Errorf("Cound not find TMDB entry for requested Kodi item %d of type %s S%dE%d", showID, media, seasonNumber, episodeNumber)
+			}
+		}
+
+		if err == nil && tmdbID != 0 {
 			ctx.Redirect(302, URLQuery(URLForXBMC("/torrents/assign/%s/%d", torrentID, tmdbID)))
 			return
+		} else {
+			log.Error(err.Error())
+			xbmc.Notify("Elementum", err.Error(), config.AddonIcon())
+			ctx.Error(errors.New("Cannot find TMDB for selected Kodi item"))
 		}
-
-		err := fmt.Errorf("Cound not find TMDB entry for requested Kodi item %d of type %s", tmdbID, media)
-		log.Error(err.Error())
-		xbmc.Notify("Elementum", err.Error(), config.AddonIcon())
-		ctx.Error(errors.New("Cannot find TMDB entry for selected Kodi item"))
-		return
-	}
-}
-
-// ContextAssignTMDBSeasonSelector assigns torrent to season by show TMDB ID and season number
-func ContextAssignTMDBSeasonSelector(s *bittorrent.Service) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		torrentID := ctx.Params.ByName("torrentId")
-		id := ctx.Params.ByName("tmdbId")
-		showID, _ := strconv.Atoi(id)
-		media := ctx.Params.ByName("media")
-		seasonN := ctx.Params.ByName("season")
-		seasonNumber, _ := strconv.Atoi(seasonN)
-
-		if showID != 0 && seasonNumber != 0 {
-			season := tmdb.GetSeason(showID, seasonNumber, config.Get().Language, 0)
-			if season == nil {
-				err := errors.New("Unable to find season")
-				log.Error(err.Error())
-				xbmc.Notify("Elementum", err.Error(), config.AddonIcon())
-				ctx.Error(err)
-				return
-			}
-
-			ctx.Redirect(302, URLQuery(URLForXBMC("/torrents/assign/%s/%d", torrentID, season.ID)))
-			return
-		}
-
-		err := fmt.Errorf("Cound not find TMDB entry for requested Kodi item %d of type %s #%d", showID, media, seasonNumber)
-		log.Error(err.Error())
-		xbmc.Notify("Elementum", err.Error(), config.AddonIcon())
-		ctx.Error(errors.New("Cannot find TMDB entry for selected Kodi item"))
-		return
-	}
-}
-
-// ContextAssignTMDBEpisodeSelector assigns torrent to episode by show TMDB ID and season/episode numbers
-func ContextAssignTMDBEpisodeSelector(s *bittorrent.Service) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		torrentID := ctx.Params.ByName("torrentId")
-		id := ctx.Params.ByName("tmdbId")
-		showID, _ := strconv.Atoi(id)
-		media := ctx.Params.ByName("media")
-		seasonN := ctx.Params.ByName("season")
-		seasonNumber, _ := strconv.Atoi(seasonN)
-		episodeN := ctx.Params.ByName("episode")
-		episodeNumber, _ := strconv.Atoi(episodeN)
-
-		if showID != 0 && seasonNumber != 0 {
-			episode := tmdb.GetEpisode(showID, seasonNumber, episodeNumber, config.Get().Language)
-			if episode == nil {
-				err := errors.New("Unable to find episode")
-				log.Error(err.Error())
-				xbmc.Notify("Elementum", err.Error(), config.AddonIcon())
-				ctx.Error(err)
-				return
-			}
-
-			ctx.Redirect(302, URLQuery(URLForXBMC("/torrents/assign/%s/%d", torrentID, episode.ID)))
-			return
-		}
-
-		err := fmt.Errorf("Cound not find TMDB entry for requested Kodi item %d of type %s S%dE%d", showID, media, seasonNumber, episodeNumber)
-		log.Error(err.Error())
-		xbmc.Notify("Elementum", err.Error(), config.AddonIcon())
-		ctx.Error(errors.New("Cannot find TMDB entry for selected Kodi item"))
-		return
 	}
 }
 

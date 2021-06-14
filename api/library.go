@@ -23,6 +23,7 @@ const (
 
 	movieType   = "movie"
 	showType    = "show"
+	seasonType  = "season"
 	episodeType = "episode"
 	searchType  = "search"
 
@@ -44,8 +45,19 @@ func AddMovie(ctx *gin.Context) {
 
 	movie, err := library.AddMovie(tmdbID, force)
 	if err != nil {
-		ctx.String(200, err.Error())
-		return
+		isErrored := true
+		if err == library.ErrVideoRemoved {
+			if xbmc.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30279];;%s", movie.Title)) {
+				movie, err = library.AddMovie(tmdbID, true)
+				if err == nil {
+					isErrored = false
+				}
+			}
+		}
+		if isErrored {
+			ctx.String(200, err.Error())
+			return
+		}
 	}
 	if config.Get().TraktToken != "" && config.Get().TraktSyncAddedMovies {
 		go trakt.SyncAddedItem("movies", tmdbID, config.Get().TraktSyncAddedMoviesLocation)
@@ -127,8 +139,19 @@ func AddShow(ctx *gin.Context) {
 
 	show, err := library.AddShow(tmdbID, force)
 	if err != nil {
-		ctx.String(200, err.Error())
-		return
+		isErrored := true
+		if err == library.ErrVideoRemoved {
+			if xbmc.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30279];;%s", show.Name)) {
+				show, err = library.AddShow(tmdbID, true)
+				if err == nil {
+					isErrored = false
+				}
+			}
+		}
+		if isErrored {
+			ctx.String(200, err.Error())
+			return
+		}
 	}
 	if config.Get().TraktToken != "" && config.Get().TraktSyncAddedShows {
 		go trakt.SyncAddedItem("shows", tmdbID, config.Get().TraktSyncAddedShowsLocation)

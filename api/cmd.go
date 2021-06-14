@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/asdine/storm/q"
 	"github.com/gin-gonic/gin"
 	"github.com/op/go-logging"
 
@@ -129,7 +130,8 @@ func SetViewMode(ctx *gin.Context) {
 func ClearDatabaseMovies(ctx *gin.Context) {
 	log.Debug("Removing deleted movies from database")
 
-	// database.Get().Exec("DELETE FROM library_items WHERE state = ? AND mediaType = ?", library.StateDeleted, library.MovieType)
+	query := database.GetStormDB().Select(q.Eq("MediaType", library.MovieType), q.Eq("State", library.StateDeleted))
+	_ = query.Delete(&database.LibraryItem{})
 
 	xbmc.Notify("Elementum", "LOCALIZE[30472]", config.AddonIcon())
 
@@ -142,7 +144,8 @@ func ClearDatabaseMovies(ctx *gin.Context) {
 func ClearDatabaseShows(ctx *gin.Context) {
 	log.Debug("Removing deleted shows from database")
 
-	// database.Get().Exec("DELETE FROM library_items WHERE state = ? AND mediaType = ?", library.StateDeleted, library.ShowType)
+	query := database.GetStormDB().Select(q.Eq("MediaType", library.ShowType), q.Eq("State", library.StateDeleted))
+	_ = query.Delete(&database.LibraryItem{})
 
 	xbmc.Notify("Elementum", "LOCALIZE[30472]", config.AddonIcon())
 
