@@ -1157,6 +1157,100 @@ func (z EpisodeSearchResults) Msgsize() (s int) {
 }
 
 // MarshalMsg implements msgp.Marshaler
+func (z *HiddenShow) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 3
+	// string "HiddenAt"
+	o = append(o, 0x83, 0xa8, 0x48, 0x69, 0x64, 0x64, 0x65, 0x6e, 0x41, 0x74)
+	o = msgp.AppendString(o, z.HiddenAt)
+	// string "Type"
+	o = append(o, 0xa4, 0x54, 0x79, 0x70, 0x65)
+	o = msgp.AppendString(o, z.Type)
+	// string "Show"
+	o = append(o, 0xa4, 0x53, 0x68, 0x6f, 0x77)
+	if z.Show == nil {
+		o = msgp.AppendNil(o)
+	} else {
+		o, err = z.Show.MarshalMsg(o)
+		if err != nil {
+			err = msgp.WrapError(err, "Show")
+			return
+		}
+	}
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *HiddenShow) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "HiddenAt":
+			z.HiddenAt, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "HiddenAt")
+				return
+			}
+		case "Type":
+			z.Type, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Type")
+				return
+			}
+		case "Show":
+			if msgp.IsNil(bts) {
+				bts, err = msgp.ReadNilBytes(bts)
+				if err != nil {
+					return
+				}
+				z.Show = nil
+			} else {
+				if z.Show == nil {
+					z.Show = new(Show)
+				}
+				bts, err = z.Show.UnmarshalMsg(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "Show")
+					return
+				}
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *HiddenShow) Msgsize() (s int) {
+	s = 1 + 9 + msgp.StringPrefixSize + len(z.HiddenAt) + 5 + msgp.StringPrefixSize + len(z.Type) + 5
+	if z.Show == nil {
+		s += msgp.NilSize
+	} else {
+		s += z.Show.Msgsize()
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
 func (z *HistoryResponse) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
 	// map header, size 3
@@ -4134,9 +4228,9 @@ func (z *ProgressShow) Msgsize() (s int) {
 // MarshalMsg implements msgp.Marshaler
 func (z *Season) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 8
+	// map header, size 9
 	// string "Number"
-	o = append(o, 0x88, 0xa6, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72)
+	o = append(o, 0x89, 0xa6, 0x4e, 0x75, 0x6d, 0x62, 0x65, 0x72)
 	o = msgp.AppendInt(o, z.Number)
 	// string "Overview"
 	o = append(o, 0xa8, 0x4f, 0x76, 0x65, 0x72, 0x76, 0x69, 0x65, 0x77)
@@ -4153,6 +4247,9 @@ func (z *Season) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "Votes"
 	o = append(o, 0xa5, 0x56, 0x6f, 0x74, 0x65, 0x73)
 	o = msgp.AppendInt(o, z.Votes)
+	// string "Network"
+	o = append(o, 0xa7, 0x4e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b)
+	o = msgp.AppendString(o, z.Network)
 	// string "Images"
 	o = append(o, 0xa6, 0x49, 0x6d, 0x61, 0x67, 0x65, 0x73)
 	if z.Images == nil {
@@ -4232,6 +4329,12 @@ func (z *Season) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "Votes")
 				return
 			}
+		case "Network":
+			z.Network, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Network")
+				return
+			}
 		case "Images":
 			if msgp.IsNil(bts) {
 				bts, err = msgp.ReadNilBytes(bts)
@@ -4280,7 +4383,7 @@ func (z *Season) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *Season) Msgsize() (s int) {
-	s = 1 + 7 + msgp.IntSize + 9 + msgp.StringPrefixSize + len(z.Overview) + 13 + msgp.IntSize + 14 + msgp.IntSize + 7 + msgp.Float32Size + 6 + msgp.IntSize + 7
+	s = 1 + 7 + msgp.IntSize + 9 + msgp.StringPrefixSize + len(z.Overview) + 13 + msgp.IntSize + 14 + msgp.IntSize + 7 + msgp.Float32Size + 6 + msgp.IntSize + 8 + msgp.StringPrefixSize + len(z.Network) + 7
 	if z.Images == nil {
 		s += msgp.NilSize
 	} else {
