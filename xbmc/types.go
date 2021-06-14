@@ -66,13 +66,23 @@ type ListItem struct {
 	IsPlayable  bool                 `json:"is_playable"`
 	Path        string               `json:"path"`
 	Info        *ListItemInfo        `json:"info,omitempty"`
-	Properties  map[string]string    `json:"properties,omitempty"`
+	Properties  *ListItemProperties  `json:"properties,omitempty"`
 	Art         *ListItemArt         `json:"art,omitempty"`
 	StreamInfo  *StreamInfo          `json:"stream_info,omitempty"`
 	ContextMenu [][]string           `json:"context_menu,omitempty"`
 	CastMembers []ListItemCastMember `json:"castmembers,omitempty"`
 
 	TraktAuth bool `json:"-"`
+}
+
+// ListItemProperties ...
+type ListItemProperties struct {
+	TotalSeasons             string `json:"totalseasons,omitempty"`
+	TotalEpisodes            string `json:"totalepisodes,omitempty"`
+	WatchedEpisodes          string `json:"watchedepisodes,omitempty"`
+	UnWatchedEpisodes        string `json:"unwatchedepisodes,omitempty"`
+	SubtitlesSync            string `json:"sync,omitempty"`
+	SubtitlesHearingImpaired string `json:"hearing_imp,omitempty"`
 }
 
 // ListItemInfo ...

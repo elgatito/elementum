@@ -544,12 +544,9 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 			Studio:        show.GetStudios(),
 			Country:       show.GetCountries(),
 		},
-		Properties: map[string]string{
-			"TotalSeasons":  strconv.Itoa(show.NumberOfSeasons),
-			"TotalEpisodes": strconv.Itoa(show.NumberOfEpisodes),
-			// TODO: calculate somehow these
-			//"WatchedEpisodes": "",
-			//"UnWatchedEpisodes": "",
+		Properties: &xbmc.ListItemProperties{
+			TotalSeasons:  strconv.Itoa(show.CountRealSeasons()),
+			TotalEpisodes: strconv.Itoa(show.NumberOfEpisodes),
 		},
 		Art: &xbmc.ListItemArt{
 			FanArt:       ImageURL(show.BackdropPath, "w1280"),

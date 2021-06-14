@@ -61,13 +61,13 @@ func SubtitlesIndex(s *bittorrent.Service) gin.HandlerFunc {
 					"lang", sub.SubLanguageID,
 					"fmt", sub.SubFormat,
 					"dl", sub.SubDownloadLink),
-				Properties: make(map[string]string),
+				Properties: &xbmc.ListItemProperties{},
 			}
 			if sub.MatchedBy == "moviehash" {
-				item.Properties["sync"] = trueType
+				item.Properties.SubtitlesSync = trueType
 			}
 			if sub.SubHearingImpaired == "1" {
-				item.Properties["hearing_imp"] = trueType
+				item.Properties.SubtitlesHearingImpaired = trueType
 			}
 			items = append(items, item)
 		}

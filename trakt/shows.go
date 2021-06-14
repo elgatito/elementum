@@ -908,12 +908,8 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 				Mediatype:     "tvshow",
 				Studio:        []string{show.Network},
 			},
-			Properties: map[string]string{
-				"TotalEpisodes": strconv.Itoa(show.AiredEpisodes),
-				// TODO: calculate somehow these
-				//"TotalSeasons":  "",
-				//"WatchedEpisodes": "",
-				//"UnWatchedEpisodes": "",
+			Properties: &xbmc.ListItemProperties{
+				TotalEpisodes: strconv.Itoa(show.AiredEpisodes),
 			},
 			Art: &xbmc.ListItemArt{
 				TvShowPoster: show.Images.Poster.Full,

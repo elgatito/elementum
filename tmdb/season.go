@@ -171,11 +171,8 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 			Genre:         show.GetGenres(),
 			Studio:        show.GetStudios(),
 		},
-		Properties: map[string]string{
-			"TotalEpisodes": strconv.Itoa(season.EpisodeCount),
-			// TODO: calculate somehow these
-			//"WatchedEpisodes": "",
-			//"UnWatchedEpisodes": "",
+		Properties: &xbmc.ListItemProperties{
+			TotalEpisodes: strconv.Itoa(season.EpisodeCount),
 		},
 		Art: &xbmc.ListItemArt{
 			TvShowPoster: ImageURL(show.PosterPath, "w1280"),

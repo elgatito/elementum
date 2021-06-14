@@ -485,10 +485,14 @@ func (z *ListItem) MarshalMsg(b []byte) (o []byte, err error) {
 	}
 	// string "Properties"
 	o = append(o, 0xaa, 0x50, 0x72, 0x6f, 0x70, 0x65, 0x72, 0x74, 0x69, 0x65, 0x73)
-	o = msgp.AppendMapHeader(o, uint32(len(z.Properties)))
-	for za0001, za0002 := range z.Properties {
-		o = msgp.AppendString(o, za0001)
-		o = msgp.AppendString(o, za0002)
+	if z.Properties == nil {
+		o = msgp.AppendNil(o)
+	} else {
+		o, err = z.Properties.MarshalMsg(o)
+		if err != nil {
+			err = msgp.WrapError(err, "Properties")
+			return
+		}
 	}
 	// string "Art"
 	o = append(o, 0xa3, 0x41, 0x72, 0x74)
@@ -515,19 +519,19 @@ func (z *ListItem) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "ContextMenu"
 	o = append(o, 0xab, 0x43, 0x6f, 0x6e, 0x74, 0x65, 0x78, 0x74, 0x4d, 0x65, 0x6e, 0x75)
 	o = msgp.AppendArrayHeader(o, uint32(len(z.ContextMenu)))
-	for za0003 := range z.ContextMenu {
-		o = msgp.AppendArrayHeader(o, uint32(len(z.ContextMenu[za0003])))
-		for za0004 := range z.ContextMenu[za0003] {
-			o = msgp.AppendString(o, z.ContextMenu[za0003][za0004])
+	for za0001 := range z.ContextMenu {
+		o = msgp.AppendArrayHeader(o, uint32(len(z.ContextMenu[za0001])))
+		for za0002 := range z.ContextMenu[za0001] {
+			o = msgp.AppendString(o, z.ContextMenu[za0001][za0002])
 		}
 	}
 	// string "CastMembers"
 	o = append(o, 0xab, 0x43, 0x61, 0x73, 0x74, 0x4d, 0x65, 0x6d, 0x62, 0x65, 0x72, 0x73)
 	o = msgp.AppendArrayHeader(o, uint32(len(z.CastMembers)))
-	for za0005 := range z.CastMembers {
-		o, err = z.CastMembers[za0005].MarshalMsg(o)
+	for za0003 := range z.CastMembers {
+		o, err = z.CastMembers[za0003].MarshalMsg(o)
 		if err != nil {
-			err = msgp.WrapError(err, "CastMembers", za0005)
+			err = msgp.WrapError(err, "CastMembers", za0003)
 			return
 		}
 	}
@@ -609,34 +613,21 @@ func (z *ListItem) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 			}
 		case "Properties":
-			var zb0002 uint32
-			zb0002, bts, err = msgp.ReadMapHeaderBytes(bts)
-			if err != nil {
-				err = msgp.WrapError(err, "Properties")
-				return
-			}
-			if z.Properties == nil {
-				z.Properties = make(map[string]string, zb0002)
-			} else if len(z.Properties) > 0 {
-				for key := range z.Properties {
-					delete(z.Properties, key)
+			if msgp.IsNil(bts) {
+				bts, err = msgp.ReadNilBytes(bts)
+				if err != nil {
+					return
 				}
-			}
-			for zb0002 > 0 {
-				var za0001 string
-				var za0002 string
-				zb0002--
-				za0001, bts, err = msgp.ReadStringBytes(bts)
+				z.Properties = nil
+			} else {
+				if z.Properties == nil {
+					z.Properties = new(ListItemProperties)
+				}
+				bts, err = z.Properties.UnmarshalMsg(bts)
 				if err != nil {
 					err = msgp.WrapError(err, "Properties")
 					return
 				}
-				za0002, bts, err = msgp.ReadStringBytes(bts)
-				if err != nil {
-					err = msgp.WrapError(err, "Properties", za0001)
-					return
-				}
-				z.Properties[za0001] = za0002
 			}
 		case "Art":
 			if msgp.IsNil(bts) {
@@ -673,53 +664,53 @@ func (z *ListItem) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 			}
 		case "ContextMenu":
-			var zb0003 uint32
-			zb0003, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			var zb0002 uint32
+			zb0002, bts, err = msgp.ReadArrayHeaderBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "ContextMenu")
 				return
 			}
-			if cap(z.ContextMenu) >= int(zb0003) {
-				z.ContextMenu = (z.ContextMenu)[:zb0003]
+			if cap(z.ContextMenu) >= int(zb0002) {
+				z.ContextMenu = (z.ContextMenu)[:zb0002]
 			} else {
-				z.ContextMenu = make([][]string, zb0003)
+				z.ContextMenu = make([][]string, zb0002)
 			}
-			for za0003 := range z.ContextMenu {
-				var zb0004 uint32
-				zb0004, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			for za0001 := range z.ContextMenu {
+				var zb0003 uint32
+				zb0003, bts, err = msgp.ReadArrayHeaderBytes(bts)
 				if err != nil {
-					err = msgp.WrapError(err, "ContextMenu", za0003)
+					err = msgp.WrapError(err, "ContextMenu", za0001)
 					return
 				}
-				if cap(z.ContextMenu[za0003]) >= int(zb0004) {
-					z.ContextMenu[za0003] = (z.ContextMenu[za0003])[:zb0004]
+				if cap(z.ContextMenu[za0001]) >= int(zb0003) {
+					z.ContextMenu[za0001] = (z.ContextMenu[za0001])[:zb0003]
 				} else {
-					z.ContextMenu[za0003] = make([]string, zb0004)
+					z.ContextMenu[za0001] = make([]string, zb0003)
 				}
-				for za0004 := range z.ContextMenu[za0003] {
-					z.ContextMenu[za0003][za0004], bts, err = msgp.ReadStringBytes(bts)
+				for za0002 := range z.ContextMenu[za0001] {
+					z.ContextMenu[za0001][za0002], bts, err = msgp.ReadStringBytes(bts)
 					if err != nil {
-						err = msgp.WrapError(err, "ContextMenu", za0003, za0004)
+						err = msgp.WrapError(err, "ContextMenu", za0001, za0002)
 						return
 					}
 				}
 			}
 		case "CastMembers":
-			var zb0005 uint32
-			zb0005, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			var zb0004 uint32
+			zb0004, bts, err = msgp.ReadArrayHeaderBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "CastMembers")
 				return
 			}
-			if cap(z.CastMembers) >= int(zb0005) {
-				z.CastMembers = (z.CastMembers)[:zb0005]
+			if cap(z.CastMembers) >= int(zb0004) {
+				z.CastMembers = (z.CastMembers)[:zb0004]
 			} else {
-				z.CastMembers = make([]ListItemCastMember, zb0005)
+				z.CastMembers = make([]ListItemCastMember, zb0004)
 			}
-			for za0005 := range z.CastMembers {
-				bts, err = z.CastMembers[za0005].UnmarshalMsg(bts)
+			for za0003 := range z.CastMembers {
+				bts, err = z.CastMembers[za0003].UnmarshalMsg(bts)
 				if err != nil {
-					err = msgp.WrapError(err, "CastMembers", za0005)
+					err = msgp.WrapError(err, "CastMembers", za0003)
 					return
 				}
 			}
@@ -749,12 +740,11 @@ func (z *ListItem) Msgsize() (s int) {
 	} else {
 		s += z.Info.Msgsize()
 	}
-	s += 11 + msgp.MapHeaderSize
-	if z.Properties != nil {
-		for za0001, za0002 := range z.Properties {
-			_ = za0002
-			s += msgp.StringPrefixSize + len(za0001) + msgp.StringPrefixSize + len(za0002)
-		}
+	s += 11
+	if z.Properties == nil {
+		s += msgp.NilSize
+	} else {
+		s += z.Properties.Msgsize()
 	}
 	s += 4
 	if z.Art == nil {
@@ -769,15 +759,15 @@ func (z *ListItem) Msgsize() (s int) {
 		s += z.StreamInfo.Msgsize()
 	}
 	s += 12 + msgp.ArrayHeaderSize
-	for za0003 := range z.ContextMenu {
+	for za0001 := range z.ContextMenu {
 		s += msgp.ArrayHeaderSize
-		for za0004 := range z.ContextMenu[za0003] {
-			s += msgp.StringPrefixSize + len(z.ContextMenu[za0003][za0004])
+		for za0002 := range z.ContextMenu[za0001] {
+			s += msgp.StringPrefixSize + len(z.ContextMenu[za0001][za0002])
 		}
 	}
 	s += 12 + msgp.ArrayHeaderSize
-	for za0005 := range z.CastMembers {
-		s += z.CastMembers[za0005].Msgsize()
+	for za0003 := range z.CastMembers {
+		s += z.CastMembers[za0003].Msgsize()
 	}
 	s += 10 + msgp.BoolSize
 	return
@@ -1586,6 +1576,103 @@ func (z *ListItemInfo) Msgsize() (s int) {
 		s += msgp.StringPrefixSize + len(z.Artist[za0007])
 	}
 	s += 6 + msgp.StringPrefixSize + len(z.Votes) + 8 + msgp.StringPrefixSize + len(z.Trailer) + 10 + msgp.StringPrefixSize + len(z.DateAdded) + 5 + msgp.IntSize + 7 + msgp.StringPrefixSize + len(z.DBTYPE) + 10 + msgp.StringPrefixSize + len(z.Mediatype) + 11 + msgp.StringPrefixSize + len(z.IMDBNumber) + 7 + msgp.StringPrefixSize + len(z.Lyrics) + 12 + msgp.StringPrefixSize + len(z.PicturePath) + 5 + msgp.StringPrefixSize + len(z.Exif)
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
+func (z *ListItemProperties) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 6
+	// string "TotalSeasons"
+	o = append(o, 0x86, 0xac, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x53, 0x65, 0x61, 0x73, 0x6f, 0x6e, 0x73)
+	o = msgp.AppendString(o, z.TotalSeasons)
+	// string "TotalEpisodes"
+	o = append(o, 0xad, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x45, 0x70, 0x69, 0x73, 0x6f, 0x64, 0x65, 0x73)
+	o = msgp.AppendString(o, z.TotalEpisodes)
+	// string "WatchedEpisodes"
+	o = append(o, 0xaf, 0x57, 0x61, 0x74, 0x63, 0x68, 0x65, 0x64, 0x45, 0x70, 0x69, 0x73, 0x6f, 0x64, 0x65, 0x73)
+	o = msgp.AppendString(o, z.WatchedEpisodes)
+	// string "UnWatchedEpisodes"
+	o = append(o, 0xb1, 0x55, 0x6e, 0x57, 0x61, 0x74, 0x63, 0x68, 0x65, 0x64, 0x45, 0x70, 0x69, 0x73, 0x6f, 0x64, 0x65, 0x73)
+	o = msgp.AppendString(o, z.UnWatchedEpisodes)
+	// string "SubtitlesSync"
+	o = append(o, 0xad, 0x53, 0x75, 0x62, 0x74, 0x69, 0x74, 0x6c, 0x65, 0x73, 0x53, 0x79, 0x6e, 0x63)
+	o = msgp.AppendString(o, z.SubtitlesSync)
+	// string "SubtitlesHearingImpaired"
+	o = append(o, 0xb8, 0x53, 0x75, 0x62, 0x74, 0x69, 0x74, 0x6c, 0x65, 0x73, 0x48, 0x65, 0x61, 0x72, 0x69, 0x6e, 0x67, 0x49, 0x6d, 0x70, 0x61, 0x69, 0x72, 0x65, 0x64)
+	o = msgp.AppendString(o, z.SubtitlesHearingImpaired)
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *ListItemProperties) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "TotalSeasons":
+			z.TotalSeasons, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "TotalSeasons")
+				return
+			}
+		case "TotalEpisodes":
+			z.TotalEpisodes, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "TotalEpisodes")
+				return
+			}
+		case "WatchedEpisodes":
+			z.WatchedEpisodes, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "WatchedEpisodes")
+				return
+			}
+		case "UnWatchedEpisodes":
+			z.UnWatchedEpisodes, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "UnWatchedEpisodes")
+				return
+			}
+		case "SubtitlesSync":
+			z.SubtitlesSync, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "SubtitlesSync")
+				return
+			}
+		case "SubtitlesHearingImpaired":
+			z.SubtitlesHearingImpaired, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "SubtitlesHearingImpaired")
+				return
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *ListItemProperties) Msgsize() (s int) {
+	s = 1 + 13 + msgp.StringPrefixSize + len(z.TotalSeasons) + 14 + msgp.StringPrefixSize + len(z.TotalEpisodes) + 16 + msgp.StringPrefixSize + len(z.WatchedEpisodes) + 18 + msgp.StringPrefixSize + len(z.UnWatchedEpisodes) + 14 + msgp.StringPrefixSize + len(z.SubtitlesSync) + 25 + msgp.StringPrefixSize + len(z.SubtitlesHearingImpaired)
 	return
 }
 
