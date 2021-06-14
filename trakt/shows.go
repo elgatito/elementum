@@ -553,7 +553,7 @@ func ListItemsShows(user string, listID string, isUpdateNeeded bool) (shows []*S
 
 	endPoint := fmt.Sprintf("users/%s/lists/%s/items/shows", user, listID)
 
-	params := napping.Params{}.AsUrlValues()
+	params := napping.Params{"extended": "full"}.AsUrlValues()
 
 	var resp *napping.Response
 
@@ -947,6 +947,12 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 		}
 	}
 
+	if config.Get().ShowUnwatchedEpisodedNumber {
+		watchedEpisodes := show.watchedEpisodesNumber()
+		item.Properties.WatchedEpisodes = strconv.Itoa(watchedEpisodes)
+		item.Properties.UnWatchedEpisodes = strconv.Itoa(show.AiredEpisodes - watchedEpisodes)
+	}
+
 	item.Thumbnail = item.Art.Poster
 	// item.Art.Thumbnail = item.Art.Poster
 
@@ -1028,4 +1034,26 @@ func (episode *Episode) ToListItem(show *Show) *xbmc.ListItem {
 	}
 
 	return item
+}
+
+// watchedEpisodesNumber returns number of watched episodes
+func (show *Show) watchedEpisodesNumber() int {
+	seasons := GetSeasons(show.IDs.Trakt)
+	watchedEpisodes := 0
+	if playcount.GetWatchedShowByTrakt(show.IDs.Trakt) {
+		watchedEpisodes = show.AiredEpisodes
+	} else {
+		for _, season := range seasons {
+			if playcount.GetWatchedSeasonByTrakt(show.IDs.Trakt, season.Number) {
+				watchedEpisodes += season.AiredEpisodes
+			} else {
+				for _, episode := range GetSeasonEpisodes(show.IDs.Trakt, season.Number) {
+					if playcount.GetWatchedEpisodeByTrakt(show.IDs.Trakt, season.Number, episode.Number) {
+						watchedEpisodes++
+					}
+				}
+			}
+		}
+	}
+	return watchedEpisodes
 }

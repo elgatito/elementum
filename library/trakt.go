@@ -378,7 +378,7 @@ func refreshTraktShowsWatched(isRefreshNeeded bool) error {
 			}
 		}
 
-		if tmdbShow != nil && (completedSeasons == tmdbShow.CountRealSeasons() || s.Watched) {
+		if tmdbShow != nil && ((completedSeasons == tmdbShow.CountRealSeasons() && tmdbShow.CountRealSeasons() != 0) || s.Watched) {
 			s.Watched = true
 
 			l.WatchedTraktShows = addXXItem(l.WatchedTraktShows, ShowType, s.Show.IDs)

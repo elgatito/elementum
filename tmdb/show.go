@@ -556,6 +556,12 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 		},
 	}
 
+	if config.Get().ShowUnwatchedEpisodedNumber {
+		watchedEpisodes := show.watchedEpisodesNumber()
+		item.Properties.WatchedEpisodes = strconv.Itoa(watchedEpisodes)
+		item.Properties.UnWatchedEpisodes = strconv.Itoa(show.NumberOfEpisodes - watchedEpisodes)
+	}
+
 	if show.Images != nil && show.Images.Backdrops != nil {
 		fanarts := make([]string, 0)
 		for _, backdrop := range show.Images.Backdrops {
@@ -666,4 +672,25 @@ func (show *Show) findTranslation(language string) *Translation {
 	}
 
 	return nil
+}
+
+// watchedEpisodesNumber returns number of watched episodes
+func (show *Show) watchedEpisodesNumber() int {
+	watchedEpisodes := 0
+	if playcount.GetWatchedShowByTMDB(show.ID) {
+		watchedEpisodes = show.NumberOfEpisodes
+	} else {
+		for _, season := range show.Seasons {
+			if playcount.GetWatchedSeasonByTMDB(show.ID, season.Season) {
+				watchedEpisodes += season.EpisodeCount
+			} else {
+				for _, episode := range season.Episodes {
+					if playcount.GetWatchedEpisodeByTMDB(show.ID, season.Season, episode.EpisodeNumber) {
+						watchedEpisodes++
+					}
+				}
+			}
+		}
+	}
+	return watchedEpisodes
 }
