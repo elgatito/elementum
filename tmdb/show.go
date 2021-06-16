@@ -556,6 +556,13 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 		},
 	}
 
+	if config.Get().AllowKodiChangeArtworks {
+		fakeDBID := util.GetShowFakeDBID(show.ID)
+		if fakeDBID > 0 {
+			item.Info.DBID = fakeDBID
+		}
+	}
+
 	if config.Get().ShowUnwatchedEpisodedNumber {
 		watchedEpisodes := show.watchedEpisodesNumber()
 		item.Properties.WatchedEpisodes = strconv.Itoa(watchedEpisodes)

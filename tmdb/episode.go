@@ -124,6 +124,13 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 		Art: &xbmc.ListItemArt{},
 	}
 
+	if config.Get().AllowKodiChangeArtworks {
+		fakeDBID := util.GetEpisodeFakeDBID(episode.ID)
+		if fakeDBID > 0 {
+			item.Info.DBID = fakeDBID
+		}
+	}
+
 	if show.PosterPath != "" {
 		item.Art.TvShowPoster = ImageURL(show.PosterPath, "w1280")
 		item.Art.FanArt = ImageURL(show.BackdropPath, "w1280")

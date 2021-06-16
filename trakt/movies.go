@@ -688,6 +688,13 @@ func (movie *Movie) ToListItem() (item *xbmc.ListItem) {
 		}
 	}
 
+	if config.Get().AllowKodiChangeArtworks {
+		fakeDBID := util.GetMovieFakeDBID(movie.IDs.TMDB)
+		if fakeDBID > 0 {
+			item.Info.DBID = fakeDBID
+		}
+	}
+
 	if len(item.Info.Trailer) == 0 {
 		item.Info.Trailer = util.TrailerURL(movie.Trailer)
 	}

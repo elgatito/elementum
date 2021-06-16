@@ -947,6 +947,13 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 		}
 	}
 
+	if config.Get().AllowKodiChangeArtworks {
+		fakeDBID := util.GetShowFakeDBID(show.IDs.TMDB)
+		if fakeDBID > 0 {
+			item.Info.DBID = fakeDBID
+		}
+	}
+
 	if config.Get().ShowUnwatchedEpisodedNumber {
 		watchedEpisodes := show.watchedEpisodesNumber()
 		item.Properties.WatchedEpisodes = strconv.Itoa(watchedEpisodes)
@@ -1013,6 +1020,13 @@ func (episode *Episode) ToListItem(show *Show) *xbmc.ListItem {
 			ClearArt:     show.Images.ClearArt.Full,
 		},
 		Thumbnail: show.Images.Poster.Full,
+	}
+
+	if config.Get().AllowKodiChangeArtworks {
+		fakeDBID := util.GetEpisodeFakeDBID(episode.IDs.TMDB)
+		if fakeDBID > 0 {
+			item.Info.DBID = fakeDBID
+		}
 	}
 
 	if config.Get().UseFanartTv {

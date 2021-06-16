@@ -459,6 +459,13 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 		},
 	}
 
+	if config.Get().AllowKodiChangeArtworks {
+		fakeDBID := util.GetMovieFakeDBID(movie.ID)
+		if fakeDBID > 0 {
+			item.Info.DBID = fakeDBID
+		}
+	}
+
 	if movie.Images != nil && movie.Images.Backdrops != nil {
 		fanarts := make([]string, 0)
 		for _, backdrop := range movie.Images.Backdrops {
