@@ -470,6 +470,20 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 		}
 	}
 
+	if movie.Images != nil && movie.Images.Posters != nil {
+		posters := make([]string, 0)
+		for _, poster := range movie.Images.Posters {
+			posters = append(posters, ImageURL(poster.FilePath, "w1280"))
+		}
+		if len(posters) > 0 {
+			if item.Art.AvailableArtworks == nil {
+				item.Art.AvailableArtworks = &xbmc.Artworks{Poster: posters}
+			} else {
+				item.Art.AvailableArtworks.Poster = posters
+			}
+		}
+	}
+
 	if config.Get().UseFanartTv && movie.FanArt != nil {
 		item.Art = movie.FanArt.ToListItemArt(item.Art)
 	}
