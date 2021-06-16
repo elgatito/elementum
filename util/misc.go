@@ -2,7 +2,7 @@ package util
 
 // to make "choose art" work we can set fake DBID,
 // but the issue is how to generate it w/o clashing with real library IDs
-// we we try to use very high numbers
+// so we try to use very high numbers.
 const KodiDBIDMax = 1000000000
 const MovieFakeDBIDOffset = KodiDBIDMax
 const ShowFakeDBIDOffset = KodiDBIDMax
