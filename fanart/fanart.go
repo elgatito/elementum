@@ -88,10 +88,7 @@ type Image struct {
 
 // Disk ...
 type Disk struct {
-	ID       string `json:"id"`
-	URL      string `json:"url"`
-	Lang     string `json:"lang"`
-	Likes    string `json:"likes"`
+	Image
 	Disc     string `json:"disc"`
 	DiscType string `json:"disc_type"`
 }
@@ -374,29 +371,53 @@ func GetBestShowImage(season string, isStrict bool, old string, lists ...[]*Show
 
 // ToListItemArt ...
 func (fa *Movie) ToListItemArt(old *xbmc.ListItemArt) *xbmc.ListItemArt {
+	availableArtworks := &xbmc.Artworks{
+		Poster:    GetMultipleImage(old.Poster, fa.MoviePoster),
+		Banner:    GetMultipleImage(old.Banner, fa.MovieBanner),
+		FanArt:    GetMultipleImage(old.FanArt, fa.MovieBackground),
+		ClearArt:  GetMultipleImage(old.ClearArt, fa.HDMovieClearArt, fa.MovieClearArt),
+		ClearLogo: GetMultipleImage(old.ClearLogo, fa.HDMovieLogo, fa.MovieLogo),
+		Landscape: GetMultipleImage(old.Landscape, fa.MovieThumb),
+		KeyArt:    GetMultipleImage(old.KeyArt, fa.MovieBackground),
+		DiscArt:   GetMultipleImage(old.DiscArt, disksToImages(fa.MovieDisc)),
+	}
 	return &xbmc.ListItemArt{
-		Poster:    GetBestImage(old.Poster, fa.MoviePoster),
-		Thumbnail: old.Thumbnail,
-		Banner:    GetBestImage(old.Banner, fa.MovieBanner),
-		FanArt:    GetBestImage(old.FanArt, fa.MovieBackground),
-		FanArts:   GetMultipleImage(old.FanArt, fa.MovieBackground),
-		ClearArt:  GetBestImage(old.ClearArt, fa.HDMovieClearArt, fa.MovieClearArt),
-		ClearLogo: GetBestImage(old.ClearLogo, fa.HDMovieLogo, fa.MovieLogo),
-		Landscape: GetBestImage(old.Landscape, fa.MovieThumb),
+		Poster:            GetBestImage(old.Poster, fa.MoviePoster),
+		Thumbnail:         old.Thumbnail,
+		Banner:            GetBestImage(old.Banner, fa.MovieBanner),
+		FanArt:            GetBestImage(old.FanArt, fa.MovieBackground),
+		FanArts:           GetMultipleImage(old.FanArt, fa.MovieBackground),
+		ClearArt:          GetBestImage(old.ClearArt, fa.HDMovieClearArt, fa.MovieClearArt),
+		ClearLogo:         GetBestImage(old.ClearLogo, fa.HDMovieLogo, fa.MovieLogo),
+		Landscape:         GetBestImage(old.Landscape, fa.MovieThumb),
+		KeyArt:            GetBestImage(old.KeyArt, fa.MovieBackground),
+		DiscArt:           GetBestImage(old.DiscArt, disksToImages(fa.MovieDisc)),
+		AvailableArtworks: availableArtworks,
 	}
 }
 
 // ToListItemArt ...
 func (fa *Show) ToListItemArt(old *xbmc.ListItemArt) *xbmc.ListItemArt {
+	availableArtworks := &xbmc.Artworks{
+		Poster:    GetMultipleShowImage("", old.Poster, fa.TVPoster),
+		Banner:    GetMultipleShowImage("", old.Banner, fa.TVBanner),
+		FanArt:    GetMultipleShowImage("", old.FanArt, fa.ShowBackground),
+		ClearArt:  GetMultipleShowImage("", old.ClearArt, fa.HDClearArt, fa.ClearArt),
+		ClearLogo: GetMultipleShowImage("", old.ClearLogo, fa.HdtvLogo, fa.ClearLogo),
+		Landscape: GetMultipleShowImage("", old.Landscape, fa.TVThumb),
+		KeyArt:    GetMultipleShowImage("", old.KeyArt, fa.ShowBackground),
+	}
 	return &xbmc.ListItemArt{
-		Poster:    GetBestShowImage("", false, old.Poster, fa.TVPoster),
-		Thumbnail: old.Thumbnail,
-		Banner:    GetBestShowImage("", false, old.Banner, fa.TVBanner),
-		FanArt:    GetBestShowImage("", false, old.FanArt, fa.ShowBackground),
-		FanArts:   GetMultipleShowImage("", old.FanArt, fa.ShowBackground),
-		ClearArt:  GetBestShowImage("", false, old.ClearArt, fa.HDClearArt, fa.ClearArt),
-		ClearLogo: GetBestShowImage("", false, old.ClearLogo, fa.HdtvLogo, fa.ClearLogo),
-		Landscape: GetBestShowImage("", false, old.Landscape, fa.TVThumb),
+		Poster:            GetBestShowImage("", false, old.Poster, fa.TVPoster),
+		Thumbnail:         old.Thumbnail,
+		Banner:            GetBestShowImage("", false, old.Banner, fa.TVBanner),
+		FanArt:            GetBestShowImage("", false, old.FanArt, fa.ShowBackground),
+		FanArts:           GetMultipleShowImage("", old.FanArt, fa.ShowBackground),
+		ClearArt:          GetBestShowImage("", false, old.ClearArt, fa.HDClearArt, fa.ClearArt),
+		ClearLogo:         GetBestShowImage("", false, old.ClearLogo, fa.HdtvLogo, fa.ClearLogo),
+		Landscape:         GetBestShowImage("", false, old.Landscape, fa.TVThumb),
+		KeyArt:            GetBestShowImage("", false, old.KeyArt, fa.ShowBackground),
+		AvailableArtworks: availableArtworks,
 	}
 }
 
@@ -446,4 +467,12 @@ func contains(slice []string, val string) bool {
 		}
 	}
 	return false
+}
+
+func disksToImages(disks []*Disk) []*Image {
+	images := make([]*Image, len(disks))
+	for i, disk := range disks {
+		images[i] = &disk.Image
+	}
+	return images
 }
