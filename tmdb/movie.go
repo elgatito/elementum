@@ -457,6 +457,9 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 			Poster:    ImageURL(movie.PosterPath, "w1280"),
 			Thumbnail: ImageURL(movie.PosterPath, "w300"),
 		},
+		UniqueIDs: &xbmc.UniqueIDs{
+			TMDB: strconv.Itoa(movie.ID),
+		},
 	}
 
 	if movie.Images != nil && movie.Images.Backdrops != nil {

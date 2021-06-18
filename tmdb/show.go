@@ -554,6 +554,9 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 			Thumbnail:    ImageURL(show.PosterPath, "w1280"),
 			TvShowPoster: ImageURL(show.PosterPath, "w1280"),
 		},
+		UniqueIDs: &xbmc.UniqueIDs{
+			TMDB: strconv.Itoa(show.ID),
+		},
 	}
 
 	if config.Get().ShowUnwatchedEpisodedNumber {

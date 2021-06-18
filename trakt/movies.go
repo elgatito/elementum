@@ -685,6 +685,9 @@ func (movie *Movie) ToListItem() (item *xbmc.ListItem) {
 				ClearArt:  movie.Images.ClearArt.Full,
 			},
 			Thumbnail: movie.Images.Poster.Full,
+			UniqueIDs: &xbmc.UniqueIDs{
+				TMDB: strconv.Itoa(movie.IDs.TMDB),
+			},
 		}
 	}
 
