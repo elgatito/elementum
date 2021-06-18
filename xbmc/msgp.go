@@ -453,9 +453,9 @@ func (z KodiTime) Msgsize() (s int) {
 // MarshalMsg implements msgp.Marshaler
 func (z *ListItem) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 13
+	// map header, size 14
 	// string "Label"
-	o = append(o, 0x8d, 0xa5, 0x4c, 0x61, 0x62, 0x65, 0x6c)
+	o = append(o, 0x8e, 0xa5, 0x4c, 0x61, 0x62, 0x65, 0x6c)
 	o = msgp.AppendString(o, z.Label)
 	// string "Label2"
 	o = append(o, 0xa6, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x32)
@@ -538,6 +538,13 @@ func (z *ListItem) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "TraktAuth"
 	o = append(o, 0xa9, 0x54, 0x72, 0x61, 0x6b, 0x74, 0x41, 0x75, 0x74, 0x68)
 	o = msgp.AppendBool(o, z.TraktAuth)
+	// string "UniqueIDs"
+	o = append(o, 0xa9, 0x55, 0x6e, 0x69, 0x71, 0x75, 0x65, 0x49, 0x44, 0x73)
+	o, err = z.UniqueIDs.MarshalMsg(o)
+	if err != nil {
+		err = msgp.WrapError(err, "UniqueIDs")
+		return
+	}
 	return
 }
 
@@ -720,6 +727,12 @@ func (z *ListItem) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "TraktAuth")
 				return
 			}
+		case "UniqueIDs":
+			bts, err = z.UniqueIDs.UnmarshalMsg(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "UniqueIDs")
+				return
+			}
 		default:
 			bts, err = msgp.Skip(bts)
 			if err != nil {
@@ -769,7 +782,7 @@ func (z *ListItem) Msgsize() (s int) {
 	for za0003 := range z.CastMembers {
 		s += z.CastMembers[za0003].Msgsize()
 	}
-	s += 10 + msgp.BoolSize
+	s += 10 + msgp.BoolSize + 10 + z.UniqueIDs.Msgsize()
 	return
 }
 

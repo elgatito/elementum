@@ -73,6 +73,8 @@ type ListItem struct {
 	CastMembers []ListItemCastMember `json:"castmembers,omitempty"`
 
 	TraktAuth bool `json:"-"`
+
+	UniqueIDs *UniqueIDs `json:"uniqueids,omitempty"`
 }
 
 // ListItemProperties ...
