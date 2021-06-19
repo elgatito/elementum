@@ -790,7 +790,7 @@ func WatchedShowsProgress() (shows []*ProgressShow, err error) {
 			if !hiddenShowsMap[s.Show.IDs.Trakt] {
 				shows = append(shows, s)
 			} else {
-				log.Debugf("Will supress hidden show: %s", s.Show.Title)
+				log.Debugf("Will suppress hidden show: %s", s.Show.Title)
 			}
 		}
 	}
@@ -827,7 +827,7 @@ func FilterHiddenProgressShows(inShows []*ProgressShow) (outShows []*ProgressSho
 				// append to new instead of delete in old b/c delete is O(n)
 				outShows = append(outShows, s)
 			} else {
-				log.Debugf("Will supress hidden show: %s", s.Show.Title)
+				log.Debugf("Will suppress hidden show: %s", s.Show.Title)
 			}
 		}
 	}
