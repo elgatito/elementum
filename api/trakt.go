@@ -445,15 +445,6 @@ func renderTraktMovies(ctx *gin.Context, movies []*trakt.Movies, total int, page
 
 			item := movieListing.Movie.ToListItem()
 
-			if lm, err := library.GetMovieByTMDB(movieListing.Movie.IDs.TMDB); lm != nil && err == nil {
-				item.Info.DBID = lm.UIDs.Kodi
-			} else {
-				fakeDBID := util.GetMovieFakeDBID(movieListing.Movie.IDs.TMDB)
-				if fakeDBID > 0 {
-					item.Info.DBID = fakeDBID
-				}
-			}
-
 			// Example of adding UTF8 char into title,
 			// list: https://www.utf8-chartable.de/unicode-utf8-table.pl?start=9728&number=1024&names=2&utf8=string-literal
 			// item.Label += " \xe2\x98\x85"
@@ -723,16 +714,6 @@ func renderTraktShows(ctx *gin.Context, shows []*trakt.Shows, total int, page in
 		}
 
 		item := showListing.Show.ToListItem()
-
-		if ls, err := library.GetShowByTMDB(showListing.Show.IDs.TMDB); ls != nil && err == nil {
-			item.Info.DBID = ls.UIDs.Kodi
-		} else {
-			fakeDBID := util.GetShowFakeDBID(showListing.Show.IDs.TMDB)
-			if fakeDBID > 0 {
-				item.Info.DBID = fakeDBID
-			}
-		}
-
 		tmdbID := strconv.Itoa(showListing.Show.IDs.TMDB)
 
 		item.Path = URLForXBMC("/show/%d/seasons", showListing.Show.IDs.TMDB)
@@ -1081,15 +1062,6 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 				item = movieListing.Movie.ToListItem()
 			}
 
-			if lm, err := library.GetMovieByTMDB(movieListing.Movie.IDs.TMDB); lm != nil && err == nil {
-				item.Info.DBID = lm.UIDs.Kodi
-			} else {
-				fakeDBID := util.GetMovieFakeDBID(movieListing.Movie.IDs.TMDB)
-				if fakeDBID > 0 {
-					item.Info.DBID = fakeDBID
-				}
-			}
-
 			aired, _ := time.Parse("2006-01-02", airDate)
 			label := fmt.Sprintf(`[COLOR %s]%s[/COLOR] | [B][COLOR %s]%s[/COLOR][/B] `,
 				colorDate, aired.Format(dateFormat), colorShow, movieName)
@@ -1279,20 +1251,6 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 				item = epi.ToListItem(showListing.Show)
 			}
 
-			episodeInLibrary := false
-			if ls, err := library.GetShowByTMDB(showListing.Show.IDs.TMDB); ls != nil && err == nil {
-				if le := ls.GetEpisode(seasonNumber, episodeNumber); le != nil {
-					item.Info.DBID = le.UIDs.Kodi
-					episodeInLibrary = true
-				}
-			}
-			if !episodeInLibrary {
-				fakeDBID := util.GetEpisodeFakeDBID(epi.IDs.TMDB)
-				if fakeDBID > 0 {
-					item.Info.DBID = fakeDBID
-				}
-			}
-
 			item.Info.Aired = airDate
 			item.Info.DateAdded = airDate
 			item.Info.Premiered = airDate
@@ -1446,20 +1404,6 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 				item = episode.ToListItem(show, season)
 			} else {
 				item = epi.ToListItem(showListing.Show)
-			}
-
-			episodeInLibrary := false
-			if ls, err := library.GetShowByTMDB(showListing.Show.IDs.TMDB); ls != nil && err == nil {
-				if le := ls.GetEpisode(seasonNumber, episodeNumber); le != nil {
-					item.Info.DBID = le.UIDs.Kodi
-					episodeInLibrary = true
-				}
-			}
-			if !episodeInLibrary {
-				fakeDBID := util.GetEpisodeFakeDBID(epi.IDs.TMDB)
-				if fakeDBID > 0 {
-					item.Info.DBID = fakeDBID
-				}
 			}
 
 			item.Info.Aired = airDate

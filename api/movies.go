@@ -18,7 +18,6 @@ import (
 	"github.com/elgatito/elementum/scrape"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/trakt"
-	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -297,15 +296,6 @@ func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, que
 			continue
 		}
 		item := movie.ToListItem()
-
-		if lm, err := library.GetMovieByTMDB(movie.ID); lm != nil && err == nil {
-			item.Info.DBID = lm.UIDs.Kodi
-		} else {
-			fakeDBID := util.GetMovieFakeDBID(movie.ID)
-			if fakeDBID > 0 {
-				item.Info.DBID = fakeDBID
-			}
-		}
 
 		thisURL := URLForXBMC("/movie/%d/", movie.ID) + "%s/%s"
 		contextLabel := playLabel
