@@ -233,6 +233,15 @@ func renderShows(ctx *gin.Context, shows tmdb.Shows, page int, total int, query 
 		item := show.ToListItem()
 		item.Path = URLForXBMC("/show/%d/seasons", show.ID)
 
+		if ls, err := library.GetShowByTMDB(show.ID); ls != nil && err == nil {
+			item.Info.DBID = ls.UIDs.Kodi
+		} else {
+			fakeDBID := util.GetShowFakeDBID(show.ID)
+			if fakeDBID > 0 {
+				item.Info.DBID = fakeDBID
+			}
+		}
+
 		tmdbID := strconv.Itoa(show.ID)
 		libraryActions := [][]string{}
 		if library.IsDuplicateShow(tmdbID) || library.IsAddedToLibrary(tmdbID, library.ShowType) {
@@ -396,6 +405,21 @@ func ShowSeasons(ctx *gin.Context) {
 	items := show.Seasons.ToListItems(show)
 	reversedItems := make(xbmc.ListItems, 0)
 	for _, item := range items {
+		seasonInLibrary := false
+		if ls, err := library.GetShowByTMDB(show.ID); ls != nil && err == nil {
+			if lse := ls.GetSeason(item.Info.Season); lse != nil {
+				item.Info.DBID = lse.UIDs.Kodi
+				seasonInLibrary = true
+			}
+		}
+		if !seasonInLibrary {
+			tmdbID, _ := strconv.Atoi(item.UniqueIDs.TMDB)
+			fakeDBID := util.GetSeasonFakeDBID(tmdbID)
+			if fakeDBID > 0 {
+				item.Info.DBID = fakeDBID
+			}
+		}
+
 		thisURL := URLForXBMC("/show/%d/season/%d/", show.ID, item.Info.Season) + "%s/%s"
 		contextTitle := fmt.Sprintf("%s S%02d", show.OriginalName, item.Info.Season)
 		contextLabel := playLabel
@@ -505,6 +529,21 @@ func ShowEpisodes(ctx *gin.Context) {
 		items := season.Episodes.ToListItems(show, season)
 
 		for _, item := range items {
+			episodeInLibrary := false
+			if ls, err := library.GetShowByTMDB(show.ID); ls != nil && err == nil {
+				if le := ls.GetEpisode(seasonNumber, item.Info.Episode); le != nil {
+					item.Info.DBID = le.UIDs.Kodi
+					episodeInLibrary = true
+				}
+			}
+			if !episodeInLibrary {
+				tmdbID, _ := strconv.Atoi(item.UniqueIDs.TMDB)
+				fakeDBID := util.GetEpisodeFakeDBID(tmdbID)
+				if fakeDBID > 0 {
+					item.Info.DBID = fakeDBID
+				}
+			}
+
 			thisURL := URLForXBMC("/show/%d/season/%d/episode/%d/",
 				show.ID,
 				seasonNumber,
