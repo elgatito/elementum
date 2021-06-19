@@ -119,8 +119,8 @@ type Release struct {
 }
 
 const (
-	githubUserContentURL    = "https://elementumorg.github.io/packages/%s/%s"
-	githubAltUserContentURL = "https://elementum.surge.sh/packages/%s/%s"
+	githubUserContentURL    = "https://elementumorg.github.io/packages/%s"
+	githubAltUserContentURL = "https://elementum.surge.sh/packages/%s"
 	githubLatestReleaseURL  = "https://api.github.com/repos/%s/%s/releases/latest"
 
 	releaseChangelog = "[B]%s[/B] - %s\n%s\n\n"
@@ -132,13 +132,13 @@ var (
 	log              = logging.MustGetLogger("repository")
 )
 
-func getContentURL(user, repository, url string) (resp *http.Response, err error) {
-	resp, err = proxy.GetClient().Get(fmt.Sprintf(githubUserContentURL, user, repository) + url)
+func getContentURL(repository, url string) (resp *http.Response, err error) {
+	resp, err = proxy.GetClient().Get(fmt.Sprintf(githubUserContentURL, repository) + url)
 	if err == nil && resp != nil {
 		return resp, err
 	}
 
-	resp, err = proxy.GetClient().Get(fmt.Sprintf(githubAltUserContentURL, user, repository) + url)
+	resp, err = proxy.GetClient().Get(fmt.Sprintf(githubAltUserContentURL, repository) + url)
 	if err == nil && resp != nil {
 		return resp, err
 	}
@@ -146,10 +146,10 @@ func getContentURL(user, repository, url string) (resp *http.Response, err error
 	return
 }
 
-func getLastRelease(user string, repository string) string {
+func getLastRelease(repository string) string {
 	defer perf.ScopeTimer()()
 
-	resp, err := getContentURL(user, repository, "/release")
+	resp, err := getContentURL(repository, "/release")
 	if err != nil || resp == nil {
 		return ""
 	} else if err == nil && resp.StatusCode != 200 {
@@ -188,10 +188,10 @@ func getReleases(user string, repository string) []Release {
 	return releases
 }
 
-func getAddonXML(user string, repository string) (string, error) {
+func getAddonXML(repository string) (string, error) {
 	defer perf.ScopeTimer()()
 
-	resp, err := getContentURL(user, repository, "/addon.xml")
+	resp, err := getContentURL(repository, "/addon.xml")
 	if resp == nil {
 		return "", errors.New("Not found")
 	} else if err == nil && resp.StatusCode != 200 {
@@ -203,12 +203,12 @@ func getAddonXML(user string, repository string) (string, error) {
 	return string(retBytes), nil
 }
 
-func getAddons(user string, repository string) (*xbmc.AddonList, error) {
+func getAddons() (*xbmc.AddonList, error) {
 	defer perf.ScopeTimer()()
 	var addons []xbmc.Addon
 
-	for _, repo := range []string{"plugin.video.elementum", "script.elementum.burst", "context.elementum"} {
-		addonXML, err := getAddonXML("elgatito", repo)
+	for _, repo := range []string{"elgatito/plugin.video.elementum", "elgatito/script.elementum.burst", "elgatito/context.elementum", "ElementumOrg/service.lt2http"} {
+		addonXML, err := getAddonXML(repo)
 		if err != nil {
 			continue
 		}
@@ -225,9 +225,7 @@ func getAddons(user string, repository string) (*xbmc.AddonList, error) {
 
 // GetAddonsXML ...
 func GetAddonsXML(ctx *gin.Context) {
-	user := ctx.Params.ByName("user")
-	repository := ctx.Params.ByName("repository")
-	addons, err := getAddons(user, repository)
+	addons, err := getAddons()
 	if err != nil {
 		ctx.AbortWithError(404, errors.New("Unable to retrieve the remote's addons.xml file"))
 	}
@@ -236,9 +234,7 @@ func GetAddonsXML(ctx *gin.Context) {
 
 // GetAddonsXMLChecksum ...
 func GetAddonsXMLChecksum(ctx *gin.Context) {
-	user := ctx.Params.ByName("user")
-	repository := ctx.Params.ByName("repository")
-	addons, err := getAddons(user, repository)
+	addons, err := getAddons()
 	if len(addons.Addons) > 0 {
 		for _, a := range addons.Addons {
 			log.Infof("Last available release of %s: v%s", a.ID, a.Version)
@@ -257,8 +253,11 @@ func GetAddonFiles(ctx *gin.Context) {
 	user := ctx.Params.ByName("user")
 	repository := ctx.Params.ByName("repository")
 	filepath := ctx.Params.ByName("filepath")[1:] // strip the leading "/"
+	if repository == "service.lt2http" {
+		user = "ElementumOrg"
+	}
 
-	lastReleaseTag := getLastRelease(user, repository)
+	lastReleaseTag := getLastRelease(user + "/" + repository)
 
 	switch filepath {
 	case "addons.xml":
@@ -268,6 +267,7 @@ func GetAddonFiles(ctx *gin.Context) {
 		// go writeChangelog(user, "plugin.video.elementum")
 		// go writeChangelog(user, "script.elementum.burst")
 		// go writeChangelog(user, "context.elementum")
+		// go writeChangelog(user, "service.lt2http")
 		GetAddonsXMLChecksum(ctx)
 		return
 	case "fanart.jpg":

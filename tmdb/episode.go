@@ -122,6 +122,9 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 			Country:       show.GetCountries(),
 		},
 		Art: &xbmc.ListItemArt{},
+		UniqueIDs: &xbmc.UniqueIDs{
+			TMDB: strconv.Itoa(episode.ID),
+		},
 	}
 
 	if config.Get().AllowKodiChangeArtworks {

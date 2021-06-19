@@ -180,6 +180,9 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 			Poster:       ImageURL(season.Poster, "w1280"),
 			Thumbnail:    ImageURL(season.Poster, "w1280"),
 		},
+		UniqueIDs: &xbmc.UniqueIDs{
+			TMDB: strconv.Itoa(season.ID),
+		},
 	}
 
 	if config.Get().AllowKodiChangeArtworks {

@@ -201,6 +201,309 @@ func (z *AdvancedSettings) Msgsize() (s int) {
 }
 
 // MarshalMsg implements msgp.Marshaler
+func (z *Artworks) MarshalMsg(b []byte) (o []byte, err error) {
+	o = msgp.Require(b, z.Msgsize())
+	// map header, size 9
+	// string "Poster"
+	o = append(o, 0x89, 0xa6, 0x50, 0x6f, 0x73, 0x74, 0x65, 0x72)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.Poster)))
+	for za0001 := range z.Poster {
+		o = msgp.AppendString(o, z.Poster[za0001])
+	}
+	// string "Banner"
+	o = append(o, 0xa6, 0x42, 0x61, 0x6e, 0x6e, 0x65, 0x72)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.Banner)))
+	for za0002 := range z.Banner {
+		o = msgp.AppendString(o, z.Banner[za0002])
+	}
+	// string "FanArt"
+	o = append(o, 0xa6, 0x46, 0x61, 0x6e, 0x41, 0x72, 0x74)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.FanArt)))
+	for za0003 := range z.FanArt {
+		o = msgp.AppendString(o, z.FanArt[za0003])
+	}
+	// string "ClearArt"
+	o = append(o, 0xa8, 0x43, 0x6c, 0x65, 0x61, 0x72, 0x41, 0x72, 0x74)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.ClearArt)))
+	for za0004 := range z.ClearArt {
+		o = msgp.AppendString(o, z.ClearArt[za0004])
+	}
+	// string "ClearLogo"
+	o = append(o, 0xa9, 0x43, 0x6c, 0x65, 0x61, 0x72, 0x4c, 0x6f, 0x67, 0x6f)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.ClearLogo)))
+	for za0005 := range z.ClearLogo {
+		o = msgp.AppendString(o, z.ClearLogo[za0005])
+	}
+	// string "Landscape"
+	o = append(o, 0xa9, 0x4c, 0x61, 0x6e, 0x64, 0x73, 0x63, 0x61, 0x70, 0x65)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.Landscape)))
+	for za0006 := range z.Landscape {
+		o = msgp.AppendString(o, z.Landscape[za0006])
+	}
+	// string "Icon"
+	o = append(o, 0xa4, 0x49, 0x63, 0x6f, 0x6e)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.Icon)))
+	for za0007 := range z.Icon {
+		o = msgp.AppendString(o, z.Icon[za0007])
+	}
+	// string "DiscArt"
+	o = append(o, 0xa7, 0x44, 0x69, 0x73, 0x63, 0x41, 0x72, 0x74)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.DiscArt)))
+	for za0008 := range z.DiscArt {
+		o = msgp.AppendString(o, z.DiscArt[za0008])
+	}
+	// string "KeyArt"
+	o = append(o, 0xa6, 0x4b, 0x65, 0x79, 0x41, 0x72, 0x74)
+	o = msgp.AppendArrayHeader(o, uint32(len(z.KeyArt)))
+	for za0009 := range z.KeyArt {
+		o = msgp.AppendString(o, z.KeyArt[za0009])
+	}
+	return
+}
+
+// UnmarshalMsg implements msgp.Unmarshaler
+func (z *Artworks) UnmarshalMsg(bts []byte) (o []byte, err error) {
+	var field []byte
+	_ = field
+	var zb0001 uint32
+	zb0001, bts, err = msgp.ReadMapHeaderBytes(bts)
+	if err != nil {
+		err = msgp.WrapError(err)
+		return
+	}
+	for zb0001 > 0 {
+		zb0001--
+		field, bts, err = msgp.ReadMapKeyZC(bts)
+		if err != nil {
+			err = msgp.WrapError(err)
+			return
+		}
+		switch msgp.UnsafeString(field) {
+		case "Poster":
+			var zb0002 uint32
+			zb0002, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Poster")
+				return
+			}
+			if cap(z.Poster) >= int(zb0002) {
+				z.Poster = (z.Poster)[:zb0002]
+			} else {
+				z.Poster = make([]string, zb0002)
+			}
+			for za0001 := range z.Poster {
+				z.Poster[za0001], bts, err = msgp.ReadStringBytes(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "Poster", za0001)
+					return
+				}
+			}
+		case "Banner":
+			var zb0003 uint32
+			zb0003, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Banner")
+				return
+			}
+			if cap(z.Banner) >= int(zb0003) {
+				z.Banner = (z.Banner)[:zb0003]
+			} else {
+				z.Banner = make([]string, zb0003)
+			}
+			for za0002 := range z.Banner {
+				z.Banner[za0002], bts, err = msgp.ReadStringBytes(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "Banner", za0002)
+					return
+				}
+			}
+		case "FanArt":
+			var zb0004 uint32
+			zb0004, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "FanArt")
+				return
+			}
+			if cap(z.FanArt) >= int(zb0004) {
+				z.FanArt = (z.FanArt)[:zb0004]
+			} else {
+				z.FanArt = make([]string, zb0004)
+			}
+			for za0003 := range z.FanArt {
+				z.FanArt[za0003], bts, err = msgp.ReadStringBytes(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "FanArt", za0003)
+					return
+				}
+			}
+		case "ClearArt":
+			var zb0005 uint32
+			zb0005, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "ClearArt")
+				return
+			}
+			if cap(z.ClearArt) >= int(zb0005) {
+				z.ClearArt = (z.ClearArt)[:zb0005]
+			} else {
+				z.ClearArt = make([]string, zb0005)
+			}
+			for za0004 := range z.ClearArt {
+				z.ClearArt[za0004], bts, err = msgp.ReadStringBytes(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "ClearArt", za0004)
+					return
+				}
+			}
+		case "ClearLogo":
+			var zb0006 uint32
+			zb0006, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "ClearLogo")
+				return
+			}
+			if cap(z.ClearLogo) >= int(zb0006) {
+				z.ClearLogo = (z.ClearLogo)[:zb0006]
+			} else {
+				z.ClearLogo = make([]string, zb0006)
+			}
+			for za0005 := range z.ClearLogo {
+				z.ClearLogo[za0005], bts, err = msgp.ReadStringBytes(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "ClearLogo", za0005)
+					return
+				}
+			}
+		case "Landscape":
+			var zb0007 uint32
+			zb0007, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Landscape")
+				return
+			}
+			if cap(z.Landscape) >= int(zb0007) {
+				z.Landscape = (z.Landscape)[:zb0007]
+			} else {
+				z.Landscape = make([]string, zb0007)
+			}
+			for za0006 := range z.Landscape {
+				z.Landscape[za0006], bts, err = msgp.ReadStringBytes(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "Landscape", za0006)
+					return
+				}
+			}
+		case "Icon":
+			var zb0008 uint32
+			zb0008, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Icon")
+				return
+			}
+			if cap(z.Icon) >= int(zb0008) {
+				z.Icon = (z.Icon)[:zb0008]
+			} else {
+				z.Icon = make([]string, zb0008)
+			}
+			for za0007 := range z.Icon {
+				z.Icon[za0007], bts, err = msgp.ReadStringBytes(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "Icon", za0007)
+					return
+				}
+			}
+		case "DiscArt":
+			var zb0009 uint32
+			zb0009, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "DiscArt")
+				return
+			}
+			if cap(z.DiscArt) >= int(zb0009) {
+				z.DiscArt = (z.DiscArt)[:zb0009]
+			} else {
+				z.DiscArt = make([]string, zb0009)
+			}
+			for za0008 := range z.DiscArt {
+				z.DiscArt[za0008], bts, err = msgp.ReadStringBytes(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "DiscArt", za0008)
+					return
+				}
+			}
+		case "KeyArt":
+			var zb0010 uint32
+			zb0010, bts, err = msgp.ReadArrayHeaderBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "KeyArt")
+				return
+			}
+			if cap(z.KeyArt) >= int(zb0010) {
+				z.KeyArt = (z.KeyArt)[:zb0010]
+			} else {
+				z.KeyArt = make([]string, zb0010)
+			}
+			for za0009 := range z.KeyArt {
+				z.KeyArt[za0009], bts, err = msgp.ReadStringBytes(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "KeyArt", za0009)
+					return
+				}
+			}
+		default:
+			bts, err = msgp.Skip(bts)
+			if err != nil {
+				err = msgp.WrapError(err)
+				return
+			}
+		}
+	}
+	o = bts
+	return
+}
+
+// Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
+func (z *Artworks) Msgsize() (s int) {
+	s = 1 + 7 + msgp.ArrayHeaderSize
+	for za0001 := range z.Poster {
+		s += msgp.StringPrefixSize + len(z.Poster[za0001])
+	}
+	s += 7 + msgp.ArrayHeaderSize
+	for za0002 := range z.Banner {
+		s += msgp.StringPrefixSize + len(z.Banner[za0002])
+	}
+	s += 7 + msgp.ArrayHeaderSize
+	for za0003 := range z.FanArt {
+		s += msgp.StringPrefixSize + len(z.FanArt[za0003])
+	}
+	s += 9 + msgp.ArrayHeaderSize
+	for za0004 := range z.ClearArt {
+		s += msgp.StringPrefixSize + len(z.ClearArt[za0004])
+	}
+	s += 10 + msgp.ArrayHeaderSize
+	for za0005 := range z.ClearLogo {
+		s += msgp.StringPrefixSize + len(z.ClearLogo[za0005])
+	}
+	s += 10 + msgp.ArrayHeaderSize
+	for za0006 := range z.Landscape {
+		s += msgp.StringPrefixSize + len(z.Landscape[za0006])
+	}
+	s += 5 + msgp.ArrayHeaderSize
+	for za0007 := range z.Icon {
+		s += msgp.StringPrefixSize + len(z.Icon[za0007])
+	}
+	s += 8 + msgp.ArrayHeaderSize
+	for za0008 := range z.DiscArt {
+		s += msgp.StringPrefixSize + len(z.DiscArt[za0008])
+	}
+	s += 7 + msgp.ArrayHeaderSize
+	for za0009 := range z.KeyArt {
+		s += msgp.StringPrefixSize + len(z.KeyArt[za0009])
+	}
+	return
+}
+
+// MarshalMsg implements msgp.Marshaler
 func (z ContextMenuItem) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
 	// map header, size 2
@@ -453,9 +756,9 @@ func (z KodiTime) Msgsize() (s int) {
 // MarshalMsg implements msgp.Marshaler
 func (z *ListItem) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 13
+	// map header, size 14
 	// string "Label"
-	o = append(o, 0x8d, 0xa5, 0x4c, 0x61, 0x62, 0x65, 0x6c)
+	o = append(o, 0x8e, 0xa5, 0x4c, 0x61, 0x62, 0x65, 0x6c)
 	o = msgp.AppendString(o, z.Label)
 	// string "Label2"
 	o = append(o, 0xa6, 0x4c, 0x61, 0x62, 0x65, 0x6c, 0x32)
@@ -538,6 +841,13 @@ func (z *ListItem) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "TraktAuth"
 	o = append(o, 0xa9, 0x54, 0x72, 0x61, 0x6b, 0x74, 0x41, 0x75, 0x74, 0x68)
 	o = msgp.AppendBool(o, z.TraktAuth)
+	// string "UniqueIDs"
+	o = append(o, 0xa9, 0x55, 0x6e, 0x69, 0x71, 0x75, 0x65, 0x49, 0x44, 0x73)
+	o, err = z.UniqueIDs.MarshalMsg(o)
+	if err != nil {
+		err = msgp.WrapError(err, "UniqueIDs")
+		return
+	}
 	return
 }
 
@@ -720,6 +1030,12 @@ func (z *ListItem) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "TraktAuth")
 				return
 			}
+		case "UniqueIDs":
+			bts, err = z.UniqueIDs.UnmarshalMsg(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "UniqueIDs")
+				return
+			}
 		default:
 			bts, err = msgp.Skip(bts)
 			if err != nil {
@@ -769,16 +1085,16 @@ func (z *ListItem) Msgsize() (s int) {
 	for za0003 := range z.CastMembers {
 		s += z.CastMembers[za0003].Msgsize()
 	}
-	s += 10 + msgp.BoolSize
+	s += 10 + msgp.BoolSize + 10 + z.UniqueIDs.Msgsize()
 	return
 }
 
 // MarshalMsg implements msgp.Marshaler
 func (z *ListItemArt) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 10
+	// map header, size 13
 	// string "Thumbnail"
-	o = append(o, 0x8a, 0xa9, 0x54, 0x68, 0x75, 0x6d, 0x62, 0x6e, 0x61, 0x69, 0x6c)
+	o = append(o, 0x8d, 0xa9, 0x54, 0x68, 0x75, 0x6d, 0x62, 0x6e, 0x61, 0x69, 0x6c)
 	o = msgp.AppendString(o, z.Thumbnail)
 	// string "Poster"
 	o = append(o, 0xa6, 0x50, 0x6f, 0x73, 0x74, 0x65, 0x72)
@@ -810,6 +1126,23 @@ func (z *ListItemArt) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "Icon"
 	o = append(o, 0xa4, 0x49, 0x63, 0x6f, 0x6e)
 	o = msgp.AppendString(o, z.Icon)
+	// string "DiscArt"
+	o = append(o, 0xa7, 0x44, 0x69, 0x73, 0x63, 0x41, 0x72, 0x74)
+	o = msgp.AppendString(o, z.DiscArt)
+	// string "KeyArt"
+	o = append(o, 0xa6, 0x4b, 0x65, 0x79, 0x41, 0x72, 0x74)
+	o = msgp.AppendString(o, z.KeyArt)
+	// string "AvailableArtworks"
+	o = append(o, 0xb1, 0x41, 0x76, 0x61, 0x69, 0x6c, 0x61, 0x62, 0x6c, 0x65, 0x41, 0x72, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x73)
+	if z.AvailableArtworks == nil {
+		o = msgp.AppendNil(o)
+	} else {
+		o, err = z.AvailableArtworks.MarshalMsg(o)
+		if err != nil {
+			err = msgp.WrapError(err, "AvailableArtworks")
+			return
+		}
+	}
 	return
 }
 
@@ -904,6 +1237,35 @@ func (z *ListItemArt) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "Icon")
 				return
 			}
+		case "DiscArt":
+			z.DiscArt, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "DiscArt")
+				return
+			}
+		case "KeyArt":
+			z.KeyArt, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "KeyArt")
+				return
+			}
+		case "AvailableArtworks":
+			if msgp.IsNil(bts) {
+				bts, err = msgp.ReadNilBytes(bts)
+				if err != nil {
+					return
+				}
+				z.AvailableArtworks = nil
+			} else {
+				if z.AvailableArtworks == nil {
+					z.AvailableArtworks = new(Artworks)
+				}
+				bts, err = z.AvailableArtworks.UnmarshalMsg(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "AvailableArtworks")
+					return
+				}
+			}
 		default:
 			bts, err = msgp.Skip(bts)
 			if err != nil {
@@ -922,7 +1284,12 @@ func (z *ListItemArt) Msgsize() (s int) {
 	for za0001 := range z.FanArts {
 		s += msgp.StringPrefixSize + len(z.FanArts[za0001])
 	}
-	s += 9 + msgp.StringPrefixSize + len(z.ClearArt) + 10 + msgp.StringPrefixSize + len(z.ClearLogo) + 10 + msgp.StringPrefixSize + len(z.Landscape) + 5 + msgp.StringPrefixSize + len(z.Icon)
+	s += 9 + msgp.StringPrefixSize + len(z.ClearArt) + 10 + msgp.StringPrefixSize + len(z.ClearLogo) + 10 + msgp.StringPrefixSize + len(z.Landscape) + 5 + msgp.StringPrefixSize + len(z.Icon) + 8 + msgp.StringPrefixSize + len(z.DiscArt) + 7 + msgp.StringPrefixSize + len(z.KeyArt) + 18
+	if z.AvailableArtworks == nil {
+		s += msgp.NilSize
+	} else {
+		s += z.AvailableArtworks.Msgsize()
+	}
 	return
 }
 

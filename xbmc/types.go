@@ -73,6 +73,8 @@ type ListItem struct {
 	CastMembers []ListItemCastMember `json:"castmembers,omitempty"`
 
 	TraktAuth bool `json:"-"`
+
+	UniqueIDs *UniqueIDs `json:"uniqueids,omitempty"`
 }
 
 // ListItemProperties ...
@@ -141,16 +143,31 @@ type ListItemInfo struct {
 
 // ListItemArt ...
 type ListItemArt struct {
-	Thumbnail    string   `json:"thumb,omitempty"`
-	Poster       string   `json:"poster,omitempty"`
-	TvShowPoster string   `json:"tvshowposter,omitempty"`
-	Banner       string   `json:"banner,omitempty"`
-	FanArt       string   `json:"fanart,omitempty"`
-	FanArts      []string `json:"fanarts,omitempty"`
-	ClearArt     string   `json:"clearart,omitempty"`
-	ClearLogo    string   `json:"clearlogo,omitempty"`
-	Landscape    string   `json:"landscape,omitempty"`
-	Icon         string   `json:"icon,omitempty"`
+	Thumbnail         string    `json:"thumb,omitempty"`
+	Poster            string    `json:"poster,omitempty"`
+	TvShowPoster      string    `json:"tvshowposter,omitempty"`
+	Banner            string    `json:"banner,omitempty"`
+	FanArt            string    `json:"fanart,omitempty"`
+	FanArts           []string  `json:"fanarts,omitempty"`
+	ClearArt          string    `json:"clearart,omitempty"`
+	ClearLogo         string    `json:"clearlogo,omitempty"`
+	Landscape         string    `json:"landscape,omitempty"`
+	Icon              string    `json:"icon,omitempty"`
+	DiscArt           string    `json:"discart,omitempty"`
+	KeyArt            string    `json:"keyart,omitempty"`
+	AvailableArtworks *Artworks `json:"available_artworks,omitempty"`
+}
+
+type Artworks struct {
+	Poster    []string `json:"poster,omitempty"`
+	Banner    []string `json:"banner,omitempty"`
+	FanArt    []string `json:"fanart,omitempty"`
+	ClearArt  []string `json:"clearart,omitempty"`
+	ClearLogo []string `json:"clearlogo,omitempty"`
+	Landscape []string `json:"landscape,omitempty"`
+	Icon      []string `json:"icon,omitempty"`
+	DiscArt   []string `json:"discart,omitempty"`
+	KeyArt    []string `json:"keyart,omitempty"`
 }
 
 // ListItemCastMember represents Cast member information from TMDB

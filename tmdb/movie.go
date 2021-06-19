@@ -457,6 +457,9 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 			Poster:    ImageURL(movie.PosterPath, "w1280"),
 			Thumbnail: ImageURL(movie.PosterPath, "w300"),
 		},
+		UniqueIDs: &xbmc.UniqueIDs{
+			TMDB: strconv.Itoa(movie.ID),
+		},
 	}
 
 	if config.Get().AllowKodiChangeArtworks {
@@ -474,6 +477,20 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 		if len(fanarts) > 0 {
 			item.Art.FanArt = fanarts[rand.Intn(len(fanarts))]
 			item.Art.FanArts = fanarts
+		}
+	}
+
+	if movie.Images != nil && movie.Images.Posters != nil {
+		posters := make([]string, 0)
+		for _, poster := range movie.Images.Posters {
+			posters = append(posters, ImageURL(poster.FilePath, "w1280"))
+		}
+		if len(posters) > 0 {
+			if item.Art.AvailableArtworks == nil {
+				item.Art.AvailableArtworks = &xbmc.Artworks{Poster: posters}
+			} else {
+				item.Art.AvailableArtworks.Poster = posters
+			}
 		}
 	}
 

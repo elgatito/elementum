@@ -944,6 +944,9 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 				ClearArt:     show.Images.ClearArt.Full,
 			},
 			Thumbnail: show.Images.Poster.Full,
+			UniqueIDs: &xbmc.UniqueIDs{
+				TMDB: strconv.Itoa(show.IDs.TMDB),
+			},
 		}
 	}
 
@@ -1020,6 +1023,9 @@ func (episode *Episode) ToListItem(show *Show) *xbmc.ListItem {
 			ClearArt:     show.Images.ClearArt.Full,
 		},
 		Thumbnail: show.Images.Poster.Full,
+		UniqueIDs: &xbmc.UniqueIDs{
+			TMDB: strconv.Itoa(episode.IDs.TMDB),
+		},
 	}
 
 	if config.Get().AllowKodiChangeArtworks {
