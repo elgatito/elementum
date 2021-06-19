@@ -6,6 +6,7 @@ package util
 const KodiDBIDMax = 1000000000
 const MovieFakeDBIDOffset = KodiDBIDMax
 const ShowFakeDBIDOffset = KodiDBIDMax
+const SeasonFakeDBIDOffset = KodiDBIDMax
 const EpisodeFakeDBIDOffset = KodiDBIDMax
 
 func GetMovieFakeDBID(id int) int {
@@ -18,6 +19,13 @@ func GetMovieFakeDBID(id int) int {
 func GetShowFakeDBID(id int) int {
 	if id > 0 && id <= KodiDBIDMax {
 		return id + ShowFakeDBIDOffset
+	}
+	return 0
+}
+
+func GetSeasonFakeDBID(id int) int {
+	if id > 0 && id <= KodiDBIDMax {
+		return id + SeasonFakeDBIDOffset
 	}
 	return 0
 }
