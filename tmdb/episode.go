@@ -9,6 +9,7 @@ import (
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/library/playcount"
+	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
 	"github.com/jmcvetta/napping"
@@ -127,8 +128,8 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 		},
 	}
 
-	/*episodeInLibrary := false
-	if ls, err := library.GetShowByTMDB(show.ID); ls != nil && err == nil {
+	episodeInLibrary := false
+	if ls, err := uid.GetShowByTMDB(show.ID); ls != nil && err == nil {
 		if le := ls.GetEpisode(episode.SeasonNumber, episode.EpisodeNumber); le != nil {
 			item.Info.DBID = le.UIDs.Kodi
 			episodeInLibrary = true
@@ -139,7 +140,7 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID
 		}
-	}*/
+	}
 
 	if show.PosterPath != "" {
 		item.Art.TvShowPoster = ImageURL(show.PosterPath, "w1280")

@@ -12,6 +12,7 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/fanart"
 	"github.com/elgatito/elementum/library/playcount"
+	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
@@ -950,14 +951,14 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 		}
 	}
 
-	/*if ls, err := library.GetShowByTMDB(show.IDs.TMDB); ls != nil && err == nil {
+	if ls, err := uid.GetShowByTMDB(show.IDs.TMDB); ls != nil && err == nil {
 		item.Info.DBID = ls.UIDs.Kodi
 	} else {
 		fakeDBID := util.GetShowFakeDBID(show.IDs.TMDB)
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID
 		}
-	}*/
+	}
 
 	if config.Get().ShowUnwatchedEpisodesNumber {
 		watchedEpisodes := show.watchedEpisodesNumber()
@@ -1030,8 +1031,8 @@ func (episode *Episode) ToListItem(show *Show) *xbmc.ListItem {
 		},
 	}
 
-	/*episodeInLibrary := false
-	if ls, err := library.GetShowByTMDB(show.IDs.TMDB); ls != nil && err == nil {
+	episodeInLibrary := false
+	if ls, err := uid.GetShowByTMDB(show.IDs.TMDB); ls != nil && err == nil {
 		if le := ls.GetEpisode(episode.Season, episode.Number); le != nil {
 			item.Info.DBID = le.UIDs.Kodi
 			episodeInLibrary = true
@@ -1042,7 +1043,7 @@ func (episode *Episode) ToListItem(show *Show) *xbmc.ListItem {
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID
 		}
-	}*/
+	}
 
 	if config.Get().UseFanartTv {
 		if fa := fanart.GetShow(util.StrInterfaceToInt(show.IDs.TVDB)); fa != nil {

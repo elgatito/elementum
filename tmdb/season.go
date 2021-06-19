@@ -11,6 +11,7 @@ import (
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/library/playcount"
+	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
 	"github.com/jmcvetta/napping"
@@ -185,8 +186,8 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 		},
 	}
 
-	/*seasonInLibrary := false
-	if ls, err := library.GetShowByTMDB(show.ID); ls != nil && err == nil {
+	seasonInLibrary := false
+	if ls, err := uid.GetShowByTMDB(show.ID); ls != nil && err == nil {
 		if lse := ls.GetSeason(season.Season); lse != nil {
 			item.Info.DBID = lse.UIDs.Kodi
 			seasonInLibrary = true
@@ -197,7 +198,7 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID
 		}
-	}*/
+	}
 
 	if config.Get().ShowUnwatchedEpisodesNumber {
 		watchedEpisodes := season.watchedEpisodesNumber(show)

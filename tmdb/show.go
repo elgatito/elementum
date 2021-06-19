@@ -14,6 +14,7 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/fanart"
 	"github.com/elgatito/elementum/library/playcount"
+	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tvdb"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
@@ -559,14 +560,14 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 		},
 	}
 
-	/*if ls, err := library.GetShowByTMDB(show.ID); ls != nil && err == nil {
+	if ls, err := uid.GetShowByTMDB(show.ID); ls != nil && err == nil {
 		item.Info.DBID = ls.UIDs.Kodi
 	} else {
 		fakeDBID := util.GetShowFakeDBID(show.ID)
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID
 		}
-	}*/
+	}
 
 	if config.Get().ShowUnwatchedEpisodesNumber {
 		watchedEpisodes := show.watchedEpisodesNumber()
