@@ -182,6 +182,13 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 		},
 	}
 
+	if config.Get().AllowKodiChangeArtworks {
+		fakeDBID := util.GetSeasonFakeDBID(season.ID)
+		if fakeDBID > 0 {
+			item.Info.DBID = fakeDBID
+		}
+	}
+
 	if config.Get().ShowUnwatchedEpisodedNumber {
 		watchedEpisodes := season.watchedEpisodesNumber(show)
 		item.Properties.WatchedEpisodes = strconv.Itoa(watchedEpisodes)
