@@ -185,12 +185,19 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 		},
 	}
 
-	if config.Get().AllowKodiChangeArtworks {
+	/*seasonInLibrary := false
+	if ls, err := library.GetShowByTMDB(show.ID); ls != nil && err == nil {
+		if lse := ls.GetSeason(season.Season); lse != nil {
+			item.Info.DBID = lse.UIDs.Kodi
+			seasonInLibrary = true
+		}
+	}
+	if !seasonInLibrary {
 		fakeDBID := util.GetSeasonFakeDBID(season.ID)
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID
 		}
-	}
+	}*/
 
 	if config.Get().ShowUnwatchedEpisodesNumber {
 		watchedEpisodes := season.watchedEpisodesNumber(show)

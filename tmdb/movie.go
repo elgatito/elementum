@@ -462,12 +462,14 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 		},
 	}
 
-	if config.Get().AllowKodiChangeArtworks {
+	/*if lm, err := library.GetMovieByTMDB(movie.ID); lm != nil && err == nil {
+		item.Info.DBID = lm.UIDs.Kodi
+	} else {
 		fakeDBID := util.GetMovieFakeDBID(movie.ID)
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID
 		}
-	}
+	}*/
 
 	if movie.Images != nil && movie.Images.Backdrops != nil {
 		fanarts := make([]string, 0)

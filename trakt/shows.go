@@ -950,12 +950,14 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 		}
 	}
 
-	if config.Get().AllowKodiChangeArtworks {
+	/*if ls, err := library.GetShowByTMDB(show.IDs.TMDB); ls != nil && err == nil {
+		item.Info.DBID = ls.UIDs.Kodi
+	} else {
 		fakeDBID := util.GetShowFakeDBID(show.IDs.TMDB)
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID
 		}
-	}
+	}*/
 
 	if config.Get().ShowUnwatchedEpisodesNumber {
 		watchedEpisodes := show.watchedEpisodesNumber()
@@ -1028,12 +1030,19 @@ func (episode *Episode) ToListItem(show *Show) *xbmc.ListItem {
 		},
 	}
 
-	if config.Get().AllowKodiChangeArtworks {
+	/*episodeInLibrary := false
+	if ls, err := library.GetShowByTMDB(show.IDs.TMDB); ls != nil && err == nil {
+		if le := ls.GetEpisode(episode.Season, episode.Number); le != nil {
+			item.Info.DBID = le.UIDs.Kodi
+			episodeInLibrary = true
+		}
+	}
+	if !episodeInLibrary {
 		fakeDBID := util.GetEpisodeFakeDBID(episode.IDs.TMDB)
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID
 		}
-	}
+	}*/
 
 	if config.Get().UseFanartTv {
 		if fa := fanart.GetShow(util.StrInterfaceToInt(show.IDs.TVDB)); fa != nil {

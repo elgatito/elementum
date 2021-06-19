@@ -559,12 +559,14 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 		},
 	}
 
-	if config.Get().AllowKodiChangeArtworks {
+	/*if ls, err := library.GetShowByTMDB(show.ID); ls != nil && err == nil {
+		item.Info.DBID = ls.UIDs.Kodi
+	} else {
 		fakeDBID := util.GetShowFakeDBID(show.ID)
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID
 		}
-	}
+	}*/
 
 	if config.Get().ShowUnwatchedEpisodesNumber {
 		watchedEpisodes := show.watchedEpisodesNumber()
