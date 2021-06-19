@@ -64,7 +64,6 @@ type Configuration struct {
 	UseTorrentHistory           bool
 	TorrentHistorySize          int
 	UseFanartTv                 bool
-	AllowKodiChangeArtworks     bool
 	DisableBgProgress           bool
 	DisableBgProgressPlayback   bool
 	ForceUseTrakt               bool
@@ -537,7 +536,6 @@ func Reload() *Configuration {
 		UseTorrentHistory:           settings.ToBool("use_torrent_history"),
 		TorrentHistorySize:          settings.ToInt("torrent_history_size"),
 		UseFanartTv:                 settings.ToBool("use_fanart_tv"),
-		AllowKodiChangeArtworks:     settings.ToBool("allow_kodi_change_artworks"),
 		DisableBgProgress:           settings.ToBool("disable_bg_progress"),
 		DisableBgProgressPlayback:   settings.ToBool("disable_bg_progress_playback"),
 		ForceUseTrakt:               settings.ToBool("force_use_trakt"),
