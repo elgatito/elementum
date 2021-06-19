@@ -26,9 +26,9 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/database"
 	"github.com/elgatito/elementum/diskusage"
-	"github.com/elgatito/elementum/library"
+	"github.com/elgatito/elementum/library/playcount"
+	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/osdb"
-	"github.com/elgatito/elementum/playcount"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/trakt"
 	"github.com/elgatito/elementum/tvdb"
@@ -118,9 +118,9 @@ type PlayerParams struct {
 	AbsoluteNumber    int
 	Query             string
 	UpNextSent        bool
-	UIDs              *library.UniqueIDs
-	Resume            *library.Resume
-	StoredResume      *library.Resume
+	UIDs              *uid.UniqueIDs
+	Resume            *uid.Resume
+	StoredResume      *uid.Resume
 }
 
 // NextEpisode ...
@@ -333,7 +333,7 @@ func (btp *Player) processMetadata() {
 
 	btp.FetchStoredResume()
 
-	var resume *library.Resume
+	var resume *uid.Resume
 	if btp.p.StoredResume != nil && btp.p.StoredResume.Position > 0 {
 		resume = btp.p.StoredResume
 	} else if btp.p.Resume != nil && btp.p.Resume.Position > 0 {
@@ -974,14 +974,14 @@ func (btp *Player) GetIdent() {
 	defer perf.ScopeTimer()()
 
 	if btp.p.ContentType == movieType {
-		movie, _ := library.GetMovieByTMDB(btp.p.TMDBId)
+		movie, _ := uid.GetMovieByTMDB(btp.p.TMDBId)
 		if movie != nil {
 			btp.p.KodiID = movie.UIDs.Kodi
 			btp.p.Resume = movie.Resume
 			btp.p.UIDs = movie.UIDs
 		}
 	} else if btp.p.ContentType == episodeType && btp.p.Episode > 0 {
-		show, _ := library.GetShowByTMDB(btp.p.ShowID)
+		show, _ := uid.GetShowByTMDB(btp.p.ShowID)
 		if show != nil {
 			episode := show.GetEpisode(btp.p.Season, btp.p.Episode)
 			if episode != nil {
@@ -1233,7 +1233,7 @@ func (btp *Player) SetSubtitles() {
 func (btp *Player) FetchStoredResume() {
 	key := "stored.resume." + btp.p.ResumeToken
 	if btp.p.StoredResume == nil {
-		btp.p.StoredResume = &library.Resume{}
+		btp.p.StoredResume = &uid.Resume{}
 	}
 
 	database.GetCache().GetCachedObject(database.CommonBucket, key, btp.p.StoredResume)
@@ -1244,7 +1244,7 @@ func (btp *Player) SaveStoredResume() {
 	key := "stored.resume." + btp.p.ResumeToken
 
 	if btp.p.StoredResume == nil {
-		btp.p.StoredResume = &library.Resume{}
+		btp.p.StoredResume = &uid.Resume{}
 	}
 
 	btp.p.StoredResume.Total = btp.p.VideoDuration

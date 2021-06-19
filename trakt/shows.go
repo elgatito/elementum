@@ -11,7 +11,7 @@ import (
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/fanart"
-	"github.com/elgatito/elementum/playcount"
+	"github.com/elgatito/elementum/library/playcount"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"

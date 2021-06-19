@@ -15,6 +15,7 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/database"
 	"github.com/elgatito/elementum/library"
+	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/trakt"
 	"github.com/elgatito/elementum/util"
@@ -474,7 +475,7 @@ func renderTraktMovies(ctx *gin.Context, movies []*trakt.Movies, total int, page
 			libraryActions := [][]string{
 				{contextLabel, fmt.Sprintf("PlayMedia(%s)", contextURL)},
 			}
-			if library.IsDuplicateMovie(tmdbID) || library.IsAddedToLibrary(tmdbID, library.MovieType) {
+			if uid.IsDuplicateMovie(tmdbID) || uid.IsAddedToLibrary(tmdbID, library.MovieType) {
 				libraryActions = append(libraryActions, []string{"LOCALIZE[30283]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/movie/add/%d?force=true", movieListing.Movie.IDs.TMDB))})
 				libraryActions = append(libraryActions, []string{"LOCALIZE[30253]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/movie/remove/%d", movieListing.Movie.IDs.TMDB))})
 			} else {
@@ -737,7 +738,7 @@ func renderTraktShows(ctx *gin.Context, shows []*trakt.Shows, total int, page in
 		item.Path = URLForXBMC("/show/%d/seasons", showListing.Show.IDs.TMDB)
 
 		libraryActions := [][]string{}
-		if library.IsDuplicateShow(tmdbID) || library.IsAddedToLibrary(tmdbID, library.ShowType) {
+		if uid.IsDuplicateShow(tmdbID) || uid.IsAddedToLibrary(tmdbID, library.ShowType) {
 			libraryActions = append(libraryActions, []string{"LOCALIZE[30283]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/show/add/%d?force=true", showListing.Show.IDs.TMDB))})
 			libraryActions = append(libraryActions, []string{"LOCALIZE[30253]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/show/remove/%d", showListing.Show.IDs.TMDB))})
 		} else {
@@ -1109,7 +1110,7 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 			libraryActions := [][]string{
 				{contextLabel, fmt.Sprintf("PlayMedia(%s)", contextURL)},
 			}
-			if library.IsDuplicateMovie(tmdbID) || library.IsAddedToLibrary(tmdbID, library.MovieType) {
+			if uid.IsDuplicateMovie(tmdbID) || uid.IsAddedToLibrary(tmdbID, library.MovieType) {
 				libraryActions = append(libraryActions, []string{"LOCALIZE[30283]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/movie/add/%d?force=true", movieListing.Movie.IDs.TMDB))})
 				libraryActions = append(libraryActions, []string{"LOCALIZE[30253]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/movie/remove/%d", movieListing.Movie.IDs.TMDB))})
 			} else {
@@ -1310,7 +1311,7 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 
 			// TODO: calendar show episodes, but libraryActions/watchlistAction/collectionAction are for shows, which might be confusing
 			libraryActions := [][]string{}
-			if library.IsDuplicateShow(tmdbID) || library.IsAddedToLibrary(tmdbID, library.ShowType) {
+			if uid.IsDuplicateShow(tmdbID) || uid.IsAddedToLibrary(tmdbID, library.ShowType) {
 				libraryActions = append(libraryActions, []string{"LOCALIZE[30283]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/show/add/%d?force=true", showListing.Show.IDs.TMDB))})
 				libraryActions = append(libraryActions, []string{"LOCALIZE[30253]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/show/remove/%d", showListing.Show.IDs.TMDB))})
 			} else {
@@ -1580,7 +1581,7 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 				Watched:   setWatched,
 			}
 
-			movie, err := library.GetMovieByTMDB(movieID)
+			movie, err := uid.GetMovieByTMDB(movieID)
 			if err == nil {
 				foundInLibrary = true
 
@@ -1605,7 +1606,7 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 				Watched:   setWatched,
 			}
 
-			show, err := library.GetShowByTMDB(showID)
+			show, err := uid.GetShowByTMDB(showID)
 			if err == nil {
 				foundInLibrary = true
 
@@ -1630,7 +1631,7 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 				Watched:   setWatched,
 			}
 
-			show, err := library.GetShowByTMDB(showID)
+			show, err := uid.GetShowByTMDB(showID)
 			if err == nil {
 				foundInLibrary = true
 
@@ -1654,7 +1655,7 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 				Watched:   setWatched,
 			}
 
-			show, err := library.GetShowByTMDB(showID)
+			show, err := uid.GetShowByTMDB(showID)
 			if err == nil {
 				foundInLibrary = true
 

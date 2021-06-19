@@ -10,6 +10,7 @@ import (
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/library"
+	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/trakt"
 	"github.com/elgatito/elementum/xbmc"
 )
@@ -115,7 +116,7 @@ func RemoveMovie(ctx *gin.Context) {
 			for _, path := range paths {
 				xbmc.VideoLibraryCleanDirectory(path, "movies", false)
 			}
-			if m, err := library.GetMovieByTMDB(movie.ID); err == nil && m != nil {
+			if m, err := uid.GetMovieByTMDB(movie.ID); err == nil && m != nil {
 				xbmc.VideoLibraryRemoveMovie(m.XbmcUIDs.Kodi)
 			}
 		} else {
@@ -205,7 +206,7 @@ func RemoveShow(ctx *gin.Context) {
 			for _, path := range paths {
 				xbmc.VideoLibraryCleanDirectory(path, "tvshows", false)
 			}
-			if s, err := library.GetShowByTMDB(show.ID); err == nil && s != nil {
+			if s, err := uid.GetShowByTMDB(show.ID); err == nil && s != nil {
 				xbmc.VideoLibraryRemoveTVShow(s.XbmcUIDs.Kodi)
 			}
 		} else {

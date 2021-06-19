@@ -21,6 +21,7 @@ import (
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/database"
+	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/trakt"
 	"github.com/elgatito/elementum/util"
@@ -112,23 +113,9 @@ var (
 	ErrVideoRemoved = errors.New("Video is marked as removed")
 )
 
-var l = &Library{
-	UIDs:   []*UniqueIDs{},
-	Movies: []*Movie{},
-	Shows:  []*Show{},
-
-	WatchedTraktMovies: []uint64{},
-	WatchedTraktShows:  []uint64{},
-}
-
 // InitDB ...
 func InitDB() {
 	cacheStore = cache.NewDBStore()
-}
-
-// Get returns singleton instance for Library
-func Get() *Library {
-	return l
 }
 
 // Init makes preparations on program start
@@ -187,10 +174,10 @@ func Init() {
 				if len(episodes) > 1 {
 					for showName, showEpisodes := range shows {
 						var libraryTotal int
-						if l.Shows == nil {
+						if !uid.HasShows() {
 							break
 						}
-						show, err := GetShowByTMDB(showEpisodes[0].ShowID)
+						show, err := uid.GetShowByTMDB(showEpisodes[0].ShowID)
 						if show != nil && err == nil {
 							libraryTotal = len(show.Episodes)
 						}
@@ -305,6 +292,7 @@ func Init() {
 
 	closing := closer.C()
 
+	l := uid.Get()
 	for {
 		select {
 		case <-watcherTicker.C:
@@ -342,13 +330,13 @@ func Init() {
 			for _, item := range items {
 				// Remove from Elementum's library to prevent duplicates
 				if item.Type == movieType {
-					if IsDuplicateMovie(strconv.Itoa(item.ID)) {
+					if uid.IsDuplicateMovie(strconv.Itoa(item.ID)) {
 						if _, _, err := RemoveMovie(item.ID); err != nil {
 							log.Warning("Nothing left to remove from Elementum")
 						}
 					}
 				} else {
-					if IsDuplicateEpisode(item.ShowID, item.Season, item.Episode) {
+					if uid.IsDuplicateEpisode(item.ShowID, item.Season, item.Episode) {
 						if err := RemoveEpisode(item.ID, item.ShowID, item.Season, item.Episode); err != nil {
 							log.Warning(err)
 						}
@@ -618,7 +606,7 @@ func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
 				reAddIDs = append(reAddIDs, episode.ID)
 			}
 
-			if !force && IsDuplicateEpisode(showID, season.Season, episode.EpisodeNumber) {
+			if !force && uid.IsDuplicateEpisode(showID, season.Season, episode.EpisodeNumber) {
 				continue
 			}
 
@@ -801,93 +789,6 @@ func RemoveEpisode(tmdbID int, showID int, seasonNumber int, episodeNumber int) 
 	}
 
 	return nil
-}
-
-//
-// Duplicate handling
-//
-
-// IsDuplicateMovie checks if movie exists in the library
-func IsDuplicateMovie(tmdbID string) bool {
-	l.mu.UIDs.Lock()
-	defer l.mu.UIDs.Unlock()
-	defer perf.ScopeTimer()()
-
-	query, _ := strconv.Atoi(tmdbID)
-	for _, u := range l.UIDs {
-		if u.TMDB != 0 && u.MediaType == MovieType && u.TMDB == query {
-			return true
-		}
-	}
-
-	return false
-}
-
-// IsDuplicateShow checks if show exists in the library
-func IsDuplicateShow(tmdbID string) bool {
-	defer perf.ScopeTimer()()
-
-	l.mu.UIDs.Lock()
-	defer l.mu.UIDs.Unlock()
-
-	query, _ := strconv.Atoi(tmdbID)
-	for _, u := range l.UIDs {
-		if u.TMDB != 0 && u.MediaType == ShowType && u.TMDB == query {
-			return true
-		}
-	}
-
-	return false
-}
-
-// IsDuplicateShowByInt checks if show exists in the library
-func IsDuplicateShowByInt(tmdbID int) bool {
-	defer perf.ScopeTimer()()
-
-	l.mu.UIDs.Lock()
-	defer l.mu.UIDs.Unlock()
-
-	for _, u := range l.UIDs {
-		if u.TMDB != 0 && u.MediaType == ShowType && u.TMDB == tmdbID {
-			return true
-		}
-	}
-
-	return false
-}
-
-// IsDuplicateEpisode checks if episode exists in the library
-func IsDuplicateEpisode(tmdbShowID int, seasonNumber int, episodeNumber int) bool {
-	l.mu.Shows.RLock()
-	defer l.mu.Shows.RUnlock()
-	defer perf.ScopeTimer()()
-
-	for _, s := range l.Shows {
-		if tmdbShowID != s.UIDs.TMDB {
-			continue
-		}
-
-		for _, e := range s.Episodes {
-			if e.Season == seasonNumber && e.Episode == episodeNumber {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-// IsAddedToLibrary checks if specific TMDB exists in the library
-func IsAddedToLibrary(id string, mediaType int) (isAdded bool) {
-	defer perf.ScopeTimer()()
-
-	if mediaType == MovieType {
-		return IsDuplicateMovie(id)
-	} else if mediaType == ShowType {
-		return IsDuplicateShow(id)
-	}
-
-	return false
 }
 
 //
@@ -1134,7 +1035,7 @@ func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err erro
 		}
 
 		// FIXME: should it be like for shows - 'if !updating && !isUpdateNeeded && IsDuplicateShow(tmdbID) {' ?
-		if IsDuplicateMovie(tmdbID) {
+		if uid.IsDuplicateMovie(tmdbID) {
 			continue
 		}
 
@@ -1242,12 +1143,12 @@ func SyncShowsList(listID string, updating bool, isUpdateNeeded bool) (err error
 		}
 
 		tmdbID := strconv.Itoa(show.Show.IDs.TMDB)
-		if t, ok := showsLastUpdates[show.Show.IDs.Trakt]; ok && IsDuplicateShow(tmdbID) && !t.Before(show.Show.UpdatedAt) {
+		if t, ok := showsLastUpdates[show.Show.IDs.Trakt]; ok && uid.IsDuplicateShow(tmdbID) && !t.Before(show.Show.UpdatedAt) {
 			continue
 		}
 		showsLastUpdates[show.Show.IDs.Trakt] = show.Show.UpdatedAt
 
-		if !updating && !isUpdateNeeded && IsDuplicateShow(tmdbID) {
+		if !updating && !isUpdateNeeded && uid.IsDuplicateShow(tmdbID) {
 			continue
 		}
 
@@ -1301,7 +1202,7 @@ func DiffTraktShows(previous, current []*trakt.Shows, isInitialized bool) []*tra
 		}
 
 		// If Trakt is not yet initialized - we can leave shows that are not yet in the library
-		if !found || (!isInitialized && !IsDuplicateShowByInt(ce.Show.IDs.TMDB)) {
+		if !found || (!isInitialized && !uid.IsDuplicateShowByInt(ce.Show.IDs.TMDB)) {
 			ret = append(ret, ce)
 		}
 	}
@@ -1324,7 +1225,7 @@ func AddMovie(tmdbID string, force bool) (*tmdb.Movie, error) {
 		return nil, fmt.Errorf("Movie with TMDB %s not found", tmdbID)
 	}
 
-	if !force && IsDuplicateMovie(tmdbID) {
+	if !force && uid.IsDuplicateMovie(tmdbID) {
 		xbmc.Notify("Elementum", fmt.Sprintf("LOCALIZE[30287];;%s", movie.Title), config.AddonIcon())
 		return nil, fmt.Errorf("Movie already added")
 	}
@@ -1351,7 +1252,7 @@ func AddShow(tmdbID string, force bool) (*tmdb.Show, error) {
 	ID, _ := strconv.Atoi(tmdbID)
 	show := tmdb.GetShowByID(tmdbID, config.Get().Language)
 
-	if !force && IsDuplicateShow(tmdbID) {
+	if !force && uid.IsDuplicateShow(tmdbID) {
 		xbmc.Notify("Elementum", fmt.Sprintf("LOCALIZE[30287];;%s", show.Name), config.AddonIcon())
 		return show, fmt.Errorf("Show already added")
 	}
@@ -1366,74 +1267,6 @@ func AddShow(tmdbID string, force bool) (*tmdb.Show, error) {
 	}
 
 	return show, nil
-}
-
-// GetMovieResume returns Resume info for kodi id
-func GetMovieResume(kodiID int) *Resume {
-	l.mu.Movies.Lock()
-	defer l.mu.Movies.Unlock()
-
-	for _, m := range l.Movies {
-		if m.UIDs.Kodi == kodiID {
-			return m.Resume
-		}
-	}
-
-	return nil
-}
-
-// GetEpisodeResume returns Resume info for kodi id
-func GetEpisodeResume(kodiID int) *Resume {
-	l.mu.Shows.RLock()
-	defer l.mu.Shows.RUnlock()
-
-	for _, existingShow := range l.Shows {
-		for _, existingEpisode := range existingShow.Episodes {
-			if existingEpisode.UIDs.Kodi == kodiID {
-				return existingEpisode.Resume
-			}
-		}
-	}
-
-	return nil
-}
-
-// GetUIDsFromKodi returns UIDs object for provided Kodi ID
-func GetUIDsFromKodi(kodiID int) *UniqueIDs {
-	if kodiID == 0 {
-		return nil
-	}
-
-	l.mu.UIDs.Lock()
-	defer l.mu.UIDs.Unlock()
-
-	for _, u := range l.UIDs {
-		if u.Kodi == kodiID {
-			return u
-		}
-	}
-
-	return nil
-}
-
-// GetShowForEpisode returns 'show' and 'episode'
-func GetShowForEpisode(kodiID int) (*Show, *Episode) {
-	if kodiID == 0 {
-		return nil, nil
-	}
-
-	l.mu.Shows.RLock()
-	defer l.mu.Shows.RUnlock()
-
-	for _, s := range l.Shows {
-		for _, e := range s.Episodes {
-			if e.UIDs.Kodi == kodiID {
-				return s, e
-			}
-		}
-	}
-
-	return nil, nil
 }
 
 func getShowPath(show *tmdb.Show) (showPath, showStrm string) {
@@ -1460,7 +1293,7 @@ func getShowPath(show *tmdb.Show) (showPath, showStrm string) {
 func getMoviePathsByTMDB(id int) (ret map[string]bool) {
 	ret = map[string]bool{}
 
-	if m, err := GetMovieByTMDB(id); err == nil {
+	if m, err := uid.GetMovieByTMDB(id); err == nil {
 		if m != nil && m.File != "" && strings.HasSuffix(m.File, ".strm") {
 			ret[filepath.Dir(m.File)] = true
 		}
@@ -1472,7 +1305,7 @@ func getMoviePathsByTMDB(id int) (ret map[string]bool) {
 func getShowPathsByTMDB(id int) (ret map[string]bool) {
 	ret = map[string]bool{}
 
-	if s, err := findShowByTMDB(id); err == nil {
+	if s, err := uid.FindShowByTMDB(id); err == nil {
 		for _, e := range s.Episodes {
 			if e != nil && e.File != "" && strings.HasSuffix(e.File, ".strm") {
 				ret[filepath.Dir(e.File)] = true

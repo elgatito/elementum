@@ -16,6 +16,7 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/database"
 	"github.com/elgatito/elementum/library"
+	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/providers"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/trakt"
@@ -194,7 +195,7 @@ func countResolution(torrents []*bittorrent.TorrentFile, resolution int) (res in
 
 func addMovieToLibrary(m *trakt.Movie) {
 	// If movie is positive and we don't have it in the library - add it.
-	if !config.Get().AutoScrapeLibraryEnabled || library.IsAddedToLibrary(strconv.Itoa(m.IDs.TMDB), library.MovieType) {
+	if !config.Get().AutoScrapeLibraryEnabled || uid.IsAddedToLibrary(strconv.Itoa(m.IDs.TMDB), library.MovieType) {
 		return
 	}
 

@@ -10,7 +10,7 @@ import (
 
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
-	"github.com/elgatito/elementum/library"
+	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/xbmc"
 )
@@ -44,25 +44,25 @@ func ContextPlaySelector(s *bittorrent.Service) gin.HandlerFunc {
 			}
 			return
 		} else if media == "movie" {
-			if m := library.GetLibraryMovie(kodiID); m != nil && m.UIDs.TMDB != 0 {
+			if m := uid.GetLibraryMovie(kodiID); m != nil && m.UIDs.TMDB != 0 {
 				title := fmt.Sprintf("%s (%d)", m.Title, m.Year)
 				ctx.Redirect(302, URLQuery(URLForXBMC("/movie/%d/%s/%s", m.UIDs.TMDB, mediaAction, url.PathEscape(title))))
 				return
 			}
 		} else if media == "episode" {
-			if s, e := library.GetLibraryEpisode(kodiID); s != nil && e != nil && s.UIDs.TMDB != 0 {
+			if s, e := uid.GetLibraryEpisode(kodiID); s != nil && e != nil && s.UIDs.TMDB != 0 {
 				title := fmt.Sprintf("%s S%02dE%02d", s.Title, e.Season, e.Episode)
 				ctx.Redirect(302, URLQuery(URLForXBMC("/show/%d/season/%d/episode/%d/%s/%s", s.UIDs.TMDB, e.Season, e.Episode, mediaAction, url.PathEscape(title))))
 				return
 			}
 		} else if media == "season" {
-			if s, se := library.GetLibrarySeason(kodiID); s != nil && se != nil && s.UIDs.TMDB != 0 {
+			if s, se := uid.GetLibrarySeason(kodiID); s != nil && se != nil && s.UIDs.TMDB != 0 {
 				title := fmt.Sprintf("%s S%02d", s.Title, se.Season)
 				ctx.Redirect(302, URLQuery(URLForXBMC("/show/%d/season/%d/%s/%s", s.UIDs.TMDB, se.Season, mediaAction, url.PathEscape(title))))
 				return
 			}
 		} else if media == "tvshow" {
-			if s := library.GetLibraryShow(kodiID); s != nil && s.UIDs.TMDB != 0 {
+			if s := uid.GetLibraryShow(kodiID); s != nil && s.UIDs.TMDB != 0 {
 				title := fmt.Sprintf("%s", s.Title)
 				ctx.Redirect(302, URLQuery(URLForXBMC("/show/%d/%s/%s", s.UIDs.TMDB, mediaAction, url.PathEscape(title))))
 				return
@@ -89,19 +89,19 @@ func ContextAssignKodiSelector(s *bittorrent.Service) gin.HandlerFunc {
 
 		if kodiID != 0 {
 			if media == "movie" {
-				if m := library.GetLibraryMovie(kodiID); m != nil && m.UIDs.TMDB != 0 {
+				if m := uid.GetLibraryMovie(kodiID); m != nil && m.UIDs.TMDB != 0 {
 					tmdbID = m.UIDs.TMDB
 					ctx.Redirect(302, URLQuery(URLForXBMC("/context/torrents/assign/%s/tmdb/%s/%d", torrentID, media, tmdbID)))
 					return
 				}
 			} else if media == "episode" {
-				if s, e := library.GetLibraryEpisode(kodiID); s != nil && e != nil && s.UIDs.TMDB != 0 {
+				if s, e := uid.GetLibraryEpisode(kodiID); s != nil && e != nil && s.UIDs.TMDB != 0 {
 					tmdbID = s.UIDs.TMDB
 					ctx.Redirect(302, URLQuery(URLForXBMC("/context/torrents/assign/%s/tmdb/show/%d/season/%d/%s/%d", torrentID, tmdbID, e.Season, media, e.Episode)))
 					return
 				}
 			} else if media == "season" {
-				if s, se := library.GetLibrarySeason(kodiID); s != nil && se != nil && s.UIDs.TMDB != 0 {
+				if s, se := uid.GetLibrarySeason(kodiID); s != nil && se != nil && s.UIDs.TMDB != 0 {
 					tmdbID = s.UIDs.TMDB
 					ctx.Redirect(302, URLQuery(URLForXBMC("/context/torrents/assign/%s/tmdb/show/%d/%s/%d", torrentID, tmdbID, media, se.Season)))
 					return
@@ -191,11 +191,11 @@ func ContextActionFromKodiLibrarySelector(s *bittorrent.Service) gin.HandlerFunc
 
 		if kodiID != 0 {
 			if media == "movie" {
-				if m := library.GetLibraryMovie(kodiID); m != nil && m.UIDs.TMDB != 0 {
+				if m := uid.GetLibraryMovie(kodiID); m != nil && m.UIDs.TMDB != 0 {
 					tmdbID = m.UIDs.TMDB
 				}
 			} else if media == "tvshow" {
-				if s := library.GetLibraryShow(kodiID); s != nil && s.UIDs.TMDB != 0 {
+				if s := uid.GetLibraryShow(kodiID); s != nil && s.UIDs.TMDB != 0 {
 					tmdbID = s.UIDs.TMDB
 				}
 				media = "show"

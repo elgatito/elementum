@@ -15,7 +15,7 @@ import (
 
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
-	"github.com/elgatito/elementum/library"
+	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/xbmc"
 )
@@ -169,7 +169,7 @@ func GetEpisodeLabels(showID, seasonNumber, episodeNumber int) (item *xbmc.ListI
 	}
 
 	item = episode.ToListItem(show, season)
-	if ls, err := library.GetShowByTMDB(show.ID); ls != nil && err == nil {
+	if ls, err := uid.GetShowByTMDB(show.ID); ls != nil && err == nil {
 		log.Debugf("Found show in library: %s", litter.Sdump(ls.UIDs))
 		if le := ls.GetEpisode(episode.SeasonNumber, episodeNumber); le != nil {
 			item.Info.DBID = le.UIDs.Kodi
@@ -197,7 +197,7 @@ func GetMovieLabels(tmdbID string) (item *xbmc.ListItem, err error) {
 	}
 
 	item = movie.ToListItem()
-	if lm, err := library.GetMovieByTMDB(movie.ID); lm != nil && err == nil {
+	if lm, err := uid.GetMovieByTMDB(movie.ID); lm != nil && err == nil {
 		log.Debugf("Found movie in library: %s", litter.Sdump(lm))
 		item.Info.DBID = lm.UIDs.Kodi
 	}

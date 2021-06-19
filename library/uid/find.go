@@ -1,4 +1,4 @@
-package library
+package uid
 
 import (
 	"errors"
@@ -10,8 +10,8 @@ import (
 
 // GetLibraryMovie finds Movie from library
 func GetLibraryMovie(kodiID int) *Movie {
-	l.mu.Movies.Lock()
-	defer l.mu.Movies.Unlock()
+	l.Mu.Movies.Lock()
+	defer l.Mu.Movies.Unlock()
 
 	for _, m := range l.Movies {
 		if m.UIDs.Kodi == kodiID {
@@ -24,8 +24,8 @@ func GetLibraryMovie(kodiID int) *Movie {
 
 // GetLibraryShow finds Show from library
 func GetLibraryShow(kodiID int) *Show {
-	l.mu.Shows.RLock()
-	defer l.mu.Shows.RUnlock()
+	l.Mu.Shows.RLock()
+	defer l.Mu.Shows.RUnlock()
 
 	// query := strconv.Itoa(kodiID)
 	for _, s := range l.Shows {
@@ -39,8 +39,8 @@ func GetLibraryShow(kodiID int) *Show {
 
 // GetLibrarySeason finds Show/Season from library
 func GetLibrarySeason(kodiID int) (*Show, *Season) {
-	l.mu.Shows.RLock()
-	defer l.mu.Shows.RUnlock()
+	l.Mu.Shows.RLock()
+	defer l.Mu.Shows.RUnlock()
 
 	for _, s := range l.Shows {
 		for _, se := range s.Seasons {
@@ -55,8 +55,8 @@ func GetLibrarySeason(kodiID int) (*Show, *Season) {
 
 // GetLibraryEpisode finds Show/Episode from library
 func GetLibraryEpisode(kodiID int) (*Show, *Episode) {
-	l.mu.Shows.RLock()
-	defer l.mu.Shows.RUnlock()
+	l.Mu.Shows.RLock()
+	defer l.Mu.Shows.RUnlock()
 
 	for _, s := range l.Shows {
 		for _, e := range s.Episodes {
@@ -71,8 +71,8 @@ func GetLibraryEpisode(kodiID int) (*Show, *Episode) {
 
 // GetMovieByTMDB ...
 func GetMovieByTMDB(id int) (*Movie, error) {
-	l.mu.Movies.RLock()
-	defer l.mu.Movies.RUnlock()
+	l.Mu.Movies.RLock()
+	defer l.Mu.Movies.RUnlock()
 
 	for _, m := range l.Movies {
 		if m != nil && m.UIDs.TMDB == id {
@@ -85,8 +85,8 @@ func GetMovieByTMDB(id int) (*Movie, error) {
 
 // GetMovieByIMDB ...
 func GetMovieByIMDB(id string) (*Movie, error) {
-	l.mu.Movies.RLock()
-	defer l.mu.Movies.RUnlock()
+	l.Mu.Movies.RLock()
+	defer l.Mu.Movies.RUnlock()
 
 	for _, m := range l.Movies {
 		if m != nil && m.UIDs.IMDB == id {
@@ -99,8 +99,8 @@ func GetMovieByIMDB(id string) (*Movie, error) {
 
 // GetShowByTMDB ...
 func GetShowByTMDB(id int) (*Show, error) {
-	l.mu.Shows.RLock()
-	defer l.mu.Shows.RUnlock()
+	l.Mu.Shows.RLock()
+	defer l.Mu.Shows.RUnlock()
 
 	for _, s := range l.Shows {
 		if s != nil && s.UIDs.TMDB == id {
@@ -111,8 +111,8 @@ func GetShowByTMDB(id int) (*Show, error) {
 	return nil, errors.New("Not found")
 }
 
-// findShowByKodi ...
-func findShowByKodi(id int) (*Show, error) {
+// FindShowByKodi ...
+func FindShowByKodi(id int) (*Show, error) {
 	for _, s := range l.Shows {
 		if s != nil && s.UIDs.Kodi == id {
 			return s, nil
@@ -122,8 +122,8 @@ func findShowByKodi(id int) (*Show, error) {
 	return nil, errors.New("Not found")
 }
 
-// findShowByTMDB ...
-func findShowByTMDB(id int) (*Show, error) {
+// FindShowByTMDB ...
+func FindShowByTMDB(id int) (*Show, error) {
 	for _, s := range l.Shows {
 		if s != nil && s.UIDs.TMDB == id {
 			return s, nil
@@ -133,8 +133,8 @@ func findShowByTMDB(id int) (*Show, error) {
 	return nil, errors.New("Not found")
 }
 
-// findShowByIMDB ...
-func findShowByIMDB(id string) (*Show, error) {
+// FindShowByIMDB ...
+func FindShowByIMDB(id string) (*Show, error) {
 	for _, s := range l.Shows {
 		if s != nil && s.UIDs.IMDB == id {
 			return s, nil
@@ -146,8 +146,8 @@ func findShowByIMDB(id string) (*Show, error) {
 
 // GetShowByIMDB ...
 func GetShowByIMDB(id string) (*Show, error) {
-	l.mu.Shows.RLock()
-	defer l.mu.Shows.RUnlock()
+	l.Mu.Shows.RLock()
+	defer l.Mu.Shows.RUnlock()
 
 	for _, s := range l.Shows {
 		if s != nil && s.UIDs.IMDB == id {

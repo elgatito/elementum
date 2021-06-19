@@ -13,6 +13,7 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/database"
 	"github.com/elgatito/elementum/library"
+	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/providers"
 	"github.com/elgatito/elementum/scrape"
 	"github.com/elgatito/elementum/tmdb"
@@ -321,7 +322,7 @@ func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, que
 		libraryActions := [][]string{
 			{contextLabel, fmt.Sprintf("PlayMedia(%s)", contextURL)},
 		}
-		if library.IsDuplicateMovie(tmdbID) || library.IsAddedToLibrary(tmdbID, library.MovieType) {
+		if uid.IsDuplicateMovie(tmdbID) || uid.IsAddedToLibrary(tmdbID, library.MovieType) {
 			libraryActions = append(libraryActions, []string{"LOCALIZE[30283]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/movie/add/%d?force=true", movie.ID))})
 			libraryActions = append(libraryActions, []string{"LOCALIZE[30253]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/movie/remove/%d", movie.ID))})
 		} else {

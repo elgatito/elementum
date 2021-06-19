@@ -8,6 +8,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/trakt"
 	"github.com/elgatito/elementum/xbmc"
@@ -23,6 +24,7 @@ var (
 // RefreshTrakt gets user activities from Trakt
 // to see if we need to add movies/set watched status and so on
 func RefreshTrakt() error {
+	l := uid.Get()
 	if config.Get().TraktToken == "" || !config.Get().TraktSyncEnabled || (!config.Get().TraktSyncPlaybackEnabled && xbmc.PlayerIsPlaying()) {
 		// Even if sync is disabled, check if current Trakt auth is fine to use.
 		if config.Get().TraktToken != "" && !config.Get().TraktAuthorized {
@@ -77,10 +79,10 @@ func RefreshTrakt() error {
 	}()
 
 	if isFirstRun {
-		l.mu.Trakt.Lock()
+		l.Mu.Trakt.Lock()
 		l.WatchedTraktMovies = []uint64{}
 		l.WatchedTraktShows = []uint64{}
-		l.mu.Trakt.Unlock()
+		l.Mu.Trakt.Unlock()
 
 		IsTraktInitialized = true
 		isKodiUpdated = false
@@ -176,8 +178,9 @@ func RefreshTraktWatched(itemType int, isRefreshNeeded bool) error {
 		return nil
 	}
 
-	l.mu.Trakt.Lock()
-	defer l.mu.Trakt.Unlock()
+	l := uid.Get()
+	l.Mu.Trakt.Lock()
+	defer l.Mu.Trakt.Unlock()
 
 	started := time.Now()
 	defer func() {
@@ -195,6 +198,7 @@ func RefreshTraktWatched(itemType int, isRefreshNeeded bool) error {
 }
 
 func refreshTraktMoviesWatched(isRefreshNeeded bool) error {
+	l := uid.Get()
 	l.Running.IsMovies = true
 	defer func() {
 		l.Running.IsMovies = false
@@ -266,7 +270,7 @@ func refreshTraktMoviesWatched(isRefreshNeeded bool) error {
 	syncWatchMovies := []*trakt.WatchedItem{}
 	syncUnwatchMovies := []*trakt.WatchedItem{}
 
-	l.mu.Movies.Lock()
+	l.Mu.Movies.Lock()
 	for _, m := range l.Movies {
 		if m.UIDs.TMDB == 0 {
 			continue
@@ -292,7 +296,7 @@ func refreshTraktMoviesWatched(isRefreshNeeded bool) error {
 			syncUnwatchMovies = append(syncUnwatchMovies, item)
 		}
 	}
-	l.mu.Movies.Unlock()
+	l.Mu.Movies.Unlock()
 
 	if len(syncUnwatchMovies) > 0 {
 		if _, err := trakt.SetMultipleWatched(syncUnwatchMovies); err == nil {
@@ -316,6 +320,7 @@ func refreshTraktMoviesWatched(isRefreshNeeded bool) error {
 }
 
 func refreshTraktShowsWatched(isRefreshNeeded bool) error {
+	l := uid.Get()
 	l.Running.IsShows = true
 	defer func() {
 		l.Running.IsShows = false
@@ -421,7 +426,7 @@ func refreshTraktShowsWatched(isRefreshNeeded bool) error {
 	syncWatchShows := []*trakt.WatchedItem{}
 	syncUnwatchShows := []*trakt.WatchedItem{}
 
-	l.mu.Shows.Lock()
+	l.Mu.Shows.Lock()
 	for _, s := range l.Shows {
 		if s.UIDs.TMDB == 0 || hasXXItem(l.WatchedTraktShows, ShowType, s.UIDs) {
 			continue
@@ -457,7 +462,7 @@ func refreshTraktShowsWatched(isRefreshNeeded bool) error {
 			}
 		}
 	}
-	l.mu.Shows.Unlock()
+	l.Mu.Shows.Unlock()
 
 	if len(syncUnwatchShows) > 0 {
 		if _, err := trakt.SetMultipleWatched(syncUnwatchShows); err == nil {
@@ -496,7 +501,7 @@ func addXXItem(ary []uint64, media int, uids *trakt.IDs, ids ...int) []uint64 {
 	return ary
 }
 
-func hasXXItem(ary []uint64, media int, uids *UniqueIDs, ids ...int) bool {
+func hasXXItem(ary []uint64, media int, uids *uid.UniqueIDs, ids ...int) bool {
 	traktKey, tmdbKey, imdbKey := getXXItem(ary, media, uids.Trakt, uids.TMDB, uids.IMDB, ids...)
 
 	for _, item := range ary {
@@ -554,22 +559,22 @@ func getXXItem(ary []uint64, media int, traktID int, tmdbID int, imdbID string, 
 	return
 }
 
-func getKodiMovieByTraktIDs(ids *trakt.IDs) (r *Movie) {
+func getKodiMovieByTraktIDs(ids *trakt.IDs) (r *uid.Movie) {
 	if r == nil && ids.TMDB != 0 {
-		r, _ = GetMovieByTMDB(ids.TMDB)
+		r, _ = uid.GetMovieByTMDB(ids.TMDB)
 	}
 	if r == nil && ids.IMDB != "" {
-		r, _ = GetMovieByIMDB(ids.IMDB)
+		r, _ = uid.GetMovieByIMDB(ids.IMDB)
 	}
 	return
 }
 
-func getKodiShowByTraktIDs(ids *trakt.IDs) (r *Show) {
+func getKodiShowByTraktIDs(ids *trakt.IDs) (r *uid.Show) {
 	if r == nil && ids.TMDB != 0 {
-		r, _ = findShowByTMDB(ids.TMDB)
+		r, _ = uid.FindShowByTMDB(ids.TMDB)
 	}
 	if r == nil && ids.IMDB != "" {
-		r, _ = findShowByIMDB(ids.IMDB)
+		r, _ = uid.FindShowByIMDB(ids.IMDB)
 	}
 	return
 }
@@ -696,6 +701,8 @@ func RefreshTraktPaused(itemType int, isRefreshNeeded bool) error {
 		log.Debugf("Trakt sync paused for '%d' finished in %s", itemType, time.Since(started))
 	}()
 
+	l := uid.Get()
+
 	if itemType == MovieType {
 		l.Running.IsMovies = true
 		defer func() {
@@ -713,7 +720,7 @@ func RefreshTraktPaused(itemType int, isRefreshNeeded bool) error {
 				continue
 			}
 
-			if lm, err := GetMovieByTMDB(m.Movie.IDs.TMDB); err == nil {
+			if lm, err := uid.GetMovieByTMDB(m.Movie.IDs.TMDB); err == nil {
 				if t, ok := lastUpdates[m.Movie.IDs.Trakt]; ok && !t.Before(m.PausedAt) {
 					continue
 				}
@@ -741,7 +748,7 @@ func RefreshTraktPaused(itemType int, isRefreshNeeded bool) error {
 				continue
 			}
 
-			if ls, err := GetShowByTMDB(s.Show.IDs.TMDB); err == nil {
+			if ls, err := uid.GetShowByTMDB(s.Show.IDs.TMDB); err == nil {
 				e := ls.GetEpisode(s.Episode.Season, s.Episode.Number)
 				if e == nil {
 					continue
