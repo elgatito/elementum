@@ -91,7 +91,7 @@ type Configuration struct {
 	ShowUnairedSeasons          bool
 	ShowUnairedEpisodes         bool
 	ShowEpisodesOnReleaseDay    bool
-	ShowUnwatchedEpisodedNumber bool
+	ShowUnwatchedEpisodesNumber bool
 	ShowSeasonsAll              bool
 	ShowSeasonsOrder            int
 	ShowSeasonsSpecials         bool
@@ -564,7 +564,7 @@ func Reload() *Configuration {
 		ShowUnairedSeasons:          settings.ToBool("unaired_seasons"),
 		ShowUnairedEpisodes:         settings.ToBool("unaired_episodes"),
 		ShowEpisodesOnReleaseDay:    settings.ToBool("show_episodes_on_release_day"),
-		ShowUnwatchedEpisodedNumber: settings.ToBool("show_unwatched_episoded_number"),
+		ShowUnwatchedEpisodesNumber: settings.ToBool("show_unwatched_episodes_number"),
 		ShowSeasonsAll:              settings.ToBool("seasons_all"),
 		ShowSeasonsOrder:            settings.ToInt("seasons_order"),
 		ShowSeasonsSpecials:         settings.ToBool("seasons_specials"),
