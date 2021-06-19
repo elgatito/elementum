@@ -151,7 +151,7 @@ func InfoLabelsSearch(s *bittorrent.Service) gin.HandlerFunc {
 	}
 }
 
-// GetEpisodeLabels returnes listitem for an episode
+// GetEpisodeLabels returns listitem for an episode
 func GetEpisodeLabels(showID, seasonNumber, episodeNumber int) (item *xbmc.ListItem, err error) {
 	show := tmdb.GetShow(showID, config.Get().Language)
 	if show == nil {
@@ -189,7 +189,7 @@ func GetEpisodeLabels(showID, seasonNumber, episodeNumber int) (item *xbmc.ListI
 	return
 }
 
-// GetMovieLabels returnes listitem for a movie
+// GetMovieLabels returns listitem for a movie
 func GetMovieLabels(tmdbID string) (item *xbmc.ListItem, err error) {
 	movie := tmdb.GetMovieByID(tmdbID, config.Get().Language)
 	if movie == nil {
@@ -205,7 +205,7 @@ func GetMovieLabels(tmdbID string) (item *xbmc.ListItem, err error) {
 	return
 }
 
-// GetSearchLabels returnes listitem for a search query
+// GetSearchLabels returns listitem for a search query
 func GetSearchLabels(s *bittorrent.Service, tmdbID string, idx string) (item *xbmc.ListItem, err error) {
 	torrent := s.HasTorrentByFakeID(tmdbID)
 	if torrent == nil || torrent.DBItem == nil {
