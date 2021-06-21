@@ -35,7 +35,7 @@ var (
 	Mu = sync.RWMutex{}
 
 	// Watched contains uint64 hashed bools
-	Watched = []uint64{}
+	Watched = map[uint64]WatchedState{}
 )
 
 // WatchedState just a simple bool with Int() conversion
@@ -45,13 +45,7 @@ func searchForKey(k uint64) WatchedState {
 	Mu.RLock()
 	defer Mu.RUnlock()
 
-	for _, v := range Watched {
-		if v == k {
-			return true
-		}
-	}
-
-	return false
+	return Watched[k]
 }
 
 // GetWatchedMovieByTMDB checks whether item is watched
