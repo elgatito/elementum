@@ -85,6 +85,7 @@ type ListItemProperties struct {
 	UnWatchedEpisodes        string `json:"unwatchedepisodes,omitempty"`
 	SubtitlesSync            string `json:"sync,omitempty"`
 	SubtitlesHearingImpaired string `json:"hearing_imp,omitempty"`
+	ShowTMDBId               string `json:"showtmdbid,omitempty"`
 }
 
 // ListItemInfo ...

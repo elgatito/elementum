@@ -174,6 +174,7 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 		},
 		Properties: &xbmc.ListItemProperties{
 			TotalEpisodes: strconv.Itoa(season.EpisodeCount),
+			ShowTMDBId:    strconv.Itoa(show.ID),
 		},
 		Art: &xbmc.ListItemArt{
 			TvShowPoster: ImageURL(show.PosterPath, "w1280"),

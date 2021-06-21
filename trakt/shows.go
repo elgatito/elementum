@@ -1029,6 +1029,9 @@ func (episode *Episode) ToListItem(show *Show) *xbmc.ListItem {
 		UniqueIDs: &xbmc.UniqueIDs{
 			TMDB: strconv.Itoa(episode.IDs.TMDB),
 		},
+		Properties: &xbmc.ListItemProperties{
+			ShowTMDBId: strconv.Itoa(show.IDs.TMDB),
+		},
 	}
 
 	episodeInLibrary := false

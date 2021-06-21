@@ -843,10 +843,14 @@ func (z *ListItem) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.AppendBool(o, z.TraktAuth)
 	// string "UniqueIDs"
 	o = append(o, 0xa9, 0x55, 0x6e, 0x69, 0x71, 0x75, 0x65, 0x49, 0x44, 0x73)
-	o, err = z.UniqueIDs.MarshalMsg(o)
-	if err != nil {
-		err = msgp.WrapError(err, "UniqueIDs")
-		return
+	if z.UniqueIDs == nil {
+		o = msgp.AppendNil(o)
+	} else {
+		o, err = z.UniqueIDs.MarshalMsg(o)
+		if err != nil {
+			err = msgp.WrapError(err, "UniqueIDs")
+			return
+		}
 	}
 	return
 }
@@ -1031,10 +1035,21 @@ func (z *ListItem) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "UniqueIDs":
-			bts, err = z.UniqueIDs.UnmarshalMsg(bts)
-			if err != nil {
-				err = msgp.WrapError(err, "UniqueIDs")
-				return
+			if msgp.IsNil(bts) {
+				bts, err = msgp.ReadNilBytes(bts)
+				if err != nil {
+					return
+				}
+				z.UniqueIDs = nil
+			} else {
+				if z.UniqueIDs == nil {
+					z.UniqueIDs = new(UniqueIDs)
+				}
+				bts, err = z.UniqueIDs.UnmarshalMsg(bts)
+				if err != nil {
+					err = msgp.WrapError(err, "UniqueIDs")
+					return
+				}
 			}
 		default:
 			bts, err = msgp.Skip(bts)
@@ -1085,7 +1100,12 @@ func (z *ListItem) Msgsize() (s int) {
 	for za0003 := range z.CastMembers {
 		s += z.CastMembers[za0003].Msgsize()
 	}
-	s += 10 + msgp.BoolSize + 10 + z.UniqueIDs.Msgsize()
+	s += 10 + msgp.BoolSize + 10
+	if z.UniqueIDs == nil {
+		s += msgp.NilSize
+	} else {
+		s += z.UniqueIDs.Msgsize()
+	}
 	return
 }
 
@@ -1949,9 +1969,9 @@ func (z *ListItemInfo) Msgsize() (s int) {
 // MarshalMsg implements msgp.Marshaler
 func (z *ListItemProperties) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 6
+	// map header, size 7
 	// string "TotalSeasons"
-	o = append(o, 0x86, 0xac, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x53, 0x65, 0x61, 0x73, 0x6f, 0x6e, 0x73)
+	o = append(o, 0x87, 0xac, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x53, 0x65, 0x61, 0x73, 0x6f, 0x6e, 0x73)
 	o = msgp.AppendString(o, z.TotalSeasons)
 	// string "TotalEpisodes"
 	o = append(o, 0xad, 0x54, 0x6f, 0x74, 0x61, 0x6c, 0x45, 0x70, 0x69, 0x73, 0x6f, 0x64, 0x65, 0x73)
@@ -1968,6 +1988,9 @@ func (z *ListItemProperties) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "SubtitlesHearingImpaired"
 	o = append(o, 0xb8, 0x53, 0x75, 0x62, 0x74, 0x69, 0x74, 0x6c, 0x65, 0x73, 0x48, 0x65, 0x61, 0x72, 0x69, 0x6e, 0x67, 0x49, 0x6d, 0x70, 0x61, 0x69, 0x72, 0x65, 0x64)
 	o = msgp.AppendString(o, z.SubtitlesHearingImpaired)
+	// string "ShowTMDBId"
+	o = append(o, 0xaa, 0x53, 0x68, 0x6f, 0x77, 0x54, 0x4d, 0x44, 0x42, 0x49, 0x64)
+	o = msgp.AppendString(o, z.ShowTMDBId)
 	return
 }
 
@@ -2025,6 +2048,12 @@ func (z *ListItemProperties) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "SubtitlesHearingImpaired")
 				return
 			}
+		case "ShowTMDBId":
+			z.ShowTMDBId, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "ShowTMDBId")
+				return
+			}
 		default:
 			bts, err = msgp.Skip(bts)
 			if err != nil {
@@ -2039,7 +2068,7 @@ func (z *ListItemProperties) UnmarshalMsg(bts []byte) (o []byte, err error) {
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
 func (z *ListItemProperties) Msgsize() (s int) {
-	s = 1 + 13 + msgp.StringPrefixSize + len(z.TotalSeasons) + 14 + msgp.StringPrefixSize + len(z.TotalEpisodes) + 16 + msgp.StringPrefixSize + len(z.WatchedEpisodes) + 18 + msgp.StringPrefixSize + len(z.UnWatchedEpisodes) + 14 + msgp.StringPrefixSize + len(z.SubtitlesSync) + 25 + msgp.StringPrefixSize + len(z.SubtitlesHearingImpaired)
+	s = 1 + 13 + msgp.StringPrefixSize + len(z.TotalSeasons) + 14 + msgp.StringPrefixSize + len(z.TotalEpisodes) + 16 + msgp.StringPrefixSize + len(z.WatchedEpisodes) + 18 + msgp.StringPrefixSize + len(z.UnWatchedEpisodes) + 14 + msgp.StringPrefixSize + len(z.SubtitlesSync) + 25 + msgp.StringPrefixSize + len(z.SubtitlesHearingImpaired) + 11 + msgp.StringPrefixSize + len(z.ShowTMDBId)
 	return
 }
 
