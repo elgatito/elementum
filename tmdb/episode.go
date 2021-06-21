@@ -128,17 +128,9 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 		},
 	}
 
-	episodeInLibrary := false
 	if ls, err := uid.GetShowByTMDB(show.ID); ls != nil && err == nil {
 		if le := ls.GetEpisode(episode.SeasonNumber, episode.EpisodeNumber); le != nil {
 			item.Info.DBID = le.UIDs.Kodi
-			episodeInLibrary = true
-		}
-	}
-	if !episodeInLibrary {
-		fakeDBID := util.GetEpisodeFakeDBID(episode.ID)
-		if fakeDBID > 0 {
-			item.Info.DBID = fakeDBID
 		}
 	}
 

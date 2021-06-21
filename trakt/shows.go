@@ -953,11 +953,6 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 
 	if ls, err := uid.GetShowByTMDB(show.IDs.TMDB); ls != nil && err == nil {
 		item.Info.DBID = ls.UIDs.Kodi
-	} else {
-		fakeDBID := util.GetShowFakeDBID(show.IDs.TMDB)
-		if fakeDBID > 0 {
-			item.Info.DBID = fakeDBID
-		}
 	}
 
 	if config.Get().ShowUnwatchedEpisodesNumber {
@@ -1031,17 +1026,9 @@ func (episode *Episode) ToListItem(show *Show) *xbmc.ListItem {
 		},
 	}
 
-	episodeInLibrary := false
 	if ls, err := uid.GetShowByTMDB(show.IDs.TMDB); ls != nil && err == nil {
 		if le := ls.GetEpisode(episode.Season, episode.Number); le != nil {
 			item.Info.DBID = le.UIDs.Kodi
-			episodeInLibrary = true
-		}
-	}
-	if !episodeInLibrary {
-		fakeDBID := util.GetEpisodeFakeDBID(episode.IDs.TMDB)
-		if fakeDBID > 0 {
-			item.Info.DBID = fakeDBID
 		}
 	}
 

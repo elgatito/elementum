@@ -186,17 +186,9 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 		},
 	}
 
-	seasonInLibrary := false
 	if ls, err := uid.GetShowByTMDB(show.ID); ls != nil && err == nil {
 		if lse := ls.GetSeason(season.Season); lse != nil {
 			item.Info.DBID = lse.UIDs.Kodi
-			seasonInLibrary = true
-		}
-	}
-	if !seasonInLibrary {
-		fakeDBID := util.GetSeasonFakeDBID(season.ID)
-		if fakeDBID > 0 {
-			item.Info.DBID = fakeDBID
 		}
 	}
 
