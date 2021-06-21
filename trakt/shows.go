@@ -960,7 +960,7 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 		}
 	}
 
-	if config.Get().ShowUnwatchedEpisodesNumber {
+	if config.Get().ShowUnwatchedEpisodesNumber && config.Get().ForceUseTrakt {
 		watchedEpisodes := show.watchedEpisodesNumber()
 		item.Properties.WatchedEpisodes = strconv.Itoa(watchedEpisodes)
 		item.Properties.UnWatchedEpisodes = strconv.Itoa(show.AiredEpisodes - watchedEpisodes)
