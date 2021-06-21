@@ -562,7 +562,7 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 
 	if ls, err := uid.GetShowByTMDB(show.ID); ls != nil && err == nil {
 		item.Info.DBID = ls.UIDs.Kodi
-	} else {
+	} else if config.Get().AllowKodiChangeArtworksNonLibrary {
 		fakeDBID := util.GetShowFakeDBID(show.ID)
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID

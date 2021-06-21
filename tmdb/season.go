@@ -193,7 +193,7 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 			seasonInLibrary = true
 		}
 	}
-	if !seasonInLibrary {
+	if !seasonInLibrary && config.Get().AllowKodiChangeArtworksNonLibrary {
 		fakeDBID := util.GetSeasonFakeDBID(season.ID)
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID

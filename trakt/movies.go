@@ -694,7 +694,7 @@ func (movie *Movie) ToListItem() (item *xbmc.ListItem) {
 
 	if lm, err := uid.GetMovieByTMDB(movie.IDs.TMDB); lm != nil && err == nil {
 		item.Info.DBID = lm.UIDs.Kodi
-	} else {
+	} else if config.Get().AllowKodiChangeArtworksNonLibrary {
 		fakeDBID := util.GetMovieFakeDBID(movie.IDs.TMDB)
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID

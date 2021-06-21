@@ -953,7 +953,7 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 
 	if ls, err := uid.GetShowByTMDB(show.IDs.TMDB); ls != nil && err == nil {
 		item.Info.DBID = ls.UIDs.Kodi
-	} else {
+	} else if config.Get().AllowKodiChangeArtworksNonLibrary {
 		fakeDBID := util.GetShowFakeDBID(show.IDs.TMDB)
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID
@@ -1038,7 +1038,7 @@ func (episode *Episode) ToListItem(show *Show) *xbmc.ListItem {
 			episodeInLibrary = true
 		}
 	}
-	if !episodeInLibrary {
+	if !episodeInLibrary && config.Get().AllowKodiChangeArtworksNonLibrary {
 		fakeDBID := util.GetEpisodeFakeDBID(episode.IDs.TMDB)
 		if fakeDBID > 0 {
 			item.Info.DBID = fakeDBID
