@@ -103,6 +103,8 @@ const (
 	TraktShowsHiddenProgressExpire         = GeneralExpire
 	TraktSeasonsKey                        = TraktKey + "seasons.%d"
 	TraktSeasonsExpire                     = GeneralExpire
+	TraktSeasonsExtendedKey                = TraktKey + "seasons.%d.extended"
+	TraktSeasonsExtendedExpire             = GeneralExpire
 	TraktSeasonKey                         = TraktKey + "season.%d.%d"
 	TraktSeasonExpire                      = GeneralExpire
 	TraktEpisodeKey                        = TraktKey + "episode.%d.%d.%d"

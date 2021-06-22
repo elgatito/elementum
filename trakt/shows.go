@@ -194,13 +194,19 @@ func GetShowByTVDB(tvdbID string) (show *Show) {
 }
 
 // GetSeasons returns list of seasons for show
-func GetSeasons(showID int) (seasons []*Season) {
+func GetSeasons(showID int, withEpisodes bool) (seasons []*Season) {
 	endPoint := fmt.Sprintf("shows/%d/seasons", showID)
 
 	params := napping.Params{"extended": "full"}.AsUrlValues()
+	if withEpisodes {
+		params = napping.Params{"extended": "full,episodes"}.AsUrlValues()
+	}
 
 	cacheStore := cache.NewDBStore()
 	key := fmt.Sprintf(cache.TraktSeasonsKey, showID)
+	if withEpisodes {
+		key = fmt.Sprintf(cache.TraktSeasonsExtendedKey, showID)
+	}
 	if err := cacheStore.Get(key, &seasons); err != nil {
 		resp, err := Get(endPoint, params)
 		if err != nil {
@@ -909,7 +915,6 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 	}
 	if item == nil {
 		show = setShowFanart(show)
-		seasons := GetSeasons(show.IDs.Trakt)
 		item = &xbmc.ListItem{
 			Label: show.Title,
 			Info: &xbmc.ListItemInfo{
@@ -934,7 +939,6 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 			},
 			Properties: &xbmc.ListItemProperties{
 				TotalEpisodes: strconv.Itoa(show.AiredEpisodes),
-				TotalSeasons:  strconv.Itoa(len(seasons)),
 			},
 			Art: &xbmc.ListItemArt{
 				TvShowPoster: show.Images.Poster.Full,
@@ -956,6 +960,9 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 	}
 
 	if config.Get().ShowUnwatchedEpisodesNumber && config.Get().ForceUseTrakt {
+		seasons := GetSeasons(show.IDs.Trakt, false)
+		item.Properties.TotalSeasons = strconv.Itoa(CountRealSeasons(seasons))
+
 		watchedEpisodes := show.watchedEpisodesNumber()
 		item.Properties.WatchedEpisodes = strconv.Itoa(watchedEpisodes)
 		item.Properties.UnWatchedEpisodes = strconv.Itoa(show.AiredEpisodes - watchedEpisodes)
@@ -1058,7 +1065,7 @@ func (episode *Episode) ToListItem(show *Show) *xbmc.ListItem {
 
 // watchedEpisodesNumber returns number of watched episodes
 func (show *Show) watchedEpisodesNumber() int {
-	seasons := GetSeasons(show.IDs.Trakt)
+	seasons := GetSeasons(show.IDs.Trakt, true)
 	watchedEpisodes := 0
 	if playcount.GetWatchedShowByTrakt(show.IDs.Trakt) {
 		watchedEpisodes = show.AiredEpisodes
@@ -1067,7 +1074,7 @@ func (show *Show) watchedEpisodesNumber() int {
 			if playcount.GetWatchedSeasonByTrakt(show.IDs.Trakt, season.Number) {
 				watchedEpisodes += season.AiredEpisodes
 			} else {
-				for _, episode := range GetSeasonEpisodes(show.IDs.Trakt, season.Number) {
+				for _, episode := range season.Episodes {
 					if playcount.GetWatchedEpisodeByTrakt(show.IDs.Trakt, season.Number, episode.Number) {
 						watchedEpisodes++
 					}
@@ -1076,4 +1083,19 @@ func (show *Show) watchedEpisodesNumber() int {
 		}
 	}
 	return watchedEpisodes
+}
+
+// CountRealSeasons counts real seasons, meaning without specials.
+func CountRealSeasons(seasons []*Season) int {
+	if len(seasons) <= 0 {
+		return 0
+	}
+
+	ret := 0
+	for _, s := range seasons {
+		if s.Number > 0 {
+			ret++
+		}
+	}
+	return ret
 }

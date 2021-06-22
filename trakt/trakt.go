@@ -150,8 +150,9 @@ type Season struct {
 	Votes         int     `json:"votes"`
 	Network       string  `json:"network"`
 
-	Images *Images `json:"images"`
-	IDs    *IDs    `json:"ids"`
+	Episodes []*Episode `json:"episodes"`
+	Images   *Images    `json:"images"`
+	IDs      *IDs       `json:"ids"`
 }
 
 // Episode ...
