@@ -10,7 +10,7 @@ import (
 
 var (
 	// Remove only quotes outside of words
-	trailingApostrophe = regexp.MustCompile(`\s*'\B|\B'\s*`)
+	trailingApostrophe = regexp.MustCompile(`(?:u)\s*'\B|\B'\s*`)
 )
 
 // RemoveTrailingApostrophe ...
