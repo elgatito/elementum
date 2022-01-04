@@ -44,7 +44,7 @@ var (
 	}
 
 	commonResolver  = doh.Use(doh.CloudflareProvider, doh.GoogleProvider)
-	opennicResolver = dns_resolver.New([]string{"163.172.168.171", "51.89.88.77", "172.98.193.62"})
+	opennicResolver = dns_resolver.New([]string{"163.172.168.171", "152.70.189.130", "167.86.112.174"})
 
 	dnsCacheResults sync.Map
 	dnsCacheLocks   sync.Map
