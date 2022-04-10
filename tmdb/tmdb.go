@@ -3,6 +3,7 @@ package tmdb
 import (
 	"fmt"
 	"math/rand"
+	"net/http"
 	"net/url"
 	"sort"
 	"time"
@@ -605,7 +606,18 @@ func GetLanguages(language string) []*Language {
 // MakeRequest used to proxy requests with proper RateLimiter usage and HTTP error processing
 func MakeRequest(r APIRequest) (ret error) {
 	rl.Call(func() error {
-		resp, err := napping.Get(
+		httpTransport := &http.Transport{}
+		if config.Get().ProxyURL != "" {
+			proxyUrl, _ := url.Parse(config.Get().ProxyURL)
+			httpTransport.Proxy = http.ProxyURL(proxyUrl)
+		}
+		httpClient := &http.Client{
+			Transport: httpTransport,
+		}
+		session := napping.Session{
+			Client: httpClient,
+		}
+		resp, err := session.Get(
 			r.URL,
 			&r.Params,
 			r.Result,
