@@ -1534,7 +1534,7 @@ func MatchEpisodeFilename(s, e int, isSingleSeason bool, activeSeason int, show 
 	}
 
 	if found == 0 && show != nil && episode != nil && show.IsAnime() {
-		if an, _ := show.AnimeInfoWithShow(episode, tvdbShow); an != 0 {
+		if an, _ := show.ShowInfoWithShow(episode, tvdbShow); an != 0 {
 			re := regexp.MustCompile(fmt.Sprintf(singleEpisodeMatchRegex, an))
 			for i, choice := range choices {
 				if re.MatchString(choice.Filename) {

@@ -1913,7 +1913,7 @@ func (t *Torrent) ChooseFile(btp *Player) (*File, int, error) {
 			if s := tmdb.GetShow(btp.p.ShowID, config.Get().Language); s != nil && s.IsAnime() {
 				season := tmdb.GetSeason(btp.p.ShowID, btp.p.Season, config.Get().Language, len(s.Seasons))
 				if season != nil && season.HasEpisode(btp.p.Episode) {
-					an, _ := s.AnimeInfo(season.GetEpisode(btp.p.Episode))
+					an, _ := s.ShowInfo(season.GetEpisode(btp.p.Episode))
 					if an != 0 {
 						btp.p.AbsoluteNumber = an
 

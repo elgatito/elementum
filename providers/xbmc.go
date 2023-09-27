@@ -316,23 +316,20 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 
 	tvdbID := util.StrInterfaceToInt(show.ExternalIDs.TVDBID)
 
-	// Is this an Anime?
+	//Some Torrents use absolute episodes range in name.
+	//Provider can use Absolute number to filter such.
 	absoluteNumber := 0
-	if show.IsAnime() {
-		// Sometimes TMDB does use EpisodeNumber with Absolute numbering,
-		// 	so we check if current episode is an absolute number
-		episodesTillSeason := show.EpisodesTillSeason(episode.SeasonNumber)
-		if episodesTillSeason > 0 && episodesTillSeason < episode.EpisodeNumber {
-			absoluteNumber = episode.EpisodeNumber
-		} else if tvdbID > 0 {
-			an, st := show.AnimeInfo(episode)
+	episodesTillSeason := show.EpisodesTillSeason(episode.SeasonNumber)
+	if episodesTillSeason > 0 && episodesTillSeason < episode.EpisodeNumber {
+		absoluteNumber = episode.EpisodeNumber
+	} else if tvdbID > 0 {
+		an, st := show.ShowInfo(episode)
 
-			if an != 0 {
-				absoluteNumber = an
-			}
-			if st != "" {
-				title = st
-			}
+		if an != 0 {
+			absoluteNumber = an
+		}
+		if st != "" {
+			title = st
 		}
 	}
 
