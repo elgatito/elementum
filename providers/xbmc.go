@@ -309,8 +309,8 @@ func (as *AddonSearcher) GetSeasonSearchObject(show *tmdb.Show, season *tmdb.Sea
 // GetEpisodeSearchObject ...
 func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.Episode) *EpisodeSearchObject {
 	year, _ := strconv.Atoi(strings.Split(episode.AirDate, "-")[0])
-	seasonYear, _ := strconv.Atoi(strings.Split(show.Seasons[episode.SeasonNumber-1].AirDate, "-")[0])
-	showYear, _ := strconv.Atoi(strings.Split(show.Seasons[0].AirDate, "-")[0])
+	seasonYear, _ := strconv.Atoi(strings.Split(show.GetSeasonByRealNumber(episode.SeasonNumber).AirDate, "-")[0])
+	showYear, _ := strconv.Atoi(strings.Split(show.GetSeasonByRealNumber(1).AirDate, "-")[0])
 	title := show.Name
 	if config.Get().UseOriginalTitle && show.OriginalName != "" {
 		title = show.OriginalName
@@ -343,6 +343,7 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 		Title:          NormalizeTitle(title),
 		Titles:         map[string]string{"original": NormalizeTitle(show.OriginalName), "source": show.OriginalName},
 		Season:         episode.SeasonNumber,
+		SeasonName:     show.GetSeasonByRealNumber(episode.SeasonNumber).Name,
 		Episode:        episode.EpisodeNumber,
 		Year:           year,
 		SeasonYear:     seasonYear,

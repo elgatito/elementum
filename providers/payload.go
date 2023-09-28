@@ -62,6 +62,7 @@ type EpisodeSearchObject struct {
 	ShowTMDBId     int               `json:"show_tmdb_id"`
 	Title          string            `json:"title"`
 	Season         int               `json:"season"`
+	SeasonName     string            `json:"season_name"`
 	Episode        int               `json:"episode"`
 	Year           int               `json:"year"`
 	SeasonYear     int               `json:"season_year"`
