@@ -909,7 +909,7 @@ func wasRemoved(id int, mediaType int) (wasRemoved bool) {
 	return false
 }
 
-// IsInLibrary checks for LibraryItem in Emenentum database
+// IsInLibrary checks for LibraryItem in Elementum database
 func IsInLibrary(id int, mediaType int) (res bool) {
 	defer perf.ScopeTimer()()
 
@@ -1368,6 +1368,9 @@ func getShowPath(show *tmdb.Show) (showPath, showStrm string) {
 	paths := getShowPathsByTMDB(show.ID)
 	if len(paths) != 0 {
 		for path := range paths {
+			if strings.HasPrefix(path, "special:") {
+				log.Warningf("Got UNEXPECTED special path: %s", path) //FIXME: debug logging
+			}
 			showPath = path
 			break
 		}
@@ -1399,12 +1402,26 @@ func getMoviePathsByTMDB(id int) (ret map[string]bool) {
 }
 
 func getShowPathsByTMDB(id int) (ret map[string]bool) {
+	xbmcHost, err := xbmc.GetLocalXBMCHost()
+	canResolveSpecialPath := true
+	if xbmcHost == nil || err != nil {
+		canResolveSpecialPath = false
+	}
+
 	ret = map[string]bool{}
 
 	if s, err := uid.FindShowByTMDB(id); err == nil {
 		for _, e := range s.Episodes {
 			if e != nil && e.File != "" && !util.IsNetworkPath(e.File) && strings.HasSuffix(e.File, ".strm") {
-				ret[filepath.Dir(e.File)] = true
+				filePath := e.File
+				if strings.HasPrefix(e.File, "special:") {
+					log.Warningf("Got special e.File: %s", e.File) //FIXME: debug logging
+					if canResolveSpecialPath {
+						filePath = xbmcHost.TranslatePath(e.File)
+						log.Warningf("TranslatePath for e.File: %s", filePath) //FIXME: debug logging
+					}
+				}
+				ret[filepath.Dir(filePath)] = true
 			}
 		}
 	}
