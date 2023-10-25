@@ -341,6 +341,7 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 	episodesTillSeason := show.EpisodesTillSeason(episode.SeasonNumber)
 	if episodesTillSeason > 0 && episodesTillSeason < episode.EpisodeNumber {
 		absoluteNumber = episode.EpisodeNumber
+		episode.EpisodeNumber = episode.EpisodeNumber - episodesTillSeason
 	} else if tvdbID > 0 {
 		an, st := show.ShowInfo(episode)
 
