@@ -1368,9 +1368,6 @@ func getShowPath(show *tmdb.Show) (showPath, showStrm string) {
 	paths := getShowPathsByTMDB(show.ID)
 	if len(paths) != 0 {
 		for path := range paths {
-			if strings.HasPrefix(path, "special:") {
-				log.Warningf("Got UNEXPECTED special path: %s", path) //FIXME: debug logging
-			}
 			showPath = path
 			break
 		}
@@ -1415,10 +1412,8 @@ func getShowPathsByTMDB(id int) (ret map[string]bool) {
 			if e != nil && e.File != "" && !util.IsNetworkPath(e.File) && strings.HasSuffix(e.File, ".strm") {
 				filePath := e.File
 				if strings.HasPrefix(e.File, "special:") {
-					log.Warningf("Got special e.File: %s", e.File) //FIXME: debug logging
 					if canResolveSpecialPath {
 						filePath = xbmcHost.TranslatePath(e.File)
-						log.Warningf("TranslatePath for e.File: %s", filePath) //FIXME: debug logging
 					}
 				}
 				ret[filepath.Dir(filePath)] = true
