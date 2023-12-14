@@ -1387,11 +1387,21 @@ func getShowPath(show *tmdb.Show) (showPath, showStrm string) {
 }
 
 func getMoviePathsByTMDB(id int) (ret map[string]bool) {
+	xbmcHost, err := xbmc.GetLocalXBMCHost()
+	canResolveSpecialPath := true
+	if xbmcHost == nil || err != nil {
+		canResolveSpecialPath = false
+	}
+
 	ret = map[string]bool{}
 
 	if m, err := uid.GetMovieByTMDB(id); err == nil {
 		if m != nil && m.File != "" && !util.IsNetworkPath(m.File) && strings.HasSuffix(m.File, ".strm") {
-			ret[filepath.Dir(m.File)] = true
+			filePath := m.File
+			if strings.HasPrefix(filePath, "special:") && canResolveSpecialPath {
+				filePath = xbmcHost.TranslatePath(filePath)
+			}
+			ret[filepath.Dir(filePath)] = true
 		}
 	}
 
@@ -1411,10 +1421,8 @@ func getShowPathsByTMDB(id int) (ret map[string]bool) {
 		for _, e := range s.Episodes {
 			if e != nil && e.File != "" && !util.IsNetworkPath(e.File) && strings.HasSuffix(e.File, ".strm") {
 				filePath := e.File
-				if strings.HasPrefix(e.File, "special:") {
-					if canResolveSpecialPath {
-						filePath = xbmcHost.TranslatePath(e.File)
-					}
+				if strings.HasPrefix(filePath, "special:") && canResolveSpecialPath {
+					filePath = xbmcHost.TranslatePath(filePath)
 				}
 				ret[filepath.Dir(filePath)] = true
 			}
