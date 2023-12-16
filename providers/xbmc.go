@@ -309,6 +309,8 @@ func (as *AddonSearcher) GetSeasonSearchObject(show *tmdb.Show, season *tmdb.Sea
 // GetEpisodeSearchObject ...
 func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.Episode) *EpisodeSearchObject {
 	year, _ := strconv.Atoi(strings.Split(episode.AirDate, "-")[0])
+	seasonYear, _ := strconv.Atoi(strings.Split(show.GetSeasonByRealNumber(episode.SeasonNumber).AirDate, "-")[0])
+	showYear, _ := strconv.Atoi(strings.Split(show.GetSeasonByRealNumber(1).AirDate, "-")[0])
 	title := show.Name
 	if config.Get().UseOriginalTitle && show.OriginalName != "" {
 		title = show.OriginalName
@@ -316,23 +318,20 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 
 	tvdbID := util.StrInterfaceToInt(show.ExternalIDs.TVDBID)
 
-	// Is this an Anime?
+	//Some Torrents use absolute episodes range in name.
+	//Provider can use Absolute number to filter such.
 	absoluteNumber := 0
-	if show.IsAnime() {
-		// Sometimes TMDB does use EpisodeNumber with Absolute numbering,
-		// 	so we check if current episode is an absolute number
-		episodesTillSeason := show.EpisodesTillSeason(episode.SeasonNumber)
-		if episodesTillSeason > 0 && episodesTillSeason < episode.EpisodeNumber {
-			absoluteNumber = episode.EpisodeNumber
-		} else if tvdbID > 0 {
-			an, st := show.AnimeInfo(episode)
+	episodesTillSeason := show.EpisodesTillSeason(episode.SeasonNumber)
+	if episodesTillSeason > 0 && episodesTillSeason < episode.EpisodeNumber {
+		absoluteNumber = episode.EpisodeNumber
+	} else if tvdbID > 0 {
+		an, st := show.ShowInfo(episode)
 
-			if an != 0 {
-				absoluteNumber = an
-			}
-			if st != "" {
-				title = st
-			}
+		if an != 0 {
+			absoluteNumber = an
+		}
+		if st != "" {
+			title = st
 		}
 	}
 
@@ -344,8 +343,11 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 		Title:          NormalizeTitle(title),
 		Titles:         map[string]string{"original": NormalizeTitle(show.OriginalName), "source": show.OriginalName},
 		Season:         episode.SeasonNumber,
+		SeasonName:     show.GetSeasonByRealNumber(episode.SeasonNumber).Name,
 		Episode:        episode.EpisodeNumber,
 		Year:           year,
+		SeasonYear:     seasonYear,
+		ShowYear:       showYear,
 		AbsoluteNumber: absoluteNumber,
 		Anime:          show.IsAnime(),
 	}

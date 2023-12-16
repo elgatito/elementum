@@ -705,6 +705,20 @@ func (show *Show) EpisodesTillSeason(season int) int {
 	return ret
 }
 
+// GetSeasonByRealNumber returns season obj corresponding to real season number.
+func (show *Show) GetSeasonByRealNumber(season int) *Season {
+	if len(show.Seasons) <= 0 {
+		return nil
+	}
+
+	for _, s := range show.Seasons {
+		if s != nil && s.Season == season {
+			return s
+		}
+	}
+	return nil
+}
+
 // CountRealSeasons counts real seasons, meaning without specials.
 func (show *Show) CountRealSeasons() int {
 	if len(show.Seasons) <= 0 {

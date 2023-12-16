@@ -209,6 +209,7 @@ func (s *Service) configure() {
 	s.PeerID, s.UserAgent = ident.GetUserAndPeer()
 	log.Infof("UserAgent: %s, PeerID: %s", s.UserAgent, s.PeerID)
 	settings.SetStr("user_agent", s.UserAgent)
+	settings.SetStr("peer_fingerprint", s.PeerID)
 
 	// Bools
 	settings.SetBool("announce_to_all_tiers", true)
