@@ -69,7 +69,7 @@ export SWIG_LIB=$LOCAL_ENV/share/swig/4.1.1/
 if [ "${DEST_ACTION}" == "local" ]
 then
   set -e
-  test go build $GO_FLAGS -ldflags="-w -X github.com/elgatito/elementum/util.Version=${GIT_VERSION}" -o /var/tmp/${DEST_NAME} .
+  test go build $GO_FLAGS -ldflags="-w -X github.com/elgatito/elementum/util/ident.Version=${GIT_VERSION}" -o /var/tmp/${DEST_NAME} .
   test chmod +x /var/tmp/elementum*
   manage
   mkdir -p $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
@@ -81,7 +81,7 @@ then
 elif [ "${DEST_ACTION}" == "library" ]
 then
   set -e
-  test go build -ldflags="-w -X github.com/elgatito/elementum/util.Version=${GIT_VERSION}" -tags shared -buildmode=c-shared -o /var/tmp/${DEST_LIBRARY} .
+  test go build -ldflags="-w -X github.com/elgatito/elementum/util/ident.Version=${GIT_VERSION}" -tags shared -buildmode=c-shared -o /var/tmp/${DEST_LIBRARY} .
   test chmod +x /var/tmp/elementum*
   manage
   mkdir -p $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
