@@ -576,14 +576,14 @@ func RefreshUIDsRunner(force bool) error {
 			playcount.Watched[xxhash.Sum64String(fmt.Sprintf("%d_%d_%d", ShowType, TVDBScraper, s.UIDs.TVDB))] = true
 		}
 
-		for _, e := range s.Seasons {
-			e.UIDs.MediaType = SeasonType
-			l.UIDs = append(l.UIDs, e.UIDs)
+		for _, se := range s.Seasons {
+			se.UIDs.MediaType = SeasonType
+			l.UIDs = append(l.UIDs, se.UIDs)
 
-			if e.UIDs.Playcount > 0 {
-				playcount.Watched[xxhash.Sum64String(fmt.Sprintf("%d_%d_%d_%d", SeasonType, TMDBScraper, s.UIDs.TMDB, e.Season))] = true
-				playcount.Watched[xxhash.Sum64String(fmt.Sprintf("%d_%d_%d_%d", SeasonType, TraktScraper, s.UIDs.Trakt, e.Season))] = true
-				playcount.Watched[xxhash.Sum64String(fmt.Sprintf("%d_%d_%d_%d", SeasonType, TVDBScraper, s.UIDs.TVDB, e.Season))] = true
+			if se.UIDs.Playcount > 0 {
+				playcount.Watched[xxhash.Sum64String(fmt.Sprintf("%d_%d_%d_%d", SeasonType, TMDBScraper, s.UIDs.TMDB, se.Season))] = true
+				playcount.Watched[xxhash.Sum64String(fmt.Sprintf("%d_%d_%d_%d", SeasonType, TraktScraper, s.UIDs.Trakt, se.Season))] = true
+				playcount.Watched[xxhash.Sum64String(fmt.Sprintf("%d_%d_%d_%d", SeasonType, TVDBScraper, s.UIDs.TVDB, se.Season))] = true
 			}
 		}
 
