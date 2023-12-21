@@ -1,6 +1,6 @@
 #/bin/sh
 
-set -x 
+set -x
 function test {
   echo "+ $@"
   "$@"
@@ -11,6 +11,14 @@ function test {
   return $status
 }
 
+function check_exit_code() {
+    if [ ! \( $1 -eq 0 -o $1 -eq 52 \) ]; then # curl: (52) Empty reply from server
+        echo "Elementum is not running"
+    else
+        echo "Action was successful"
+    fi
+}
+
 function manage {
   if [[ "${DEST_MANAGE}" == *"-local"* ]]; then
     DEST_HOST="127.0.0.1"
@@ -18,16 +26,21 @@ function manage {
     DEST_HOST="$winhost"
   fi
 
+  set +e
   if [[ "${DEST_MANAGE}" == *"restart"* ]]; then
     echo "Restarting Elementum at $DEST_HOST"
-    curl --connect-timeout 2 -s $DEST_HOST:65220/restart || echo \"Elementum is not running\"
+    curl --connect-timeout 2 -s $DEST_HOST:65220/restart
+    check_exit_code $?
   elif [[ "${DEST_MANAGE}" == *"shutdown"* ]]; then
     echo "Shutting down Elementum at $DEST_HOST"
-    curl --connect-timeout 2 -s $DEST_HOST:65220/shutdown || echo \"Elementum is not running\"
+    curl --connect-timeout 2 -s $DEST_HOST:65220/shutdown
+    check_exit_code $?
   elif [[ "${DEST_MANAGE}" == *"kill"* ]]; then
     echo "Killing Elementum at $DEST_HOST"
-    killall -q elementum || echo \"Elementum is not running\"
+    killall -q elementum
+    check_exit_code $?
   fi
+  set -e
 
 }
 
@@ -71,50 +84,50 @@ then
   set -e
   test go build $GO_FLAGS -ldflags="-w -X github.com/elgatito/elementum/util/ident.Version=${GIT_VERSION}" -o /var/tmp/${DEST_NAME} .
   test chmod +x /var/tmp/elementum*
-  manage
   mkdir -p $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
   mkdir -p $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
   test cp -rf /var/tmp/elementum* $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
   test cp -rf /var/tmp/elementum* $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
   chmod +x $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/${DEST_NAME}
   chmod +x $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/${DEST_NAME}
+  manage
 elif [ "${DEST_ACTION}" == "library" ]
 then
   set -e
   test go build -ldflags="-w -X github.com/elgatito/elementum/util/ident.Version=${GIT_VERSION}" -tags shared -buildmode=c-shared -o /var/tmp/${DEST_LIBRARY} .
   test chmod +x /var/tmp/elementum*
-  manage
   mkdir -p $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
   mkdir -p $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
   test cp -rf /var/tmp/elementum* $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
   test cp -rf /var/tmp/elementum* $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
+  manage
 elif [ "${DEST_ACTION}" == "sanitize" ]
 then
   # This will run with local go
   set -e
   CGO_ENABLED=1 CGO_LDFLAGS='-fsanitize=leak -fsanitize=address' CGO_CFLAGS='-fsanitize=leak -fsanitize=address' test go build -ldflags="-w -X github.com/elgatito/elementum/util/ident.Version=${GIT_VERSION}" -o /var/tmp/elementum github.com/elgatito/elementum
   test chmod +x /var/tmp/elementum*
-  manage
   mkdir -p $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
   mkdir -p $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
   test cp -rf /var/tmp/elementum* $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
   test cp -rf /var/tmp/elementum* $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
+  manage
 elif [ "${DEST_ACTION}" == "docker" ]
 then
   # This will run with docker libtorrent:$DEST_MAKE image
   test make $DEST_MAKE
-  manage
   mkdir -p $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
   mkdir -p $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
   test cp -rf build/$DEST_PLATFORM/elementum* $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
   test cp -rf build/$DEST_PLATFORM/elementum* $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
+  manage
 elif [ "${DEST_ACTION}" == "docker-library" ]
 then
   # This will run with docker libtorrent:$DEST_MAKE image
   test make ${DEST_MAKE}-shared
-  manage
   mkdir -p $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
   mkdir -p $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
   test cp -rf build/${DEST_PLATFORM}/elementum.* $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
   test cp -rf build/${DEST_PLATFORM}/elementum.* $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
+  manage
 fi
