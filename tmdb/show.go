@@ -724,29 +724,26 @@ func (show *Show) findTranslation(language string) *Translation {
 }
 
 // countWatchedEpisodesNumber returns number of watched episodes
-func (show *Show) countWatchedEpisodesNumber() int {
-	watchedEpisodes := 0
+func (show *Show) countWatchedEpisodesNumber() (watchedEpisodes int) {
 	if playcount.GetWatchedShowByTMDB(show.ID) {
 		watchedEpisodes = show.NumberOfEpisodes
 	} else {
-		if show.Seasons == nil {
-			return 0
-		}
-
 		for _, season := range show.Seasons {
+			if season == nil {
+				return
+			}
 			watchedEpisodes += season.countWatchedEpisodesNumber(show)
 		}
 	}
-	return watchedEpisodes
+	return
 }
 
 // countEpisodesNumber returns number of episodes taking into account unaired and special
 func (show *Show) countEpisodesNumber() (episodes int) {
-	if show.Seasons == nil {
-		return
-	}
-
 	for _, season := range show.Seasons {
+		if season == nil {
+			return
+		}
 		episodes += season.countEpisodesNumber(show)
 	}
 
