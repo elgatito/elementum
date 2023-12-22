@@ -147,6 +147,7 @@ type Season struct {
 	Overview      string  `json:"overview"`
 	EpisodeCount  int     `json:"episode_count"`
 	AiredEpisodes int     `json:"aired_episodes"`
+	FirstAired    string  `json:"first_aired"`
 	Rating        float32 `json:"rating"`
 	Votes         int     `json:"votes"`
 	Network       string  `json:"network"`

@@ -1128,17 +1128,32 @@ func (episode *Episode) ToListItem(show *Show) *xbmc.ListItem {
 }
 
 // watchedEpisodesNumber returns number of watched episodes
-func (show *Show) watchedEpisodesNumber() int {
-	seasons := GetSeasons(show.IDs.Trakt, true)
-	watchedEpisodes := 0
+func (show *Show) watchedEpisodesNumber() (watchedEpisodes int) {
+	c := config.Get()
+
 	if playcount.GetWatchedShowByTrakt(show.IDs.Trakt) {
 		watchedEpisodes = show.AiredEpisodes
 	} else {
+		seasons := GetSeasons(show.IDs.Trakt, true)
 		for _, season := range seasons {
+			if !c.ShowSeasonsSpecials && season.Number <= 0 {
+				continue
+			}
 			if playcount.GetWatchedSeasonByTrakt(show.IDs.Trakt, season.Number) {
 				watchedEpisodes += season.AiredEpisodes
 			} else {
 				for _, episode := range season.Episodes {
+					if episode == nil {
+						continue
+					} else if !c.ShowUnairedEpisodes {
+						if episode.FirstAired == "" {
+							continue
+						}
+						if _, isExpired := util.AirDateWithExpireCheck(episode.FirstAired, c.ShowEpisodesOnReleaseDay); isExpired {
+							continue
+						}
+					}
+
 					if playcount.GetWatchedEpisodeByTrakt(show.IDs.Trakt, season.Number, episode.Number) {
 						watchedEpisodes++
 					}
@@ -1146,7 +1161,7 @@ func (show *Show) watchedEpisodesNumber() int {
 			}
 		}
 	}
-	return watchedEpisodes
+	return
 }
 
 // CountRealSeasons counts real seasons, meaning without specials.
@@ -1155,11 +1170,20 @@ func CountRealSeasons(seasons []*Season) int {
 		return 0
 	}
 
+	c := config.Get()
+
 	ret := 0
 	for _, s := range seasons {
-		if s.Number > 0 {
-			ret++
+		if !c.ShowUnairedSeasons {
+			if _, isExpired := util.AirDateWithExpireCheck(s.FirstAired, c.ShowEpisodesOnReleaseDay); isExpired {
+				continue
+			}
 		}
+		if !c.ShowSeasonsSpecials && s.Number <= 0 {
+			continue
+		}
+
+		ret++
 	}
 	return ret
 }
