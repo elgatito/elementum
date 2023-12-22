@@ -309,14 +309,17 @@ func (season *Season) findTranslation(language string) *Translation {
 }
 
 // countWatchedEpisodesNumber returns number of watched episodes
-func (season *Season) countWatchedEpisodesNumber(show *Show) int {
+func (season *Season) countWatchedEpisodesNumber(show *Show) (watchedEpisodes int) {
 	if show == nil {
-		return 0
+		return
 	}
 
 	c := config.Get()
 
-	watchedEpisodes := 0
+	if !c.ShowSeasonsSpecials && season.Season <= 0 {
+		return
+	}
+
 	if playcount.GetWatchedSeasonByTMDB(show.ID, season.Season) {
 		watchedEpisodes += season.EpisodeCount
 	} else {
@@ -337,7 +340,7 @@ func (season *Season) countWatchedEpisodesNumber(show *Show) int {
 			}
 		}
 	}
-	return watchedEpisodes
+	return
 }
 
 // countEpisodesNumber returns number of episodes
@@ -347,6 +350,10 @@ func (season *Season) countEpisodesNumber(show *Show) (episodes int) {
 	}
 
 	c := config.Get()
+
+	if !c.ShowSeasonsSpecials && season.Season <= 0 {
+		return
+	}
 
 	for _, episode := range season.Episodes {
 		if episode == nil {
