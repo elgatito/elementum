@@ -1022,12 +1022,14 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 	}
 
 	if config.Get().ShowUnwatchedEpisodesNumber && config.Get().ForceUseTrakt {
-		seasons := GetSeasons(show.IDs.Trakt, false)
-		item.Properties.TotalSeasons = strconv.Itoa(CountRealSeasons(seasons))
+		item.Properties.TotalSeasons = strconv.Itoa(show.CountRealSeasons())
+
+		airedEpisodes := show.countEpisodesNumber()
+		item.Properties.TotalEpisodes = strconv.Itoa(airedEpisodes)
 
 		watchedEpisodes := show.countWatchedEpisodesNumber()
 		item.Properties.WatchedEpisodes = strconv.Itoa(watchedEpisodes)
-		item.Properties.UnWatchedEpisodes = strconv.Itoa(show.AiredEpisodes - watchedEpisodes)
+		item.Properties.UnWatchedEpisodes = strconv.Itoa(airedEpisodes - watchedEpisodes)
 	}
 
 	item.Thumbnail = item.Art.Poster
@@ -1165,7 +1167,8 @@ func (show *Show) countWatchedEpisodesNumber() (watchedEpisodes int) {
 }
 
 // CountRealSeasons counts real seasons, meaning without specials.
-func CountRealSeasons(seasons []*Season) int {
+func (show *Show) CountRealSeasons() int {
+	seasons := GetSeasons(show.IDs.Trakt, false)
 	if len(seasons) <= 0 {
 		return 0
 	}
@@ -1186,4 +1189,46 @@ func CountRealSeasons(seasons []*Season) int {
 		ret++
 	}
 	return ret
+}
+
+// countEpisodesNumber returns number of episodes taking into account unaired and special
+func (show *Show) countEpisodesNumber() (episodes int) {
+	seasons := GetSeasons(show.IDs.Trakt, true)
+	for _, season := range seasons {
+		if season == nil {
+			continue
+		}
+		episodes += season.countEpisodesNumber(show)
+	}
+
+	return
+}
+
+// countEpisodesNumber returns number of episodes
+func (season *Season) countEpisodesNumber(show *Show) (episodes int) {
+	if show == nil || season.Episodes == nil {
+		return season.EpisodeCount
+	}
+
+	c := config.Get()
+
+	if !c.ShowSeasonsSpecials && season.Number <= 0 {
+		return
+	}
+
+	for _, episode := range season.Episodes {
+		if episode == nil {
+			continue
+		} else if !c.ShowUnairedEpisodes {
+			if episode.FirstAired == "" {
+				continue
+			}
+			if _, isExpired := util.AirDateWithExpireCheck(episode.FirstAired, c.ShowEpisodesOnReleaseDay); isExpired {
+				continue
+			}
+		}
+
+		episodes++
+	}
+	return
 }
