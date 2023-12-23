@@ -744,7 +744,7 @@ func (show *Show) countEpisodesNumber() (episodes int) {
 		if season == nil {
 			continue
 		}
-		episodes += season.countEpisodesNumber(show)
+		episodes += season.countEpisodesNumber()
 	}
 
 	return

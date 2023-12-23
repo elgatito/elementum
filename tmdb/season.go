@@ -169,7 +169,9 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 		name = "Specials"
 	}
 
-	season.EpisodeCount = season.countEpisodesNumber(show)
+	if config.Get().ShowUnwatchedEpisodesNumber {
+		season.EpisodeCount = season.countEpisodesNumber()
+	}
 
 	item := &xbmc.ListItem{
 		Label: name,
@@ -344,8 +346,8 @@ func (season *Season) countWatchedEpisodesNumber(show *Show) (watchedEpisodes in
 }
 
 // countEpisodesNumber returns number of episodes
-func (season *Season) countEpisodesNumber(show *Show) (episodes int) {
-	if show == nil || season.Episodes == nil {
+func (season *Season) countEpisodesNumber() (episodes int) {
+	if season.Episodes == nil {
 		return season.EpisodeCount
 	}
 

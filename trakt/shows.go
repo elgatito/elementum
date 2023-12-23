@@ -1198,15 +1198,15 @@ func (show *Show) countEpisodesNumber() (episodes int) {
 		if season == nil {
 			continue
 		}
-		episodes += season.countEpisodesNumber(show)
+		episodes += season.countEpisodesNumber()
 	}
 
 	return
 }
 
 // countEpisodesNumber returns number of episodes
-func (season *Season) countEpisodesNumber(show *Show) (episodes int) {
-	if show == nil || season.Episodes == nil {
+func (season *Season) countEpisodesNumber() (episodes int) {
+	if season.Episodes == nil {
 		return season.EpisodeCount
 	}
 
