@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/anacrolix/missinggo/perf"
 
@@ -68,7 +69,7 @@ func (episodes EpisodeList) ToListItems(show *Show, season *Season) []*xbmc.List
 			if episode.AirDate == "" {
 				continue
 			}
-			if _, isExpired := util.AirDateWithExpireCheck(episode.AirDate, config.Get().ShowEpisodesOnReleaseDay); isExpired {
+			if _, isExpired := util.AirDateWithExpireCheck(episode.AirDate, time.DateOnly, config.Get().ShowEpisodesOnReleaseDay); isExpired {
 				continue
 			}
 		}

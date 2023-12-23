@@ -576,7 +576,7 @@ func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
 			continue
 		}
 		if !config.Get().ShowUnairedSeasons {
-			if _, isExpired := util.AirDateWithExpireCheck(season.AirDate, config.Get().ShowEpisodesOnReleaseDay); isExpired {
+			if _, isExpired := util.AirDateWithExpireCheck(season.AirDate, time.DateOnly, config.Get().ShowEpisodesOnReleaseDay); isExpired {
 				continue
 			}
 		}
@@ -600,7 +600,7 @@ func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
 				if episode.AirDate == "" {
 					continue
 				}
-				if _, isExpired := util.AirDateWithExpireCheck(episode.AirDate, config.Get().ShowEpisodesOnReleaseDay); isExpired {
+				if _, isExpired := util.AirDateWithExpireCheck(episode.AirDate, time.DateOnly, config.Get().ShowEpisodesOnReleaseDay); isExpired {
 					continue
 				}
 			}

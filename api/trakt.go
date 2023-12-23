@@ -1565,6 +1565,7 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 			episodeNumber := epi.Number
 			episodeName := epi.Title
 			showName := showListing.Show.Title
+			airDateFormat := time.DateOnly
 
 			var episode *tmdb.Episode
 			var season *tmdb.Season
@@ -1591,13 +1592,14 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 				episodes := trakt.GetSeasonEpisodes(showListing.Show.IDs.Trakt, seasonNumber)
 				for _, e := range episodes {
 					if e != nil && e.Number == epi.Number && strings.Contains(e.FirstAired, "T") {
-						airDate = e.FirstAired[0:strings.Index(e.FirstAired, "T")]
+						airDate = e.FirstAired
+						airDateFormat = time.RFC3339
 						break
 					}
 				}
 			}
 
-			aired, isExpired := util.AirDateWithExpireCheck(airDate, config.Get().ShowEpisodesOnReleaseDay)
+			aired, isExpired := util.AirDateWithExpireCheck(airDate, airDateFormat, config.Get().ShowEpisodesOnReleaseDay)
 			if config.Get().TraktProgressUnaired && isExpired {
 				return
 			}

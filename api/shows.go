@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/anacrolix/sync"
@@ -577,7 +578,7 @@ func ShowEpisodes(ctx *gin.Context) {
 				continue
 			}
 			if !config.Get().ShowUnairedSeasons {
-				if _, isExpired := util.AirDateWithExpireCheck(s.AirDate, config.Get().ShowEpisodesOnReleaseDay); isExpired {
+				if _, isExpired := util.AirDateWithExpireCheck(s.AirDate, time.DateOnly, config.Get().ShowEpisodesOnReleaseDay); isExpired {
 					continue
 				}
 			}

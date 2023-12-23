@@ -1151,7 +1151,7 @@ func (show *Show) countWatchedEpisodesNumber() (watchedEpisodes int) {
 						if episode.FirstAired == "" {
 							continue
 						}
-						if _, isExpired := util.AirDateWithExpireCheck(episode.FirstAired, c.ShowEpisodesOnReleaseDay); isExpired {
+						if _, isExpired := util.AirDateWithExpireCheck(episode.FirstAired, time.RFC3339, c.ShowEpisodesOnReleaseDay); isExpired {
 							continue
 						}
 					}
@@ -1178,7 +1178,7 @@ func (show *Show) CountRealSeasons() int {
 	ret := 0
 	for _, s := range seasons {
 		if !c.ShowUnairedSeasons {
-			if _, isExpired := util.AirDateWithExpireCheck(s.FirstAired, c.ShowEpisodesOnReleaseDay); isExpired {
+			if _, isExpired := util.AirDateWithExpireCheck(s.FirstAired, time.RFC3339, c.ShowEpisodesOnReleaseDay); isExpired {
 				continue
 			}
 		}
@@ -1223,7 +1223,7 @@ func (season *Season) countEpisodesNumber() (episodes int) {
 			if episode.FirstAired == "" {
 				continue
 			}
-			if _, isExpired := util.AirDateWithExpireCheck(episode.FirstAired, c.ShowEpisodesOnReleaseDay); isExpired {
+			if _, isExpired := util.AirDateWithExpireCheck(episode.FirstAired, time.RFC3339, c.ShowEpisodesOnReleaseDay); isExpired {
 				continue
 			}
 		}
