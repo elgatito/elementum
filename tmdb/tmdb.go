@@ -725,14 +725,16 @@ func (show *Show) CountRealSeasons() int {
 		return 0
 	}
 
+	c := config.Get()
+
 	ret := 0
 	for _, s := range show.Seasons {
-		if !config.Get().ShowUnairedSeasons {
-			if _, isExpired := util.AirDateWithExpireCheck(s.AirDate, config.Get().ShowEpisodesOnReleaseDay); isExpired {
+		if !c.ShowUnairedSeasons {
+			if _, isExpired := util.AirDateWithExpireCheck(s.AirDate, c.ShowEpisodesOnReleaseDay); isExpired {
 				continue
 			}
 		}
-		if !config.Get().ShowSeasonsSpecials && s.Season <= 0 {
+		if !c.ShowSeasonsSpecials && s.Season <= 0 {
 			continue
 		}
 
