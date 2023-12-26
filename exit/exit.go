@@ -68,4 +68,6 @@ func PanicWithCode(err error, code int) {
 	log.Errorf("Stacktrace: \n" + string(debug.Stack()))
 
 	Closer.Set()
+
+	panic(err.Error())
 }
