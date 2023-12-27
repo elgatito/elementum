@@ -648,7 +648,7 @@ func updateShowWatched(xbmcHost *xbmc.XBMCHost, s *trakt.WatchedShow, watched bo
 
 // RefreshTraktCollected ...
 func RefreshTraktCollected(xbmcHost *xbmc.XBMCHost, itemType int, isRefreshNeeded bool) error {
-	if config.Get().TraktToken == "" || !config.Get().TraktSyncCollections {
+	if config.Get().TraktToken == "" {
 		return nil
 	}
 
@@ -669,7 +669,7 @@ func RefreshTraktCollected(xbmcHost *xbmc.XBMCHost, itemType int, isRefreshNeede
 
 // RefreshTraktWatchlisted ...
 func RefreshTraktWatchlisted(xbmcHost *xbmc.XBMCHost, itemType int, isRefreshNeeded bool) error {
-	if config.Get().TraktToken == "" || !config.Get().TraktSyncWatchlist {
+	if config.Get().TraktToken == "" {
 		return nil
 	}
 
@@ -798,7 +798,7 @@ func RefreshTraktHidden(xbmcHost *xbmc.XBMCHost, itemType int, isRefreshNeeded b
 
 // RefreshTraktLists ...
 func RefreshTraktLists(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) error {
-	if config.Get().TraktToken == "" || !config.Get().TraktSyncUserlists {
+	if config.Get().TraktToken == "" {
 		return nil
 	}
 

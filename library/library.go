@@ -1008,18 +1008,12 @@ func URLQuery(route string, query ...string) string {
 
 // SyncMoviesList updates trakt movie collections in cache
 func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err error) {
-	if err = checkMoviesPath(); err != nil {
-		return
-	}
-
 	started := time.Now()
 	defer func() {
 		log.Debugf("Trakt sync movies %s finished in %s", listID, time.Since(started))
 	}()
 
 	var label string
-	var addedMovies []*trakt.Movies
-	var removedMovies []*trakt.Movies
 	var previous []*trakt.Movies
 	var current []*trakt.Movies
 
@@ -1029,17 +1023,37 @@ func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err erro
 		current, _ = trakt.WatchlistMovies(isUpdateNeeded)
 
 		label = "LOCALIZE[30254]"
+
+		if !config.Get().TraktSyncWatchlist {
+			return nil
+		}
 	case "collection":
 		previous, _ = trakt.PreviousCollectionMovies()
 		current, _ = trakt.CollectionMovies(isUpdateNeeded)
 
 		label = "LOCALIZE[30257]"
+
+		if !config.Get().TraktSyncCollections {
+			return nil
+		}
 	default:
 		previous, _ = trakt.PreviousListItemsMovies(listID)
 		current, _ = trakt.ListItemsMovies("", listID, isUpdateNeeded)
 
 		label = "LOCALIZE[30263]"
+
+		if !config.Get().TraktSyncUserlists {
+			return nil
+		}
 	}
+
+	//--------------- Kodi library Sync ---------------
+	if err = checkMoviesPath(); err != nil {
+		return
+	}
+
+	var addedMovies []*trakt.Movies
+	var removedMovies []*trakt.Movies
 
 	// For first run we will try to write all movies, not only the delta
 	if !IsTraktInitialized {
@@ -1047,11 +1061,6 @@ func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err erro
 	} else {
 		addedMovies = DiffTraktMovies(previous, current, IsTraktInitialized)
 		removedMovies = DiffTraktMovies(current, previous, IsTraktInitialized)
-	}
-
-	if err != nil {
-		log.Error(err)
-		return
 	}
 
 	var movieIDs []int
@@ -1072,14 +1081,7 @@ func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err erro
 
 		tmdbID := strconv.Itoa(movie.Movie.IDs.TMDB)
 
-		// FIXME: 'updating' is always passed as false, so wasRemoved check is always ignored.
-		// also writeMovieStrm now has wasRemoved check.
-		if updating && wasRemoved(movie.Movie.IDs.TMDB, MovieType) {
-			continue
-		}
-
-		// FIXME: should it be like for shows - 'if !updating && !isUpdateNeeded && IsDuplicateShow(tmdbID) {' ?
-		if uid.IsDuplicateMovie(tmdbID) {
+		if !updating && !isUpdateNeeded && uid.IsDuplicateMovie(tmdbID) {
 			continue
 		}
 
@@ -1120,18 +1122,12 @@ func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err erro
 
 // SyncShowsList updates trakt collections in cache
 func SyncShowsList(listID string, updating bool, isUpdateNeeded bool) (err error) {
-	if err = checkShowsPath(); err != nil {
-		return err
-	}
-
 	started := time.Now()
 	defer func() {
 		log.Debugf("Trakt sync shows %s finished in %s", listID, time.Since(started))
 	}()
 
 	var label string
-	var addedShows []*trakt.Shows
-	var removedShows []*trakt.Shows
 	var previous []*trakt.Shows
 	var current []*trakt.Shows
 
@@ -1141,17 +1137,37 @@ func SyncShowsList(listID string, updating bool, isUpdateNeeded bool) (err error
 		current, _ = trakt.WatchlistShows(isUpdateNeeded)
 
 		label = "LOCALIZE[30254]"
+
+		if !config.Get().TraktSyncWatchlist {
+			return nil
+		}
 	case "collection":
 		previous, _ = trakt.PreviousCollectionShows()
 		current, _ = trakt.CollectionShows(isUpdateNeeded)
 
 		label = "LOCALIZE[30257]"
+
+		if !config.Get().TraktSyncCollections {
+			return nil
+		}
 	default:
 		previous, _ = trakt.PreviousListItemsShows(listID)
 		current, _ = trakt.ListItemsShows("", listID, isUpdateNeeded)
 
 		label = "LOCALIZE[30263]"
+
+		if !config.Get().TraktSyncUserlists {
+			return nil
+		}
 	}
+
+	//--------------- Kodi library Sync ---------------
+	if err = checkShowsPath(); err != nil {
+		return err
+	}
+
+	var addedShows []*trakt.Shows
+	var removedShows []*trakt.Shows
 
 	// For first run we will try to write all shows, not only the delta
 	if !IsTraktInitialized {
@@ -1159,11 +1175,6 @@ func SyncShowsList(listID string, updating bool, isUpdateNeeded bool) (err error
 	} else {
 		addedShows = DiffTraktShows(previous, current, IsTraktInitialized)
 		removedShows = DiffTraktShows(current, previous, IsTraktInitialized)
-	}
-
-	if err != nil {
-		log.Error(err)
-		return
 	}
 
 	cacheStore := cache.NewDBStore()
