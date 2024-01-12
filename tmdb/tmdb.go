@@ -729,6 +729,9 @@ func (show *Show) CountRealSeasons() int {
 
 	ret := 0
 	for _, s := range show.Seasons {
+		if s == nil {
+			continue
+		}
 		if !c.ShowUnairedSeasons {
 			if _, isExpired := util.AirDateWithExpireCheck(s.AirDate, time.DateOnly, c.ShowEpisodesOnReleaseDay); isExpired {
 				continue
