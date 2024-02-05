@@ -76,8 +76,8 @@ func CheckBurst(h *xbmc.XBMCHost, skipBurstSearch bool, addonIcon string) {
 	}
 }
 
-func CheckRepository(h *xbmc.XBMCHost, profilePath string) bool {
-	if h == nil || !h.Ping() {
+func CheckRepository(h *xbmc.XBMCHost, skipRepositorySearch bool, profilePath string) bool {
+	if h == nil || !h.Ping() || skipRepositorySearch {
 		return false
 	}
 

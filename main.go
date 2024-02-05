@@ -302,7 +302,7 @@ func main() {
 			return
 		}
 
-		if repository.CheckRepository(xbmcHost, config.Get().Info.Path) {
+		if repository.CheckRepository(xbmcHost, conf.SkipRepositorySearch, config.Get().Info.Path) {
 			log.Info("Updating Kodi add-on repositories... ")
 			xbmcHost.UpdateAddonRepos()
 			go repository.CheckBurst(xbmcHost, conf.SkipBurstSearch, config.AddonIcon())

@@ -113,6 +113,7 @@ type Configuration struct {
 	PlaybackPercent             int
 	DownloadStorage             int
 	SkipBurstSearch             bool
+	SkipRepositorySearch        bool
 	AutoMemorySize              bool
 	AutoKodiBufferSize          bool
 	AutoAdjustMemorySize        bool
@@ -548,6 +549,7 @@ func Reload() (ret *Configuration, err error) {
 		XbmcPath:                    info.Xbmc,
 		DownloadStorage:             settings.ToInt("download_storage"),
 		SkipBurstSearch:             settings.ToBool("skip_burst_search"),
+		SkipRepositorySearch:        settings.ToBool("skip_repository_search"),
 		AutoMemorySize:              settings.ToBool("auto_memory_size"),
 		AutoAdjustMemorySize:        settings.ToBool("auto_adjust_memory_size"),
 		AutoMemorySizeStrategy:      settings.ToInt("auto_memory_size_strategy"),
