@@ -17,8 +17,6 @@ import (
 	"github.com/elgatito/elementum/util/trace"
 )
 
-//go:generate msgp -o msgp.go -io=false -tests=false
-
 type DBStore struct {
 	db *database.BoltDatabase
 }

@@ -14,8 +14,6 @@ import (
 	"github.com/elgatito/elementum/proxy"
 )
 
-//go:generate msgp -o msgp.go -io=false -tests=false
-
 const (
 	tvdbURL                 = "http://thetvdb.com"
 	tvdbEndpoint            = tvdbURL + "/api"

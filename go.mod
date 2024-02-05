@@ -29,7 +29,6 @@ require (
 	github.com/sanity-io/litter v1.5.5
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/spf13/cast v1.6.0
-	github.com/tinylib/msgp v1.1.9
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/vmihailenco/msgpack/v4 v4.3.13
 	github.com/zeebo/bencode v1.0.0
@@ -72,7 +71,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.1 // indirect
-	github.com/philhofer/fwd v1.1.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect

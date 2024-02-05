@@ -12,10 +12,7 @@ import (
 
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/jmcvetta/napping"
-	logging "github.com/op/go-logging"
 )
-
-//go:generate msgp -o msgp.go -io=false -tests=false
 
 const (
 	// ClientID ...
@@ -23,8 +20,6 @@ const (
 	// APIVersion ...
 	APIVersion = "v3"
 )
-
-var log = logging.MustGetLogger("fanart")
 
 // Movie ...
 type Movie struct {

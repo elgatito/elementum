@@ -21,8 +21,6 @@ import (
 	"github.com/op/go-logging"
 )
 
-//go:generate msgp -o msgp.go -io=false -tests=false
-
 const (
 	// APIURL ...
 	APIURL = "https://api.trakt.tv"

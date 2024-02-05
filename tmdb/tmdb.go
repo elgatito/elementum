@@ -17,8 +17,6 @@ import (
 	"github.com/op/go-logging"
 )
 
-//go:generate msgp -o msgp.go -io=false -tests=false
-
 const (
 	// TMDBResultsPerPage reflects TMDB number of results on the page. It's statically set to 20, so we should work with that
 	TMDBResultsPerPage = 20

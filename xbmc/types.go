@@ -2,8 +2,6 @@ package xbmc
 
 import "time"
 
-//go:generate msgp -o msgp.go -io=false -tests=false
-
 type XBMCHost struct {
 	Host string
 }
