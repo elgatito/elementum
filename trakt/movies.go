@@ -614,7 +614,7 @@ func PausedMovies(isUpdateNeeded bool) ([]*PausedMovie, error) {
 func (movie *Movie) ToListItem(tmdbMovie *tmdb.Movie) (item *xbmc.ListItem) {
 	defer perf.ScopeTimer()()
 
-	if movie.IDs.TMDB != 0 {
+	if tmdbMovie == nil && movie.IDs.TMDB != 0 {
 		tmdbID := strconv.Itoa(movie.IDs.TMDB)
 		if tmdbMovie = tmdb.GetMovieByID(tmdbID, config.Get().Language); tmdbMovie != nil {
 			if !config.Get().ForceUseTrakt {
@@ -624,6 +624,7 @@ func (movie *Movie) ToListItem(tmdbMovie *tmdb.Movie) (item *xbmc.ListItem) {
 	}
 	if item == nil {
 		movie = setFanart(movie, tmdbMovie)
+
 		item = &xbmc.ListItem{
 			Label: movie.Title,
 			Info: &xbmc.ListItemInfo{
