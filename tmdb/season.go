@@ -154,7 +154,7 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 	}
 
 	if config.Get().ShowUnwatchedEpisodesNumber {
-		season.EpisodeCount = season.countEpisodesNumber(show)
+		season.EpisodeCount = season.CountEpisodesNumber(show)
 	}
 
 	item := &xbmc.ListItem{
@@ -198,7 +198,7 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 	}
 
 	if config.Get().ShowUnwatchedEpisodesNumber && item.Properties != nil {
-		watchedEpisodes := season.countWatchedEpisodesNumber(show)
+		watchedEpisodes := season.CountWatchedEpisodesNumber(show)
 		item.Properties.WatchedEpisodes = strconv.Itoa(watchedEpisodes)
 		item.Properties.UnWatchedEpisodes = strconv.Itoa(season.EpisodeCount - watchedEpisodes)
 	}
@@ -298,8 +298,8 @@ func (season *Season) findTranslation(language string) *Translation {
 	return nil
 }
 
-// countWatchedEpisodesNumber returns number of watched episodes
-func (season *Season) countWatchedEpisodesNumber(show *Show) (watchedEpisodes int) {
+// CountWatchedEpisodesNumber returns number of watched episodes
+func (season *Season) CountWatchedEpisodesNumber(show *Show) (watchedEpisodes int) {
 	c := config.Get()
 	if !c.ShowSeasonsSpecials && season.Season <= 0 {
 		return
@@ -350,8 +350,8 @@ func (season *Season) countWatchedEpisodesNumber(show *Show) (watchedEpisodes in
 	return
 }
 
-// countEpisodesNumber returns number of episodes
-func (season *Season) countEpisodesNumber(show *Show) (episodes int) {
+// CountEpisodesNumber returns number of episodes
+func (season *Season) CountEpisodesNumber(show *Show) (episodes int) {
 	c := config.Get()
 	if !c.ShowSeasonsSpecials && season.Season <= 0 {
 		return
