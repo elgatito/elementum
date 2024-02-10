@@ -101,8 +101,6 @@ type Movie struct {
 	Genres        []string `json:"genres"`
 	Language      string   `json:"language"`
 	Translations  []string `json:"available_translations"`
-
-	Images *Images `json:"images"`
 }
 
 // Show ...

@@ -409,6 +409,73 @@ func (movie *Movie) Year() int {
 	return year
 }
 
+// SetArt sets artworks for movie
+func (movie *Movie) SetArt(item *xbmc.ListItem) {
+	if item.Art == nil {
+		item.Art = &xbmc.ListItemArt{
+			FanArt:    ImageURL(movie.BackdropPath, "w1280"),
+			Banner:    ImageURL(movie.BackdropPath, "w1280"),
+			Poster:    ImageURL(movie.PosterPath, "w1280"),
+			Thumbnail: ImageURL(movie.PosterPath, "w300"),
+		}
+	}
+
+	if item.Art.AvailableArtworks == nil {
+		item.Art.AvailableArtworks = &xbmc.Artworks{}
+	}
+
+	if movie.Images != nil && movie.Images.Backdrops != nil {
+		fanarts := make([]string, 0)
+		foundLanguageSpecificImage := false
+		for _, backdrop := range movie.Images.Backdrops {
+			// for AvailableArtworks
+			fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
+
+			// try to use language specific art
+			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
+				item.Art.FanArt = ImageURL(backdrop.FilePath, "w1280")
+				item.Art.Banner = ImageURL(backdrop.FilePath, "w1280")
+				foundLanguageSpecificImage = true // we take first image, it has top rating
+			}
+		}
+		if len(fanarts) > 0 {
+			item.Art.FanArts = fanarts
+			item.Art.AvailableArtworks.FanArt = fanarts
+			item.Art.AvailableArtworks.Banner = fanarts
+		}
+	}
+
+	if movie.Images != nil && movie.Images.Posters != nil {
+		posters := make([]string, 0)
+		foundLanguageSpecificImage := false
+		for _, poster := range movie.Images.Posters {
+			// for AvailableArtworks
+			posters = append(posters, ImageURL(poster.FilePath, "w1280"))
+
+			// try to use language specific art
+			if !foundLanguageSpecificImage && poster.Iso639_1 == config.Get().Language {
+				item.Art.Poster = ImageURL(poster.FilePath, "w1280")
+				item.Art.Thumbnail = ImageURL(poster.FilePath, "w1280")
+				foundLanguageSpecificImage = true // we take first image, it has top rating
+			}
+		}
+		if len(posters) > 0 {
+			item.Art.AvailableArtworks.Poster = posters
+		}
+	}
+
+	if config.Get().UseFanartTv {
+		if movie.FanArt == nil {
+			movie.FanArt = fanart.GetMovie(movie.ID)
+		}
+		if movie.FanArt != nil {
+			item.Art = movie.FanArt.ToListItemArt(item.Art)
+		}
+	}
+
+	item.Thumbnail = item.Art.Poster
+}
+
 // ToListItem ...
 func (movie *Movie) ToListItem() *xbmc.ListItem {
 	defer perf.ScopeTimer()()
@@ -443,11 +510,6 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 			Studio:        movie.GetStudios(),
 			Country:       movie.GetCountries(),
 		},
-		Art: &xbmc.ListItemArt{
-			FanArt:    ImageURL(movie.BackdropPath, "w1280"),
-			Poster:    ImageURL(movie.PosterPath, "w1280"),
-			Thumbnail: ImageURL(movie.PosterPath, "w300"),
-		},
 		UniqueIDs: &xbmc.UniqueIDs{
 			TMDB: strconv.Itoa(movie.ID),
 		},
@@ -457,41 +519,7 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 		item.Info.DBID = lm.UIDs.Kodi
 	}
 
-	if movie.Images != nil && movie.Images.Backdrops != nil {
-		fanarts := make([]string, 0)
-		for _, backdrop := range movie.Images.Backdrops {
-			fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
-		}
-		if len(fanarts) > 0 {
-			item.Art.FanArt = fanarts[rand.Intn(len(fanarts))]
-			item.Art.FanArts = fanarts
-		}
-	}
-
-	if movie.Images != nil && movie.Images.Posters != nil {
-		posters := make([]string, 0)
-		for _, poster := range movie.Images.Posters {
-			posters = append(posters, ImageURL(poster.FilePath, "w1280"))
-		}
-		if len(posters) > 0 {
-			if item.Art.AvailableArtworks == nil {
-				item.Art.AvailableArtworks = &xbmc.Artworks{Poster: posters}
-			} else {
-				item.Art.AvailableArtworks.Poster = posters
-			}
-		}
-	}
-
-	if config.Get().UseFanartTv {
-		if movie.FanArt == nil {
-			movie.FanArt = fanart.GetMovie(movie.ID)
-		}
-		if movie.FanArt != nil {
-			item.Art = movie.FanArt.ToListItemArt(item.Art)
-		}
-	}
-
-	item.Thumbnail = item.Art.Poster
+	movie.SetArt(item)
 
 	if movie.Trailers != nil {
 		for _, trailer := range movie.Trailers.Youtube {
