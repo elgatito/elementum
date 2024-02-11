@@ -9,7 +9,6 @@ import (
 
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
-	"github.com/elgatito/elementum/fanart"
 	"github.com/elgatito/elementum/library/playcount"
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tmdb"
@@ -21,64 +20,6 @@ import (
 	"github.com/anacrolix/sync"
 	"github.com/jmcvetta/napping"
 )
-
-// Fill fanart from TMDB
-func setShowFanart(show *Show, tmdbShow *tmdb.Show) *Show {
-	if show.Images == nil {
-		show.Images = &Images{}
-	}
-	if show.Images.Poster == nil {
-		show.Images.Poster = &Sizes{}
-	}
-	if show.Images.Thumbnail == nil {
-		show.Images.Thumbnail = &Sizes{}
-	}
-	if show.Images.FanArt == nil {
-		show.Images.FanArt = &Sizes{}
-	}
-	if show.Images.Banner == nil {
-		show.Images.Banner = &Sizes{}
-	}
-	if show.Images.ClearArt == nil {
-		show.Images.ClearArt = &Sizes{}
-	}
-
-	if show.IDs == nil || show.IDs.TMDB == 0 {
-		return show
-	}
-
-	if tmdbShow == nil {
-		tmdbID := strconv.Itoa(show.IDs.TMDB)
-		tmdbShow = tmdb.GetShowByID(tmdbID, config.Get().Language)
-	}
-	if tmdbShow == nil || tmdbShow.Images == nil {
-		return show
-	}
-
-	if len(tmdbShow.Images.Posters) > 0 {
-		posterImage := tmdb.ImageURL(tmdbShow.Images.Posters[0].FilePath, "w1280")
-		for _, image := range tmdbShow.Images.Posters {
-			if image.Iso639_1 == config.Get().Language {
-				posterImage = tmdb.ImageURL(image.FilePath, "w1280")
-				break
-			}
-		}
-		show.Images.Poster.Full = posterImage
-		show.Images.Thumbnail.Full = posterImage
-	}
-	if len(tmdbShow.Images.Backdrops) > 0 {
-		backdropImage := tmdb.ImageURL(tmdbShow.Images.Backdrops[0].FilePath, "w1280")
-		for _, image := range tmdbShow.Images.Backdrops {
-			if image.Iso639_1 == config.Get().Language {
-				backdropImage = tmdb.ImageURL(image.FilePath, "w1280")
-				break
-			}
-		}
-		show.Images.FanArt.Full = backdropImage
-		show.Images.Banner.Full = backdropImage
-	}
-	return show
-}
 
 // GetShow ...
 func GetShow(ID string) (show *Show) {
@@ -909,86 +850,81 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 }
 
 // ToListItem ...
-func (episode *Episode) ToListItem(show *Show, tmdbShow *tmdb.Show) *xbmc.ListItem {
+func (episode *Episode) ToListItem(show *Show, tmdbShow *tmdb.Show) (item *xbmc.ListItem) {
 	defer perf.ScopeTimer()()
 
-	if show == nil || show.IDs == nil || show.Images == nil || episode == nil || episode.IDs == nil {
+	if show == nil || show.IDs == nil || episode == nil || episode.IDs == nil {
 		return nil
 	}
 
-	episodeLabel := episode.Title
-	if config.Get().AddEpisodeNumbers {
-		episodeLabel = fmt.Sprintf("%dx%02d %s", episode.Season, episode.Number, episode.Title)
+	var tmdbSeason *tmdb.Season
+	var tmdbEpisode *tmdb.Episode
+	if show.IDs.TMDB != 0 {
+		if tmdbShow == nil {
+			tmdbShow = tmdb.GetShow(show.IDs.TMDB, config.Get().Language)
+		}
+
+		if tmdbShow != nil {
+			if tmdbSeason = tmdb.GetSeason(show.IDs.TMDB, episode.Season, config.Get().Language, len(tmdbShow.Seasons), false); tmdbSeason != nil {
+				if tmdbEpisode = tmdb.GetEpisode(show.IDs.TMDB, episode.Season, episode.Number, config.Get().Language); tmdbEpisode != nil {
+					if !config.Get().ForceUseTrakt {
+						item = tmdbEpisode.ToListItem(tmdbShow, tmdbSeason)
+					}
+				}
+			}
+		}
 	}
 
-	runtime := 1800
-	if show.Runtime > 0 {
-		runtime = show.Runtime
-	}
+	if item == nil {
+		episodeLabel := episode.Title
+		if config.Get().AddEpisodeNumbers {
+			episodeLabel = fmt.Sprintf("%dx%02d %s", episode.Season, episode.Number, episode.Title)
+		}
 
-	show = setShowFanart(show, tmdbShow)
-	item := &xbmc.ListItem{
-		Label:  episodeLabel,
-		Label2: fmt.Sprintf("%f", episode.Rating),
-		Info: &xbmc.ListItemInfo{
-			Count:         rand.Int(),
-			Title:         episodeLabel,
-			OriginalTitle: episode.Title,
-			Season:        episode.Season,
-			Episode:       episode.Number,
-			TVShowTitle:   show.Title,
-			Plot:          episode.Overview,
-			PlotOutline:   episode.Overview,
-			Rating:        episode.Rating,
-			Aired:         episode.FirstAired,
-			Duration:      runtime,
-			Genre:         show.Genres,
-			Code:          show.IDs.IMDB,
-			IMDBNumber:    show.IDs.IMDB,
-			PlayCount:     playcount.GetWatchedEpisodeByTMDB(show.IDs.TMDB, episode.Season, episode.Number).Int(),
-			DBTYPE:        "episode",
-			Mediatype:     "episode",
-			Studio:        []string{show.Network},
-		},
-		Art: &xbmc.ListItemArt{
-			TvShowPoster: show.Images.Poster.Full,
-			Poster:       show.Images.Poster.Full,
-			FanArt:       show.Images.FanArt.Full,
-			Banner:       show.Images.Banner.Full,
-			Thumbnail:    show.Images.Thumbnail.Full,
-			ClearArt:     show.Images.ClearArt.Full,
-		},
-		Thumbnail: show.Images.Poster.Full,
-		UniqueIDs: &xbmc.UniqueIDs{
-			TMDB: strconv.Itoa(episode.IDs.TMDB),
-		},
-		Properties: &xbmc.ListItemProperties{
-			ShowTMDBId: strconv.Itoa(show.IDs.TMDB),
-		},
+		runtime := 1800
+		if show.Runtime > 0 {
+			runtime = show.Runtime
+		}
+
+		item = &xbmc.ListItem{
+			Label:  episodeLabel,
+			Label2: fmt.Sprintf("%f", episode.Rating),
+			Info: &xbmc.ListItemInfo{
+				Count:         rand.Int(),
+				Title:         episodeLabel,
+				OriginalTitle: episode.Title,
+				Season:        episode.Season,
+				Episode:       episode.Number,
+				TVShowTitle:   show.Title,
+				Plot:          episode.Overview,
+				PlotOutline:   episode.Overview,
+				Rating:        episode.Rating,
+				Aired:         episode.FirstAired,
+				Duration:      runtime,
+				Genre:         show.Genres,
+				Code:          show.IDs.IMDB,
+				IMDBNumber:    show.IDs.IMDB,
+				PlayCount:     playcount.GetWatchedEpisodeByTMDB(show.IDs.TMDB, episode.Season, episode.Number).Int(),
+				DBTYPE:        "episode",
+				Mediatype:     "episode",
+				Studio:        []string{show.Network},
+			},
+			UniqueIDs: &xbmc.UniqueIDs{
+				TMDB: strconv.Itoa(episode.IDs.TMDB),
+			},
+			Properties: &xbmc.ListItemProperties{
+				ShowTMDBId: strconv.Itoa(show.IDs.TMDB),
+			},
+		}
+		if tmdbEpisode != nil {
+			tmdbEpisode.SetArt(tmdbShow, tmdbSeason, item)
+		}
 	}
 
 	if ls, err := uid.GetShowByTMDB(show.IDs.TMDB); ls != nil && err == nil {
 		if le := ls.GetEpisode(episode.Season, episode.Number); le != nil {
 			item.Info.DBID = le.UIDs.Kodi
 		}
-	}
-
-	if config.Get().UseFanartTv {
-		if fa := fanart.GetShow(util.StrInterfaceToInt(show.IDs.TVDB)); fa != nil {
-			item.Art = fa.ToEpisodeListItemArt(episode.Season, item.Art)
-		}
-	}
-
-	if episode.Images != nil && episode.Images.ScreenShot.Full != "" {
-		item.Art.FanArt = episode.Images.ScreenShot.Full
-		item.Art.Thumbnail = episode.Images.ScreenShot.Full
-		item.Art.Poster = episode.Images.ScreenShot.Full
-		item.Thumbnail = episode.Images.ScreenShot.Full
-	} else if epi := tmdb.GetEpisode(show.IDs.TMDB, episode.Season, episode.Number, config.Get().Language); epi != nil && epi.StillPath != "" {
-		item.Art.FanArt = tmdb.ImageURL(epi.StillPath, "w1280")
-		item.Art.Thumbnail = tmdb.ImageURL(epi.StillPath, "w1280")
-		item.Art.Poster = tmdb.ImageURL(epi.StillPath, "w1280")
-		item.Thumbnail = tmdb.ImageURL(epi.StillPath, "w1280")
 	}
 
 	return item
