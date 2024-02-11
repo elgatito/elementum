@@ -506,14 +506,14 @@ func (show *Show) ShowInfoWithTVDBShow(episode *Episode, tvdbShow *tvdb.Show) (a
 // SetArt sets artworks for show
 func (show *Show) SetArt(item *xbmc.ListItem) {
 	if item.Art == nil {
-		item.Art = &xbmc.ListItemArt{
-			FanArt:       ImageURL(show.BackdropPath, "w1280"),
-			Banner:       ImageURL(show.BackdropPath, "w1280"),
-			Poster:       ImageURL(show.PosterPath, "w1280"),
-			Thumbnail:    ImageURL(show.PosterPath, "w1280"),
-			TvShowPoster: ImageURL(show.PosterPath, "w1280"),
-		}
+		item.Art = &xbmc.ListItemArt{}
 	}
+
+	item.Art.FanArt = ImageURL(show.BackdropPath, "w1280")
+	item.Art.Banner = ImageURL(show.BackdropPath, "w1280")
+	item.Art.Poster = ImageURL(show.PosterPath, "w1280")
+	item.Art.Thumbnail = ImageURL(show.PosterPath, "w1280")
+	item.Art.TvShowPoster = ImageURL(show.PosterPath, "w1280")
 
 	if item.Art.AvailableArtworks == nil {
 		item.Art.AvailableArtworks = &xbmc.Artworks{}

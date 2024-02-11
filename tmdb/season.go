@@ -138,77 +138,63 @@ func (seasons SeasonList) Less(i, j int) bool { return seasons[i].Season < seaso
 // SetArt sets artworks for season
 func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 	if item.Art == nil {
-		item.Art = &xbmc.ListItemArt{
-			FanArt:       ImageURL(season.Backdrop, "w1280"),
-			Banner:       ImageURL(season.Backdrop, "w1280"),
-			Poster:       ImageURL(season.Poster, "w1280"),
-			Thumbnail:    ImageURL(season.Poster, "w1280"),
-			TvShowPoster: ImageURL(show.PosterPath, "w1280"),
-		}
+		item.Art = &xbmc.ListItemArt{}
 	}
 
-	// Fallback to show art if season art is empty
-	if item.Art.Poster == "" {
-		item.Art.Poster = ImageURL(show.PosterPath, "w1280")
-		item.Art.Thumbnail = ImageURL(show.PosterPath, "w1280")
+	// Use the show's artwork as a fallback
+	show.SetArt(item)
+
+	if season.Poster != "" {
+		item.Art.Poster = ImageURL(season.Poster, "w1280")
+		item.Art.Thumbnail = ImageURL(season.Poster, "w1280")
 	}
-	if item.Art.Banner == "" {
-		item.Art.Banner = ImageURL(show.BackdropPath, "w1280")
-		item.Art.FanArt = ImageURL(show.BackdropPath, "w1280")
+	if season.Backdrop != "" {
+		item.Art.FanArt = ImageURL(season.Backdrop, "w1280")
+		item.Art.Banner = ImageURL(season.Backdrop, "w1280")
 	}
 
 	if item.Art.AvailableArtworks == nil {
 		item.Art.AvailableArtworks = &xbmc.Artworks{}
 	}
 
-	var thisBackdrops []*Image
-	if show.Images != nil && show.Images.Backdrops != nil && len(show.Images.Backdrops) != 0 {
-		thisBackdrops = show.Images.Backdrops
-	}
-	if season.Images != nil && season.Images.Backdrops != nil && len(season.Images.Backdrops) != 0 {
-		thisBackdrops = season.Images.Backdrops
-	}
-	fanarts := make([]string, 0)
-	foundLanguageSpecificImage := false
-	for _, backdrop := range thisBackdrops {
-		// for AvailableArtworks
-		fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
+	if season.Images != nil && season.Images.Backdrops != nil {
+		fanarts := make([]string, 0)
+		foundLanguageSpecificImage := false
+		for _, backdrop := range season.Images.Backdrops {
+			// for AvailableArtworks
+			fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
 
-		// try to use language specific art
-		if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
-			item.Art.FanArt = ImageURL(backdrop.FilePath, "w1280")
-			item.Art.Banner = ImageURL(backdrop.FilePath, "w1280")
-			foundLanguageSpecificImage = true // we take first image, it has top rating
+			// try to use language specific art
+			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
+				item.Art.FanArt = ImageURL(backdrop.FilePath, "w1280")
+				item.Art.Banner = ImageURL(backdrop.FilePath, "w1280")
+				foundLanguageSpecificImage = true // we take first image, it has top rating
+			}
+		}
+		if len(fanarts) > 0 {
+			item.Art.FanArts = fanarts
+			item.Art.AvailableArtworks.FanArt = fanarts
+			item.Art.AvailableArtworks.Banner = fanarts
 		}
 	}
-	if len(fanarts) > 0 {
-		item.Art.FanArts = fanarts
-		item.Art.AvailableArtworks.FanArt = fanarts
-		item.Art.AvailableArtworks.Banner = fanarts
-	}
 
-	var thisPosters []*Image
-	if show.Images != nil && show.Images.Posters != nil && len(show.Images.Posters) != 0 {
-		thisPosters = show.Images.Posters
-	}
-	if season.Images != nil && season.Images.Posters != nil && len(season.Images.Posters) != 0 {
-		thisPosters = season.Images.Posters
-	}
-	posters := make([]string, 0)
-	foundLanguageSpecificImage = false
-	for _, poster := range thisPosters {
-		// for AvailableArtworks
-		posters = append(posters, ImageURL(poster.FilePath, "w1280"))
+	if season.Images != nil && season.Images.Posters != nil {
+		posters := make([]string, 0)
+		foundLanguageSpecificImage := false
+		for _, poster := range season.Images.Posters {
+			// for AvailableArtworks
+			posters = append(posters, ImageURL(poster.FilePath, "w1280"))
 
-		// try to use language specific art
-		if !foundLanguageSpecificImage && poster.Iso639_1 == config.Get().Language {
-			item.Art.Poster = ImageURL(poster.FilePath, "w1280")
-			item.Art.Thumbnail = ImageURL(poster.FilePath, "w1280")
-			foundLanguageSpecificImage = true // we take first image, it has top rating
+			// try to use language specific art
+			if !foundLanguageSpecificImage && poster.Iso639_1 == config.Get().Language {
+				item.Art.Poster = ImageURL(poster.FilePath, "w1280")
+				item.Art.Thumbnail = ImageURL(poster.FilePath, "w1280")
+				foundLanguageSpecificImage = true // we take first image, it has top rating
+			}
 		}
-	}
-	if len(posters) > 0 {
-		item.Art.AvailableArtworks.Poster = posters
+		if len(posters) > 0 {
+			item.Art.AvailableArtworks.Poster = posters
+		}
 	}
 
 	if config.Get().UseFanartTv {
