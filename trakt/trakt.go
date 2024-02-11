@@ -138,7 +138,6 @@ type Season struct {
 	Network       string  `json:"network"`
 
 	Episodes []*Episode `json:"episodes"`
-	Images   *Images    `json:"images"`
 	IDs      *IDs       `json:"ids"`
 }
 
