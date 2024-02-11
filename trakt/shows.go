@@ -848,18 +848,11 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 
 	var tmdbShow *tmdb.Show
 	if show.IDs.TMDB != 0 {
-		tmdbID := strconv.Itoa(show.IDs.TMDB)
-		if tmdbShow = tmdb.GetShowByID(tmdbID, config.Get().Language); tmdbShow != nil && !config.Get().ForceUseTrakt {
+		if tmdbShow = tmdb.GetShow(show.IDs.TMDB, config.Get().Language); tmdbShow != nil && !config.Get().ForceUseTrakt {
 			item = tmdbShow.ToListItem()
 		}
 	}
 	if item == nil {
-		show = setShowFanart(show, tmdbShow)
-
-		if show == nil || show.IDs == nil || show.Images == nil {
-			return
-		}
-
 		item = &xbmc.ListItem{
 			Label: show.Title,
 			Info: &xbmc.ListItemInfo{
@@ -885,18 +878,12 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 			Properties: &xbmc.ListItemProperties{
 				TotalEpisodes: strconv.Itoa(show.AiredEpisodes),
 			},
-			Art: &xbmc.ListItemArt{
-				TvShowPoster: show.Images.Poster.Full,
-				Poster:       show.Images.Poster.Full,
-				FanArt:       show.Images.FanArt.Full,
-				Banner:       show.Images.Banner.Full,
-				Thumbnail:    show.Images.Thumbnail.Full,
-				ClearArt:     show.Images.ClearArt.Full,
-			},
-			Thumbnail: show.Images.Poster.Full,
 			UniqueIDs: &xbmc.UniqueIDs{
 				TMDB: strconv.Itoa(show.IDs.TMDB),
 			},
+		}
+		if tmdbShow != nil {
+			tmdbShow.SetArt(item)
 		}
 	}
 
@@ -912,16 +899,6 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 		watchedEpisodes := tmdbShow.CountWatchedEpisodesNumber()
 		item.Properties.WatchedEpisodes = strconv.Itoa(watchedEpisodes)
 		item.Properties.UnWatchedEpisodes = strconv.Itoa(totalEpisodes - watchedEpisodes)
-	}
-
-	if item.Art != nil {
-		item.Thumbnail = item.Art.Poster
-		// item.Art.Thumbnail = item.Art.Poster
-
-		// if fa := fanart.GetShow(util.StrInterfaceToInt(show.IDs.TVDB)); fa != nil {
-		// 	item.Art = fa.ToListItemArt(item.Art)
-		// 	item.Thumbnail = item.Art.Thumbnail
-		// }
 	}
 
 	if len(item.Info.Trailer) == 0 {

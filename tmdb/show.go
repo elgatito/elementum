@@ -503,6 +503,74 @@ func (show *Show) ShowInfoWithTVDBShow(episode *Episode, tvdbShow *tvdb.Show) (a
 	return
 }
 
+// SetArt sets artworks for show
+func (show *Show) SetArt(item *xbmc.ListItem) {
+	if item.Art == nil {
+		item.Art = &xbmc.ListItemArt{
+			FanArt:       ImageURL(show.BackdropPath, "w1280"),
+			Banner:       ImageURL(show.BackdropPath, "w1280"),
+			Poster:       ImageURL(show.PosterPath, "w1280"),
+			Thumbnail:    ImageURL(show.PosterPath, "w1280"),
+			TvShowPoster: ImageURL(show.PosterPath, "w1280"),
+		}
+	}
+
+	if item.Art.AvailableArtworks == nil {
+		item.Art.AvailableArtworks = &xbmc.Artworks{}
+	}
+
+	if show.Images != nil && show.Images.Backdrops != nil {
+		fanarts := make([]string, 0)
+		foundLanguageSpecificImage := false
+		for _, backdrop := range show.Images.Backdrops {
+			// for AvailableArtworks
+			fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
+
+			// try to use language specific art
+			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
+				item.Art.FanArt = ImageURL(backdrop.FilePath, "w1280")
+				item.Art.Banner = ImageURL(backdrop.FilePath, "w1280")
+				foundLanguageSpecificImage = true // we take first image, it has top rating
+			}
+		}
+		if len(fanarts) > 0 {
+			item.Art.FanArts = fanarts
+			item.Art.AvailableArtworks.FanArt = fanarts
+			item.Art.AvailableArtworks.Banner = fanarts
+		}
+	}
+
+	if show.Images != nil && show.Images.Posters != nil {
+		posters := make([]string, 0)
+		foundLanguageSpecificImage := false
+		for _, poster := range show.Images.Posters {
+			// for AvailableArtworks
+			posters = append(posters, ImageURL(poster.FilePath, "w1280"))
+
+			// try to use language specific art
+			if !foundLanguageSpecificImage && poster.Iso639_1 == config.Get().Language {
+				item.Art.Poster = ImageURL(poster.FilePath, "w1280")
+				item.Art.Thumbnail = ImageURL(poster.FilePath, "w1280")
+				foundLanguageSpecificImage = true // we take first image, it has top rating
+			}
+		}
+		if len(posters) > 0 {
+			item.Art.AvailableArtworks.Poster = posters
+		}
+	}
+
+	if config.Get().UseFanartTv {
+		if show.FanArt == nil {
+			show.FanArt = fanart.GetShow(util.StrInterfaceToInt(show.ExternalIDs.TVDBID))
+		}
+		if show.FanArt != nil {
+			item.Art = show.FanArt.ToListItemArt(item.Art)
+		}
+	}
+
+	item.Thumbnail = item.Art.Poster
+}
+
 // ToListItem ...
 func (show *Show) ToListItem() *xbmc.ListItem {
 	defer perf.ScopeTimer()()
@@ -547,12 +615,6 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 			TotalSeasons:  strconv.Itoa(show.CountRealSeasons()),
 			TotalEpisodes: strconv.Itoa(show.NumberOfEpisodes),
 		},
-		Art: &xbmc.ListItemArt{
-			FanArt:       ImageURL(show.BackdropPath, "w1280"),
-			Poster:       ImageURL(show.PosterPath, "w1280"),
-			Thumbnail:    ImageURL(show.PosterPath, "w1280"),
-			TvShowPoster: ImageURL(show.PosterPath, "w1280"),
-		},
 		UniqueIDs: &xbmc.UniqueIDs{
 			TMDB: strconv.Itoa(show.ID),
 		},
@@ -562,47 +624,13 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 		item.Info.DBID = ls.UIDs.Kodi
 	}
 
+	show.SetArt(item)
+
 	if config.Get().ShowUnwatchedEpisodesNumber {
 		watchedEpisodes := show.CountWatchedEpisodesNumber()
 		item.Properties.WatchedEpisodes = strconv.Itoa(watchedEpisodes)
 		item.Properties.UnWatchedEpisodes = strconv.Itoa(show.NumberOfEpisodes - watchedEpisodes)
 	}
-
-	if show.Images != nil && show.Images.Backdrops != nil {
-		fanarts := make([]string, 0)
-		for _, backdrop := range show.Images.Backdrops {
-			fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
-		}
-		if len(fanarts) > 0 {
-			item.Art.FanArt = fanarts[rand.Intn(len(fanarts))]
-			item.Art.FanArts = fanarts
-		}
-	}
-
-	if show.Images != nil && show.Images.Posters != nil {
-		posters := make([]string, 0)
-		for _, poster := range show.Images.Posters {
-			posters = append(posters, ImageURL(poster.FilePath, "w1280"))
-		}
-		if len(posters) > 0 {
-			if item.Art.AvailableArtworks == nil {
-				item.Art.AvailableArtworks = &xbmc.Artworks{Poster: posters}
-			} else {
-				item.Art.AvailableArtworks.Poster = posters
-			}
-		}
-	}
-
-	if config.Get().UseFanartTv {
-		if show.FanArt == nil {
-			show.FanArt = fanart.GetShow(util.StrInterfaceToInt(show.ExternalIDs.TVDBID))
-		}
-		if show.FanArt != nil {
-			item.Art = show.FanArt.ToListItemArt(item.Art)
-		}
-	}
-
-	item.Thumbnail = item.Art.Poster
 
 	if show.InProduction {
 		item.Info.Status = "Continuing"

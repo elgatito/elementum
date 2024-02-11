@@ -123,8 +123,6 @@ type Show struct {
 	Country       string   `json:"country"`
 	Language      string   `json:"language"`
 	Translations  []string `json:"available_translations"`
-
-	Images *Images `json:"images"`
 }
 
 // Season ...
