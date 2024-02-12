@@ -239,6 +239,7 @@ type Configuration struct {
 
 	InternalDNSEnabled  bool
 	InternalDNSSkipIPv6 bool
+	InternalDNSOrder    int
 	InternalDNSOpenNic  []string
 
 	InternalProxyEnabled     bool
@@ -720,6 +721,7 @@ func Reload() (ret *Configuration, err error) {
 
 		InternalDNSEnabled:  settings.ToBool("internal_dns_enabled"),
 		InternalDNSSkipIPv6: settings.ToBool("internal_dns_skip_ipv6"),
+		InternalDNSOrder:    settings.ToInt("internal_dns_order"),
 
 		InternalProxyEnabled:     settings.ToBool("internal_proxy_enabled"),
 		InternalProxyLogging:     settings.ToBool("internal_proxy_logging"),

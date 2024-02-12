@@ -45,18 +45,43 @@ var (
 		"uu",
 	}
 
-	commonResolver  = doh.Use(doh.CloudflareProvider, doh.GoogleProvider, doh.Quad9Provider)
-	opennicResolver = dns_resolver.New(config.Get().InternalDNSOpenNic)
+	commonResolver  = &doh.DoH{}
+	opennicResolver = &dns_resolver.DnsResolver{}
+
+	commonLock  = sync.RWMutex{}
+	opennicLock = sync.RWMutex{}
 
 	dnsCacheResults sync.Map
 	dnsCacheLocks   sync.Map
 )
 
 func init() {
-	commonResolver.EnableCache(true)
+	reloadDNS()
+}
+
+func getProvidersOrdered(conf int) []int {
+	switch conf {
+	case 1:
+		return []int{doh.GoogleProvider, doh.CloudflareProvider, doh.Quad9Provider}
+	case 2:
+		return []int{doh.CloudflareProvider, doh.Quad9Provider, doh.GoogleProvider}
+	default:
+		return []int{doh.Quad9Provider, doh.GoogleProvider, doh.CloudflareProvider}
+	}
 }
 
 func reloadDNS() {
+	commonLock.Lock()
+	opennicLock.Lock()
+
+	defer func() {
+		commonLock.Unlock()
+		opennicLock.Unlock()
+	}()
+
+	commonResolver = doh.Use(getProvidersOrdered(config.Get().InternalDNSOrder)...)
+	commonResolver.EnableCache(true)
+
 	opennicResolver = dns_resolver.New(config.Get().InternalDNSOpenNic)
 }
 
@@ -80,6 +105,9 @@ func resolve(addr string) ([]string, error) {
 
 	// mu.Lock()
 	// defer mu.Unlock()
+
+	commonLock.RLock()
+	defer commonLock.RUnlock()
 
 	resp, err := commonResolver.Query(context.TODO(), dns.Domain(addr), dns.TypeA)
 	if err == nil && resp != nil && resp.Answer != nil {
@@ -146,6 +174,9 @@ func resolveAddr(host string) (ips []string) {
 	if cached, ok := dnsCacheResults.Load(host); ok {
 		return strings.Split(cached.(string), ",")
 	}
+
+	opennicLock.RLock()
+	defer opennicLock.RUnlock()
 
 	ipsResolved, err := opennicResolver.LookupHost(host)
 	if err == nil && len(ipsResolved) > 0 {
