@@ -560,7 +560,7 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 	}
 
 	if config.Get().UseFanartTv {
-		if show.FanArt == nil {
+		if show.FanArt == nil && show.ExternalIDs != nil {
 			show.FanArt = fanart.GetShow(util.StrInterfaceToInt(show.ExternalIDs.TVDBID))
 		}
 		if show.FanArt != nil {
@@ -596,8 +596,6 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 			OriginalTitle: show.OriginalName,
 			Plot:          show.overview(),
 			PlotOutline:   show.overview(),
-			Code:          show.ExternalIDs.IMDBId,
-			IMDBNumber:    show.ExternalIDs.IMDBId,
 			Date:          show.FirstAirDate,
 			Votes:         strconv.Itoa(show.VoteCount),
 			Rating:        show.VoteAverage,
@@ -618,6 +616,10 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 		UniqueIDs: &xbmc.UniqueIDs{
 			TMDB: strconv.Itoa(show.ID),
 		},
+	}
+	if show.ExternalIDs != nil {
+		item.Info.Code = show.ExternalIDs.IMDBId
+		item.Info.IMDBNumber = show.ExternalIDs.IMDBId
 	}
 
 	if ls, err := uid.GetShowByTMDB(show.ID); ls != nil && err == nil {

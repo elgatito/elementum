@@ -95,7 +95,7 @@ func (episode *Episode) SetArt(show *Show, season *Season, item *xbmc.ListItem) 
 	}
 
 	if config.Get().UseFanartTv {
-		if show.FanArt == nil {
+		if show.FanArt == nil && show.ExternalIDs != nil {
 			show.FanArt = fanart.GetShow(util.StrInterfaceToInt(show.ExternalIDs.TVDBID))
 		}
 		if show.FanArt != nil {
@@ -137,8 +137,6 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 			Votes:         strconv.Itoa(episode.VoteCount),
 			Aired:         episode.AirDate,
 			Duration:      runtime,
-			Code:          show.ExternalIDs.IMDBId,
-			IMDBNumber:    show.ExternalIDs.IMDBId,
 			PlayCount:     playcount.GetWatchedEpisodeByTMDB(show.ID, episode.SeasonNumber, episode.EpisodeNumber).Int(),
 			MPAA:          show.mpaa(),
 			DBTYPE:        "episode",
@@ -153,6 +151,10 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 		Properties: &xbmc.ListItemProperties{
 			ShowTMDBId: strconv.Itoa(show.ID),
 		},
+	}
+	if show.ExternalIDs != nil {
+		item.Info.Code = show.ExternalIDs.IMDBId
+		item.Info.IMDBNumber = show.ExternalIDs.IMDBId
 	}
 
 	if ls, err := uid.GetShowByTMDB(show.ID); ls != nil && err == nil {
