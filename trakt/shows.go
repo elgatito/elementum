@@ -789,8 +789,10 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 
 	var tmdbShow *tmdb.Show
 	if show.IDs.TMDB != 0 {
-		if tmdbShow = tmdb.GetShow(show.IDs.TMDB, config.Get().Language); tmdbShow != nil && !config.Get().ForceUseTrakt {
-			item = tmdbShow.ToListItem()
+		if tmdbShow = tmdb.GetShow(show.IDs.TMDB, config.Get().Language); tmdbShow != nil {
+			if !config.Get().ForceUseTrakt {
+				item = tmdbShow.ToListItem()
+			}
 		}
 	}
 	if item == nil {
