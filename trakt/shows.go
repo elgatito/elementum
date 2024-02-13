@@ -30,7 +30,7 @@ func GetShow(ID string) (show *Show) {
 		URL:    fmt.Sprintf("shows/%s", ID),
 		Header: GetAvailableHeader(),
 		Params: napping.Params{
-			"extended": "full,images",
+			"extended": "full",
 		}.AsUrlValues(),
 		Result:      &show,
 		Description: "trakt show",
@@ -136,7 +136,7 @@ func GetEpisode(showID, seasonNumber, episodeNumber int) (episode *Episode) {
 		API:         reqapi.TraktAPI,
 		URL:         fmt.Sprintf("shows/%d/seasons/%d/episodes/%d", showID, seasonNumber, episodeNumber),
 		Header:      GetAvailableHeader(),
-		Params:      napping.Params{"extended": "full,images"}.AsUrlValues(),
+		Params:      napping.Params{"extended": "full"}.AsUrlValues(),
 		Result:      &episode,
 		Description: "trakt episode",
 
@@ -244,7 +244,7 @@ func SearchShows(query string, page string) (shows []*Shows, err error) {
 			"page":     page,
 			"limit":    strconv.Itoa(config.Get().ResultsPerPage),
 			"query":    query,
-			"extended": "full,images",
+			"extended": "full",
 		}.AsUrlValues(),
 		Result:      &shows,
 		Description: "search show",
@@ -288,7 +288,7 @@ func TopShows(topCategory string, page string) (shows []*Shows, total int, err e
 		Params: napping.Params{
 			"page":     page,
 			"limit":    strconv.Itoa(limit),
-			"extended": "full,images",
+			"extended": "full",
 		}.AsUrlValues(),
 		Result:      &shows,
 		Description: "list shows",
@@ -343,7 +343,7 @@ func WatchlistShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 		URL:    "sync/watchlist/shows",
 		Header: GetAvailableHeader(),
 		Params: napping.Params{
-			"extended": "full,images",
+			"extended": "full",
 		}.AsUrlValues(),
 		Result:      &watchlist,
 		Description: "watchlist shows",
@@ -397,7 +397,7 @@ func CollectionShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 		URL:    "sync/collection/shows",
 		Header: GetAvailableHeader(),
 		Params: napping.Params{
-			"extended": "full,images",
+			"extended": "full",
 		}.AsUrlValues(),
 		Result:      &collection,
 		Description: "collection shows",
@@ -455,7 +455,7 @@ func ListItemsShows(user string, listID string, isUpdateNeeded bool) (shows []*S
 		URL:    fmt.Sprintf("users/%s/lists/%s/items/shows", user, listID),
 		Header: GetAvailableHeader(),
 		Params: napping.Params{
-			"extended": "full,images",
+			"extended": "full",
 		}.AsUrlValues(),
 		Result:      &list,
 		Description: "list item shows",
@@ -509,7 +509,7 @@ func CalendarShows(endPoint string, page string) (shows []*CalendarShow, total i
 		Params: napping.Params{
 			"page":     page,
 			"limit":    strconv.Itoa(limit),
-			"extended": "full,images",
+			"extended": "full",
 		}.AsUrlValues(),
 		Result:      &shows,
 		Description: "calendar shows",
@@ -537,7 +537,7 @@ func WatchedShows(isUpdateNeeded bool) ([]*WatchedShow, error) {
 	var shows []*WatchedShow
 	err := Request(
 		"sync/watched/shows",
-		napping.Params{"extended": "full,images"},
+		napping.Params{"extended": "full"},
 		true,
 		isUpdateNeeded,
 		cache.TraktShowsWatchedKey,
