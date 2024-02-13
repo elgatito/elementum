@@ -565,7 +565,7 @@ func ShowEpisodes(ctx *gin.Context) {
 				continue
 			}
 			if !config.Get().ShowUnairedSeasons {
-				if _, isExpired := util.AirDateWithExpireCheck(s.AirDate, time.DateOnly, config.Get().ShowEpisodesOnReleaseDay); isExpired {
+				if _, isAired := util.AirDateWithAiredCheck(s.AirDate, time.DateOnly, config.Get().ShowEpisodesOnReleaseDay); !isAired {
 					continue
 				}
 			}

@@ -1498,7 +1498,6 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 	dateFormat := getProgressDateFormat()
 
 	items := make(xbmc.ListItems, len(shows))
-	now := util.UTCBod()
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(shows))
@@ -1549,13 +1548,13 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 				}
 			}
 
-			aired, isExpired := util.AirDateWithExpireCheck(airDate, airDateFormat, config.Get().ShowEpisodesOnReleaseDay)
-			if config.Get().TraktProgressUnaired && isExpired {
+			aired, isAired := util.AirDateWithAiredCheck(airDate, airDateFormat, config.Get().ShowEpisodesOnReleaseDay)
+			if config.Get().TraktProgressUnaired && !isAired {
 				return
 			}
 
 			localEpisodeColor := colorEpisode
-			if aired.After(now) || aired.Equal(now) {
+			if !isAired {
 				localEpisodeColor = colorUnaired
 			}
 

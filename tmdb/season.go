@@ -115,7 +115,7 @@ func (seasons SeasonList) ToListItems(show *Show) []*xbmc.ListItem {
 		}
 
 		if !config.Get().ShowUnairedSeasons {
-			if _, isExpired := util.AirDateWithExpireCheck(season.AirDate, time.DateOnly, config.Get().ShowEpisodesOnReleaseDay); isExpired {
+			if _, isAired := util.AirDateWithAiredCheck(season.AirDate, time.DateOnly, config.Get().ShowEpisodesOnReleaseDay); !isAired {
 				continue
 			}
 		}
@@ -337,7 +337,7 @@ func (season *Season) countWatchedEpisodesNumber(show *Show) (watchedEpisodes in
 				if episode.AirDate == "" {
 					continue
 				}
-				if _, isExpired := util.AirDateWithExpireCheck(episode.AirDate, time.DateOnly, c.ShowEpisodesOnReleaseDay); isExpired {
+				if _, isAired := util.AirDateWithAiredCheck(episode.AirDate, time.DateOnly, c.ShowEpisodesOnReleaseDay); !isAired {
 					continue
 				}
 			}
@@ -377,7 +377,7 @@ func (season *Season) countEpisodesNumber(show *Show) (episodes int) {
 				if episode.AirDate == "" {
 					continue
 				}
-				if _, isExpired := util.AirDateWithExpireCheck(episode.AirDate, time.DateOnly, c.ShowEpisodesOnReleaseDay); isExpired {
+				if _, isAired := util.AirDateWithAiredCheck(episode.AirDate, time.DateOnly, c.ShowEpisodesOnReleaseDay); !isAired {
 					continue
 				}
 			}

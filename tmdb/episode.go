@@ -69,7 +69,7 @@ func (episodes EpisodeList) ToListItems(show *Show, season *Season) []*xbmc.List
 			if episode.AirDate == "" {
 				continue
 			}
-			if _, isExpired := util.AirDateWithExpireCheck(episode.AirDate, time.DateOnly, config.Get().ShowEpisodesOnReleaseDay); isExpired {
+			if _, isAired := util.AirDateWithAiredCheck(episode.AirDate, time.DateOnly, config.Get().ShowEpisodesOnReleaseDay); !isAired {
 				continue
 			}
 		}

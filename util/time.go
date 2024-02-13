@@ -35,14 +35,15 @@ func UTCBod() time.Time {
 	return time.Date(year, month, day, 0, 0, 0, 0, t.Location())
 }
 
-func AirDateWithExpireCheck(dt string, dateFormat string, allowSameDay bool) (time.Time, bool) {
-	aired, _ := time.Parse(dateFormat, dt)
+// AirDateWithAiredCheck returns the aired date and flag if it was already aired
+func AirDateWithAiredCheck(dt string, dateFormat string, allowSameDay bool) (airDate time.Time, isAired bool) {
+	airDate, _ = time.Parse(dateFormat, dt)
 	now := UTCBod()
-	if aired.After(now) || (!allowSameDay && aired.Equal(now)) {
-		return aired, true
+	if airDate.After(now) || (!allowSameDay && airDate.Equal(now)) {
+		return airDate, false
 	}
 
-	return aired, false
+	return airDate, true
 }
 
 func GetTimeFromFile(timeFile string) (time.Time, error) {
