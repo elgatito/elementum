@@ -1147,7 +1147,7 @@ func TraktAllReleases(ctx *gin.Context) {
 	renderCalendarMovies(ctx, movies, total, page, true)
 }
 
-func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total int, page int, dvd bool) {
+func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total int, page int, isDVD bool) {
 	hasNextPage := 0
 	if page > 0 {
 		resultsPerPage := config.Get().ResultsPerPage
@@ -1196,7 +1196,7 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 			var movie *tmdb.Movie
 			movieName := movieListing.Movie.Title
 			airDate := movieListing.Movie.Released
-			if dvd {
+			if isDVD {
 				airDate = movieListing.Released
 			}
 
