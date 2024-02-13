@@ -74,7 +74,8 @@ const (
 	TraktMoviesListKey                     = TraktKey + "movies.list.%s"
 	TraktMoviesListExpire                  = 1 * time.Minute
 	TraktMoviesCalendarKey                 = TraktKey + "movies.calendar.%s.%s.%d"
-	TraktMoviesCalendarExpire              = CacheExpireLong
+	TraktMoviesCalendarAllExpire           = CacheExpireLong
+	TraktMoviesCalendarMyExpire            = CacheExpireShort
 	TraktMoviesCalendarTotalKey            = TraktKey + "movies.calendar.%s.total"
 	TraktMoviesCalendarTotalExpire         = CacheExpireLong
 	TraktMoviesWatchedKey                  = TraktKey + "movies.watched"
@@ -98,7 +99,8 @@ const (
 	TraktShowsListKey                      = TraktKey + "shows.list.%s"
 	TraktShowsListExpire                   = CacheExpireLong
 	TraktShowsCalendarKey                  = TraktKey + "shows.calendar.%s.%s.%d"
-	TraktShowsCalendarExpire               = CacheExpireLong
+	TraktShowsCalendarAllExpire            = CacheExpireLong
+	TraktShowsCalendarMyExpire             = CacheExpireShort
 	TraktShowsCalendarTotalKey             = TraktKey + "shows.calendar.%s.total"
 	TraktShowsCalendarTotalExpire          = CacheExpireLong
 	TraktShowsHiddenProgressKey            = TraktKey + "shows.hidden.progress"

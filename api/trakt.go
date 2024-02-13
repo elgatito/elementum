@@ -995,7 +995,7 @@ func TraktMyShows(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.CalendarShows("my/shows", pageParam)
+	shows, total, err := trakt.CalendarShows("my/shows", pageParam, cache.TraktShowsCalendarMyExpire)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1011,7 +1011,7 @@ func TraktMyNewShows(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.CalendarShows("my/shows/new", pageParam)
+	shows, total, err := trakt.CalendarShows("my/shows/new", pageParam, cache.TraktShowsCalendarMyExpire)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1027,7 +1027,7 @@ func TraktMyPremieres(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.CalendarShows("my/shows/premieres", pageParam)
+	shows, total, err := trakt.CalendarShows("my/shows/premieres", pageParam, cache.TraktShowsCalendarMyExpire)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1043,7 +1043,7 @@ func TraktMyMovies(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, total, err := trakt.CalendarMovies("my/movies", pageParam)
+	movies, total, err := trakt.CalendarMovies("my/movies", pageParam, cache.TraktMoviesCalendarMyExpire)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1059,7 +1059,7 @@ func TraktMyReleases(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, total, err := trakt.CalendarMovies("my/dvd", pageParam)
+	movies, total, err := trakt.CalendarMovies("my/dvd", pageParam, cache.TraktMoviesCalendarMyExpire)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1075,7 +1075,7 @@ func TraktAllShows(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.CalendarShows("all/shows", pageParam)
+	shows, total, err := trakt.CalendarShows("all/shows", pageParam, cache.TraktShowsCalendarAllExpire)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1091,7 +1091,7 @@ func TraktAllNewShows(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.CalendarShows("all/shows/new", pageParam)
+	shows, total, err := trakt.CalendarShows("all/shows/new", pageParam, cache.TraktShowsCalendarAllExpire)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1107,7 +1107,7 @@ func TraktAllPremieres(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.CalendarShows("all/shows/premieres", pageParam)
+	shows, total, err := trakt.CalendarShows("all/shows/premieres", pageParam, cache.TraktShowsCalendarAllExpire)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1123,7 +1123,7 @@ func TraktAllMovies(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, total, err := trakt.CalendarMovies("all/movies", pageParam)
+	movies, total, err := trakt.CalendarMovies("all/movies", pageParam, cache.TraktMoviesCalendarAllExpire)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1139,7 +1139,7 @@ func TraktAllReleases(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, total, err := trakt.CalendarMovies("all/dvd", pageParam)
+	movies, total, err := trakt.CalendarMovies("all/dvd", pageParam, cache.TraktMoviesCalendarAllExpire)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
