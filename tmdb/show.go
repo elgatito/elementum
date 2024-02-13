@@ -271,28 +271,28 @@ func PopularShows(params DiscoverFilters, language string, page int) (Shows, int
 		p = napping.Params{
 			"language":           language,
 			"sort_by":            "popularity.desc",
-			"first_air_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"first_air_date.lte": time.Now().UTC().Format(time.DateOnly),
 			"with_genres":        params.Genre,
 		}
 	} else if params.Country != "" {
 		p = napping.Params{
 			"language":            language,
 			"sort_by":             "popularity.desc",
-			"first_air_date.lte":  time.Now().UTC().Format("2006-01-02"),
+			"first_air_date.lte":  time.Now().UTC().Format(time.DateOnly),
 			"with_origin_country": params.Country,
 		}
 	} else if params.Language != "" {
 		p = napping.Params{
 			"language":               language,
 			"sort_by":                "popularity.desc",
-			"first_air_date.lte":     time.Now().UTC().Format("2006-01-02"),
+			"first_air_date.lte":     time.Now().UTC().Format(time.DateOnly),
 			"with_original_language": params.Language,
 		}
 	} else {
 		p = napping.Params{
 			"language":           language,
 			"sort_by":            "popularity.desc",
-			"first_air_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"first_air_date.lte": time.Now().UTC().Format(time.DateOnly),
 		}
 	}
 
@@ -306,28 +306,28 @@ func RecentShows(params DiscoverFilters, language string, page int) (Shows, int)
 		p = napping.Params{
 			"language":           language,
 			"sort_by":            "first_air_date.desc",
-			"first_air_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"first_air_date.lte": time.Now().UTC().Format(time.DateOnly),
 			"with_genres":        params.Genre,
 		}
 	} else if params.Country != "" {
 		p = napping.Params{
 			"language":           language,
 			"sort_by":            "first_air_date.desc",
-			"first_air_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"first_air_date.lte": time.Now().UTC().Format(time.DateOnly),
 			"region":             params.Country,
 		}
 	} else if params.Language != "" {
 		p = napping.Params{
 			"language":               language,
 			"sort_by":                "first_air_date.desc",
-			"first_air_date.lte":     time.Now().UTC().Format("2006-01-02"),
+			"first_air_date.lte":     time.Now().UTC().Format(time.DateOnly),
 			"with_original_language": params.Language,
 		}
 	} else {
 		p = napping.Params{
 			"language":           language,
 			"sort_by":            "first_air_date.desc",
-			"first_air_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"first_air_date.lte": time.Now().UTC().Format(time.DateOnly),
 		}
 	}
 
@@ -341,29 +341,29 @@ func RecentEpisodes(params DiscoverFilters, language string, page int) (Shows, i
 	if params.Genre != "" {
 		p = napping.Params{
 			"language":           language,
-			"air_date.gte":       time.Now().UTC().AddDate(0, 0, -3).Format("2006-01-02"),
-			"first_air_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"air_date.gte":       time.Now().UTC().AddDate(0, 0, -3).Format(time.DateOnly),
+			"first_air_date.lte": time.Now().UTC().Format(time.DateOnly),
 			"with_genres":        params.Genre,
 		}
 	} else if params.Country != "" {
 		p = napping.Params{
 			"language":           language,
-			"air_date.gte":       time.Now().UTC().AddDate(0, 0, -3).Format("2006-01-02"),
-			"first_air_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"air_date.gte":       time.Now().UTC().AddDate(0, 0, -3).Format(time.DateOnly),
+			"first_air_date.lte": time.Now().UTC().Format(time.DateOnly),
 			"region":             params.Country,
 		}
 	} else if params.Language != "" {
 		p = napping.Params{
 			"language":               language,
-			"air_date.gte":           time.Now().UTC().AddDate(0, 0, -3).Format("2006-01-02"),
-			"first_air_date.lte":     time.Now().UTC().Format("2006-01-02"),
+			"air_date.gte":           time.Now().UTC().AddDate(0, 0, -3).Format(time.DateOnly),
+			"first_air_date.lte":     time.Now().UTC().Format(time.DateOnly),
 			"with_original_language": params.Language,
 		}
 	} else {
 		p = napping.Params{
 			"language":           language,
-			"air_date.gte":       time.Now().UTC().AddDate(0, 0, -3).Format("2006-01-02"),
-			"first_air_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"air_date.gte":       time.Now().UTC().AddDate(0, 0, -3).Format(time.DateOnly),
+			"first_air_date.lte": time.Now().UTC().Format(time.DateOnly),
 		}
 	}
 
@@ -380,7 +380,7 @@ func MostVotedShows(genre string, language string, page int) (Shows, int) {
 	return listShows("discover/tv", "mostvoted", napping.Params{
 		"language":           language,
 		"sort_by":            "vote_count.desc",
-		"first_air_date.lte": time.Now().UTC().Format("2006-01-02"),
+		"first_air_date.lte": time.Now().UTC().Format(time.DateOnly),
 		"with_genres":        genre,
 	}, page)
 }

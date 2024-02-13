@@ -1625,14 +1625,14 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 		})
 	} else if config.Get().TraktProgressSort == trakt.ProgressSortAiredNewer {
 		sort.Slice(items, func(i, j int) bool {
-			id, _ := time.Parse("2006-01-02", items[i].Info.Aired)
-			jd, _ := time.Parse("2006-01-02", items[j].Info.Aired)
+			id, _ := time.Parse(time.DateOnly, items[i].Info.Aired)
+			jd, _ := time.Parse(time.DateOnly, items[j].Info.Aired)
 			return id.After(jd)
 		})
 	} else if config.Get().TraktProgressSort == trakt.ProgressSortAiredOlder {
 		sort.Slice(items, func(i, j int) bool {
-			id, _ := time.Parse("2006-01-02", items[i].Info.Aired)
-			jd, _ := time.Parse("2006-01-02", items[j].Info.Aired)
+			id, _ := time.Parse(time.DateOnly, items[i].Info.Aired)
+			jd, _ := time.Parse(time.DateOnly, items[j].Info.Aired)
 			return id.Before(jd)
 		})
 	}
