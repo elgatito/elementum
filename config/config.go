@@ -196,7 +196,7 @@ type Configuration struct {
 	TraktSyncRemovedShowsBack      bool
 	TraktSyncRemovedShowsLocation  int
 	TraktSyncRemovedShowsList      int
-	TraktProgressUnaired           bool
+	TraktProgressHideUnaired       bool
 	TraktProgressSort              int
 	TraktProgressDateFormat        string
 	TraktProgressColorDate         string
@@ -677,7 +677,7 @@ func Reload() (ret *Configuration, err error) {
 		TraktSyncRemovedShowsBack:      settings.ToBool("trakt_sync_removed_shows_back"),
 		TraktSyncRemovedShowsLocation:  settings.ToInt("trakt_sync_removed_shows_location"),
 		TraktSyncRemovedShowsList:      settings.ToInt("trakt_sync_removed_shows_list"),
-		TraktProgressUnaired:           settings.ToBool("trakt_progress_unaired"),
+		TraktProgressHideUnaired:       settings.ToBool("trakt_progress_hide_unaired"),
 		TraktProgressSort:              settings.ToInt("trakt_progress_sort"),
 		TraktProgressDateFormat:        settings.ToString("trakt_progress_date_format"),
 		TraktProgressColorDate:         settings.ToString("trakt_progress_color_date"),

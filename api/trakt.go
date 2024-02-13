@@ -1549,7 +1549,7 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 			}
 
 			aired, isAired := util.AirDateWithAiredCheck(airDate, airDateFormat, config.Get().ShowEpisodesOnReleaseDay)
-			if config.Get().TraktProgressUnaired && !isAired {
+			if config.Get().TraktProgressHideUnaired && !isAired {
 				return
 			}
 
