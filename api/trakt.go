@@ -1048,7 +1048,7 @@ func TraktMyMovies(ctx *gin.Context) {
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 	}
-	renderCalendarMovies(ctx, movies, total, page)
+	renderCalendarMovies(ctx, movies, total, page, false)
 }
 
 // TraktMyReleases ...
@@ -1064,7 +1064,7 @@ func TraktMyReleases(ctx *gin.Context) {
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 	}
-	renderCalendarMovies(ctx, movies, total, page)
+	renderCalendarMovies(ctx, movies, total, page, true)
 }
 
 // TraktAllShows ...
@@ -1128,7 +1128,7 @@ func TraktAllMovies(ctx *gin.Context) {
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 	}
-	renderCalendarMovies(ctx, movies, total, page)
+	renderCalendarMovies(ctx, movies, total, page, false)
 }
 
 // TraktAllReleases ...
@@ -1144,10 +1144,10 @@ func TraktAllReleases(ctx *gin.Context) {
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 	}
-	renderCalendarMovies(ctx, movies, total, page)
+	renderCalendarMovies(ctx, movies, total, page, true)
 }
 
-func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total int, page int) {
+func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total int, page int, dvd bool) {
 	hasNextPage := 0
 	if page > 0 {
 		resultsPerPage := config.Get().ResultsPerPage
@@ -1193,6 +1193,10 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 			var movie *tmdb.Movie
 			movieName := movieListing.Movie.Title
 			airDate := movieListing.Movie.Released
+			if dvd {
+				airDate = movieListing.Released
+			}
+
 			if len(airDate) > 10 && strings.Contains(airDate, "T") {
 				airDate = airDate[0:strings.Index(airDate, "T")]
 			}
