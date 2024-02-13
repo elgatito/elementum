@@ -1177,6 +1177,7 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 	colorShow := config.Get().TraktCalendarsColorShow
 	dateFormat := getCalendarsDateFormat()
 
+	now := util.UTCBod()
 	items := make(xbmc.ListItems, len(movies)+hasNextPage)
 
 	wg := sync.WaitGroup{}
@@ -1190,6 +1191,8 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 				return
 			}
 
+			airDateFormat := time.DateOnly
+
 			var movie *tmdb.Movie
 			movieName := movieListing.Movie.Title
 			airDate := movieListing.Movie.Released
@@ -1198,7 +1201,13 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 			}
 
 			if len(airDate) > 10 && strings.Contains(airDate, "T") {
-				airDate = airDate[0:strings.Index(airDate, "T")]
+				airDateFormat = time.RFC3339
+			}
+
+			aired, _ := time.Parse(airDateFormat, airDate)
+			// hide expired cached items
+			if aired.Before(now) {
+				return
 			}
 
 			if movieListing.Movie.IDs.TMDB != 0 {
@@ -1216,7 +1225,10 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 				item = movieListing.Movie.ToListItem(movie)
 			}
 
-			aired, _ := time.Parse("2006-01-02", airDate)
+			if config.Get().TraktCalendarsHideWatched && item.Info.PlayCount == 0 {
+				return
+			}
+
 			label := fmt.Sprintf(`[COLOR %s]%s[/COLOR] | [B][COLOR %s]%s[/COLOR][/B] `,
 				colorDate, aired.Format(dateFormat), colorShow, movieName)
 			item.Label = label
@@ -1352,6 +1364,7 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 			episodeName := epi.Title
 			showName := showListing.Show.Title
 			showOriginalName := showListing.Show.Title
+			airDateFormat := time.DateOnly
 
 			var episode *tmdb.Episode
 			var season *tmdb.Season
@@ -1390,12 +1403,16 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 				airDate = epi.FirstAired
 			}
 			if len(airDate) > 10 && strings.Contains(airDate, "T") {
-				airDate = airDate[0:strings.Index(airDate, "T")]
+				airDateFormat = time.RFC3339
 			}
 
-			aired, _ := time.Parse("2006-01-02", airDate)
+			aired, isAired := util.AirDateWithAiredCheck(airDate, airDateFormat, config.Get().ShowEpisodesOnReleaseDay)
+			// hide expired cached items
+			if aired.Before(now) {
+				return
+			}
 			localEpisodeColor := colorEpisode
-			if aired.After(now) || aired.Equal(now) {
+			if !isAired {
 				localEpisodeColor = colorUnaired
 			}
 
@@ -1404,6 +1421,10 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 				item = episode.ToListItem(show, season)
 			} else {
 				item = epi.ToListItem(showListing.Show, show)
+			}
+
+			if config.Get().TraktCalendarsHideWatched && item.Info.PlayCount == 0 {
+				return
 			}
 
 			item.Info.Aired = airDate

@@ -203,6 +203,7 @@ type Configuration struct {
 	TraktProgressColorShow         string
 	TraktProgressColorEpisode      string
 	TraktProgressColorUnaired      string
+	TraktCalendarsHideWatched      bool
 	TraktCalendarsDateFormat       string
 	TraktCalendarsColorDate        string
 	TraktCalendarsColorShow        string
@@ -684,6 +685,7 @@ func Reload() (ret *Configuration, err error) {
 		TraktProgressColorShow:         settings.ToString("trakt_progress_color_show"),
 		TraktProgressColorEpisode:      settings.ToString("trakt_progress_color_episode"),
 		TraktProgressColorUnaired:      settings.ToString("trakt_progress_color_unaired"),
+		TraktCalendarsHideWatched:      settings.ToBool("trakt_calendars_hide_watched"),
 		TraktCalendarsDateFormat:       settings.ToString("trakt_calendars_date_format"),
 		TraktCalendarsColorDate:        settings.ToString("trakt_calendars_color_date"),
 		TraktCalendarsColorShow:        settings.ToString("trakt_calendars_color_show"),
