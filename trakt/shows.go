@@ -657,8 +657,7 @@ func WatchedShowsProgress() (shows []*ProgressShow, err error) {
 		log.Warningf("Cannot get activities: %s", err)
 		return nil, err
 	}
-	var previousActivities UserActivities
-	_ = cacheStore.Get(cache.TraktActivitiesKey, &previousActivities)
+	previousActivities, _ := GetPreviousActivities()
 
 	// If last watched time was changed - we should get fresh Watched shows list
 	watchedShows, errWatched := WatchedShows(lastActivities.Episodes.WatchedAt.After(previousActivities.Episodes.WatchedAt))
