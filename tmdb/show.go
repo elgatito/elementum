@@ -708,7 +708,7 @@ func (show *Show) CountWatchedEpisodesNumber() (watchedEpisodes int) {
 			if season == nil {
 				continue
 			}
-			watchedEpisodes += season.countWatchedEpisodesNumber(show)
+			watchedEpisodes += season.CountWatchedEpisodesNumber(show)
 		}
 	}
 	return
@@ -720,7 +720,7 @@ func (show *Show) CountEpisodesNumber() (episodes int) {
 		if season == nil {
 			continue
 		}
-		episodes += season.countEpisodesNumber(show)
+		episodes += season.CountEpisodesNumber(show)
 	}
 
 	return

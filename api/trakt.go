@@ -477,6 +477,8 @@ func renderTraktMovies(ctx *gin.Context, movies []*trakt.Movies, total int, page
 		}
 	}
 
+	language := config.Get().Language
+
 	items := make(xbmc.ListItems, len(movies))
 	wg := sync.WaitGroup{}
 	for idx := 0; idx < len(movies); idx++ {
@@ -487,7 +489,17 @@ func renderTraktMovies(ctx *gin.Context, movies []*trakt.Movies, total int, page
 				return
 			}
 
-			item := movieListing.Movie.ToListItem(nil)
+			var movie *tmdb.Movie
+			if movieListing.Movie.IDs.TMDB != 0 {
+				movie = tmdb.GetMovie(movieListing.Movie.IDs.TMDB, language)
+			}
+
+			var item *xbmc.ListItem
+			if !config.Get().ForceUseTrakt && movie != nil {
+				item = movie.ToListItem()
+			} else {
+				item = movieListing.Movie.ToListItem(movie)
+			}
 
 			// Example of adding UTF8 char into title,
 			// list: https://www.utf8-chartable.de/unicode-utf8-table.pl?start=9728&number=1024&names=2&utf8=string-literal
@@ -1201,7 +1213,6 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 				movie = tmdb.GetMovie(movieListing.Movie.IDs.TMDB, language)
 			}
 
-			tmdbID := strconv.Itoa(movieListing.Movie.IDs.TMDB)
 			var item *xbmc.ListItem
 			if !config.Get().ForceUseTrakt && movie != nil {
 				if movie.Title != "" {
@@ -1217,6 +1228,8 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 				colorDate, aired.Format(dateFormat), colorShow, movieName)
 			item.Label = label
 			item.Info.Title = label
+
+			tmdbID := strconv.Itoa(movieListing.Movie.IDs.TMDB)
 
 			thisURL := URLForXBMC("/movie/%d/", movieListing.Movie.IDs.TMDB) + "%s/%s"
 
