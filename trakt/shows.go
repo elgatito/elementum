@@ -550,7 +550,7 @@ func PreviousListItemsShows(listID string) (shows []*Shows, err error) {
 }
 
 // CalendarShows ...
-func CalendarShows(endPoint string, page string, cacheExpire time.Duration) (shows []*CalendarShow, total int, err error) {
+func CalendarShows(endPoint string, page string, cacheExpire time.Duration, isUpdateNeeded bool) (shows []*CalendarShow, total int, err error) {
 	defer perf.ScopeTimer()()
 
 	resultsPerPage := config.Get().ResultsPerPage
@@ -573,8 +573,9 @@ func CalendarShows(endPoint string, page string, cacheExpire time.Duration) (sho
 		Result:      &shows,
 		Description: "calendar shows",
 
-		Cache:       true,
-		CacheExpire: cacheExpire,
+		Cache:            true,
+		CacheExpire:      cacheExpire,
+		CacheForceExpire: isUpdateNeeded,
 	}
 
 	if err := req.Do(); err != nil {

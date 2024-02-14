@@ -99,8 +99,8 @@ const (
 	TraktShowsListKey                      = TraktKey + "shows.list.%s"
 	TraktShowsListExpire                   = CacheExpireLong
 	TraktShowsCalendarKey                  = TraktKey + "shows.calendar.%s.%s.%d"
-	TraktShowsCalendarAllExpire            = CacheExpireLong
-	TraktShowsCalendarMyExpire             = CacheExpireShort
+	TraktShowsCalendarAllExpire            = CacheExpireExtra
+	TraktShowsCalendarMyExpire             = CacheExpireLong
 	TraktShowsCalendarTotalKey             = TraktKey + "shows.calendar.%s.total"
 	TraktShowsCalendarTotalExpire          = CacheExpireLong
 	TraktShowsHiddenProgressKey            = TraktKey + "shows.hidden.progress"

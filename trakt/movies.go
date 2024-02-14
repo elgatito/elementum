@@ -513,7 +513,7 @@ func ListItemsMovies(user string, listID string, isUpdateNeeded bool) (movies []
 }
 
 // CalendarMovies ...
-func CalendarMovies(endPoint string, page string, cacheExpire time.Duration) (movies []*CalendarMovie, total int, err error) {
+func CalendarMovies(endPoint string, page string, cacheExpire time.Duration, isUpdateNeeded bool) (movies []*CalendarMovie, total int, err error) {
 	defer perf.ScopeTimer()()
 
 	resultsPerPage := config.Get().ResultsPerPage
@@ -536,8 +536,9 @@ func CalendarMovies(endPoint string, page string, cacheExpire time.Duration) (mo
 		Result:      &movies,
 		Description: "calendar movies",
 
-		Cache:       true,
-		CacheExpire: cacheExpire,
+		Cache:            true,
+		CacheExpire:      cacheExpire,
+		CacheForceExpire: isUpdateNeeded,
 	}
 
 	if err = req.Do(); err != nil {
