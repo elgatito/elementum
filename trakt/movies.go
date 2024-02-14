@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"sort"
 	"strconv"
-	"time"
 
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
@@ -508,7 +507,7 @@ func ListItemsMovies(user string, listID string, isUpdateNeeded bool) (movies []
 	}
 	movies = movieListing
 
-	cacheStore.Set(key, &movies, 1*time.Minute)
+	cacheStore.Set(key, &movies, cache.TraktMoviesListExpire)
 	return movies, err
 }
 
