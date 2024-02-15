@@ -311,28 +311,28 @@ func PopularMovies(params DiscoverFilters, language string, page int) (Movies, i
 		p = napping.Params{
 			"language":                 language,
 			"sort_by":                  "popularity.desc",
-			"primary_release_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"primary_release_date.lte": time.Now().UTC().Format(time.DateOnly),
 			"with_genres":              params.Genre,
 		}
 	} else if params.Country != "" {
 		p = napping.Params{
 			"language":                 language,
 			"sort_by":                  "popularity.desc",
-			"primary_release_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"primary_release_date.lte": time.Now().UTC().Format(time.DateOnly),
 			"with_origin_country":      params.Country,
 		}
 	} else if params.Language != "" {
 		p = napping.Params{
 			"language":                 language,
 			"sort_by":                  "popularity.desc",
-			"primary_release_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"primary_release_date.lte": time.Now().UTC().Format(time.DateOnly),
 			"with_original_language":   params.Language,
 		}
 	} else {
 		p = napping.Params{
 			"language":                 language,
 			"sort_by":                  "popularity.desc",
-			"primary_release_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"primary_release_date.lte": time.Now().UTC().Format(time.DateOnly),
 		}
 	}
 
@@ -347,7 +347,7 @@ func RecentMovies(params DiscoverFilters, language string, page int) (Movies, in
 			"language":                 language,
 			"sort_by":                  "primary_release_date.desc",
 			"vote_count.gte":           "10",
-			"primary_release_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"primary_release_date.lte": time.Now().UTC().Format(time.DateOnly),
 			"with_genres":              params.Genre,
 		}
 	} else if params.Country != "" {
@@ -355,7 +355,7 @@ func RecentMovies(params DiscoverFilters, language string, page int) (Movies, in
 			"language":                 language,
 			"sort_by":                  "primary_release_date.desc",
 			"vote_count.gte":           "10",
-			"primary_release_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"primary_release_date.lte": time.Now().UTC().Format(time.DateOnly),
 			"region":                   params.Country,
 		}
 	} else if params.Language != "" {
@@ -363,7 +363,7 @@ func RecentMovies(params DiscoverFilters, language string, page int) (Movies, in
 			"language":                 language,
 			"sort_by":                  "primary_release_date.desc",
 			"vote_count.gte":           "10",
-			"primary_release_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"primary_release_date.lte": time.Now().UTC().Format(time.DateOnly),
 			"with_original_language":   params.Language,
 		}
 	} else {
@@ -371,7 +371,7 @@ func RecentMovies(params DiscoverFilters, language string, page int) (Movies, in
 			"language":                 language,
 			"sort_by":                  "primary_release_date.desc",
 			"vote_count.gte":           "10",
-			"primary_release_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"primary_release_date.lte": time.Now().UTC().Format(time.DateOnly),
 		}
 	}
 
@@ -390,13 +390,13 @@ func MostVotedMovies(genre string, language string, page int) (Movies, int) {
 		p = napping.Params{
 			"language":                 language,
 			"sort_by":                  "vote_count.desc",
-			"primary_release_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"primary_release_date.lte": time.Now().UTC().Format(time.DateOnly),
 		}
 	} else {
 		p = napping.Params{
 			"language":                 language,
 			"sort_by":                  "vote_count.desc",
-			"primary_release_date.lte": time.Now().UTC().Format("2006-01-02"),
+			"primary_release_date.lte": time.Now().UTC().Format(time.DateOnly),
 			"with_genres":              genre,
 		}
 	}

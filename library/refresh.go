@@ -654,7 +654,7 @@ func parseUniqueID(entityType int, i *uid.UniqueIDs, xbmcIDs *xbmc.UniqueIDs, fi
 		if entityType == MovieType {
 			m := tmdb.GetMovie(localID, config.Get().Language)
 			if m != nil {
-				dt, err := time.Parse("2006-01-02", m.FirstAirDate)
+				dt, err := time.Parse(time.DateOnly, m.FirstAirDate)
 				if err != nil || dt.Year() == entityYear {
 					i.TMDB = m.ID
 					return
@@ -663,7 +663,7 @@ func parseUniqueID(entityType int, i *uid.UniqueIDs, xbmcIDs *xbmc.UniqueIDs, fi
 		} else if entityType == ShowType {
 			s := tmdb.GetShow(localID, config.Get().Language)
 			if s != nil {
-				dt, err := time.Parse("2006-01-02", s.FirstAirDate)
+				dt, err := time.Parse(time.DateOnly, s.FirstAirDate)
 				if err != nil || dt.Year() == entityYear {
 					i.TMDB = s.ID
 					return
@@ -753,7 +753,7 @@ func findTMDBIDsWithYear(entityType int, source string, id string, year int) int
 	if results != nil {
 		if entityType == MovieType && len(results.MovieResults) > 0 {
 			for _, e := range results.MovieResults {
-				dt, err := time.Parse("2006-01-02", e.FirstAirDate)
+				dt, err := time.Parse(time.DateOnly, e.FirstAirDate)
 				if err != nil || year == 0 || dt.Year() == 0 {
 					reserveID = e.ID
 					continue
@@ -764,7 +764,7 @@ func findTMDBIDsWithYear(entityType int, source string, id string, year int) int
 			}
 		} else if entityType == ShowType && len(results.TVResults) > 0 {
 			for _, e := range results.TVResults {
-				dt, err := time.Parse("2006-01-02", e.FirstAirDate)
+				dt, err := time.Parse(time.DateOnly, e.FirstAirDate)
 				if err != nil || year == 0 || dt.Year() == 0 {
 					reserveID = e.ID
 					continue
@@ -775,7 +775,7 @@ func findTMDBIDsWithYear(entityType int, source string, id string, year int) int
 			}
 		} else if entityType == EpisodeType && len(results.TVEpisodeResults) > 0 {
 			for _, e := range results.TVEpisodeResults {
-				dt, err := time.Parse("2006-01-02", e.FirstAirDate)
+				dt, err := time.Parse(time.DateOnly, e.FirstAirDate)
 				if err != nil || year == 0 || dt.Year() == 0 {
 					reserveID = e.ID
 					continue

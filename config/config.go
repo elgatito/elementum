@@ -196,13 +196,14 @@ type Configuration struct {
 	TraktSyncRemovedShowsBack      bool
 	TraktSyncRemovedShowsLocation  int
 	TraktSyncRemovedShowsList      int
-	TraktProgressUnaired           bool
+	TraktProgressHideUnaired       bool
 	TraktProgressSort              int
 	TraktProgressDateFormat        string
 	TraktProgressColorDate         string
 	TraktProgressColorShow         string
 	TraktProgressColorEpisode      string
 	TraktProgressColorUnaired      string
+	TraktCalendarsHideWatched      bool
 	TraktCalendarsDateFormat       string
 	TraktCalendarsColorDate        string
 	TraktCalendarsColorShow        string
@@ -678,13 +679,14 @@ func Reload() (ret *Configuration, err error) {
 		TraktSyncRemovedShowsBack:      settings.ToBool("trakt_sync_removed_shows_back"),
 		TraktSyncRemovedShowsLocation:  settings.ToInt("trakt_sync_removed_shows_location"),
 		TraktSyncRemovedShowsList:      settings.ToInt("trakt_sync_removed_shows_list"),
-		TraktProgressUnaired:           settings.ToBool("trakt_progress_unaired"),
+		TraktProgressHideUnaired:       settings.ToBool("trakt_progress_hide_unaired"),
 		TraktProgressSort:              settings.ToInt("trakt_progress_sort"),
 		TraktProgressDateFormat:        settings.ToString("trakt_progress_date_format"),
 		TraktProgressColorDate:         settings.ToString("trakt_progress_color_date"),
 		TraktProgressColorShow:         settings.ToString("trakt_progress_color_show"),
 		TraktProgressColorEpisode:      settings.ToString("trakt_progress_color_episode"),
 		TraktProgressColorUnaired:      settings.ToString("trakt_progress_color_unaired"),
+		TraktCalendarsHideWatched:      settings.ToBool("trakt_calendars_hide_watched"),
 		TraktCalendarsDateFormat:       settings.ToString("trakt_calendars_date_format"),
 		TraktCalendarsColorDate:        settings.ToString("trakt_calendars_color_date"),
 		TraktCalendarsColorShow:        settings.ToString("trakt_calendars_color_show"),

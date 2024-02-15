@@ -1007,7 +1007,17 @@ func TraktMyShows(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.CalendarShows("my/shows", pageParam)
+
+	lastActivities, err := trakt.GetLastActivities()
+	previousActivities, _ := trakt.GetPreviousActivities()
+
+	isUpdateNeeded := err != nil ||
+		lastActivities.Shows.WatchlistedAt.After(previousActivities.Shows.WatchlistedAt) ||
+		lastActivities.Episodes.WatchlistedAt.After(previousActivities.Episodes.WatchlistedAt) ||
+		lastActivities.Episodes.CollectedAt.After(previousActivities.Episodes.CollectedAt) ||
+		lastActivities.Episodes.WatchedAt.After(previousActivities.Episodes.WatchedAt)
+
+	shows, total, err := trakt.CalendarShows("my/shows", pageParam, cache.TraktShowsCalendarMyExpire, isUpdateNeeded)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1023,7 +1033,17 @@ func TraktMyNewShows(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.CalendarShows("my/shows/new", pageParam)
+
+	lastActivities, err := trakt.GetLastActivities()
+	previousActivities, _ := trakt.GetPreviousActivities()
+
+	isUpdateNeeded := err != nil ||
+		lastActivities.Shows.WatchlistedAt.After(previousActivities.Shows.WatchlistedAt) ||
+		lastActivities.Episodes.WatchlistedAt.After(previousActivities.Episodes.WatchlistedAt) ||
+		lastActivities.Episodes.CollectedAt.After(previousActivities.Episodes.CollectedAt) ||
+		lastActivities.Episodes.WatchedAt.After(previousActivities.Episodes.WatchedAt)
+
+	shows, total, err := trakt.CalendarShows("my/shows/new", pageParam, cache.TraktShowsCalendarMyExpire, isUpdateNeeded)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1039,7 +1059,17 @@ func TraktMyPremieres(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.CalendarShows("my/shows/premieres", pageParam)
+
+	lastActivities, err := trakt.GetLastActivities()
+	previousActivities, _ := trakt.GetPreviousActivities()
+
+	isUpdateNeeded := err != nil ||
+		lastActivities.Shows.WatchlistedAt.After(previousActivities.Shows.WatchlistedAt) ||
+		lastActivities.Episodes.WatchlistedAt.After(previousActivities.Episodes.WatchlistedAt) ||
+		lastActivities.Episodes.CollectedAt.After(previousActivities.Episodes.CollectedAt) ||
+		lastActivities.Episodes.WatchedAt.After(previousActivities.Episodes.WatchedAt)
+
+	shows, total, err := trakt.CalendarShows("my/shows/premieres", pageParam, cache.TraktShowsCalendarMyExpire, isUpdateNeeded)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1055,12 +1085,22 @@ func TraktMyMovies(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, total, err := trakt.CalendarMovies("my/movies", pageParam)
+
+	lastActivities, err := trakt.GetLastActivities()
+	previousActivities, _ := trakt.GetPreviousActivities()
+
+	isUpdateNeeded := err != nil ||
+		lastActivities.Movies.WatchlistedAt.After(previousActivities.Movies.WatchlistedAt) ||
+		lastActivities.Movies.CollectedAt.After(previousActivities.Movies.CollectedAt)
+
+	log.Debug(isUpdateNeeded)
+
+	movies, total, err := trakt.CalendarMovies("my/movies", pageParam, cache.TraktMoviesCalendarMyExpire, isUpdateNeeded)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 	}
-	renderCalendarMovies(ctx, movies, total, page)
+	renderCalendarMovies(ctx, movies, total, page, false)
 }
 
 // TraktMyReleases ...
@@ -1071,12 +1111,20 @@ func TraktMyReleases(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, total, err := trakt.CalendarMovies("my/dvd", pageParam)
+
+	lastActivities, err := trakt.GetLastActivities()
+	previousActivities, _ := trakt.GetPreviousActivities()
+
+	isUpdateNeeded := err != nil ||
+		lastActivities.Movies.WatchlistedAt.After(previousActivities.Movies.WatchlistedAt) ||
+		lastActivities.Movies.CollectedAt.After(previousActivities.Movies.CollectedAt)
+
+	movies, total, err := trakt.CalendarMovies("my/dvd", pageParam, cache.TraktMoviesCalendarMyExpire, isUpdateNeeded)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 	}
-	renderCalendarMovies(ctx, movies, total, page)
+	renderCalendarMovies(ctx, movies, total, page, true)
 }
 
 // TraktAllShows ...
@@ -1087,7 +1135,7 @@ func TraktAllShows(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.CalendarShows("all/shows", pageParam)
+	shows, total, err := trakt.CalendarShows("all/shows", pageParam, cache.TraktShowsCalendarAllExpire, false)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1103,7 +1151,7 @@ func TraktAllNewShows(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.CalendarShows("all/shows/new", pageParam)
+	shows, total, err := trakt.CalendarShows("all/shows/new", pageParam, cache.TraktShowsCalendarAllExpire, false)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1119,7 +1167,7 @@ func TraktAllPremieres(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.CalendarShows("all/shows/premieres", pageParam)
+	shows, total, err := trakt.CalendarShows("all/shows/premieres", pageParam, cache.TraktShowsCalendarAllExpire, false)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -1135,12 +1183,12 @@ func TraktAllMovies(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, total, err := trakt.CalendarMovies("all/movies", pageParam)
+	movies, total, err := trakt.CalendarMovies("all/movies", pageParam, cache.TraktMoviesCalendarAllExpire, false)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 	}
-	renderCalendarMovies(ctx, movies, total, page)
+	renderCalendarMovies(ctx, movies, total, page, false)
 }
 
 // TraktAllReleases ...
@@ -1151,15 +1199,15 @@ func TraktAllReleases(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, total, err := trakt.CalendarMovies("all/dvd", pageParam)
+	movies, total, err := trakt.CalendarMovies("all/dvd", pageParam, cache.TraktMoviesCalendarAllExpire, false)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 	}
-	renderCalendarMovies(ctx, movies, total, page)
+	renderCalendarMovies(ctx, movies, total, page, true)
 }
 
-func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total int, page int) {
+func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total int, page int, isDVD bool) {
 	hasNextPage := 0
 	if page > 0 {
 		resultsPerPage := config.Get().ResultsPerPage
@@ -1189,6 +1237,7 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 	colorShow := config.Get().TraktCalendarsColorShow
 	dateFormat := getCalendarsDateFormat()
 
+	now := util.UTCBod()
 	items := make(xbmc.ListItems, len(movies)+hasNextPage)
 
 	wg := sync.WaitGroup{}
@@ -1202,11 +1251,23 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 				return
 			}
 
+			airDateFormat := time.DateOnly
+
 			var movie *tmdb.Movie
 			movieName := movieListing.Movie.Title
 			airDate := movieListing.Movie.Released
+			if isDVD {
+				airDate = movieListing.Released
+			}
+
 			if len(airDate) > 10 && strings.Contains(airDate, "T") {
-				airDate = airDate[0:strings.Index(airDate, "T")]
+				airDateFormat = time.RFC3339
+			}
+
+			aired, _ := time.Parse(airDateFormat, airDate)
+			// hide expired cached items
+			if aired.Before(now) {
+				return
 			}
 
 			if movieListing.Movie.IDs.TMDB != 0 {
@@ -1223,7 +1284,10 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 				item = movieListing.Movie.ToListItem(movie)
 			}
 
-			aired, _ := time.Parse("2006-01-02", airDate)
+			if config.Get().TraktCalendarsHideWatched && item.Info.PlayCount == 0 {
+				return
+			}
+
 			label := fmt.Sprintf(`[COLOR %s]%s[/COLOR] | [B][COLOR %s]%s[/COLOR][/B] `,
 				colorDate, aired.Format(dateFormat), colorShow, movieName)
 			item.Label = label
@@ -1361,6 +1425,7 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 			episodeName := epi.Title
 			showName := showListing.Show.Title
 			showOriginalName := showListing.Show.Title
+			airDateFormat := time.DateOnly
 
 			var episode *tmdb.Episode
 			var season *tmdb.Season
@@ -1399,12 +1464,16 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 				airDate = epi.FirstAired
 			}
 			if len(airDate) > 10 && strings.Contains(airDate, "T") {
-				airDate = airDate[0:strings.Index(airDate, "T")]
+				airDateFormat = time.RFC3339
 			}
 
-			aired, _ := time.Parse("2006-01-02", airDate)
+			aired, isAired := util.AirDateWithAiredCheck(airDate, airDateFormat, config.Get().ShowEpisodesOnReleaseDay)
+			// hide expired cached items
+			if aired.Before(now) {
+				return
+			}
 			localEpisodeColor := colorEpisode
-			if aired.After(now) || aired.Equal(now) {
+			if !isAired {
 				localEpisodeColor = colorUnaired
 			}
 
@@ -1415,6 +1484,10 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 				item = epi.ToListItem(showListing.Show, show)
 			}
 			if item == nil {
+				return
+			}
+
+			if config.Get().TraktCalendarsHideWatched && item.Info.PlayCount == 0 {
 				return
 			}
 
@@ -1510,7 +1583,6 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 	dateFormat := getProgressDateFormat()
 
 	items := make(xbmc.ListItems, len(shows))
-	now := util.UTCBod()
 
 	wg := sync.WaitGroup{}
 	wg.Add(len(shows))
@@ -1561,13 +1633,13 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 				}
 			}
 
-			aired, isExpired := util.AirDateWithExpireCheck(airDate, airDateFormat, config.Get().ShowEpisodesOnReleaseDay)
-			if config.Get().TraktProgressUnaired && isExpired {
+			aired, isAired := util.AirDateWithAiredCheck(airDate, airDateFormat, config.Get().ShowEpisodesOnReleaseDay)
+			if config.Get().TraktProgressHideUnaired && !isAired {
 				return
 			}
 
 			localEpisodeColor := colorEpisode
-			if aired.After(now) || aired.Equal(now) {
+			if !isAired {
 				localEpisodeColor = colorUnaired
 			}
 
@@ -1644,14 +1716,14 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 		})
 	} else if config.Get().TraktProgressSort == trakt.ProgressSortAiredNewer {
 		sort.Slice(items, func(i, j int) bool {
-			id, _ := time.Parse("2006-01-02", items[i].Info.Aired)
-			jd, _ := time.Parse("2006-01-02", items[j].Info.Aired)
+			id, _ := time.Parse(time.DateOnly, items[i].Info.Aired)
+			jd, _ := time.Parse(time.DateOnly, items[j].Info.Aired)
 			return id.After(jd)
 		})
 	} else if config.Get().TraktProgressSort == trakt.ProgressSortAiredOlder {
 		sort.Slice(items, func(i, j int) bool {
-			id, _ := time.Parse("2006-01-02", items[i].Info.Aired)
-			jd, _ := time.Parse("2006-01-02", items[j].Info.Aired)
+			id, _ := time.Parse(time.DateOnly, items[i].Info.Aired)
+			jd, _ := time.Parse(time.DateOnly, items[j].Info.Aired)
 			return id.Before(jd)
 		})
 	}
