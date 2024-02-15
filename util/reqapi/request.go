@@ -177,7 +177,6 @@ func (r *Request) Do() (err error) {
 		if err = r.CacheRead(); err == nil {
 			return err
 		}
-		log.Debug(err)
 		r.Stage("CacheRead")
 		r.cachePending = true
 	}

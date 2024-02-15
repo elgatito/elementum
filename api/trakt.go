@@ -1093,8 +1093,6 @@ func TraktMyMovies(ctx *gin.Context) {
 		lastActivities.Movies.WatchlistedAt.After(previousActivities.Movies.WatchlistedAt) ||
 		lastActivities.Movies.CollectedAt.After(previousActivities.Movies.CollectedAt)
 
-	log.Debug(isUpdateNeeded)
-
 	movies, total, err := trakt.CalendarMovies("my/movies", pageParam, cache.TraktMoviesCalendarMyExpire, isUpdateNeeded)
 
 	if err != nil {

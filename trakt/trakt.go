@@ -456,6 +456,7 @@ type UserActivities struct {
 		CollectedAt   time.Time `json:"collected_at"`
 		RatedAt       time.Time `json:"rated_at"`
 		WatchlistedAt time.Time `json:"watchlisted_at"`
+		FavoritedAt   time.Time `json:"favorited_at"`
 		CommentedAt   time.Time `json:"commented_at"`
 		PausedAt      time.Time `json:"paused_at"`
 		HiddenAt      time.Time `json:"hidden_at"`
@@ -471,6 +472,7 @@ type UserActivities struct {
 	Shows struct {
 		RatedAt       time.Time `json:"rated_at"`
 		WatchlistedAt time.Time `json:"watchlisted_at"`
+		FavoritedAt   time.Time `json:"favorited_at"`
 		CommentedAt   time.Time `json:"commented_at"`
 		HiddenAt      time.Time `json:"hidden_at"`
 	} `json:"shows"`
@@ -481,13 +483,33 @@ type UserActivities struct {
 		HiddenAt      time.Time `json:"hidden_at"`
 	} `json:"seasons"`
 	Comments struct {
-		LikedAt time.Time `json:"liked_at"`
+		LikedAt   time.Time `json:"liked_at"`
+		BlockedAt time.Time `json:"blocked_at"`
 	} `json:"comments"`
 	Lists struct {
 		LikedAt     time.Time `json:"liked_at"`
 		UpdatedAt   time.Time `json:"updated_at"`
 		CommentedAt time.Time `json:"commented_at"`
 	} `json:"lists"`
+	Watchlist struct {
+		UpdatedAt time.Time `json:"updated_at"`
+	} `json:"watchlist"`
+	Favorites struct {
+		UpdatedAt time.Time `json:"updated_at"`
+	} `json:"favorites"`
+	Account struct {
+		SettingsAt  time.Time `json:"settings_at"`
+		FollowedAt  time.Time `json:"followed_at"`
+		FollowingAt time.Time `json:"following_at"`
+		PendingAt   time.Time `json:"pending_at"`
+		RequestedAt time.Time `json:"requested_at"`
+	} `json:"account"`
+	SavedFilters struct {
+		UpdatedAt time.Time `json:"updated_at"`
+	} `json:"saved_filters"`
+	Notes struct {
+		UpdatedAt time.Time `json:"updated_at"`
+	} `json:"notes"`
 }
 
 // ListItemsPayload describes items to add/remove from userlists
