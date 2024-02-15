@@ -55,7 +55,7 @@ const (
 	TMDBEpisodeImagesKey           = TMDBKey + "show.%d.%d.%d.images"
 	TMDBEpisodeImagesExpire        = CacheExpireLong
 
-	TraktActivitiesKey                     = TraktKey + "last_activities"
+	TraktActivitiesKey                     = TraktKey + "last_activities.%s"
 	TraktActivitiesExpire                  = 30 * 24 * time.Hour
 	TraktPausedLastUpdatesKey              = TraktKey + "PausedLastUpdates.%d"
 	TraktPausedLastUpdatesExpire           = 30 * 24 * time.Hour

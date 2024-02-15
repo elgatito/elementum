@@ -787,7 +787,7 @@ func Authorize(fromSettings bool) error {
 
 				// Cleanup last activities to force requesting again
 				cacheStore := cache.NewDBStore()
-				_ = cacheStore.Set(cache.TraktActivitiesKey, "", 1)
+				_ = cacheStore.Set(fmt.Sprintf(cache.TraktActivitiesKey, ""), "", 1)
 
 				expiry := time.Now().Unix() + int64(token.ExpiresIn)
 				if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
@@ -846,7 +846,7 @@ func Authorize(fromSettings bool) error {
 func Deauthorize(fromSettings bool) error {
 	// Cleanup last activities to force requesting again
 	cacheStore := cache.NewDBStore()
-	_ = cacheStore.Set(cache.TraktActivitiesKey, "", 1)
+	_ = cacheStore.Set(fmt.Sprintf(cache.TraktActivitiesKey, ""), "", 1)
 
 	if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
 		xbmcHost.SetSetting("trakt_token_expiry", "")
@@ -1271,12 +1271,6 @@ func GetLastActivities() (ret *UserActivities, err error) {
 	config.Get().TraktAuthorized = true
 
 	return
-}
-
-func GetPreviousActivities() (ret *UserActivities, err error) {
-	var previousActivities UserActivities
-	err = cache.NewDBStore().Get(cache.TraktActivitiesKey, &previousActivities)
-	return &previousActivities, err
 }
 
 // DiffWatchedShows ...

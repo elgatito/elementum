@@ -593,18 +593,17 @@ func WatchedShowsProgress() (shows []*ProgressShow, err error) {
 
 	defer perf.ScopeTimer()()
 
+	activities, err := GetActivities("WatchedShowsProgress")
+
 	cacheStore := cache.NewDBStore()
 
-	lastActivities, err := GetLastActivities()
-	if err != nil || lastActivities == nil {
+	if err != nil {
 		log.Warningf("Cannot get activities: %s", err)
 		return nil, err
 	}
-	var previousActivities UserActivities
-	_ = cacheStore.Get(cache.TraktActivitiesKey, &previousActivities)
 
 	// If last watched time was changed - we should get fresh Watched shows list
-	watchedShows, errWatched := WatchedShows(lastActivities.Episodes.WatchedAt.After(previousActivities.Episodes.WatchedAt))
+	watchedShows, errWatched := WatchedShows(activities.EpisodesWatched())
 	if errWatched != nil {
 		log.Errorf("Error getting the watched shows: %v", errWatched)
 		return nil, errWatched

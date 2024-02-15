@@ -58,10 +58,8 @@ func RefreshTrakt() error {
 		log.Infof("Trakt sync finished in %s", time.Since(started))
 	}()
 
-	cacheStore := cache.NewDBStore()
-	lastActivities, err := trakt.GetLastActivities()
-	previousActivities, _ := trakt.GetPreviousActivities()
-	if err != nil || lastActivities == nil {
+	activities, err := trakt.GetActivities("")
+	if err != nil {
 		log.Warningf("Cannot get activities: %s", err)
 		if err == trakt.ErrLocked {
 			go trakt.NotifyLocked()
@@ -72,7 +70,7 @@ func RefreshTrakt() error {
 
 	// If nothing changed from last check - skip everything
 	isFirstRun := !IsTraktInitialized || isKodiUpdated
-	if !lastActivities.All.After(previousActivities.All) && !isFirstRun {
+	if !activities.All() && !isFirstRun {
 		log.Debugf("Skipping Trakt sync due to stale activities")
 		return nil
 	}
@@ -80,7 +78,7 @@ func RefreshTrakt() error {
 	isErrored := false
 	defer func() {
 		if !isErrored {
-			_ = cacheStore.Set(cache.TraktActivitiesKey, lastActivities, cache.TraktActivitiesExpire)
+			activities.SaveCurrent()
 		}
 	}()
 
@@ -96,81 +94,81 @@ func RefreshTrakt() error {
 	}
 
 	// Movies
-	if isFirstRun || isKodiAdded || lastActivities.Movies.WatchedAt.After(previousActivities.Movies.WatchedAt) {
-		if err := RefreshTraktWatched(xbmcHost, MovieType, lastActivities.Movies.WatchedAt.After(previousActivities.Movies.WatchedAt)); err != nil {
+	if isFirstRun || isKodiAdded || activities.MoviesWatched() {
+		if err := RefreshTraktWatched(xbmcHost, MovieType, activities.MoviesWatched()); err != nil {
 			isErrored = true
 		}
 	}
-	if isFirstRun || lastActivities.Movies.CollectedAt.After(previousActivities.Movies.CollectedAt) {
-		if err := RefreshTraktCollected(xbmcHost, MovieType, lastActivities.Movies.CollectedAt.After(previousActivities.Movies.CollectedAt)); err != nil {
+	if isFirstRun || activities.MoviesCollected() {
+		if err := RefreshTraktCollected(xbmcHost, MovieType, activities.MoviesCollected()); err != nil {
 			isErrored = true
 		}
 	}
-	if isFirstRun || lastActivities.Movies.WatchlistedAt.After(previousActivities.Movies.WatchlistedAt) {
-		if err := RefreshTraktWatchlisted(xbmcHost, MovieType, lastActivities.Movies.WatchlistedAt.After(previousActivities.Movies.WatchlistedAt)); err != nil {
+	if isFirstRun || activities.MoviesWatchlisted() {
+		if err := RefreshTraktWatchlisted(xbmcHost, MovieType, activities.MoviesWatchlisted()); err != nil {
 			isErrored = true
 		}
 	}
-	if isFirstRun || isKodiAdded || lastActivities.Movies.PausedAt.After(previousActivities.Movies.PausedAt) {
-		if err := RefreshTraktPaused(xbmcHost, MovieType, lastActivities.Movies.PausedAt.After(previousActivities.Movies.PausedAt)); err != nil {
+	if isFirstRun || isKodiAdded || activities.MoviesPaused() {
+		if err := RefreshTraktPaused(xbmcHost, MovieType, activities.MoviesPaused()); err != nil {
 			isErrored = true
 		}
 	}
-	if isFirstRun || lastActivities.Movies.HiddenAt.After(previousActivities.Movies.HiddenAt) {
-		if err := RefreshTraktHidden(xbmcHost, MovieType, lastActivities.Movies.HiddenAt.After(previousActivities.Movies.HiddenAt)); err != nil {
+	if isFirstRun || activities.MoviesHidden() {
+		if err := RefreshTraktHidden(xbmcHost, MovieType, activities.MoviesHidden()); err != nil {
 			isErrored = true
 		}
 	}
 
 	// Episodes
-	if isFirstRun || isKodiAdded || lastActivities.Episodes.WatchedAt.After(previousActivities.Episodes.WatchedAt) {
-		if err := RefreshTraktWatched(xbmcHost, EpisodeType, lastActivities.Episodes.WatchedAt.After(previousActivities.Episodes.WatchedAt)); err != nil {
+	if isFirstRun || isKodiAdded || activities.EpisodesWatched() {
+		if err := RefreshTraktWatched(xbmcHost, EpisodeType, activities.EpisodesWatched()); err != nil {
 			isErrored = true
 		}
 	}
-	if isFirstRun || lastActivities.Episodes.CollectedAt.After(previousActivities.Episodes.CollectedAt) {
-		if err := RefreshTraktCollected(xbmcHost, EpisodeType, lastActivities.Episodes.CollectedAt.After(previousActivities.Episodes.CollectedAt)); err != nil {
+	if isFirstRun || activities.EpisodesCollected() {
+		if err := RefreshTraktCollected(xbmcHost, EpisodeType, activities.EpisodesCollected()); err != nil {
 			isErrored = true
 		}
 	}
-	if isFirstRun || lastActivities.Episodes.WatchlistedAt.After(previousActivities.Episodes.WatchlistedAt) {
-		if err := RefreshTraktWatchlisted(xbmcHost, EpisodeType, lastActivities.Episodes.WatchlistedAt.After(previousActivities.Episodes.WatchlistedAt)); err != nil {
+	if isFirstRun || activities.EpisodesWatchlisted() {
+		if err := RefreshTraktWatchlisted(xbmcHost, EpisodeType, activities.EpisodesWatchlisted()); err != nil {
 			isErrored = true
 		}
 	}
-	if isFirstRun || isKodiAdded || lastActivities.Episodes.PausedAt.After(previousActivities.Episodes.PausedAt) {
-		if err := RefreshTraktPaused(xbmcHost, EpisodeType, lastActivities.Episodes.PausedAt.After(previousActivities.Episodes.PausedAt)); err != nil {
+	if isFirstRun || isKodiAdded || activities.EpisodesPaused() {
+		if err := RefreshTraktPaused(xbmcHost, EpisodeType, activities.EpisodesPaused()); err != nil {
 			isErrored = true
 		}
 	}
 
 	// Shows
-	if isFirstRun || lastActivities.Shows.WatchlistedAt.After(previousActivities.Shows.WatchlistedAt) {
-		if err := RefreshTraktWatchlisted(xbmcHost, ShowType, lastActivities.Shows.WatchlistedAt.After(previousActivities.Shows.WatchlistedAt)); err != nil {
+	if isFirstRun || activities.ShowsWatchlisted() {
+		if err := RefreshTraktWatchlisted(xbmcHost, ShowType, activities.ShowsWatchlisted()); err != nil {
 			isErrored = true
 		}
 	}
-	if isFirstRun || lastActivities.Shows.HiddenAt.After(previousActivities.Shows.HiddenAt) {
-		if err := RefreshTraktHidden(xbmcHost, ShowType, lastActivities.Shows.HiddenAt.After(previousActivities.Shows.HiddenAt)); err != nil {
+	if isFirstRun || activities.ShowsHidden() {
+		if err := RefreshTraktHidden(xbmcHost, ShowType, activities.ShowsHidden()); err != nil {
 			isErrored = true
 		}
 	}
 
 	// Seasons
-	if isFirstRun || lastActivities.Seasons.WatchlistedAt.After(previousActivities.Seasons.WatchlistedAt) {
-		if err := RefreshTraktWatchlisted(xbmcHost, SeasonType, lastActivities.Seasons.WatchlistedAt.After(previousActivities.Seasons.WatchlistedAt)); err != nil {
+	if isFirstRun || activities.SeasonsWatchlisted() {
+		if err := RefreshTraktWatchlisted(xbmcHost, SeasonType, activities.SeasonsWatchlisted()); err != nil {
 			isErrored = true
 		}
 	}
-	if isFirstRun || lastActivities.Seasons.HiddenAt.After(previousActivities.Seasons.HiddenAt) {
-		if err := RefreshTraktHidden(xbmcHost, SeasonType, lastActivities.Seasons.HiddenAt.After(previousActivities.Seasons.HiddenAt)); err != nil {
+	if isFirstRun || activities.SeasonsHidden() {
+		if err := RefreshTraktHidden(xbmcHost, SeasonType, activities.SeasonsHidden()); err != nil {
 			isErrored = true
 		}
 	}
 
 	// Lists
-	if isFirstRun || lastActivities.Lists.UpdatedAt.After(previousActivities.Lists.UpdatedAt) {
-		if err := RefreshTraktLists(xbmcHost, lastActivities.Lists.UpdatedAt.After(previousActivities.Lists.UpdatedAt)); err != nil {
+	if isFirstRun || activities.ListsUpdated() {
+		if err := RefreshTraktLists(xbmcHost, activities.ListsUpdated()); err != nil {
 			isErrored = true
 		}
 	}
