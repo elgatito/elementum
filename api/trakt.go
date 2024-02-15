@@ -1414,6 +1414,9 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 			} else {
 				item = epi.ToListItem(showListing.Show, show)
 			}
+			if item == nil {
+				return
+			}
 
 			item.Info.Aired = airDate
 			item.Info.DateAdded = airDate
@@ -1573,6 +1576,9 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 				item = episode.ToListItem(show, season)
 			} else {
 				item = epi.ToListItem(showListing.Show, show)
+			}
+			if item == nil {
+				return
 			}
 
 			item.Info.Aired = airDate

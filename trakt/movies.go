@@ -20,56 +20,6 @@ import (
 	"github.com/jmcvetta/napping"
 )
 
-// Fill fanart from TMDB
-func setFanart(movie *Movie, tmdbMovie *tmdb.Movie) *Movie {
-	if movie.Images == nil {
-		movie.Images = &Images{}
-	}
-	if movie.Images.Poster == nil {
-		movie.Images.Poster = &Sizes{}
-	}
-	if movie.Images.Thumbnail == nil {
-		movie.Images.Thumbnail = &Sizes{}
-	}
-	if movie.Images.FanArt == nil {
-		movie.Images.FanArt = &Sizes{}
-	}
-	if movie.Images.Banner == nil {
-		movie.Images.Banner = &Sizes{}
-	}
-	if movie.Images.ClearArt == nil {
-		movie.Images.ClearArt = &Sizes{}
-	}
-
-	if movie.IDs == nil || movie.IDs.TMDB == 0 || tmdbMovie == nil || tmdbMovie.Images == nil {
-		return movie
-	}
-
-	if len(tmdbMovie.Images.Posters) > 0 {
-		posterImage := tmdb.ImageURL(tmdbMovie.Images.Posters[0].FilePath, "w1280")
-		for _, image := range tmdbMovie.Images.Posters {
-			if image.Iso639_1 == config.Get().Language {
-				posterImage = tmdb.ImageURL(image.FilePath, "w1280")
-				break
-			}
-		}
-		movie.Images.Poster.Full = posterImage
-		movie.Images.Thumbnail.Full = posterImage
-	}
-	if len(tmdbMovie.Images.Backdrops) > 0 {
-		backdropImage := tmdb.ImageURL(tmdbMovie.Images.Backdrops[0].FilePath, "w1280")
-		for _, image := range tmdbMovie.Images.Backdrops {
-			if image.Iso639_1 == config.Get().Language {
-				backdropImage = tmdb.ImageURL(image.FilePath, "w1280")
-				break
-			}
-		}
-		movie.Images.FanArt.Full = backdropImage
-		movie.Images.Banner.Full = backdropImage
-	}
-	return movie
-}
-
 // GetMovie ...
 func GetMovie(ID string) (movie *Movie) {
 	defer perf.ScopeTimer()()
@@ -79,7 +29,7 @@ func GetMovie(ID string) (movie *Movie) {
 		URL:    fmt.Sprintf("movies/%s", ID),
 		Header: GetAvailableHeader(),
 		Params: napping.Params{
-			"extended": "full,images",
+			"extended": "full",
 		}.AsUrlValues(),
 		Result:      &movie,
 		Description: "trakt movie",
@@ -142,7 +92,7 @@ func SearchMovies(query string, page string) (movies []*Movies, err error) {
 			"page":     page,
 			"limit":    strconv.Itoa(config.Get().ResultsPerPage),
 			"query":    query,
-			"extended": "full,images",
+			"extended": "full",
 		}.AsUrlValues(),
 		Result:      &movies,
 		Description: "movie search",
@@ -190,7 +140,7 @@ func TopMovies(topCategory string, page string) (movies []*Movies, total int, er
 		Params: napping.Params{
 			"page":     page,
 			"limit":    strconv.Itoa(limit),
-			"extended": "full,images",
+			"extended": "full",
 		}.AsUrlValues(),
 		Result:      &movies,
 		Description: "list movies",
@@ -257,7 +207,7 @@ func WatchlistMovies(isUpdateNeeded bool) (movies []*Movies, err error) {
 		URL:    "sync/watchlist/movies",
 		Header: GetAvailableHeader(),
 		Params: napping.Params{
-			"extended": "full,images",
+			"extended": "full",
 		}.AsUrlValues(),
 		Result:      &watchlist,
 		Description: "watchlist movies",
@@ -315,7 +265,7 @@ func CollectionMovies(isUpdateNeeded bool) (movies []*Movies, err error) {
 		URL:    "sync/collection/movies",
 		Header: GetAvailableHeader(),
 		Params: napping.Params{
-			"extended": "full,images",
+			"extended": "full",
 		}.AsUrlValues(),
 		Result:      &collection,
 		Description: "collection movies",
@@ -531,7 +481,7 @@ func CalendarMovies(endPoint string, page string) (movies []*CalendarMovie, tota
 		Params: napping.Params{
 			"page":     page,
 			"limit":    strconv.Itoa(limit),
-			"extended": "full,images",
+			"extended": "full",
 		}.AsUrlValues(),
 		Result:      &movies,
 		Description: "calendar movies",
@@ -622,7 +572,6 @@ func (movie *Movie) ToListItem(tmdbMovie *tmdb.Movie) (item *xbmc.ListItem) {
 		}
 	}
 	if item == nil {
-		movie = setFanart(movie, tmdbMovie)
 		item = &xbmc.ListItem{
 			Label: movie.Title,
 			Info: &xbmc.ListItemInfo{
@@ -645,17 +594,12 @@ func (movie *Movie) ToListItem(tmdbMovie *tmdb.Movie) (item *xbmc.ListItem) {
 				DBTYPE:        "movie",
 				Mediatype:     "movie",
 			},
-			Art: &xbmc.ListItemArt{
-				Poster:    movie.Images.Poster.Full,
-				FanArt:    movie.Images.FanArt.Full,
-				Banner:    movie.Images.Banner.Full,
-				Thumbnail: movie.Images.Thumbnail.Full,
-				ClearArt:  movie.Images.ClearArt.Full,
-			},
-			Thumbnail: movie.Images.Poster.Full,
 			UniqueIDs: &xbmc.UniqueIDs{
 				TMDB: strconv.Itoa(movie.IDs.TMDB),
 			},
+		}
+		if tmdbMovie != nil {
+			tmdbMovie.SetArt(item)
 		}
 	}
 

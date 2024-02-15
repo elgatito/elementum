@@ -12,6 +12,7 @@ import (
 
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/fanart"
 	"github.com/elgatito/elementum/library/playcount"
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/util"
@@ -55,11 +56,6 @@ func (episodes EpisodeList) ToListItems(show *Show, season *Season) []*xbmc.List
 		return items
 	}
 
-	fanarts := make([]string, 0)
-	for _, backdrop := range show.Images.Backdrops {
-		fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
-	}
-
 	for _, episode := range episodes {
 		if episode == nil {
 			continue
@@ -76,17 +72,36 @@ func (episodes EpisodeList) ToListItems(show *Show, season *Season) []*xbmc.List
 
 		item := episode.ToListItem(show, season)
 
-		if item.Art.FanArt == "" && len(fanarts) > 0 {
-			item.Art.FanArt = fanarts[rand.Intn(len(fanarts))]
-		}
-
-		if item.Art.FanArt == "" && season.Poster != "" {
-			item.Art.Poster = ImageURL(season.Poster, "w1280")
-		}
-
 		items = append(items, item)
 	}
 	return items
+}
+
+// SetArt sets artworks for episode
+func (episode *Episode) SetArt(show *Show, season *Season, item *xbmc.ListItem) {
+	if item.Art == nil {
+		item.Art = &xbmc.ListItemArt{}
+	}
+
+	if episode.StillPath != "" {
+		item.Art.FanArt = ImageURL(episode.StillPath, "w1280")
+		item.Art.Banner = ImageURL(episode.StillPath, "w1280")
+		item.Art.Poster = ImageURL(episode.StillPath, "w1280")
+		item.Art.Thumbnail = ImageURL(episode.StillPath, "w1280")
+		item.Art.TvShowPoster = ImageURL(episode.StillPath, "w1280")
+	} else {
+		// Use the season's artwork as a fallback
+		season.SetArt(show, item)
+	}
+
+	if config.Get().UseFanartTv {
+		if show.FanArt == nil && show.ExternalIDs != nil {
+			show.FanArt = fanart.GetShow(util.StrInterfaceToInt(show.ExternalIDs.TVDBID))
+		}
+		if show.FanArt != nil {
+			item.Art = show.FanArt.ToEpisodeListItemArt(season.Season, item.Art)
+		}
+	}
 }
 
 // ToListItem ...
@@ -122,8 +137,6 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 			Votes:         strconv.Itoa(episode.VoteCount),
 			Aired:         episode.AirDate,
 			Duration:      runtime,
-			Code:          show.ExternalIDs.IMDBId,
-			IMDBNumber:    show.ExternalIDs.IMDBId,
 			PlayCount:     playcount.GetWatchedEpisodeByTMDB(show.ID, episode.SeasonNumber, episode.EpisodeNumber).Int(),
 			MPAA:          show.mpaa(),
 			DBTYPE:        "episode",
@@ -132,13 +145,16 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 			Studio:        show.GetStudios(),
 			Country:       show.GetCountries(),
 		},
-		Art: &xbmc.ListItemArt{},
 		UniqueIDs: &xbmc.UniqueIDs{
 			TMDB: strconv.Itoa(episode.ID),
 		},
 		Properties: &xbmc.ListItemProperties{
 			ShowTMDBId: strconv.Itoa(show.ID),
 		},
+	}
+	if show.ExternalIDs != nil {
+		item.Info.Code = show.ExternalIDs.IMDBId
+		item.Info.IMDBNumber = show.ExternalIDs.IMDBId
 	}
 
 	if ls, err := uid.GetShowByTMDB(show.ID); ls != nil && err == nil {
@@ -147,39 +163,7 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 		}
 	}
 
-	if show.PosterPath != "" {
-		item.Art.TvShowPoster = ImageURL(show.PosterPath, "w1280")
-		item.Art.FanArt = ImageURL(show.BackdropPath, "w1280")
-		item.Art.Thumbnail = ImageURL(show.PosterPath, "w1280")
-		item.Thumbnail = ImageURL(show.PosterPath, "w1280")
-	} else if show.Images != nil {
-		fanarts := []string{}
-		for _, backdrop := range show.Images.Backdrops {
-			fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
-		}
-		if len(fanarts) > 0 {
-			item.Art.FanArt = fanarts[rand.Intn(len(fanarts))]
-		}
-
-		fanarts = []string{}
-		for _, poster := range show.Images.Posters {
-			fanarts = append(fanarts, ImageURL(poster.FilePath, "w1280"))
-		}
-		if len(fanarts) > 0 {
-			item.Art.TvShowPoster = fanarts[rand.Intn(len(fanarts))]
-		}
-	}
-
-	if config.Get().UseFanartTv && show.FanArt != nil {
-		item.Art = show.FanArt.ToEpisodeListItemArt(season.Season, item.Art)
-	}
-
-	if episode.StillPath != "" {
-		item.Art.FanArt = ImageURL(episode.StillPath, "w1280")
-		item.Art.Thumbnail = ImageURL(episode.StillPath, "w1280")
-		item.Art.Poster = ImageURL(episode.StillPath, "w1280")
-		item.Thumbnail = ImageURL(episode.StillPath, "w1280")
-	}
+	episode.SetArt(show, season, item)
 
 	if season != nil && episode.Credits == nil && season.Credits != nil {
 		episode.Credits = season.Credits

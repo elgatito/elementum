@@ -101,8 +101,6 @@ type Movie struct {
 	Genres        []string `json:"genres"`
 	Language      string   `json:"language"`
 	Translations  []string `json:"available_translations"`
-
-	Images *Images `json:"images"`
 }
 
 // Show ...
@@ -125,8 +123,6 @@ type Show struct {
 	Country       string   `json:"country"`
 	Language      string   `json:"language"`
 	Translations  []string `json:"available_translations"`
-
-	Images *Images `json:"images"`
 }
 
 // Season ...
@@ -142,7 +138,6 @@ type Season struct {
 	Network       string  `json:"network"`
 
 	Episodes []*Episode `json:"episodes"`
-	Images   *Images    `json:"images"`
 	IDs      *IDs       `json:"ids"`
 }
 
@@ -162,8 +157,7 @@ type Episode struct {
 	Rating  float32 `json:"rating"`
 	Votes   int     `json:"votes"`
 
-	Images *Images `json:"images"`
-	IDs    *IDs    `json:"ids"`
+	IDs *IDs `json:"ids"`
 }
 
 // Airs ...
@@ -252,19 +246,6 @@ type HiddenShow struct {
 	HiddenAt time.Time `json:"hidden_at"`
 	Type     string    `json:"type"`
 	Show     *Show     `json:"show"`
-}
-
-// Images ...
-type Images struct {
-	Poster     *Sizes `json:"poster"`
-	FanArt     *Sizes `json:"fanart"`
-	ScreenShot *Sizes `json:"screenshot"`
-	HeadShot   *Sizes `json:"headshot"`
-	Logo       *Sizes `json:"logo"`
-	ClearArt   *Sizes `json:"clearart"`
-	Banner     *Sizes `json:"banner"`
-	Thumbnail  *Sizes `json:"thumb"`
-	Avatar     *Sizes `json:"avatar"`
 }
 
 // Sizes ...

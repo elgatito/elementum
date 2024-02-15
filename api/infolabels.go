@@ -2,7 +2,6 @@ package api
 
 import (
 	"errors"
-	"math/rand"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -159,7 +158,7 @@ func InfoLabelsSearch(s *bittorrent.Service) gin.HandlerFunc {
 	}
 }
 
-// GetEpisodeLabels returns listitem for an episode
+// GetEpisodeLabels returns ListItem for an episode
 func GetEpisodeLabels(showID, seasonNumber, episodeNumber int) (item *xbmc.ListItem, err error) {
 	show := tmdb.GetShow(showID, config.Get().Language)
 	if show == nil {
@@ -183,23 +182,11 @@ func GetEpisodeLabels(showID, seasonNumber, episodeNumber int) (item *xbmc.ListI
 			item.Info.DBID = le.UIDs.Kodi
 		}
 	}
-	if item.Art != nil {
-		if item.Art.FanArt == "" {
-			fanarts := make([]string, 0)
-			for _, backdrop := range show.Images.Backdrops {
-				fanarts = append(fanarts, tmdb.ImageURL(backdrop.FilePath, "w1280"))
-			}
-			if len(fanarts) > 0 {
-				item.Art.FanArt = fanarts[rand.Intn(len(fanarts))]
-			}
-		}
-		item.Art.Poster = tmdb.ImageURL(season.Poster, "w1280")
-	}
 
 	return
 }
 
-// GetMovieLabels returns listitem for a movie
+// GetMovieLabels returns ListItem for a movie
 func GetMovieLabels(tmdbID string) (item *xbmc.ListItem, err error) {
 	movie := tmdb.GetMovieByID(tmdbID, config.Get().Language)
 	if movie == nil {
@@ -215,7 +202,7 @@ func GetMovieLabels(tmdbID string) (item *xbmc.ListItem, err error) {
 	return
 }
 
-// GetSearchLabels returns listitem for a search query
+// GetSearchLabels returns ListItem for a search query
 func GetSearchLabels(s *bittorrent.Service, tmdbID string, idx string) (item *xbmc.ListItem, err error) {
 	torrent := s.HasTorrentByFakeID(tmdbID)
 	if torrent == nil || torrent.DBItem == nil {

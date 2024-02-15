@@ -10,6 +10,7 @@ import (
 
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/fanart"
 	"github.com/elgatito/elementum/library/playcount"
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/util"
@@ -81,11 +82,6 @@ func (seasons SeasonList) ToListItems(show *Show) []*xbmc.ListItem {
 	items := make([]*xbmc.ListItem, 0, len(seasons))
 	specials := make(xbmc.ListItems, 0)
 
-	fanarts := make([]string, 0)
-	for _, backdrop := range show.Images.Backdrops {
-		fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
-	}
-
 	if config.Get().ShowSeasonsOrder == 0 {
 		sort.Slice(seasons, func(i, j int) bool { return seasons[i].Season < seasons[j].Season })
 	} else {
@@ -125,10 +121,6 @@ func (seasons SeasonList) ToListItems(show *Show) []*xbmc.ListItem {
 
 		item := season.ToListItem(show)
 
-		if len(fanarts) > 0 {
-			item.Art.FanArt = fanarts[rand.Intn(len(fanarts))]
-		}
-
 		if season.Season <= 0 {
 			specials = append(specials, item)
 		} else {
@@ -143,8 +135,84 @@ func (seasons SeasonList) Len() int           { return len(seasons) }
 func (seasons SeasonList) Swap(i, j int)      { seasons[i], seasons[j] = seasons[j], seasons[i] }
 func (seasons SeasonList) Less(i, j int) bool { return seasons[i].Season < seasons[j].Season }
 
+// SetArt sets artworks for season
+func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
+	if item.Art == nil {
+		item.Art = &xbmc.ListItemArt{}
+	}
+
+	// Use the show's artwork as a fallback
+	show.SetArt(item)
+
+	if season.Poster != "" {
+		item.Art.Poster = ImageURL(season.Poster, "w1280")
+		item.Art.Thumbnail = ImageURL(season.Poster, "w1280")
+	}
+	if season.Backdrop != "" {
+		item.Art.FanArt = ImageURL(season.Backdrop, "w1280")
+		item.Art.Banner = ImageURL(season.Backdrop, "w1280")
+	}
+
+	if item.Art.AvailableArtworks == nil {
+		item.Art.AvailableArtworks = &xbmc.Artworks{}
+	}
+
+	if season.Images != nil && season.Images.Backdrops != nil {
+		fanarts := make([]string, 0)
+		foundLanguageSpecificImage := false
+		for _, backdrop := range season.Images.Backdrops {
+			// for AvailableArtworks
+			fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
+
+			// try to use language specific art
+			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
+				item.Art.FanArt = ImageURL(backdrop.FilePath, "w1280")
+				item.Art.Banner = ImageURL(backdrop.FilePath, "w1280")
+				foundLanguageSpecificImage = true // we take first image, it has top rating
+			}
+		}
+		if len(fanarts) > 0 {
+			item.Art.FanArts = fanarts
+			item.Art.AvailableArtworks.FanArt = fanarts
+			item.Art.AvailableArtworks.Banner = fanarts
+		}
+	}
+
+	if season.Images != nil && season.Images.Posters != nil {
+		posters := make([]string, 0)
+		foundLanguageSpecificImage := false
+		for _, poster := range season.Images.Posters {
+			// for AvailableArtworks
+			posters = append(posters, ImageURL(poster.FilePath, "w1280"))
+
+			// try to use language specific art
+			if !foundLanguageSpecificImage && poster.Iso639_1 == config.Get().Language {
+				item.Art.Poster = ImageURL(poster.FilePath, "w1280")
+				item.Art.Thumbnail = ImageURL(poster.FilePath, "w1280")
+				foundLanguageSpecificImage = true // we take first image, it has top rating
+			}
+		}
+		if len(posters) > 0 {
+			item.Art.AvailableArtworks.Poster = posters
+		}
+	}
+
+	if config.Get().UseFanartTv {
+		if show.FanArt == nil && show.ExternalIDs != nil {
+			show.FanArt = fanart.GetShow(util.StrInterfaceToInt(show.ExternalIDs.TVDBID))
+		}
+		if show.FanArt != nil {
+			item.Art = show.FanArt.ToSeasonListItemArt(season.Season, item.Art)
+		}
+	}
+
+	item.Thumbnail = item.Art.Thumbnail
+}
+
 // ToListItem ...
 func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
+	defer perf.ScopeTimer()()
+
 	name := fmt.Sprintf("Season %d", season.Season)
 	if season.name(show) != "" {
 		name = season.name(show)
@@ -170,8 +238,6 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 			MPAA:          show.mpaa(),
 			DBTYPE:        "season",
 			Mediatype:     "season",
-			Code:          show.ExternalIDs.IMDBId,
-			IMDBNumber:    show.ExternalIDs.IMDBId,
 			PlayCount:     playcount.GetWatchedSeasonByTMDB(show.ID, season.Season).Int(),
 			Genre:         show.GetGenres(),
 			Studio:        show.GetStudios(),
@@ -180,15 +246,13 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 			TotalEpisodes: strconv.Itoa(season.EpisodeCount),
 			ShowTMDBId:    strconv.Itoa(show.ID),
 		},
-		Art: &xbmc.ListItemArt{
-			TvShowPoster: ImageURL(show.PosterPath, "w1280"),
-			FanArt:       ImageURL(season.Backdrop, "w1280"),
-			Poster:       ImageURL(season.Poster, "w1280"),
-			Thumbnail:    ImageURL(season.Poster, "w1280"),
-		},
 		UniqueIDs: &xbmc.UniqueIDs{
 			TMDB: strconv.Itoa(season.ID),
 		},
+	}
+	if show.ExternalIDs != nil {
+		item.Info.Code = show.ExternalIDs.IMDBId
+		item.Info.IMDBNumber = show.ExternalIDs.IMDBId
 	}
 
 	if ls, err := uid.GetShowByTMDB(show.ID); ls != nil && err == nil {
@@ -203,32 +267,7 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 		item.Properties.UnWatchedEpisodes = strconv.Itoa(season.EpisodeCount - watchedEpisodes)
 	}
 
-	if item.Art != nil && item.Art.Poster == "" {
-		item.Art.Poster = ImageURL(show.PosterPath, "w1280")
-		item.Art.Thumbnail = ImageURL(show.PosterPath, "w1280")
-	}
-
-	var thisBackdrops []*Image
-	if show.Images != nil && show.Images.Backdrops != nil && len(show.Images.Backdrops) != 0 {
-		thisBackdrops = show.Images.Backdrops
-	}
-	if season.Images != nil && season.Images.Backdrops != nil && len(season.Images.Backdrops) != 0 {
-		thisBackdrops = season.Images.Backdrops
-	}
-	fanarts := make([]string, 0)
-	for _, backdrop := range thisBackdrops {
-		fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
-	}
-	if len(fanarts) > 0 {
-		item.Art.FanArt = fanarts[rand.Intn(len(fanarts))]
-		item.Art.FanArts = fanarts
-	}
-
-	if config.Get().UseFanartTv && show.FanArt != nil {
-		item.Art = show.FanArt.ToSeasonListItemArt(season.Season, item.Art)
-	}
-
-	item.Thumbnail = item.Art.Thumbnail
+	season.SetArt(show, item)
 
 	return item
 }
