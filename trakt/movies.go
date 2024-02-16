@@ -415,8 +415,9 @@ func PreviousListItemsMovies(listID string) (movies []*Movies, err error) {
 func ListItemsMovies(user string, listID string, isUpdateNeeded bool) (movies []*Movies, err error) {
 	defer perf.ScopeTimer()()
 
-	if user == "" || user == "id" {
-		user = config.Get().TraktUsername
+	url := fmt.Sprintf("/lists/%s/items/movies", listID)
+	if user == "" || user == config.Get().TraktUsername {
+		url = fmt.Sprintf("users/%s/lists/%s/items/movies", user, listID)
 	}
 
 	cacheStore := cache.NewDBStore()
@@ -431,7 +432,7 @@ func ListItemsMovies(user string, listID string, isUpdateNeeded bool) (movies []
 	var list []*ListItem
 	req := &reqapi.Request{
 		API:         reqapi.TraktAPI,
-		URL:         fmt.Sprintf("users/%s/lists/%s/items/movies", user, listID),
+		URL:         url,
 		Header:      GetAvailableHeader(),
 		Params:      napping.Params{}.AsUrlValues(),
 		Result:      &list,

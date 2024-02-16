@@ -309,7 +309,7 @@ func MoviesTraktLists(ctx *gin.Context) {
 			continue
 		}
 
-		link := URLForXBMC("/movies/trakt/lists/%s/%d", list.User.Ids.Slug, list.IDs.Trakt)
+		link := URLForXBMC("/movies/trakt/lists/%s/%d", list.Slug(), list.ID())
 		menuItem := []string{"LOCALIZE[30520]", fmt.Sprintf("RunPlugin(%s)", URLQuery(URLForXBMC("/menu/movie/add"), "name", list.Name, "link", link))}
 		if MovieMenu.Contains(addAction, &MenuItem{Name: list.Name, Link: link}) {
 			menuItem = []string{"LOCALIZE[30521]", fmt.Sprintf("RunPlugin(%s)", URLQuery(URLForXBMC("/menu/movie/remove"), "name", list.Name, "link", link))}

@@ -436,8 +436,9 @@ func PreviousCollectionShows() (shows []*Shows, err error) {
 func ListItemsShows(user string, listID string, isUpdateNeeded bool) (shows []*Shows, err error) {
 	defer perf.ScopeTimer()()
 
-	if user == "" || user == "id" {
-		user = config.Get().TraktUsername
+	url := fmt.Sprintf("/lists/%s/items/shows", listID)
+	if user == "" || user == config.Get().TraktUsername {
+		url = fmt.Sprintf("users/%s/lists/%s/items/shows", user, listID)
 	}
 
 	cacheStore := cache.NewDBStore()
@@ -452,7 +453,7 @@ func ListItemsShows(user string, listID string, isUpdateNeeded bool) (shows []*S
 	var list []*ListItem
 	req := &reqapi.Request{
 		API:    reqapi.TraktAPI,
-		URL:    fmt.Sprintf("users/%s/lists/%s/items/shows", user, listID),
+		URL:    url,
 		Header: GetAvailableHeader(),
 		Params: napping.Params{
 			"extended": "full",
