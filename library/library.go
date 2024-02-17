@@ -1044,7 +1044,7 @@ func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err erro
 		removeEnabled = config.Get().TraktSyncRemovedMoviesBack
 	default:
 		previous, _ = trakt.PreviousListItemsMovies(listID)
-		current, _ = trakt.ListItemsMovies("", listID, isUpdateNeeded)
+		current, _ = trakt.ListItemsMovies(config.Get().TraktUsername, listID, isUpdateNeeded)
 
 		label = "LOCALIZE[30263]"
 
@@ -1173,7 +1173,7 @@ func SyncShowsList(listID string, updating bool, isUpdateNeeded bool) (err error
 		removeEnabled = config.Get().TraktSyncRemovedShowsBack
 	default:
 		previous, _ = trakt.PreviousListItemsShows(listID)
-		current, _ = trakt.ListItemsShows("", listID, isUpdateNeeded)
+		current, _ = trakt.ListItemsShows(config.Get().TraktUsername, listID, isUpdateNeeded)
 
 		label = "LOCALIZE[30263]"
 

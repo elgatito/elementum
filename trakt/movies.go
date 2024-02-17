@@ -417,7 +417,7 @@ func ListItemsMovies(user string, listID string, isUpdateNeeded bool) (movies []
 
 	url := fmt.Sprintf("/lists/%s/items/movies", listID)
 	if user == "" || user == config.Get().TraktUsername {
-		url = fmt.Sprintf("users/%s/lists/%s/items/movies", user, listID)
+		url = fmt.Sprintf("users/%s/lists/%s/items/movies", config.Get().TraktUsername, listID)
 	}
 
 	cacheStore := cache.NewDBStore()
