@@ -306,6 +306,7 @@ type List struct {
 	Name           string    `json:"name"`
 	Description    string    `json:"description"`
 	Privacy        string    `json:"privacy"`
+	Type           string    `json:"type"`
 	DisplayNumbers bool      `json:"display_numbers"`
 	AllowComments  bool      `json:"allow_comments"`
 	SortBy         string    `json:"sort_by"`

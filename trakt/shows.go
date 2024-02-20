@@ -438,7 +438,7 @@ func ListItemsShows(user string, listID string, isUpdateNeeded bool) (shows []*S
 
 	url := fmt.Sprintf("/lists/%s/items/shows", listID)
 	if user == "" || user == config.Get().TraktUsername {
-		url = fmt.Sprintf("users/%s/lists/%s/items/shows", user, listID)
+		url = fmt.Sprintf("users/%s/lists/%s/items/shows", config.Get().TraktUsername, listID)
 	}
 
 	cacheStore := cache.NewDBStore()
