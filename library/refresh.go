@@ -938,8 +938,10 @@ func refreshLocalShows() {
 }
 
 func searchStrm(dir string) []string {
+	defer perf.ScopeTimer()()
+
 	ret := []string{}
-	foundDirs := []string{}
+	foundDirs := map[string]struct{}{}
 
 	godirwalk.Walk(dir, &godirwalk.Options{
 		FollowSymbolicLinks: true,
@@ -950,11 +952,11 @@ func searchStrm(dir string) []string {
 
 			// Make sure we return only one file per directory, no need to get all of them
 			dir := filepath.Dir(osPathname)
-			if util.StringSliceContains(foundDirs, dir) {
+			if _, ok := foundDirs[dir]; ok {
 				return nil
 			}
 
-			foundDirs = append(foundDirs, dir)
+			foundDirs[dir] = struct{}{}
 			ret = append(ret, osPathname)
 			return nil
 		},
