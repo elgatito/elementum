@@ -174,13 +174,13 @@ func UserlistMovies(ctx *gin.Context) {
 
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 
-	activities, err := trakt.GetActivities("UserlistMovies")
-
 	user := ctx.Params.ByName("user")
 	listID := ctx.Params.ByName("listId")
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, err := trakt.ListItemsMovies(user, listID, err != nil || activities.ListsUpdated())
+
+	listActivities, err := trakt.GetListActivities("UserlistMovies", listID)
+	movies, err := trakt.ListItemsMovies(user, listID, err != nil || listActivities.IsUpdated())
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 	}
@@ -193,13 +193,13 @@ func UserlistShows(ctx *gin.Context) {
 
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 
-	activities, err := trakt.GetActivities("UserlistShows")
-
 	user := ctx.Params.ByName("user")
 	listID := ctx.Params.ByName("listId")
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, err := trakt.ListItemsShows(user, listID, err != nil || activities.ListsUpdated())
+
+	listActivities, err := trakt.GetListActivities("UserlistShows", listID)
+	shows, err := trakt.ListItemsShows(user, listID, err != nil || listActivities.IsUpdated())
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 	}

@@ -57,6 +57,8 @@ const (
 
 	TraktActivitiesKey                     = TraktKey + "last_activities.%s"
 	TraktActivitiesExpire                  = 30 * 24 * time.Hour
+	TraktListActivitiesKey                 = TraktKey + "list_activities.%s.%s"
+	TraktListActivitiesExpire              = 30 * 24 * time.Hour
 	TraktPausedLastUpdatesKey              = TraktKey + "PausedLastUpdates.%d"
 	TraktPausedLastUpdatesExpire           = 30 * 24 * time.Hour
 	TraktMovieKey                          = TraktKey + "movie.%s"
@@ -72,7 +74,7 @@ const (
 	TraktMoviesCollectionKey               = TraktKey + "movies.collection"
 	TraktMoviesCollectionExpire            = CacheExpireLong
 	TraktMoviesListKey                     = TraktKey + "movies.list.%s"
-	TraktMoviesListExpire                  = 1 * time.Minute
+	TraktMoviesListExpire                  = CacheExpireLong
 	TraktMoviesCalendarKey                 = TraktKey + "movies.calendar.%s.%s.%d"
 	TraktMoviesCalendarAllExpire           = CacheExpireLong
 	TraktMoviesCalendarMyExpire            = CacheExpireShort
