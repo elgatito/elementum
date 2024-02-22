@@ -6,7 +6,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/anacrolix/missinggo/perf"
 	"github.com/cespare/xxhash"
+
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/library/uid"
@@ -83,11 +85,6 @@ func RefreshTrakt() error {
 	}()
 
 	if isFirstRun {
-		l.Mu.Trakt.Lock()
-		l.WatchedTraktMovies = []uint64{}
-		l.WatchedTraktShows = []uint64{}
-		l.Mu.Trakt.Unlock()
-
 		IsTraktInitialized = true
 		isKodiUpdated = false
 		isKodiAdded = false
@@ -183,8 +180,9 @@ func RefreshTraktWatched(xbmcHost *xbmc.XBMCHost, itemType int, isRefreshNeeded 
 	}
 
 	l := uid.Get()
-	l.Mu.Trakt.Lock()
-	defer l.Mu.Trakt.Unlock()
+	mu := l.GetMutex(uid.TraktMutex)
+	mu.Lock()
+	defer mu.Unlock()
 
 	started := time.Now()
 	defer func() {
@@ -204,7 +202,13 @@ func RefreshTraktWatched(xbmcHost *xbmc.XBMCHost, itemType int, isRefreshNeeded 
 func refreshTraktMoviesWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) error {
 	l := uid.Get()
 	l.Running.IsMovies = true
+
+	container := l.GetContainer(uid.WatchedMoviesContainer)
+	container.Mu.Lock()
+
 	defer func() {
+		container.Mu.Unlock()
+		l.Store()
 		l.Running.IsMovies = false
 	}()
 
@@ -216,6 +220,8 @@ func refreshTraktMoviesWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) er
 	} else if len(current) == 0 {
 		return nil
 	}
+
+	MoviesToUID(uid.WatchedMoviesContainer, current.ToMovies())
 
 	cacheStore := cache.NewDBStore()
 
@@ -231,8 +237,7 @@ func refreshTraktMoviesWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) er
 	unwatchedMovies := trakt.DiffWatchedMovies(current, previous, false)
 
 	fileKey := uint64(0)
-	missedItems := []uint64{}
-	l.WatchedTraktMovies = []uint64{}
+	missedItems := uid.NewLibraryContainer()
 
 	// Sync local items with exact list
 	for _, m := range watchedMovies {
@@ -252,8 +257,6 @@ func refreshTraktMoviesWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) er
 			continue
 		}
 
-		l.WatchedTraktMovies = addXXItem(l.WatchedTraktMovies, MovieType, m.Movie.IDs)
-
 		if r := getKodiMovieByTraktIDs(m.Movie.IDs); r != nil {
 			// Check if we previously set this item as watched, to avoid re-setting local items again and again.
 			fileKey = xxhash.Sum64String(r.File)
@@ -267,7 +270,7 @@ func refreshTraktMoviesWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) er
 				updateMovieWatched(xbmcHost, m, true)
 			}
 		} else {
-			missedItems = addXXItem(missedItems, MovieType, m.Movie.IDs)
+			missedItems.Add(MovieType, m.Movie.IDs.ToUniqueIDs())
 		}
 	}
 
@@ -278,7 +281,8 @@ func refreshTraktMoviesWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) er
 	syncWatchMovies := []*trakt.WatchedItem{}
 	syncUnwatchMovies := []*trakt.WatchedItem{}
 
-	l.Mu.Movies.Lock()
+	mu := l.GetMutex(uid.MoviesMutex)
+	mu.Lock()
 	for _, m := range l.Movies {
 		if m.UIDs.TMDB == 0 {
 			continue
@@ -287,7 +291,7 @@ func refreshTraktMoviesWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) er
 		fileKey = xxhash.Sum64String(m.File)
 		previousRun, isDone := syncPlaycount[fileKey]
 
-		has := hasXXItem(l.WatchedTraktMovies, MovieType, m.UIDs)
+		has := container.Has(MovieType, m.UIDs)
 		if (has && m.IsWatched()) || (!has && !m.IsWatched() || (isDone && previousRun == m.IsWatched())) {
 			continue
 		}
@@ -304,7 +308,7 @@ func refreshTraktMoviesWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) er
 			syncUnwatchMovies = append(syncUnwatchMovies, item)
 		}
 	}
-	l.Mu.Movies.Unlock()
+	mu.Unlock()
 
 	if len(syncUnwatchMovies) > 0 {
 		if _, err := trakt.SetMultipleWatched(syncUnwatchMovies); err == nil {
@@ -330,7 +334,13 @@ func refreshTraktMoviesWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) er
 func refreshTraktShowsWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) error {
 	l := uid.Get()
 	l.Running.IsShows = true
+
+	container := l.GetContainer(uid.WatchedShowsContainer)
+	container.Mu.Lock()
+
 	defer func() {
+		container.Mu.Unlock()
+		l.Store()
 		l.Running.IsShows = false
 	}()
 
@@ -358,8 +368,8 @@ func refreshTraktShowsWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) err
 	unwatchedShows := trakt.DiffWatchedShows(current, previous)
 
 	fileKey := uint64(0)
-	missedItems := []uint64{}
-	l.WatchedTraktShows = []uint64{}
+	missedItems := uid.NewLibraryContainer()
+	container.Clear()
 
 	cacheStore.Get(lastCacheKey, &lastPlaycount)
 	cacheStore.Get(syncCacheKey, &syncPlaycount)
@@ -390,19 +400,19 @@ func refreshTraktShowsWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) err
 				if sc := tmdbShow.GetSeasonEpisodes(season.Number); sc != 0 && sc == len(season.Episodes) && season.Number > 0 {
 					completedSeasons++
 
-					l.WatchedTraktShows = addXXItem(l.WatchedTraktShows, SeasonType, s.Show.IDs, season.Number)
+					container.Add(SeasonType, s.Show.IDs.ToUniqueIDs(), season.Number)
 				}
 			}
 
 			for _, episode := range season.Episodes {
-				l.WatchedTraktShows = addXXItem(l.WatchedTraktShows, EpisodeType, s.Show.IDs, season.Number, episode.Number)
+				container.Add(EpisodeType, s.Show.IDs.ToUniqueIDs(), season.Number, episode.Number)
 			}
 		}
 
 		if tmdbShow != nil && ((completedSeasons == tmdbShow.CountRealSeasons() && tmdbShow.CountRealSeasons() != 0) || s.Watched) {
 			s.Watched = true
 
-			l.WatchedTraktShows = addXXItem(l.WatchedTraktShows, ShowType, s.Show.IDs)
+			container.Add(ShowType, s.Show.IDs.ToUniqueIDs())
 		}
 
 		if r := getKodiShowByTraktIDs(s.Show.IDs); r != nil {
@@ -422,7 +432,7 @@ func refreshTraktShowsWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) err
 							toRun = true
 						}
 					} else {
-						missedItems = addXXItem(missedItems, EpisodeType, s.Show.IDs, season.Number, episode.Number)
+						missedItems.Add(EpisodeType, s.Show.IDs.ToUniqueIDs(), season.Number, episode.Number)
 					}
 				}
 			}
@@ -431,7 +441,7 @@ func refreshTraktShowsWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) err
 				updateShowWatched(xbmcHost, s, true)
 			}
 		} else {
-			missedItems = addXXItem(missedItems, ShowType, s.Show.IDs)
+			missedItems.Add(ShowType, s.Show.IDs.ToUniqueIDs())
 		}
 	}
 
@@ -442,11 +452,12 @@ func refreshTraktShowsWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) err
 	syncWatchShows := []*trakt.WatchedItem{}
 	syncUnwatchShows := []*trakt.WatchedItem{}
 
-	l.Mu.Shows.Lock()
+	mu := l.GetMutex(uid.ShowsMutex)
+	mu.Lock()
 	for _, s := range l.Shows {
-		if s.UIDs.TMDB == 0 || hasXXItem(l.WatchedTraktShows, ShowType, s.UIDs) {
+		if s.UIDs.TMDB == 0 || container.Has(ShowType, s.UIDs) {
 			continue
-		} else if hasXXItem(missedItems, ShowType, s.UIDs) {
+		} else if missedItems.Has(ShowType, s.UIDs) {
 			continue
 		}
 
@@ -454,11 +465,11 @@ func refreshTraktShowsWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) err
 			fileKey = xxhash.Sum64String(e.File)
 			previousRun, isDone := syncPlaycount[fileKey]
 
-			has := hasXXItem(l.WatchedTraktShows, EpisodeType, s.UIDs, e.Season, e.Episode) ||
-				hasXXItem(l.WatchedTraktShows, SeasonType, s.UIDs, e.Season)
+			has := container.Has(EpisodeType, s.UIDs, e.Season, e.Episode) ||
+				container.Has(SeasonType, s.UIDs, e.Season)
 			if (has && e.IsWatched()) || (!has && !e.IsWatched()) || (isDone && previousRun == e.IsWatched()) {
 				continue
-			} else if hasXXItem(missedItems, EpisodeType, s.UIDs, e.Season, e.Episode) {
+			} else if missedItems.Has(EpisodeType, s.UIDs, e.Season, e.Episode) {
 				// Item not in Kodi library
 				continue
 			}
@@ -478,7 +489,7 @@ func refreshTraktShowsWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) err
 			}
 		}
 	}
-	l.Mu.Shows.Unlock()
+	mu.Unlock()
 
 	if len(syncUnwatchShows) > 0 {
 		if _, err := trakt.SetMultipleWatched(syncUnwatchShows); err == nil {
@@ -499,80 +510,6 @@ func refreshTraktShowsWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) err
 	}
 
 	return nil
-}
-
-func addXXItem(ary []uint64, media int, uids *trakt.IDs, ids ...int) []uint64 {
-	traktKey, tmdbKey, imdbKey := getXXItem(ary, media, uids.Trakt, uids.TMDB, uids.IMDB, ids...)
-
-	if traktKey != 0 {
-		ary = append(ary, traktKey)
-	}
-	if tmdbKey != 0 {
-		ary = append(ary, tmdbKey)
-	}
-	if imdbKey != 0 {
-		ary = append(ary, imdbKey)
-	}
-
-	return ary
-}
-
-func hasXXItem(ary []uint64, media int, uids *uid.UniqueIDs, ids ...int) bool {
-	traktKey, tmdbKey, imdbKey := getXXItem(ary, media, uids.Trakt, uids.TMDB, uids.IMDB, ids...)
-
-	for _, item := range ary {
-		if item == traktKey || item == tmdbKey || item == imdbKey {
-			return true
-		}
-	}
-
-	return false
-}
-
-func getXXItem(ary []uint64, media int, traktID int, tmdbID int, imdbID string, ids ...int) (traktKey, tmdbKey, imdbKey uint64) {
-	if media == MovieType {
-		if traktID != 0 {
-			traktKey = xxhash.Sum64String(fmt.Sprintf("%d_%d_%d", media, TraktScraper, traktID))
-		}
-		if tmdbID != 0 {
-			tmdbKey = xxhash.Sum64String(fmt.Sprintf("%d_%d_%d", media, TMDBScraper, tmdbID))
-		}
-		if imdbID != "" {
-			imdbKey = xxhash.Sum64String(fmt.Sprintf("%d_%d_%s", media, IMDBScraper, imdbID))
-		}
-	} else if media == ShowType {
-		if traktID != 0 {
-			traktKey = xxhash.Sum64String(fmt.Sprintf("%d_%d_%d", media, TraktScraper, traktID))
-		}
-		if tmdbID != 0 {
-			tmdbKey = xxhash.Sum64String(fmt.Sprintf("%d_%d_%d", media, TMDBScraper, tmdbID))
-		}
-		if imdbID != "" {
-			imdbKey = xxhash.Sum64String(fmt.Sprintf("%d_%d_%s", media, IMDBScraper, imdbID))
-		}
-	} else if media == SeasonType && len(ids) > 0 {
-		if traktID != 0 {
-			tmdbKey = xxhash.Sum64String(fmt.Sprintf("%d_%d_%d_%d", media, TraktScraper, traktID, ids[0]))
-		}
-		if tmdbID != 0 {
-			tmdbKey = xxhash.Sum64String(fmt.Sprintf("%d_%d_%d_%d", media, TMDBScraper, tmdbID, ids[0]))
-		}
-		if imdbID != "" {
-			imdbKey = xxhash.Sum64String(fmt.Sprintf("%d_%d_%s_%d", media, IMDBScraper, imdbID, ids[0]))
-		}
-	} else if media == EpisodeType && len(ids) > 0 {
-		if traktID != 0 {
-			traktKey = xxhash.Sum64String(fmt.Sprintf("%d_%d_%d_%d_%d", media, TraktScraper, traktID, ids[0], ids[1]))
-		}
-		if tmdbID != 0 {
-			tmdbKey = xxhash.Sum64String(fmt.Sprintf("%d_%d_%d_%d_%d", media, TMDBScraper, tmdbID, ids[0], ids[1]))
-		}
-		if imdbID != "" {
-			imdbKey = xxhash.Sum64String(fmt.Sprintf("%d_%d_%s_%d_%d", media, IMDBScraper, imdbID, ids[0], ids[1]))
-		}
-	}
-
-	return
 }
 
 func getKodiMovieByTraktIDs(ids *trakt.IDs) (r *uid.Movie) {
@@ -889,4 +826,56 @@ func syncShowsRemovedBack(shows []*trakt.Shows) error {
 	}
 
 	return nil
+}
+
+func MoviesToUIDLocked(containerType uid.ContainerType, movies []*trakt.Movies) {
+	container := uid.Get().GetContainer(containerType)
+	container.Mu.Lock()
+	defer container.Mu.Unlock()
+
+	MoviesToUID(containerType, movies)
+}
+
+func MoviesToUID(containerType uid.ContainerType, movies []*trakt.Movies) {
+	defer perf.ScopeTimer()()
+
+	l := uid.Get()
+	container := l.GetContainer(containerType)
+	container.Clear()
+	for _, m := range movies {
+		if m == nil || m.Movie == nil || m.Movie.IDs == nil {
+			continue
+		}
+
+		container.Add(MovieType, m.Movie.IDs.ToUniqueIDs())
+	}
+
+	l.Store()
+	log.Debugf("Synced %d movies items into container type %d", len(movies), containerType)
+}
+
+func ShowsToUIDLocked(containerType uid.ContainerType, shows []*trakt.Shows) {
+	container := uid.Get().GetContainer(containerType)
+	container.Mu.Lock()
+	defer container.Mu.Unlock()
+
+	ShowsToUID(containerType, shows)
+}
+
+func ShowsToUID(containerType uid.ContainerType, shows []*trakt.Shows) {
+	defer perf.ScopeTimer()()
+
+	l := uid.Get()
+	container := l.GetContainer(containerType)
+	container.Clear()
+	for _, s := range shows {
+		if s == nil || s.Show == nil || s.Show.IDs == nil {
+			continue
+		}
+
+		container.Add(ShowType, s.Show.IDs.ToUniqueIDs())
+	}
+
+	l.Store()
+	log.Debugf("Synced %d shows items into container type %d", len(shows), containerType)
 }

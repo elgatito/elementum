@@ -1,123 +1,15 @@
 package uid
 
 import (
-	"time"
+	"bytes"
+	"sync"
 
-	"github.com/anacrolix/sync"
-	"github.com/elgatito/elementum/xbmc"
+	"github.com/anacrolix/missinggo/perf"
+	"github.com/goccy/go-json"
 	"github.com/op/go-logging"
+
+	"github.com/elgatito/elementum/cache"
 )
-
-const (
-	// MovieType ...
-	MovieType = iota
-	// ShowType ...
-	ShowType
-	// SeasonType ...
-	SeasonType
-	// EpisodeType ...
-	EpisodeType
-)
-
-// Status represents library bool statuses
-type Status struct {
-	IsOverall    bool
-	IsMovies     bool
-	IsShows      bool
-	IsEpisodes   bool
-	IsTrakt      bool
-	IsKodi       bool
-	IsKodiMovies bool
-	IsKodiShows  bool
-}
-
-// UniqueIDs represents all IDs for a library item
-type UniqueIDs struct {
-	MediaType int    `json:"media"`
-	Kodi      int    `json:"kodi"`
-	TMDB      int    `json:"tmdb"`
-	TVDB      int    `json:"tvdb"`
-	IMDB      string `json:"imdb"`
-	Trakt     int    `json:"trakt"`
-	Playcount int    `json:"playcount"`
-}
-
-// Movie represents Movie content type
-type Movie struct {
-	ID        int
-	Title     string
-	File      string
-	Year      int
-	DateAdded time.Time
-	UIDs      *UniqueIDs
-	XbmcUIDs  *xbmc.UniqueIDs
-	Resume    *Resume
-}
-
-// Show represents Show content type
-type Show struct {
-	ID        int
-	Title     string
-	Year      int
-	DateAdded time.Time
-	Seasons   []*Season
-	Episodes  []*Episode
-	UIDs      *UniqueIDs
-	XbmcUIDs  *xbmc.UniqueIDs
-}
-
-// Season represents Season content type
-type Season struct {
-	ID       int
-	Title    string
-	Season   int
-	Episodes int
-	UIDs     *UniqueIDs
-	XbmcUIDs *xbmc.UniqueIDs
-}
-
-// Episode represents Episode content type
-type Episode struct {
-	ID        int
-	Title     string
-	Season    int
-	Episode   int
-	File      string
-	DateAdded time.Time
-	UIDs      *UniqueIDs
-	XbmcUIDs  *xbmc.UniqueIDs
-	Resume    *Resume
-}
-
-// Resume shows watched progress information
-type Resume struct {
-	Position float64 `json:"position"`
-	Total    float64 `json:"total"`
-}
-
-// Library represents library
-type Library struct {
-	Mu lMutex
-
-	// Stores all the unique IDs collected
-	UIDs []*UniqueIDs
-
-	Movies []*Movie
-	Shows  []*Show
-
-	WatchedTraktMovies []uint64
-	WatchedTraktShows  []uint64
-
-	Pending Status
-	Running Status
-}
-
-type lMutex struct {
-	UIDs   sync.RWMutex
-	Movies sync.RWMutex
-	Shows  sync.RWMutex
-	Trakt  sync.RWMutex
-}
 
 var (
 	l = &Library{
@@ -125,8 +17,8 @@ var (
 		Movies: []*Movie{},
 		Shows:  []*Show{},
 
-		WatchedTraktMovies: []uint64{},
-		WatchedTraktShows:  []uint64{},
+		Mu:         map[MutexType]*sync.RWMutex{},
+		Containers: map[ContainerType]*LibraryContainer{},
 	}
 
 	log = logging.MustGetLogger("uid")
@@ -135,6 +27,77 @@ var (
 // Get returns singleton instance for Library
 func Get() *Library {
 	return l
+}
+
+// Store is storing Containers in cache for future quick-restore.
+func (l *Library) Store() error {
+	defer perf.ScopeTimer()()
+
+	l.globalMutex.RLock()
+	defer l.globalMutex.RUnlock()
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(l.Containers); err != nil {
+		log.Errorf("Could not encode library state: %s", err)
+		return err
+	}
+
+	return cache.NewDBStore().SetBytes(cache.LibraryStateKey, buf.Bytes(), cache.LibraryStateExpire)
+}
+
+// Restore is restoring Containers from cache to have it in the memory.
+func (l *Library) Restore() error {
+	defer perf.ScopeTimer()()
+
+	b, err := cache.NewDBStore().GetBytes(cache.LibraryStateKey)
+	if err != nil {
+		return err
+	}
+
+	dump := Library{}
+
+	buf := bytes.NewBuffer(b)
+	if err := json.NewDecoder(buf).Decode(&dump.Containers); err != nil {
+		log.Errorf("Could not decode library state: %s", err)
+		return err
+	}
+
+	l.globalMutex.Lock()
+	defer l.globalMutex.Unlock()
+
+	l.Containers = dump.Containers
+
+	return nil
+}
+
+func (l *Library) GetContainer(id ContainerType) *LibraryContainer {
+	l.globalMutex.RLock()
+	if ret, ok := l.Containers[id]; ok {
+		l.globalMutex.RUnlock()
+		return ret
+	}
+	l.globalMutex.RUnlock()
+
+	l.globalMutex.Lock()
+	defer l.globalMutex.Unlock()
+
+	l.Containers[id] = NewLibraryContainer()
+	return l.Containers[id]
+}
+
+func (l *Library) GetMutex(id MutexType) *sync.RWMutex {
+	l.globalMutex.RLock()
+	if ret, ok := l.Mu[id]; ok {
+		l.globalMutex.RUnlock()
+		return ret
+	}
+	l.globalMutex.RUnlock()
+
+	l.globalMutex.Lock()
+	defer l.globalMutex.Unlock()
+
+	l.Mu[id] = &sync.RWMutex{}
+	return l.Mu[id]
 }
 
 // IsWatched returns watched state
@@ -166,8 +129,9 @@ func GetUIDsFromKodi(kodiID int) *UniqueIDs {
 		return nil
 	}
 
-	l.Mu.UIDs.Lock()
-	defer l.Mu.UIDs.Unlock()
+	mu := l.GetMutex(UIDsMutex)
+	mu.RLock()
+	defer mu.RUnlock()
 
 	for _, u := range l.UIDs {
 		if u.Kodi == kodiID {
@@ -184,8 +148,9 @@ func GetShowForEpisode(kodiID int) (*Show, *Episode) {
 		return nil, nil
 	}
 
-	l.Mu.Shows.RLock()
-	defer l.Mu.Shows.RUnlock()
+	mu := l.GetMutex(ShowsMutex)
+	mu.RLock()
+	defer mu.RUnlock()
 
 	for _, s := range l.Shows {
 		for _, e := range s.Episodes {

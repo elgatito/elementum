@@ -12,8 +12,9 @@ import (
 
 // IsDuplicateMovie checks if movie exists in the library
 func IsDuplicateMovie(tmdbID string) bool {
-	l.Mu.UIDs.Lock()
-	defer l.Mu.UIDs.Unlock()
+	mu := l.GetMutex(UIDsMutex)
+	mu.RLock()
+	defer mu.RUnlock()
 	defer perf.ScopeTimer()()
 
 	query, _ := strconv.Atoi(tmdbID)
@@ -28,8 +29,9 @@ func IsDuplicateMovie(tmdbID string) bool {
 
 // IsDuplicateMovieByInt checks if movie exists in the library
 func IsDuplicateMovieByInt(tmdbID int) bool {
-	l.Mu.UIDs.Lock()
-	defer l.Mu.UIDs.Unlock()
+	mu := l.GetMutex(UIDsMutex)
+	mu.RLock()
+	defer mu.RUnlock()
 	defer perf.ScopeTimer()()
 
 	for _, u := range l.UIDs {
@@ -43,10 +45,10 @@ func IsDuplicateMovieByInt(tmdbID int) bool {
 
 // IsDuplicateShow checks if show exists in the library
 func IsDuplicateShow(tmdbID string) bool {
+	mu := l.GetMutex(UIDsMutex)
+	mu.RLock()
+	defer mu.RUnlock()
 	defer perf.ScopeTimer()()
-
-	l.Mu.UIDs.Lock()
-	defer l.Mu.UIDs.Unlock()
 
 	query, _ := strconv.Atoi(tmdbID)
 	for _, u := range l.UIDs {
@@ -60,10 +62,10 @@ func IsDuplicateShow(tmdbID string) bool {
 
 // IsDuplicateShowByInt checks if show exists in the library
 func IsDuplicateShowByInt(tmdbID int) bool {
+	mu := l.GetMutex(UIDsMutex)
+	mu.RLock()
+	defer mu.RUnlock()
 	defer perf.ScopeTimer()()
-
-	l.Mu.UIDs.Lock()
-	defer l.Mu.UIDs.Unlock()
 
 	for _, u := range l.UIDs {
 		if u.TMDB != 0 && u.MediaType == ShowType && u.TMDB == tmdbID {
@@ -76,8 +78,9 @@ func IsDuplicateShowByInt(tmdbID int) bool {
 
 // IsDuplicateEpisode checks if episode exists in the library
 func IsDuplicateEpisode(tmdbShowID int, seasonNumber int, episodeNumber int) bool {
-	l.Mu.Shows.RLock()
-	defer l.Mu.Shows.RUnlock()
+	mu := l.GetMutex(ShowsMutex)
+	mu.RLock()
+	defer mu.RUnlock()
 	defer perf.ScopeTimer()()
 
 	for _, s := range l.Shows {
@@ -96,7 +99,7 @@ func IsDuplicateEpisode(tmdbShowID int, seasonNumber int, episodeNumber int) boo
 }
 
 // IsAddedToLibrary checks if specific TMDB exists in the library
-func IsAddedToLibrary(id string, mediaType int) (isAdded bool) {
+func IsAddedToLibrary(id string, mediaType MediaItemType) (isAdded bool) {
 	defer perf.ScopeTimer()()
 
 	if mediaType == MovieType {

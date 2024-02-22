@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/anacrolix/missinggo/perf"
 	"github.com/cespare/xxhash"
 	"github.com/karrick/godirwalk"
 
@@ -98,8 +99,9 @@ func RefreshMovies() error {
 	l.Running.IsMovies = true
 
 	defer func() {
-		l.Running.IsMovies = false
 		RefreshUIDs()
+		l.Store()
+		l.Running.IsMovies = false
 	}()
 
 	started := time.Now()
@@ -116,8 +118,8 @@ func RefreshMovies() error {
 		log.Debugf("Fetched %d movies from Kodi Library in %s", len(movies.Movies), time.Since(started))
 	}()
 
-	l.Mu.Movies.Lock()
-	defer l.Mu.Movies.Unlock()
+	mu := l.GetMutex(uid.MoviesMutex)
+	mu.Lock()
 
 	l.Movies = make([]*uid.Movie, 0, len(movies.Movies))
 	for _, m := range movies.Movies {
@@ -148,6 +150,7 @@ func RefreshMovies() error {
 	for _, m := range l.Movies {
 		parseUniqueID(MovieType, m.UIDs, m.XbmcUIDs, m.File, m.Year)
 	}
+	mu.Unlock()
 
 	return nil
 }
@@ -168,8 +171,9 @@ func RefreshShows() error {
 	l.Running.IsShows = true
 
 	defer func() {
-		l.Running.IsShows = false
 		RefreshUIDs()
+		l.Store()
+		l.Running.IsShows = false
 	}()
 
 	started := time.Now()
@@ -186,7 +190,9 @@ func RefreshShows() error {
 		log.Debugf("Fetched %d shows from Kodi Library in %s", len(shows.Shows), time.Since(started))
 	}()
 
-	l.Mu.Shows.Lock()
+	mu := l.GetMutex(uid.ShowsMutex)
+	mu.Lock()
+
 	l.Shows = make([]*uid.Show, 0, len(shows.Shows))
 	for _, s := range shows.Shows {
 		s.UniqueIDs.Kodi = s.ID
@@ -207,7 +213,7 @@ func RefreshShows() error {
 
 		parseUniqueID(ShowType, l.Shows[len(l.Shows)-1].UIDs, l.Shows[len(l.Shows)-1].XbmcUIDs, "", l.Shows[len(l.Shows)-1].Year)
 	}
-	l.Mu.Shows.Unlock()
+	mu.Unlock()
 
 	if err := RefreshSeasons(); err != nil {
 		log.Debugf("RefreshSeasons got an error: %v", err)
@@ -218,7 +224,7 @@ func RefreshShows() error {
 
 	// TODO: This needs refactor to avoid setting global Lock on processing,
 	// should use temporary container to process and then sync to Shows
-	l.Mu.Shows.Lock()
+	mu.Lock()
 	for _, show := range l.Shows {
 		// Step 1: try to get information from what we get from Kodi
 		parseUniqueID(ShowType, show.UIDs, show.XbmcUIDs, "", show.Year)
@@ -258,7 +264,7 @@ func RefreshShows() error {
 			parseUniqueID(EpisodeType, e.UIDs, e.XbmcUIDs, "", 0)
 		}
 	}
-	l.Mu.Shows.Unlock()
+	mu.Unlock()
 
 	return nil
 }
@@ -274,12 +280,13 @@ func RefreshSeasons() error {
 	l := uid.Get()
 
 	// Collect all shows IDs for possibly doing one-by-one calls to Kodi
-	l.Mu.Shows.Lock()
+	mu := l.GetMutex(uid.ShowsMutex)
+	mu.Lock()
 	shows := make([]int, 0, len(l.Shows))
 	for _, s := range l.Shows {
 		shows = append(shows, s.ID)
 	}
-	l.Mu.Shows.Unlock()
+	mu.Unlock()
 
 	seasons, err := xbmcHost.VideoLibraryGetAllSeasons(shows)
 	if err != nil {
@@ -292,7 +299,7 @@ func RefreshSeasons() error {
 		log.Debugf("Fetched %d seasons from Kodi Library in %s", len(seasons.Seasons), time.Since(started))
 	}()
 
-	l.Mu.Shows.Lock()
+	mu.Lock()
 	cleanupCheck := map[int]bool{}
 	for _, s := range seasons.Seasons {
 		c, err := uid.FindShowByKodi(s.TVShowID)
@@ -316,7 +323,7 @@ func RefreshSeasons() error {
 			XbmcUIDs: &s.UniqueIDs,
 		})
 	}
-	l.Mu.Shows.Unlock()
+	mu.Unlock()
 
 	return nil
 }
@@ -342,6 +349,8 @@ func RefreshEpisodes() error {
 
 	started := time.Now()
 
+	mu := l.GetMutex(uid.ShowsMutex)
+
 	var shows []int
 	if len(pendingShows) != 0 {
 		defer func() {
@@ -354,12 +363,12 @@ func RefreshEpisodes() error {
 		}
 		pendingShows = map[int]bool{}
 	} else {
-		l.Mu.Shows.Lock()
+		mu.Lock()
 		shows = make([]int, 0, len(l.Shows))
 		for _, i := range l.Shows {
 			shows = append(shows, i.XbmcUIDs.Kodi)
 		}
-		l.Mu.Shows.Unlock()
+		mu.Unlock()
 	}
 
 	episodes, err := xbmcHost.VideoLibraryGetAllEpisodes(shows)
@@ -373,7 +382,7 @@ func RefreshEpisodes() error {
 		log.Debugf("Fetched %d episodes from Kodi Library in %s", len(episodes.Episodes), time.Since(started))
 	}()
 
-	l.Mu.Shows.Lock()
+	mu.Lock()
 	cleanupCheck := map[int]bool{}
 	for _, e := range episodes.Episodes {
 		c, err := uid.FindShowByKodi(e.TVShowID)
@@ -409,7 +418,7 @@ func RefreshEpisodes() error {
 			c.Episodes[len(c.Episodes)-1].Resume.Total = e.Resume.Total
 		}
 	}
-	l.Mu.Shows.Unlock()
+	mu.Unlock()
 
 	return nil
 }
@@ -424,6 +433,8 @@ func RefreshMovie(kodiID, action int) {
 
 	defer RefreshUIDs()
 
+	mu := uid.Get().GetMutex(uid.MoviesMutex)
+
 	if action == ActionDelete || action == ActionSafeDelete {
 		if action == ActionDelete {
 			if _, _, err := RemoveMovie(uids.TMDB, false); err != nil {
@@ -432,7 +443,7 @@ func RefreshMovie(kodiID, action int) {
 		}
 
 		l := uid.Get()
-		l.Mu.Movies.Lock()
+		mu.Lock()
 		foundIndex := -1
 		for i, m := range l.Movies {
 			if m.UIDs.Kodi == kodiID {
@@ -443,7 +454,7 @@ func RefreshMovie(kodiID, action int) {
 		if foundIndex != -1 {
 			l.Movies = append(l.Movies[:foundIndex], l.Movies[foundIndex+1:]...)
 		}
-		l.Mu.Movies.Unlock()
+		mu.Unlock()
 	} else if action == ActionUpdate {
 		deleteDBItem(uids.TMDB, ShowType, false, false)
 	}
@@ -459,6 +470,9 @@ func RefreshShow(kodiID, action int) {
 
 	defer RefreshUIDs()
 
+	l := uid.Get()
+	mu := l.GetMutex(uid.ShowsMutex)
+
 	if action == ActionDelete || action == ActionSafeDelete {
 		if action == ActionDelete {
 			id := strconv.Itoa(uids.TMDB)
@@ -467,8 +481,7 @@ func RefreshShow(kodiID, action int) {
 			}
 		}
 
-		l := uid.Get()
-		l.Mu.Shows.Lock()
+		mu.Lock()
 		foundIndex := -1
 		for i, s := range l.Shows {
 			if s.UIDs.Kodi == kodiID {
@@ -479,7 +492,7 @@ func RefreshShow(kodiID, action int) {
 		if foundIndex != -1 {
 			l.Shows = append(l.Shows[:foundIndex], l.Shows[foundIndex+1:]...)
 		}
-		l.Mu.Shows.Unlock()
+		mu.Unlock()
 	} else if action == ActionUpdate {
 		deleteDBItem(uids.TMDB, ShowType, false, false)
 	}
@@ -495,13 +508,15 @@ func RefreshEpisode(kodiID, action int) {
 
 	defer RefreshUIDs()
 
+	l := uid.Get()
+	mu := l.GetMutex(uid.ShowsMutex)
+
 	if action == ActionDelete || action == ActionSafeDelete {
 		if action == ActionDelete {
 			RemoveEpisode(e.UIDs.TMDB, s.UIDs.TMDB, e.Season, e.Episode)
 		}
 
-		l := uid.Get()
-		l.Mu.Shows.Lock()
+		mu.Lock()
 		sIndex := -1
 		eIndex := -1
 		for i, sh := range l.Shows {
@@ -520,7 +535,7 @@ func RefreshEpisode(kodiID, action int) {
 		if eIndex != -1 {
 			l.Shows[sIndex].Episodes = append(l.Shows[sIndex].Episodes[:eIndex], l.Shows[sIndex].Episodes[eIndex+1:]...)
 		}
-		l.Mu.Shows.Unlock()
+		mu.Unlock()
 	} else if action == ActionUpdate {
 		updateDBItem(e.UIDs.TMDB, StateActive, EpisodeType, s.UIDs.TMDB)
 	}
@@ -539,22 +554,37 @@ func RefreshUIDsRunner(force bool) error {
 		return nil
 	}
 
+	defer perf.ScopeTimer()()
+
 	now := time.Now()
 
-	l.Mu.UIDs.Lock()
-	defer l.Mu.UIDs.Unlock()
+	moviesContainer := l.GetContainer(uid.WatchedMoviesContainer)
+	showsContainer := l.GetContainer(uid.WatchedShowsContainer)
+
+	mu := l.GetMutex(uid.UIDsMutex)
+	mu.Lock()
+	defer mu.Unlock()
 
 	playcount.Mu.Lock()
 	defer playcount.Mu.Unlock()
+
 	playcount.Watched = map[uint64]playcount.WatchedState{}
 	l.UIDs = []*uid.UniqueIDs{}
-	for _, v := range l.WatchedTraktMovies {
-		playcount.Watched[v] = true
-	}
-	for _, v := range l.WatchedTraktShows {
-		playcount.Watched[v] = true
-	}
 
+	moviesContainer.Mu.RLock()
+	for k := range moviesContainer.Items {
+		playcount.Watched[k] = true
+	}
+	moviesContainer.Mu.RUnlock()
+
+	showsContainer.Mu.RLock()
+	for k := range showsContainer.Items {
+		playcount.Watched[k] = true
+	}
+	showsContainer.Mu.RUnlock()
+
+	mu = l.GetMutex(uid.MoviesMutex)
+	mu.RLock()
 	for _, m := range l.Movies {
 		m.UIDs.MediaType = MovieType
 		l.UIDs = append(l.UIDs, m.UIDs)
@@ -565,7 +595,10 @@ func RefreshUIDsRunner(force bool) error {
 			playcount.Watched[xxhash.Sum64String(fmt.Sprintf("%d_%d_%s", MovieType, IMDBScraper, m.UIDs.IMDB))] = true
 		}
 	}
+	mu.RUnlock()
 
+	mu = l.GetMutex(uid.ShowsMutex)
+	mu.RLock()
 	for _, s := range l.Shows {
 		s.UIDs.MediaType = ShowType
 		l.UIDs = append(l.UIDs, s.UIDs)
@@ -598,12 +631,13 @@ func RefreshUIDsRunner(force bool) error {
 			}
 		}
 	}
+	mu.RUnlock()
 
 	log.Debugf("UIDs refresh finished in %s", time.Since(now))
 	return nil
 }
 
-func parseUniqueID(entityType int, i *uid.UniqueIDs, xbmcIDs *xbmc.UniqueIDs, fileName string, entityYear int) {
+func parseUniqueID(entityType uid.MediaItemType, i *uid.UniqueIDs, xbmcIDs *xbmc.UniqueIDs, fileName string, entityYear int) {
 	i.MediaType = entityType
 
 	convertKodiIDsToLibrary(i, xbmcIDs)
@@ -790,7 +824,7 @@ func findTMDBIDsWithYear(entityType int, source string, id string, year int) int
 	return reserveID
 }
 
-func findTMDBIDs(entityType int, source string, id string) int {
+func findTMDBIDs(entityType uid.MediaItemType, source string, id string) int {
 	results := tmdb.Find(id, source)
 	if results != nil {
 		if entityType == MovieType && len(results.MovieResults) == 1 && results.MovieResults[0] != nil {
@@ -872,6 +906,8 @@ func refreshLocalMovies() {
 		return
 	}
 
+	defer perf.ScopeTimer()()
+
 	begin := time.Now()
 	addon := []byte(config.Get().Info.ID)
 	files := searchStrm(moviesLibraryPath)
@@ -907,6 +943,8 @@ func refreshLocalShows() {
 	if _, err := os.Stat(showsLibraryPath); err != nil {
 		return
 	}
+
+	defer perf.ScopeTimer()()
 
 	begin := time.Now()
 	addon := []byte(config.Get().Info.ID)

@@ -27,20 +27,13 @@ func inMoviesWatchlist(tmdbID int) bool {
 		return false
 	}
 
-	var movies []*trakt.Movies
+	defer perf.ScopeTimer()()
 
-	cacheStore := cache.NewDBStore()
-	key := fmt.Sprintf(cache.TraktMoviesWatchlistKey)
-	if err := cacheStore.Get(key, &movies); err != nil {
-		movies, _ = trakt.WatchlistMovies(false)
-	}
+	container := uid.Get().GetContainer(uid.WatchlistedMoviesContainer)
+	container.Mu.RLock()
+	defer container.Mu.RUnlock()
 
-	for _, movie := range movies {
-		if movie.Movie != nil && movie.Movie.IDs != nil && tmdbID == movie.Movie.IDs.TMDB {
-			return true
-		}
-	}
-	return false
+	return container.HasWithType(library.MovieType, library.TMDBScraper, tmdbID)
 }
 
 func inShowsWatchlist(tmdbID int) bool {
@@ -48,20 +41,13 @@ func inShowsWatchlist(tmdbID int) bool {
 		return false
 	}
 
-	var shows []*trakt.Shows
+	defer perf.ScopeTimer()()
 
-	cacheStore := cache.NewDBStore()
-	key := fmt.Sprintf(cache.TraktShowsWatchlistKey)
-	if err := cacheStore.Get(key, &shows); err != nil {
-		shows, _ = trakt.WatchlistShows(false)
-	}
+	container := uid.Get().GetContainer(uid.WatchlistedShowsContainer)
+	container.Mu.RLock()
+	defer container.Mu.RUnlock()
 
-	for _, show := range shows {
-		if show.Show != nil && show.Show.IDs != nil && tmdbID == show.Show.IDs.TMDB {
-			return true
-		}
-	}
-	return false
+	return container.HasWithType(library.ShowType, library.TMDBScraper, tmdbID)
 }
 
 func inMoviesCollection(tmdbID int) bool {
@@ -69,23 +55,13 @@ func inMoviesCollection(tmdbID int) bool {
 		return false
 	}
 
-	var movies []*trakt.Movies
+	defer perf.ScopeTimer()()
 
-	cacheStore := cache.NewDBStore()
-	key := fmt.Sprintf(cache.TraktMoviesCollectionKey)
-	if err := cacheStore.Get(key, &movies); err != nil {
-		movies, _ = trakt.CollectionMovies(false)
-	}
+	container := uid.Get().GetContainer(uid.CollectedMoviesContainer)
+	container.Mu.RLock()
+	defer container.Mu.RUnlock()
 
-	for _, movie := range movies {
-		if movie == nil || movie.Movie == nil {
-			continue
-		}
-		if tmdbID == movie.Movie.IDs.TMDB {
-			return true
-		}
-	}
-	return false
+	return container.HasWithType(library.MovieType, library.TMDBScraper, tmdbID)
 }
 
 func inShowsCollection(tmdbID int) bool {
@@ -93,23 +69,13 @@ func inShowsCollection(tmdbID int) bool {
 		return false
 	}
 
-	var shows []*trakt.Shows
+	defer perf.ScopeTimer()()
 
-	cacheStore := cache.NewDBStore()
-	key := fmt.Sprintf(cache.TraktShowsCollectionKey)
-	if err := cacheStore.Get(key, &shows); err != nil {
-		shows, _ = trakt.CollectionShows(false)
-	}
+	container := uid.Get().GetContainer(uid.CollectedShowsContainer)
+	container.Mu.RLock()
+	defer container.Mu.RUnlock()
 
-	for _, show := range shows {
-		if show == nil || show.Show == nil {
-			continue
-		}
-		if tmdbID == show.Show.IDs.TMDB {
-			return true
-		}
-	}
-	return false
+	return container.HasWithType(library.ShowType, library.TMDBScraper, tmdbID)
 }
 
 //

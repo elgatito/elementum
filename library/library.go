@@ -149,6 +149,9 @@ func Init() {
 		return
 	}
 
+	// Restoring UID library state
+	uid.Get().Restore()
+
 	go func() {
 		// Give time to Kodi to start its JSON-RPC service
 		time.Sleep(5 * time.Second)
@@ -1034,6 +1037,8 @@ func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err erro
 
 		addEnabled = config.Get().TraktSyncWatchlist
 		removeEnabled = config.Get().TraktSyncRemovedMoviesBack
+
+		MoviesToUIDLocked(uid.WatchlistedMoviesContainer, current)
 	case "collection":
 		previous, _ = trakt.PreviousCollectionMovies()
 		current, _ = trakt.CollectionMovies(isUpdateNeeded)
@@ -1042,6 +1047,8 @@ func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err erro
 
 		addEnabled = config.Get().TraktSyncCollections
 		removeEnabled = config.Get().TraktSyncRemovedMoviesBack
+
+		MoviesToUIDLocked(uid.CollectedMoviesContainer, current)
 	default:
 		previous, _ = trakt.PreviousListItemsMovies(listID)
 		current, _ = trakt.ListItemsMovies("", listID, isUpdateNeeded)
@@ -1050,6 +1057,8 @@ func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err erro
 
 		addEnabled = config.Get().TraktSyncUserlists
 		removeEnabled = config.Get().TraktSyncRemovedMoviesBack
+
+		MoviesToUIDLocked(uid.UserlistedMoviesContainer, current)
 	}
 
 	if err = checkMoviesPath(); err != nil {
@@ -1163,6 +1172,8 @@ func SyncShowsList(listID string, updating bool, isUpdateNeeded bool) (err error
 
 		addEnabled = config.Get().TraktSyncWatchlist
 		removeEnabled = config.Get().TraktSyncRemovedShowsBack
+
+		ShowsToUIDLocked(uid.WatchlistedShowsContainer, current)
 	case "collection":
 		previous, _ = trakt.PreviousCollectionShows()
 		current, _ = trakt.CollectionShows(isUpdateNeeded)
@@ -1171,6 +1182,8 @@ func SyncShowsList(listID string, updating bool, isUpdateNeeded bool) (err error
 
 		addEnabled = config.Get().TraktSyncCollections
 		removeEnabled = config.Get().TraktSyncRemovedShowsBack
+
+		ShowsToUIDLocked(uid.CollectedShowsContainer, current)
 	default:
 		previous, _ = trakt.PreviousListItemsShows(listID)
 		current, _ = trakt.ListItemsShows("", listID, isUpdateNeeded)
@@ -1179,6 +1192,8 @@ func SyncShowsList(listID string, updating bool, isUpdateNeeded bool) (err error
 
 		addEnabled = config.Get().TraktSyncUserlists
 		removeEnabled = config.Get().TraktSyncRemovedShowsBack
+
+		ShowsToUIDLocked(uid.UserlistedShowsContainer, current)
 	}
 
 	if err = checkShowsPath(); err != nil {
@@ -1567,8 +1582,9 @@ func GetDuplicateStats() (movies, shows, episodes int, err error) {
 func findMovieDuplicates() ([]*uid.Movie, error) {
 	l := uid.Get()
 
-	l.Mu.Movies.RLock()
-	defer l.Mu.Movies.RUnlock()
+	mu := l.GetMutex(uid.MoviesMutex)
+	mu.RLock()
+	defer mu.RUnlock()
 
 	seen := map[int]struct{}{}
 	duplicates := []*uid.Movie{}
@@ -1591,8 +1607,9 @@ func findMovieDuplicates() ([]*uid.Movie, error) {
 func findShowDuplicates() ([]*uid.Show, error) {
 	l := uid.Get()
 
-	l.Mu.Shows.RLock()
-	defer l.Mu.Shows.RUnlock()
+	mu := l.GetMutex(uid.ShowsMutex)
+	mu.RLock()
+	defer mu.RUnlock()
 
 	seen := map[int]struct{}{}
 	duplicates := []*uid.Show{}
@@ -1615,8 +1632,9 @@ func findShowDuplicates() ([]*uid.Show, error) {
 func findEpisodeDuplicates() ([]*uid.Episode, error) {
 	l := uid.Get()
 
-	l.Mu.Shows.RLock()
-	defer l.Mu.Shows.RUnlock()
+	mu := l.GetMutex(uid.ShowsMutex)
+	mu.RLock()
+	defer mu.RUnlock()
 
 	seen := map[string]struct{}{}
 	duplicates := []*uid.Episode{}

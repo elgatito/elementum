@@ -28,8 +28,9 @@ func (r *Resume) Reset() {
 
 // GetMovieResume returns Resume info for kodi id
 func GetMovieResume(kodiID int) *Resume {
-	l.Mu.Movies.Lock()
-	defer l.Mu.Movies.Unlock()
+	mu := l.GetMutex(MoviesMutex)
+	mu.RLock()
+	defer mu.RUnlock()
 
 	for _, m := range l.Movies {
 		if m.UIDs.Kodi == kodiID {
@@ -42,8 +43,9 @@ func GetMovieResume(kodiID int) *Resume {
 
 // GetEpisodeResume returns Resume info for kodi id
 func GetEpisodeResume(kodiID int) *Resume {
-	l.Mu.Shows.RLock()
-	defer l.Mu.Shows.RUnlock()
+	mu := l.GetMutex(ShowsMutex)
+	mu.RLock()
+	defer mu.RUnlock()
 
 	for _, existingShow := range l.Shows {
 		for _, existingEpisode := range existingShow.Episodes {

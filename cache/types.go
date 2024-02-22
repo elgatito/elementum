@@ -142,6 +142,8 @@ const (
 	FanartShowByIDKey     = FanartKey + "show.%d"
 	FanartShowByIDExpire  = CacheExpireLong
 
+	LibraryStateKey               = LibraryKey + "State.%s"
+	LibraryStateExpire            = 30 * 24 * time.Hour
 	LibraryWatchedPlaycountKey    = LibraryKey + "WatchedLastPlaycount.%s"
 	LibraryWatchedPlaycountExpire = 30 * 24 * time.Hour
 	LibraryShowsLastUpdatesKey    = LibraryKey + "showsLastUpdates"

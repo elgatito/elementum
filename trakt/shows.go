@@ -534,7 +534,7 @@ func CalendarShows(endPoint string, page string, cacheExpire time.Duration, isUp
 }
 
 // WatchedShows ...
-func WatchedShows(isUpdateNeeded bool) ([]*WatchedShow, error) {
+func WatchedShows(isUpdateNeeded bool) (WatchedShowsType, error) {
 	defer perf.ScopeTimer()()
 
 	var shows []*WatchedShow
@@ -932,4 +932,12 @@ func (episode *Episode) ToListItem(show *Show, tmdbShow *tmdb.Show) (item *xbmc.
 	}
 
 	return item
+}
+
+func (s WatchedShowsType) ToShows() []*Shows {
+	ret := []*Shows{}
+	for _, show := range s {
+		ret = append(ret, &Shows{Show: show.Show})
+	}
+	return ret
 }

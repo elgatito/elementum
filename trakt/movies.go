@@ -507,7 +507,7 @@ func CalendarMovies(endPoint string, page string, cacheExpire time.Duration, isU
 }
 
 // WatchedMovies ...
-func WatchedMovies(isUpdateNeeded bool) ([]*WatchedMovie, error) {
+func WatchedMovies(isUpdateNeeded bool) (WatchedMoviesType, error) {
 	defer perf.ScopeTimer()()
 
 	var movies []*WatchedMovie
@@ -615,4 +615,12 @@ func (movie *Movie) ToListItem(tmdbMovie *tmdb.Movie) (item *xbmc.ListItem) {
 	}
 
 	return
+}
+
+func (m WatchedMoviesType) ToMovies() []*Movies {
+	ret := []*Movies{}
+	for _, movie := range m {
+		ret = append(ret, &Movies{Movie: movie.Movie})
+	}
+	return ret
 }
