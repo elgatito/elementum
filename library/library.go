@@ -1051,7 +1051,7 @@ func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err erro
 		MoviesToUIDLocked(uid.CollectedMoviesContainer, current)
 	default:
 		previous, _ = trakt.PreviousListItemsMovies(listID)
-		current, _ = trakt.ListItemsMovies("", listID, isUpdateNeeded)
+		current, _ = trakt.ListItemsMovies(config.Get().TraktUsername, listID, isUpdateNeeded)
 
 		label = "LOCALIZE[30263]"
 
@@ -1186,7 +1186,7 @@ func SyncShowsList(listID string, updating bool, isUpdateNeeded bool) (err error
 		ShowsToUIDLocked(uid.CollectedShowsContainer, current)
 	default:
 		previous, _ = trakt.PreviousListItemsShows(listID)
-		current, _ = trakt.ListItemsShows("", listID, isUpdateNeeded)
+		current, _ = trakt.ListItemsShows(config.Get().TraktUsername, listID, isUpdateNeeded)
 
 		label = "LOCALIZE[30263]"
 
