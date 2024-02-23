@@ -433,8 +433,12 @@ func PreviousCollectionShows() (shows []*Shows, err error) {
 }
 
 // ListItemsShows ...
-func ListItemsShows(user string, listID string, isUpdateNeeded bool) (shows []*Shows, err error) {
+func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 	defer perf.ScopeTimer()()
+
+	// Check if this list needs a refresh from cache
+	listActivities, err := GetListActivities(user, listID)
+	isUpdateNeeded := err != nil || listActivities.IsUpdated()
 
 	url := fmt.Sprintf("/lists/%s/items/shows", listID)
 	if user == "" || user == config.Get().TraktUsername {

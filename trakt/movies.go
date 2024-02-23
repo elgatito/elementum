@@ -412,8 +412,12 @@ func PreviousListItemsMovies(listID string) (movies []*Movies, err error) {
 }
 
 // ListItemsMovies ...
-func ListItemsMovies(user string, listID string, isUpdateNeeded bool) (movies []*Movies, err error) {
+func ListItemsMovies(user, listID string) (movies []*Movies, err error) {
 	defer perf.ScopeTimer()()
+
+	// Check if this list needs a refresh from cache
+	listActivities, err := GetListActivities(user, listID)
+	isUpdateNeeded := err != nil || listActivities.IsUpdated()
 
 	url := fmt.Sprintf("/lists/%s/items/movies", listID)
 	if user == "" || user == config.Get().TraktUsername {

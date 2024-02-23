@@ -42,12 +42,17 @@ func (l *List) ID() int {
 	return l.IDs.Trakt
 }
 
-func GetList(listID string) (list *List, err error) {
+func GetList(user, listID string) (list *List, err error) {
 	defer perf.ScopeTimer()()
+
+	url := fmt.Sprintf("/lists/%s", listID)
+	if user == "" || user == config.Get().TraktUsername {
+		url = fmt.Sprintf("users/%s/lists/%s", config.Get().TraktUsername, listID)
+	}
 
 	req := &reqapi.Request{
 		API:         reqapi.TraktAPI,
-		URL:         fmt.Sprintf("/lists/%s", listID),
+		URL:         url,
 		Header:      GetAvailableHeader(),
 		Params:      napping.Params{}.AsUrlValues(),
 		Result:      &list,
@@ -59,24 +64,24 @@ func GetList(listID string) (list *List, err error) {
 }
 
 type ListActivities struct {
-	source string
+	user   string
 	listID string
 
 	Previous *List
 	Current  *List
 }
 
-func GetListActivities(source string, listID string) (*ListActivities, error) {
+func GetListActivities(user, listID string) (*ListActivities, error) {
 
-	current, err := GetList(listID)
+	current, err := GetList(user, listID)
 
 	var previous List
-	_ = cache.NewDBStore().Get(fmt.Sprintf(cache.TraktListActivitiesKey, source, listID), &previous)
+	_ = cache.NewDBStore().Get(fmt.Sprintf(cache.TraktListActivitiesKey, user, listID), &previous)
 
-	saveListActivity(source, listID, current)
+	saveListActivity(user, listID, current)
 
 	return &ListActivities{
-		source: source,
+		user:   user,
 		listID: listID,
 
 		Previous: &previous,
@@ -85,11 +90,11 @@ func GetListActivities(source string, listID string) (*ListActivities, error) {
 }
 
 func (a *ListActivities) SaveCurrent() error {
-	return saveListActivity(a.source, a.listID, a.Current)
+	return saveListActivity(a.user, a.listID, a.Current)
 }
 
-func saveListActivity(source string, listID string, activity *List) error {
-	return cache.NewDBStore().Set(fmt.Sprintf(cache.TraktListActivitiesKey, source, listID), activity, cache.TraktListActivitiesExpire)
+func saveListActivity(user, listID string, activity *List) error {
+	return cache.NewDBStore().Set(fmt.Sprintf(cache.TraktListActivitiesKey, user, listID), activity, cache.TraktListActivitiesExpire)
 }
 
 func (a *ListActivities) HasPrevious() bool {
