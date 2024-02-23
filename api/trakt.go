@@ -179,8 +179,7 @@ func UserlistMovies(ctx *gin.Context) {
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
 
-	listActivities, err := trakt.GetListActivities("UserlistMovies", listID)
-	movies, err := trakt.ListItemsMovies(user, listID, err != nil || listActivities.IsUpdated())
+	movies, err := trakt.ListItemsMovies(user, listID)
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 	}
@@ -198,8 +197,7 @@ func UserlistShows(ctx *gin.Context) {
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
 
-	listActivities, err := trakt.GetListActivities("UserlistShows", listID)
-	shows, err := trakt.ListItemsShows(user, listID, err != nil || listActivities.IsUpdated())
+	shows, err := trakt.ListItemsShows(user, listID)
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 	}
