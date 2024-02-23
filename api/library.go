@@ -44,7 +44,7 @@ func AddMovie(ctx *gin.Context) {
 	if err != nil || movie == nil {
 		isErrored := true
 		if err == library.ErrVideoRemoved && movie != nil {
-			if xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30279];;%s", movie.Title)) {
+			if xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30279];;%s", movie.GetTitle())) {
 				movie, err = library.AddMovie(tmdbID, true)
 				if err == nil && movie != nil {
 					isErrored = false
@@ -67,8 +67,8 @@ func AddMovie(ctx *gin.Context) {
 		logMsg = "%s (%s) merged to library"
 	}
 
-	log.Noticef(logMsg, movie.Title, tmdbID)
-	if config.Get().LibraryUpdate == 0 || (config.Get().LibraryUpdate == 1 && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("%s;;%s", label, movie.Title))) {
+	log.Noticef(logMsg, movie.GetTitle(), tmdbID)
+	if config.Get().LibraryUpdate == 0 || (config.Get().LibraryUpdate == 1 && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("%s;;%s", label, movie.GetTitle()))) {
 		xbmcHost.VideoLibraryScanDirectory(library.MoviesLibraryPath(), true)
 	} else {
 		if ctx != nil {
@@ -110,7 +110,7 @@ func RemoveMovie(ctx *gin.Context) {
 	}
 
 	if ctx != nil {
-		if movie != nil && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30278];;%s", movie.Title)) {
+		if movie != nil && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30278];;%s", movie.GetTitle())) {
 			for _, path := range paths {
 				xbmcHost.VideoLibraryCleanDirectory(path, "movies", false)
 			}
@@ -142,7 +142,7 @@ func AddShow(ctx *gin.Context) {
 	if err != nil || show == nil {
 		isErrored := true
 		if err == library.ErrVideoRemoved && show != nil {
-			if xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30279];;%s", show.Name)) {
+			if xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30279];;%s", show.GetName())) {
 				show, err = library.AddShow(tmdbID, true)
 				if err == nil && show != nil {
 					isErrored = false
@@ -165,8 +165,8 @@ func AddShow(ctx *gin.Context) {
 		logMsg = "%s (%s) merged to library"
 	}
 
-	log.Noticef(logMsg, show.Name, tmdbID)
-	if config.Get().LibraryUpdate == 0 || (config.Get().LibraryUpdate == 1 && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("%s;;%s", label, show.Name))) {
+	log.Noticef(logMsg, show.GetName(), tmdbID)
+	if config.Get().LibraryUpdate == 0 || (config.Get().LibraryUpdate == 1 && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("%s;;%s", label, show.GetName()))) {
 		xbmcHost.VideoLibraryScanDirectory(library.ShowsLibraryPath(), true)
 	} else {
 		library.ClearPageCache(xbmcHost)
@@ -204,7 +204,7 @@ func RemoveShow(ctx *gin.Context) {
 	}
 
 	if ctx != nil {
-		if show != nil && paths != nil && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30278];;%s", show.Name)) {
+		if show != nil && paths != nil && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30278];;%s", show.GetName())) {
 			for _, path := range paths {
 				xbmcHost.VideoLibraryCleanDirectory(path, "tvshows", false)
 			}

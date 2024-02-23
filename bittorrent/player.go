@@ -1391,10 +1391,10 @@ func (btp *Player) processUpNextEpisode(show *tmdb.Show, season *tmdb.Season, ep
 	return upnext.Episode{
 		EpisodeID:  strconv.Itoa(episode.ID),
 		TVShowID:   strconv.Itoa(show.ID),
-		Title:      episode.Name,
+		Title:      episode.GetName(show),
 		Season:     strconv.Itoa(episode.SeasonNumber),
 		Episode:    strconv.Itoa(episode.EpisodeNumber),
-		ShowTitle:  show.Name,
+		ShowTitle:  show.GetName(),
 		Plot:       episode.Overview,
 		Playcount:  playcount.GetWatchedEpisodeByTMDB(show.ID, episode.SeasonNumber, episode.EpisodeNumber).Int(),
 		Rating:     int(episode.VoteAverage),

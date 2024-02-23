@@ -672,7 +672,7 @@ func showSeasonLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, showID int, s
 		return nil, errors.New("Unable to find season")
 	}
 
-	log.Infof("Resolved %d to %s", showID, show.Name)
+	log.Infof("Resolved %d to %s", showID, show.GetName())
 
 	searchers := providers.GetSeasonSearchers(xbmcHost, callbackHost)
 	if len(searchers) == 0 {
@@ -727,7 +727,7 @@ func ShowSeasonLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 
-		longName := fmt.Sprintf("%s Season %02d", show.Name, seasonNumber)
+		longName := fmt.Sprintf("%s Season %02d", show.GetName(), seasonNumber)
 
 		existingTorrent := s.HasTorrentBySeason(showID, seasonNumber)
 		if existingTorrent != nil && (silent != "" || config.Get().SilentStreamStart || existingTorrent.IsPlaying || xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30608];;[B]%s[/B]", existingTorrent.Title()))) {
@@ -876,7 +876,7 @@ func showEpisodeLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, showID int, 
 	if episode == nil {
 		return nil, errors.New("Unable to find episode")
 	}
-	log.Infof("Resolved %d to %s", showID, show.Name)
+	log.Infof("Resolved %d to %s", showID, show.GetName())
 
 	searchers := providers.GetEpisodeSearchers(xbmcHost, callbackHost)
 	if len(searchers) == 0 {
@@ -924,7 +924,7 @@ func ShowEpisodeLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 
-		longName := fmt.Sprintf("%s S%02dE%02d", show.Name, seasonNumber, episodeNumber)
+		longName := fmt.Sprintf("%s S%02dE%02d", show.GetName(), seasonNumber, episodeNumber)
 
 		existingTorrent := s.HasTorrentByEpisode(showID, seasonNumber, episodeNumber)
 		if existingTorrent != nil && (silent != "" || config.Get().SilentStreamStart || existingTorrent.IsPlaying || (existingTorrent.IsNextFile && config.Get().SmartEpisodeChoose) || xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30608];;[B]%s[/B]", existingTorrent.Title()))) {

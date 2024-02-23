@@ -57,6 +57,7 @@ type Configuration struct {
 	Info                        *xbmc.AddonInfo
 	Platform                    *xbmc.Platform
 	Language                    string
+	SecondLanguage              string
 	Region                      string
 	TemporaryPath               string
 	ProfilePath                 string
@@ -544,6 +545,7 @@ func Reload() (ret *Configuration, err error) {
 		Info:                        info,
 		Platform:                    platform,
 		Language:                    configBundle.Language,
+		SecondLanguage:              configBundle.SecondLanguage,
 		Region:                      configBundle.Region,
 		TemporaryPath:               info.TempPath,
 		ProfilePath:                 info.Profile,
@@ -1136,10 +1138,19 @@ func fetchConfiguration(xbmcHost *xbmc.XBMCHost) (*ConfigBundle, error) {
 	}
 
 	return &ConfigBundle{
-		Info:     info,
-		Platform: platform,
-		Settings: settings,
-		Language: xbmcHost.GetLanguageISO639_1(),
-		Region:   xbmcHost.GetRegion(),
+		Info:           info,
+		Platform:       platform,
+		Settings:       settings,
+		Language:       xbmcHost.GetLanguageISO639_1(),
+		SecondLanguage: getSecondLanguage(xbmcHost),
+		Region:         xbmcHost.GetRegion(),
 	}, nil
+}
+
+func getSecondLanguage(xbmcHost *xbmc.XBMCHost) string {
+	if xbmcHost.GetLanguageISO639_1() != "en" {
+		return "en"
+	}
+
+	return ""
 }

@@ -141,6 +141,8 @@ func GetMultipleImage(old string, lists ...[]*Image) []string {
 
 	res := []string{}
 	language := config.Get().Language
+	secondLanguage := config.Get().SecondLanguage
+
 	for _, l := range lists {
 		for _, i := range l {
 			if i == nil {
@@ -150,7 +152,7 @@ func GetMultipleImage(old string, lists ...[]*Image) []string {
 			if i.Lang == language && !contains(res, i.URL) {
 				res = append(res, i.URL)
 			}
-			if i.Lang == "en" || i.Lang == "" {
+			if i.Lang == secondLanguage || i.Lang == "" {
 				if !contains(res, i.URL) {
 					res = append(res, i.URL)
 				}
@@ -172,6 +174,8 @@ func GetBestImage(old string, lists ...[]*Image) string {
 	}
 
 	language := config.Get().Language
+	secondLanguage := config.Get().SecondLanguage
+
 	for _, l := range lists {
 		bestLikes := 0
 		bestItem := ""
@@ -184,7 +188,7 @@ func GetBestImage(old string, lists ...[]*Image) string {
 			if i.Lang == language {
 				return i.URL
 			}
-			if i.Lang == "en" || i.Lang == "" {
+			if i.Lang == secondLanguage || i.Lang == "" {
 				if likes := likeConvert(i.Likes); likes > bestLikes {
 					bestItem = i.URL
 					bestLikes = likes
@@ -208,6 +212,8 @@ func GetMultipleShowImage(season, old string, lists ...[]*ShowImage) []string {
 
 	res := []string{}
 	language := config.Get().Language
+	secondLanguage := config.Get().SecondLanguage
+
 	for _, l := range lists {
 		for _, i := range l {
 			if i == nil {
@@ -218,7 +224,7 @@ func GetMultipleShowImage(season, old string, lists ...[]*ShowImage) []string {
 				if i.Lang == language && !contains(res, i.URL) {
 					res = append(res, i.URL)
 				}
-				if i.Lang == "en" || i.Lang == "" {
+				if i.Lang == secondLanguage || i.Lang == "" {
 					if !contains(res, i.URL) {
 						res = append(res, i.URL)
 					}
@@ -239,7 +245,7 @@ func GetMultipleShowImage(season, old string, lists ...[]*ShowImage) []string {
 				if i.Lang == language && !contains(res, i.URL) {
 					res = append(res, i.URL)
 				}
-				if i.Lang == "en" || i.Lang == "" {
+				if i.Lang == secondLanguage || i.Lang == "" {
 					if !contains(res, i.URL) {
 						res = append(res, i.URL)
 					}
@@ -263,6 +269,8 @@ func GetBestShowImage(season string, isStrict bool, old string, lists ...[]*Show
 
 	idx := 0
 	language := config.Get().Language
+	secondLanguage := config.Get().SecondLanguage
+
 	for _, l := range lists {
 		idx++
 
@@ -278,7 +286,7 @@ func GetBestShowImage(season string, isStrict bool, old string, lists ...[]*Show
 				if i.Lang == language {
 					return i.URL
 				}
-				if i.Lang == "en" || i.Lang == "" {
+				if i.Lang == secondLanguage || i.Lang == "" {
 					if likes := likeConvert(i.Likes); likes > bestLikes {
 						bestItem = i.URL
 						bestLikes = likes
@@ -302,7 +310,7 @@ func GetBestShowImage(season string, isStrict bool, old string, lists ...[]*Show
 				if i.Lang == language {
 					return i.URL
 				}
-				if i.Lang == "en" || i.Lang == "" {
+				if i.Lang == secondLanguage || i.Lang == "" {
 					if likes := likeConvert(i.Likes); likes > bestLikes {
 						bestItem = i.URL
 						bestLikes = likes

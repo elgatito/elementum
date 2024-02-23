@@ -30,7 +30,7 @@ func ProviderGetMovie(ctx *gin.Context) {
 		ctx.Error(fmt.Errorf("Unable to get movie %s", tmdbID))
 		return
 	}
-	log.Infof("Resolved %s to %s", tmdbID, movie.Title)
+	log.Infof("Resolved %s to %s", tmdbID, movie.GetTitle())
 
 	searcher := providers.NewAddonSearcher(xbmcHost, ctx.Request.Host, provider)
 	torrents := searcher.SearchMovieLinks(movie)
@@ -78,7 +78,7 @@ func ProviderGetEpisode(ctx *gin.Context) {
 
 	episode := season.GetEpisode(episodeNumber)
 
-	log.Infof("Resolved %d to %s", showID, show.Name)
+	log.Infof("Resolved %d to %s", showID, show.GetName())
 
 	searcher := providers.NewAddonSearcher(xbmcHost, ctx.Request.Host, provider)
 	torrents := searcher.SearchEpisodeLinks(show, episode)

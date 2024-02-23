@@ -1983,7 +1983,7 @@ func (t *Torrent) ChooseFile(btp *Player) (*File, int, error) {
 				}
 				searchTitle += fmt.Sprintf("S%dE%d", btp.p.Season, btp.p.Episode)
 			} else if m := tmdb.GetMovieByID(strconv.Itoa(btp.p.TMDBId), config.Get().Language); m != nil {
-				searchTitle += m.Title
+				searchTitle += m.GetTitle()
 			}
 		}
 

@@ -214,8 +214,8 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 	defer perf.ScopeTimer()()
 
 	name := fmt.Sprintf("Season %d", season.Season)
-	if season.name(show) != "" {
-		name = season.name(show)
+	if season.GetName(show) != "" {
+		name = season.GetName(show)
 	}
 	if season.Season == 0 {
 		name = "Specials"
@@ -232,7 +232,7 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 			Title:         name,
 			OriginalTitle: name,
 			Season:        season.Season,
-			TVShowTitle:   show.name(),
+			TVShowTitle:   show.GetName(),
 			Plot:          season.overview(show),
 			PlotOutline:   season.overview(show),
 			MPAA:          show.mpaa(),
@@ -272,7 +272,7 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 	return item
 }
 
-func (season *Season) name(show *Show) string {
+func (season *Season) GetName(show *Show) string {
 	if season.Name != "" || season.Translations == nil || season.Translations.Translations == nil || len(season.Translations.Translations) == 0 {
 		return season.Name
 	}
@@ -282,7 +282,7 @@ func (season *Season) name(show *Show) string {
 		return current.Data.Name
 	}
 
-	current = season.findTranslation("en")
+	current = season.findTranslation(config.Get().SecondLanguage)
 	if current != nil && current.Data != nil && current.Data.Name != "" {
 		return current.Data.Name
 	}
@@ -305,7 +305,7 @@ func (season *Season) overview(show *Show) string {
 		return current.Data.Overview
 	}
 
-	current = season.findTranslation("en")
+	current = season.findTranslation(config.Get().SecondLanguage)
 	if current != nil && current.Data != nil && current.Data.Overview != "" {
 		return current.Data.Overview
 	}

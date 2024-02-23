@@ -110,9 +110,9 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 
 	year, _ := strconv.Atoi(strings.Split(episode.AirDate, "-")[0])
 
-	episodeLabel := episode.name(show)
+	episodeLabel := episode.GetName(show)
 	if config.Get().AddEpisodeNumbers {
-		episodeLabel = fmt.Sprintf("%dx%02d %s", episode.SeasonNumber, episode.EpisodeNumber, episode.name(show))
+		episodeLabel = fmt.Sprintf("%dx%02d %s", episode.SeasonNumber, episode.EpisodeNumber, episode.GetName(show))
 	}
 
 	runtime := 1800
@@ -127,10 +127,10 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 			Year:          year,
 			Count:         rand.Int(),
 			Title:         episodeLabel,
-			OriginalTitle: episode.name(show),
+			OriginalTitle: episode.GetName(show),
 			Season:        episode.SeasonNumber,
 			Episode:       episode.EpisodeNumber,
-			TVShowTitle:   show.name(),
+			TVShowTitle:   show.GetName(),
 			Plot:          episode.overview(show),
 			PlotOutline:   episode.overview(show),
 			Rating:        episode.VoteAverage,
@@ -181,7 +181,7 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 	return item
 }
 
-func (episode *Episode) name(show *Show) string {
+func (episode *Episode) GetName(show *Show) string {
 	if episode.Name != "" || episode.Translations == nil || episode.Translations.Translations == nil || len(episode.Translations.Translations) == 0 {
 		return episode.Name
 	}
@@ -191,7 +191,7 @@ func (episode *Episode) name(show *Show) string {
 		return current.Data.Name
 	}
 
-	current = episode.findTranslation("en")
+	current = episode.findTranslation(config.Get().SecondLanguage)
 	if current != nil && current.Data != nil && current.Data.Name != "" {
 		return current.Data.Name
 	}
@@ -214,7 +214,7 @@ func (episode *Episode) overview(show *Show) string {
 		return current.Data.Overview
 	}
 
-	current = episode.findTranslation("en")
+	current = episode.findTranslation(config.Get().SecondLanguage)
 	if current != nil && current.Data != nil && current.Data.Overview != "" {
 		return current.Data.Overview
 	}

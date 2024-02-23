@@ -5,11 +5,12 @@ import "github.com/elgatito/elementum/xbmc"
 type ConfigFormat string
 
 type ConfigBundle struct {
-	Info     *xbmc.AddonInfo
-	Platform *xbmc.Platform
-	Settings XbmcSettings
-	Language string
-	Region   string
+	Info           *xbmc.AddonInfo
+	Platform       *xbmc.Platform
+	Settings       XbmcSettings
+	Language       string
+	SecondLanguage string
+	Region         string
 }
 
 const (

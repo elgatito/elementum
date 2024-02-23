@@ -1221,8 +1221,8 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 
 			var item *xbmc.ListItem
 			if !config.Get().ForceUseTrakt && movie != nil {
-				if movie.Title != "" {
-					movieName = movie.Title
+				if title := movie.GetTitle(); title != "" {
+					movieName = title
 				}
 				item = movie.ToListItem()
 			} else {
@@ -1389,10 +1389,15 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 					airDate = episode.AirDate
 					seasonNumber = episode.SeasonNumber
 					episodeNumber = episode.EpisodeNumber
-					episodeName = episode.Name
+
+					if show != nil {
+						episodeName = episode.GetName(show)
+					} else {
+						episodeName = episode.Name
+					}
 				}
 				if show != nil {
-					showName = show.Name
+					showName = show.GetName()
 					showOriginalName = show.OriginalName
 				}
 			}
@@ -1561,10 +1566,15 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 					airDate = episode.AirDate
 					seasonNumber = episode.SeasonNumber
 					episodeNumber = episode.EpisodeNumber
-					episodeName = episode.Name
+
+					if show != nil {
+						episodeName = episode.GetName(show)
+					} else {
+						episodeName = episode.Name
+					}
 				}
 				if show != nil {
-					showName = show.Name
+					showName = show.GetName()
 				}
 			}
 			if airDate == "" {

@@ -577,7 +577,7 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 
 	year, _ := strconv.Atoi(strings.Split(show.FirstAirDate, "-")[0])
 
-	name := show.name()
+	name := show.GetName()
 	if config.Get().UseOriginalTitle && show.OriginalName != "" {
 		name = show.OriginalName
 	}
@@ -668,17 +668,25 @@ func (show *Show) mpaa() string {
 	return ""
 }
 
-func (show *Show) name() string {
-	if show.Name != "" || show.Translations == nil || show.Translations.Translations == nil || len(show.Translations.Translations) == 0 {
+func (show *Show) GetName() string {
+	// By default, if TMDB is returning a translated title - we use it
+	if show.Name != "" && show.Name == show.OriginalName && show.OriginalLanguage == config.Get().Language {
 		return show.Name
 	}
+
+	// If we have a title, but we don't have translations - use it
+	if (show.Name != "" && show.Name != show.OriginalName) || show.Translations == nil || show.Translations.Translations == nil || len(show.Translations.Translations) == 0 {
+		return show.Name
+	}
+
+	// Find translations in this order: Kodi language -> Second language -> Original language
 
 	current := show.findTranslation(config.Get().Language)
 	if current != nil && current.Data != nil && current.Data.Name != "" {
 		return current.Data.Name
 	}
 
-	current = show.findTranslation("en")
+	current = show.findTranslation(config.Get().SecondLanguage)
 	if current != nil && current.Data != nil && current.Data.Name != "" {
 		return current.Data.Name
 	}
@@ -701,7 +709,7 @@ func (show *Show) overview() string {
 		return current.Data.Overview
 	}
 
-	current = show.findTranslation("en")
+	current = show.findTranslation(config.Get().SecondLanguage)
 	if current != nil && current.Data != nil && current.Data.Overview != "" {
 		return current.Data.Overview
 	}

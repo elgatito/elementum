@@ -165,7 +165,7 @@ func (as *AddonSearcher) GetMovieSearchSilentObject(movie *tmdb.Movie, withAuth 
 // GetMovieSearchObject ...
 func (as *AddonSearcher) GetMovieSearchObject(movie *tmdb.Movie) *MovieSearchObject {
 	year, _ := strconv.Atoi(strings.Split(movie.ReleaseDate, "-")[0])
-	title := movie.Title
+	title := movie.GetTitle()
 	if config.Get().UseOriginalTitle && movie.OriginalTitle != "" {
 		title = movie.OriginalTitle
 	}
@@ -226,7 +226,7 @@ func (as *AddonSearcher) GetMovieSearchObject(movie *tmdb.Movie) *MovieSearchObj
 	}
 
 	sObject.Titles[strings.ToLower(movie.OriginalLanguage)] = NormalizeTitle(sObject.Titles["source"])
-	sObject.Titles[strings.ToLower(config.Get().Language)] = NormalizeTitle(movie.Title)
+	sObject.Titles[strings.ToLower(config.Get().Language)] = NormalizeTitle(movie.GetTitle())
 
 	// Collect titles from AlternativeTitles
 	if movie.AlternativeTitles != nil && movie.AlternativeTitles.Titles != nil {
@@ -261,7 +261,7 @@ func (as *AddonSearcher) GetMovieSearchObject(movie *tmdb.Movie) *MovieSearchObj
 // GetSeasonSearchObject ...
 func (as *AddonSearcher) GetSeasonSearchObject(show *tmdb.Show, season *tmdb.Season) *SeasonSearchObject {
 	year, _ := strconv.Atoi(strings.Split(season.AirDate, "-")[0])
-	title := show.Name
+	title := show.GetName()
 	if config.Get().UseOriginalTitle && show.OriginalName != "" {
 		title = show.OriginalName
 	}
@@ -278,7 +278,7 @@ func (as *AddonSearcher) GetSeasonSearchObject(show *tmdb.Show, season *tmdb.Sea
 	}
 
 	sObject.Titles[strings.ToLower(show.OriginalLanguage)] = NormalizeTitle(sObject.Titles["source"])
-	sObject.Titles[strings.ToLower(config.Get().Language)] = NormalizeTitle(show.Name)
+	sObject.Titles[strings.ToLower(config.Get().Language)] = NormalizeTitle(show.GetName())
 
 	// Collect titles from AlternativeTitles
 	if show.AlternativeTitles != nil && show.AlternativeTitles.Titles != nil {
@@ -331,7 +331,7 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 		showYear, _ = strconv.Atoi(strings.Split(seasonFirst.AirDate, "-")[0])
 	}
 
-	title := show.Name
+	title := show.GetName()
 	if config.Get().UseOriginalTitle && show.OriginalName != "" {
 		title = show.OriginalName
 	}
@@ -379,7 +379,7 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 	}
 
 	sObject.Titles[strings.ToLower(show.OriginalLanguage)] = NormalizeTitle(sObject.Titles["source"])
-	sObject.Titles[strings.ToLower(config.Get().Language)] = NormalizeTitle(show.Name)
+	sObject.Titles[strings.ToLower(config.Get().Language)] = NormalizeTitle(show.GetName())
 
 	// Collect titles from AlternativeTitles
 	if show.AlternativeTitles != nil && show.AlternativeTitles.Titles != nil {

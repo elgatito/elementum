@@ -552,7 +552,7 @@ func movieLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, tmdbID string) []*
 	if movie == nil {
 		return []*bittorrent.TorrentFile{}
 	}
-	log.Infof("Resolved %s to %s", tmdbID, movie.Title)
+	log.Infof("Resolved %s to %s", tmdbID, movie.GetTitle())
 
 	searchers := providers.GetMovieSearchers(xbmcHost, callbackHost)
 	if len(searchers) == 0 {
@@ -626,7 +626,7 @@ func MovieLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			if !isCustom {
 				torrents = movieLinks(xbmcHost, ctx.Request.Host, tmdbID)
 			} else {
-				if query := xbmcHost.Keyboard(movie.Title, "LOCALIZE[30209]"); len(query) != 0 {
+				if query := xbmcHost.Keyboard(movie.GetTitle(), "LOCALIZE[30209]"); len(query) != 0 {
 					torrents = searchLinks(xbmcHost, ctx.Request.Host, query)
 				}
 			}
@@ -684,7 +684,7 @@ func MovieLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		if action == "play" {
 			choice = 0
 		} else {
-			choice = xbmcHost.ListDialogLarge("LOCALIZE[30228]", movie.Title, choices...)
+			choice = xbmcHost.ListDialogLarge("LOCALIZE[30228]", movie.GetTitle(), choices...)
 		}
 
 		if choice >= 0 {

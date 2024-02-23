@@ -480,7 +480,7 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 func (movie *Movie) ToListItem() *xbmc.ListItem {
 	defer perf.ScopeTimer()()
 
-	title := movie.title()
+	title := movie.GetTitle()
 	if config.Get().UseOriginalTitle && movie.OriginalTitle != "" {
 		title = movie.OriginalTitle
 	}
@@ -567,17 +567,25 @@ func (movie *Movie) mpaa() string {
 	return ""
 }
 
-func (movie *Movie) title() string {
-	if movie.Title != "" || movie.Translations == nil || movie.Translations.Translations == nil || len(movie.Translations.Translations) == 0 {
+func (movie *Movie) GetTitle() string {
+	// By default, if TMDB is returning a translated title - we use it
+	if movie.Title != "" && movie.Title == movie.OriginalTitle && movie.OriginalLanguage == config.Get().Language {
 		return movie.Title
 	}
+
+	// If we have a title, but we don't have translations - use it
+	if (movie.Title != "" && movie.Title != movie.OriginalTitle) || movie.Translations == nil || movie.Translations.Translations == nil || len(movie.Translations.Translations) == 0 {
+		return movie.Title
+	}
+
+	// Find translations in this order: Kodi language -> Second language -> Original language
 
 	current := movie.findTranslation(config.Get().Language)
 	if current != nil && current.Data != nil && current.Data.Title != "" {
 		return current.Data.Title
 	}
 
-	current = movie.findTranslation("en")
+	current = movie.findTranslation(config.Get().SecondLanguage)
 	if current != nil && current.Data != nil && current.Data.Title != "" {
 		return current.Data.Title
 	}
@@ -600,7 +608,7 @@ func (movie *Movie) overview() string {
 		return current.Data.Overview
 	}
 
-	current = movie.findTranslation("en")
+	current = movie.findTranslation(config.Get().SecondLanguage)
 	if current != nil && current.Data != nil && current.Data.Overview != "" {
 		return current.Data.Overview
 	}

@@ -713,7 +713,7 @@ func RemoveMovie(tmdbID int, purge bool) (*tmdb.Movie, []string, error) {
 		log.Warningf("Directory %s removed from disk", path)
 	}
 
-	log.Warningf("%s removed from library", movie.Title)
+	log.Warningf("%s removed from library", movie.GetTitle())
 	return movie, ret, nil
 }
 
@@ -750,7 +750,7 @@ func RemoveShow(tmdbID string, purge bool) (*tmdb.Show, []string, error) {
 		log.Warningf("Directory %s removed from disk", path)
 	}
 
-	log.Warningf("%s removed from library", show.Name)
+	log.Warningf("%s removed from library", show.GetName())
 
 	return show, ret, nil
 }
@@ -791,7 +791,7 @@ func RemoveEpisode(tmdbID int, showID int, seasonNumber int, episodeNumber int) 
 	removedEpisodes <- &removedEpisode{
 		ID:       tmdbID,
 		ShowID:   showID,
-		ShowName: show.Name,
+		ShowName: show.GetName(),
 		Season:   seasonNumber,
 		Episode:  episodeNumber,
 	}
@@ -1397,7 +1397,7 @@ func AddMovie(tmdbID string, force bool) (*tmdb.Movie, error) {
 
 	if !force && uid.IsDuplicateMovie(tmdbID) {
 		if xbmcHost, err := xbmc.GetLocalXBMCHost(); xbmcHost != nil && err == nil {
-			xbmcHost.Notify("Elementum", fmt.Sprintf("LOCALIZE[30287];;%s", movie.Title), config.AddonIcon())
+			xbmcHost.Notify("Elementum", fmt.Sprintf("LOCALIZE[30287];;%s", movie.GetTitle()), config.AddonIcon())
 		}
 		return nil, fmt.Errorf("Movie already added")
 	}
@@ -1411,7 +1411,7 @@ func AddMovie(tmdbID string, force bool) (*tmdb.Movie, error) {
 		return movie, err
 	}
 
-	log.Noticef("%s added to library", movie.Title)
+	log.Noticef("%s added to library", movie.GetTitle())
 	return movie, nil
 }
 
@@ -1426,7 +1426,7 @@ func AddShow(tmdbID string, force bool) (*tmdb.Show, error) {
 
 	if !force && uid.IsDuplicateShow(tmdbID) {
 		if xbmcHost, err := xbmc.GetLocalXBMCHost(); xbmcHost != nil && err == nil && show != nil {
-			xbmcHost.Notify("Elementum", fmt.Sprintf("LOCALIZE[30287];;%s", show.Name), config.AddonIcon())
+			xbmcHost.Notify("Elementum", fmt.Sprintf("LOCALIZE[30287];;%s", show.GetName()), config.AddonIcon())
 		}
 		return show, fmt.Errorf("Show already added")
 	}

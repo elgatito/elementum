@@ -1534,7 +1534,7 @@ func (s *Service) onDownloadProgress() {
 							if item.ShowID > 0 {
 								show := tmdb.GetShow(item.ShowID, config.Get().Language)
 								if show != nil {
-									showPath := util.ToFileName(fmt.Sprintf("%s (%s)", show.Name, strings.Split(show.FirstAirDate, "-")[0]))
+									showPath := util.ToFileName(fmt.Sprintf("%s (%s)", show.GetName(), strings.Split(show.FirstAirDate, "-")[0]))
 									seasonPath := filepath.Join(showPath, fmt.Sprintf("Season %d", item.Season))
 									if item.Season == 0 {
 										seasonPath = filepath.Join(showPath, "Specials")
