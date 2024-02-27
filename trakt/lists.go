@@ -45,9 +45,9 @@ func (l *List) ID() int {
 func GetList(user, listID string) (list *List, err error) {
 	defer perf.ScopeTimer()()
 
-	url := fmt.Sprintf("/lists/%s", listID)
-	if user == "" || user == config.Get().TraktUsername {
-		url = fmt.Sprintf("users/%s/lists/%s", config.Get().TraktUsername, listID)
+	url := fmt.Sprintf("users/%s/lists/%s", user, listID)
+	if user == "Trakt" { // if this is "Official" public list - we use special endpoint
+		url = fmt.Sprintf("/lists/%s", listID)
 	}
 
 	req := &reqapi.Request{

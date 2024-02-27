@@ -440,9 +440,9 @@ func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 	listActivities, err := GetListActivities(user, listID)
 	isUpdateNeeded := err != nil || listActivities.IsUpdated()
 
-	url := fmt.Sprintf("/lists/%s/items/shows", listID)
-	if user == "" || user == config.Get().TraktUsername {
-		url = fmt.Sprintf("users/%s/lists/%s/items/shows", config.Get().TraktUsername, listID)
+	url := fmt.Sprintf("users/%s/lists/%s/items/shows", user, listID)
+	if user == "Trakt" { // if this is "Official" public list - we use special endpoint
+		url = fmt.Sprintf("/lists/%s/items/shows", listID)
 	}
 
 	cacheStore := cache.NewDBStore()

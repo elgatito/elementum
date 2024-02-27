@@ -419,9 +419,9 @@ func ListItemsMovies(user, listID string) (movies []*Movies, err error) {
 	listActivities, err := GetListActivities(user, listID)
 	isUpdateNeeded := err != nil || listActivities.IsUpdated()
 
-	url := fmt.Sprintf("/lists/%s/items/movies", listID)
-	if user == "" || user == config.Get().TraktUsername {
-		url = fmt.Sprintf("users/%s/lists/%s/items/movies", config.Get().TraktUsername, listID)
+	url := fmt.Sprintf("users/%s/lists/%s/items/movies", user, listID)
+	if user == "Trakt" { // if this is "Official" public list - we use special endpoint
+		url = fmt.Sprintf("/lists/%s/items/movies", listID)
 	}
 
 	cacheStore := cache.NewDBStore()
