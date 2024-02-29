@@ -131,7 +131,8 @@ func GetShow(showID int, language string) (show *Show) {
 		Result:      &show,
 		Description: "show",
 
-		Cache: true,
+		Cache:       true,
+		CacheExpire: cache.CacheExpireLong,
 	}
 
 	req.Do()
