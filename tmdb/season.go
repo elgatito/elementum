@@ -225,9 +225,13 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 		season.EpisodeCount = season.CountEpisodesNumber(show)
 	}
 
+	year, _ := strconv.Atoi(strings.Split(season.AirDate, "-")[0])
+
 	item := &xbmc.ListItem{
 		Label: name,
 		Info: &xbmc.ListItemInfo{
+			Year:          year,
+			Aired:         season.AirDate,
 			Count:         rand.Int(),
 			Title:         name,
 			OriginalTitle: name,

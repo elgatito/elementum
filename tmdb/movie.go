@@ -490,6 +490,7 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 		Label2: fmt.Sprintf("%f", movie.VoteAverage),
 		Info: &xbmc.ListItemInfo{
 			Year:          movie.Year(),
+			Date:          movie.ReleaseDate,
 			Count:         rand.Int(),
 			Title:         title,
 			OriginalTitle: movie.OriginalTitle,
@@ -499,7 +500,6 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 			Duration:      movie.Runtime * 60,
 			Code:          movie.IMDBId,
 			IMDBNumber:    movie.IMDBId,
-			Date:          movie.ReleaseDate,
 			Votes:         strconv.Itoa(movie.VoteCount),
 			Rating:        movie.VoteAverage,
 			PlayCount:     playcount.GetWatchedMovieByTMDB(movie.ID).Int(),

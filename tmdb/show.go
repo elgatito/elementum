@@ -591,6 +591,7 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 		Label: name,
 		Info: &xbmc.ListItemInfo{
 			Year:          year,
+			Aired:         show.FirstAirDate,
 			Count:         rand.Int(),
 			Title:         name,
 			OriginalTitle: show.OriginalName,
