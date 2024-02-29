@@ -125,6 +125,7 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 		Label2: fmt.Sprintf("%f", episode.VoteAverage),
 		Info: &xbmc.ListItemInfo{
 			Year:          year,
+			Aired:         episode.AirDate,
 			Count:         rand.Int(),
 			Title:         episodeLabel,
 			OriginalTitle: episode.GetName(show),
@@ -135,7 +136,6 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 			PlotOutline:   episode.overview(show),
 			Rating:        episode.VoteAverage,
 			Votes:         strconv.Itoa(episode.VoteCount),
-			Aired:         episode.AirDate,
 			Duration:      runtime,
 			PlayCount:     playcount.GetWatchedEpisodeByTMDB(show.ID, episode.SeasonNumber, episode.EpisodeNumber).Int(),
 			MPAA:          show.mpaa(),

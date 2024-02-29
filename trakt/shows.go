@@ -802,6 +802,7 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 		}
 	}
 	if item == nil {
+		firstAired, _ := time.Parse(time.RFC3339, show.FirstAired)
 		item = &xbmc.ListItem{
 			Label: show.Title,
 			Info: &xbmc.ListItemInfo{
@@ -809,6 +810,7 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 				Title:         show.Title,
 				OriginalTitle: show.Title,
 				Year:          show.Year,
+				Aired:         firstAired.Format(time.DateOnly),
 				Genre:         show.Genres,
 				Plot:          show.Overview,
 				PlotOutline:   show.Overview,
@@ -894,6 +896,7 @@ func (episode *Episode) ToListItem(show *Show, tmdbShow *tmdb.Show) (item *xbmc.
 			runtime = show.Runtime
 		}
 
+		firstAired, _ := time.Parse(time.RFC3339, episode.FirstAired)
 		item = &xbmc.ListItem{
 			Label:  episodeLabel,
 			Label2: fmt.Sprintf("%f", episode.Rating),
@@ -907,7 +910,8 @@ func (episode *Episode) ToListItem(show *Show, tmdbShow *tmdb.Show) (item *xbmc.
 				Plot:          episode.Overview,
 				PlotOutline:   episode.Overview,
 				Rating:        episode.Rating,
-				Aired:         episode.FirstAired,
+				Year:          firstAired.Year(),
+				Aired:         firstAired.Format(time.DateOnly),
 				Duration:      runtime,
 				Genre:         show.Genres,
 				Code:          show.IDs.IMDB,
