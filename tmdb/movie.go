@@ -76,7 +76,8 @@ func GetMovieByID(movieID string, language string) *Movie {
 		Result:      &movie,
 		Description: "movie",
 
-		Cache: true,
+		Cache:       true,
+		CacheExpire: cache.CacheExpireLong,
 	}
 
 	if req.Do(); movie == nil {
