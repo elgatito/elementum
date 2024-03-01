@@ -25,6 +25,13 @@ const (
 	StorageMemory
 )
 
+const (
+	ImageQualityOriginal int = iota
+	ImageQualityHigh
+	ImageQualityMedium
+	ImageQualityLow
+)
+
 var (
 	// Storages ...
 	Storages = []string{

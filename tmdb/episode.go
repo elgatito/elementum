@@ -83,12 +83,14 @@ func (episode *Episode) SetArt(show *Show, season *Season, item *xbmc.ListItem) 
 		item.Art = &xbmc.ListItemArt{}
 	}
 
+	posterQuality, fanArtQuality, thumbnailQuality := GetImageQualities()
+
 	if episode.StillPath != "" {
-		item.Art.FanArt = ImageURL(episode.StillPath, "w1280")
-		item.Art.Banner = ImageURL(episode.StillPath, "w1280")
-		item.Art.Poster = ImageURL(episode.StillPath, "w1280")
-		item.Art.Thumbnail = ImageURL(episode.StillPath, "w1280")
-		item.Art.TvShowPoster = ImageURL(episode.StillPath, "w1280")
+		item.Art.FanArt = ImageURL(episode.StillPath, fanArtQuality)
+		item.Art.Banner = ImageURL(episode.StillPath, fanArtQuality)
+		item.Art.Poster = ImageURL(episode.StillPath, posterQuality)
+		item.Art.Thumbnail = ImageURL(episode.StillPath, thumbnailQuality)
+		item.Art.TvShowPoster = ImageURL(episode.StillPath, posterQuality)
 	} else {
 		// Use the season's artwork as a fallback
 		season.SetArt(show, item)

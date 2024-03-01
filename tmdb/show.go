@@ -509,11 +509,13 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 		item.Art = &xbmc.ListItemArt{}
 	}
 
-	item.Art.FanArt = ImageURL(show.BackdropPath, "w1280")
-	item.Art.Banner = ImageURL(show.BackdropPath, "w1280")
-	item.Art.Poster = ImageURL(show.PosterPath, "w1280")
-	item.Art.Thumbnail = ImageURL(show.PosterPath, "w1280")
-	item.Art.TvShowPoster = ImageURL(show.PosterPath, "w1280")
+	posterQuality, fanArtQuality, thumbnailQuality := GetImageQualities()
+
+	item.Art.FanArt = ImageURL(show.BackdropPath, fanArtQuality)
+	item.Art.Banner = ImageURL(show.BackdropPath, fanArtQuality)
+	item.Art.Poster = ImageURL(show.PosterPath, posterQuality)
+	item.Art.Thumbnail = ImageURL(show.PosterPath, thumbnailQuality)
+	item.Art.TvShowPoster = ImageURL(show.PosterPath, posterQuality)
 
 	if item.Art.AvailableArtworks == nil {
 		item.Art.AvailableArtworks = &xbmc.Artworks{}
@@ -524,12 +526,12 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 		foundLanguageSpecificImage := false
 		for _, backdrop := range show.Images.Backdrops {
 			// for AvailableArtworks
-			fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
+			fanarts = append(fanarts, ImageURL(backdrop.FilePath, fanArtQuality))
 
 			// try to use language specific art
 			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
-				item.Art.FanArt = ImageURL(backdrop.FilePath, "w1280")
-				item.Art.Banner = ImageURL(backdrop.FilePath, "w1280")
+				item.Art.FanArt = ImageURL(backdrop.FilePath, fanArtQuality)
+				item.Art.Banner = ImageURL(backdrop.FilePath, fanArtQuality)
 				foundLanguageSpecificImage = true // we take first image, it has top rating
 			}
 		}
@@ -545,12 +547,12 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 		foundLanguageSpecificImage := false
 		for _, poster := range show.Images.Posters {
 			// for AvailableArtworks
-			posters = append(posters, ImageURL(poster.FilePath, "w1280"))
+			posters = append(posters, ImageURL(poster.FilePath, posterQuality))
 
 			// try to use language specific art
 			if !foundLanguageSpecificImage && poster.Iso639_1 == config.Get().Language {
-				item.Art.Poster = ImageURL(poster.FilePath, "w1280")
-				item.Art.Thumbnail = ImageURL(poster.FilePath, "w1280")
+				item.Art.Poster = ImageURL(poster.FilePath, posterQuality)
+				item.Art.Thumbnail = ImageURL(poster.FilePath, thumbnailQuality)
 				foundLanguageSpecificImage = true // we take first image, it has top rating
 			}
 		}

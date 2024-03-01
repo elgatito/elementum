@@ -24,6 +24,11 @@ const (
 
 var (
 	log = logging.MustGetLogger("tmdb")
+
+	//                                  Original    High    Medium  Low
+	ImageQualitiesPoster    = []string{"original", "w780", "w500", "w185"}
+	ImageQualitiesFanArt    = []string{"original", "w1280", "w780", "w300"}
+	ImageQualitiesThumbnail = []string{"original", "w780", "w500", "w185"}
 )
 
 // Movies ...
@@ -640,4 +645,11 @@ func (credits *Credits) GetWriters() []string {
 		}
 	}
 	return writers
+}
+
+func GetImageQualities() (posterQuality, fanArtQuality, thumbnailQuality string) {
+	posterQuality = ImageQualitiesPoster[config.Get().TMDBImagesQuality]
+	fanArtQuality = ImageQualitiesFanArt[config.Get().TMDBImagesQuality]
+	thumbnailQuality = ImageQualitiesThumbnail[config.Get().TMDBImagesQuality]
+	return
 }
