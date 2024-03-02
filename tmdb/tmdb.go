@@ -26,9 +26,10 @@ var (
 	log = logging.MustGetLogger("tmdb")
 
 	//                                  Original    High    Medium  Low
-	ImageQualitiesPoster    = []string{"original", "w780", "w500", "w185"}
-	ImageQualitiesFanArt    = []string{"original", "w1280", "w780", "w300"}
-	ImageQualitiesThumbnail = []string{"original", "w780", "w500", "w185"}
+	ImageQualitiesPoster    = []string{"original", "w780", "w500", "w342"}
+	ImageQualitiesFanArt    = []string{"original", "w1280", "w1280", "w780"}
+	ImageQualitiesThumbnail = []string{"original", "w780", "w500", "w342"}
+	ImageQualitiesLogo      = []string{"original", "w500", "w500", "w300"}
 )
 
 // Movies ...
@@ -124,8 +125,8 @@ type Season struct {
 	Season       int          `json:"season_number"`
 	EpisodeCount int          `json:"episode_count,omitempty"`
 	AirDate      string       `json:"air_date"`
-	Poster       string       `json:"poster_path"`
-	Backdrop     string       `json:"backdrop_path"`
+	PosterPath   string       `json:"poster_path"`
+	BackdropPath string       `json:"backdrop_path"`
 	ExternalIDs  *ExternalIDs `json:"external_ids"`
 
 	AlternativeTitles *struct {
@@ -252,6 +253,7 @@ type Images struct {
 	Backdrops []*Image `json:"backdrops"`
 	Posters   []*Image `json:"posters"`
 	Stills    []*Image `json:"stills"`
+	Logos     []*Image `json:"logos"`
 }
 
 // Cast ...
@@ -647,9 +649,10 @@ func (credits *Credits) GetWriters() []string {
 	return writers
 }
 
-func GetImageQualities() (posterQuality, fanArtQuality, thumbnailQuality string) {
+func GetImageQualities() (posterQuality, fanArtQuality, thumbnailQuality, logoQuality string) {
 	posterQuality = ImageQualitiesPoster[config.Get().TMDBImagesQuality]
 	fanArtQuality = ImageQualitiesFanArt[config.Get().TMDBImagesQuality]
 	thumbnailQuality = ImageQualitiesThumbnail[config.Get().TMDBImagesQuality]
+	logoQuality = ImageQualitiesLogo[config.Get().TMDBImagesQuality]
 	return
 }

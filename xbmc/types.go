@@ -145,17 +145,17 @@ type ListItemInfo struct {
 	Exif        string `json:"exif,omitempty"`
 }
 
-// ListItemArt ...
+// ListItemArt, see https://kodi.wiki/view/Artwork_types
 type ListItemArt struct {
-	Thumbnail         string    `json:"thumb,omitempty"`
-	Poster            string    `json:"poster,omitempty"`
-	TvShowPoster      string    `json:"tvshowposter,omitempty"`
-	Banner            string    `json:"banner,omitempty"`
-	FanArt            string    `json:"fanart,omitempty"`
+	Thumbnail         string    `json:"thumb,omitempty"`        //used for episodes only
+	Poster            string    `json:"poster,omitempty"`       //poster + a clearly visible logo or name of the video
+	TvShowPoster      string    `json:"tvshowposter,omitempty"` //TODO: something very old or skin specific? remove it?
+	Banner            string    `json:"banner,omitempty"`       //contain recognizable characters and typically includes a clearly visible logo or name
+	FanArt            string    `json:"fanart,omitempty"`       //for full screen displays, Fanart has no text on the image
 	FanArts           []string  `json:"fanarts,omitempty"`
 	ClearArt          string    `json:"clearart,omitempty"`
-	ClearLogo         string    `json:"clearlogo,omitempty"`
-	Landscape         string    `json:"landscape,omitempty"`
+	ClearLogo         string    `json:"clearlogo,omitempty"` //has the distinctive font associated with the video and is uncluttered by other images
+	Landscape         string    `json:"landscape,omitempty"` //fanart with text. If not available, skins can use fanart+clearlogo
 	Icon              string    `json:"icon,omitempty"`
 	DiscArt           string    `json:"discart,omitempty"`
 	KeyArt            string    `json:"keyart,omitempty"`

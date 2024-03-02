@@ -415,12 +415,13 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 		item.Art = &xbmc.ListItemArt{}
 	}
 
-	posterQuality, fanArtQuality, thumbnailQuality := GetImageQualities()
+	posterQuality, fanArtQuality, logoQuality, _ := GetImageQualities()
 
 	item.Art.FanArt = ImageURL(movie.BackdropPath, fanArtQuality)
 	item.Art.Banner = ImageURL(movie.BackdropPath, fanArtQuality)
+	item.Art.Landscape = ImageURL(movie.BackdropPath, fanArtQuality)
+	//item.Art.Thumbnail = ImageURL(movie.BackdropPath, thumbnailQuality)
 	item.Art.Poster = ImageURL(movie.PosterPath, posterQuality)
-	item.Art.Thumbnail = ImageURL(movie.PosterPath, thumbnailQuality)
 
 	if item.Art.AvailableArtworks == nil {
 		item.Art.AvailableArtworks = &xbmc.Artworks{}
@@ -433,10 +434,11 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 			// for AvailableArtworks
 			fanarts = append(fanarts, ImageURL(backdrop.FilePath, fanArtQuality))
 
-			// try to use language specific art
+			// try to use language specific art instead of default
 			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
-				item.Art.FanArt = ImageURL(backdrop.FilePath, fanArtQuality)
 				item.Art.Banner = ImageURL(backdrop.FilePath, fanArtQuality)
+				item.Art.Landscape = ImageURL(backdrop.FilePath, fanArtQuality)
+				//item.Art.Thumbnail = ImageURL(backdrop.FilePath, thumbnailQuality)
 				foundLanguageSpecificImage = true // we take first image, it has top rating
 			}
 		}
@@ -444,6 +446,7 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 			item.Art.FanArts = fanarts
 			item.Art.AvailableArtworks.FanArt = fanarts
 			item.Art.AvailableArtworks.Banner = fanarts
+			item.Art.AvailableArtworks.Landscape = fanarts
 		}
 	}
 
@@ -454,15 +457,37 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 			// for AvailableArtworks
 			posters = append(posters, ImageURL(poster.FilePath, posterQuality))
 
-			// try to use language specific art
+			// try to use language specific art instead of default
 			if !foundLanguageSpecificImage && poster.Iso639_1 == config.Get().Language {
 				item.Art.Poster = ImageURL(poster.FilePath, posterQuality)
-				item.Art.Thumbnail = ImageURL(poster.FilePath, thumbnailQuality)
 				foundLanguageSpecificImage = true // we take first image, it has top rating
 			}
 		}
 		if len(posters) > 0 {
 			item.Art.AvailableArtworks.Poster = posters
+		}
+	}
+
+	if movie.Images != nil && movie.Images.Logos != nil {
+		logos := make([]string, 0)
+		foundLanguageSpecificImage := false
+		for _, logo := range movie.Images.Logos {
+			// for AvailableArtworks
+			logos = append(logos, ImageURL(logo.FilePath, posterQuality))
+
+			// try to find language specific art
+			if !foundLanguageSpecificImage && logo.Iso639_1 == config.Get().Language {
+				item.Art.ClearLogo = ImageURL(logo.FilePath, logoQuality)
+				foundLanguageSpecificImage = true // we take first image, it has top rating
+			}
+		}
+		if len(logos) > 0 {
+			item.Art.AvailableArtworks.ClearLogo = logos
+
+			// if there is no language specific image - just use the first one
+			if !foundLanguageSpecificImage {
+				item.Art.ClearLogo = ImageURL(movie.Images.Logos[0].FilePath, logoQuality)
+			}
 		}
 	}
 
