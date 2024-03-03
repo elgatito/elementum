@@ -471,13 +471,15 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 		logos := make([]string, 0)
 		foundLanguageSpecificImage := false
 		for _, logo := range movie.Images.Logos {
-			// for AvailableArtworks
-			logos = append(logos, ImageURL(logo.FilePath, posterQuality))
+			if !strings.HasSuffix(logo.FilePath, ".svg") { //Kodi does not support svg images for logos
+				// for AvailableArtworks
+				logos = append(logos, ImageURL(logo.FilePath, posterQuality))
 
-			// try to find language specific art
-			if !foundLanguageSpecificImage && logo.Iso639_1 == config.Get().Language {
-				item.Art.ClearLogo = ImageURL(logo.FilePath, logoQuality)
-				foundLanguageSpecificImage = true // we take first image, it has top rating
+				// try to find language specific art
+				if !foundLanguageSpecificImage && logo.Iso639_1 == config.Get().Language {
+					item.Art.ClearLogo = ImageURL(logo.FilePath, logoQuality)
+					foundLanguageSpecificImage = true // we take first image, it has top rating
+				}
 			}
 		}
 		if len(logos) > 0 {
