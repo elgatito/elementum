@@ -649,10 +649,10 @@ func (credits *Credits) GetWriters() []string {
 	return writers
 }
 
-func GetImageQualities() (posterQuality, fanArtQuality, thumbnailQuality, logoQuality string) {
+func GetImageQualities() (posterQuality, fanArtQuality, logoQuality, thumbnailQuality string) {
 	posterQuality = ImageQualitiesPoster[config.Get().TMDBImagesQuality]
 	fanArtQuality = ImageQualitiesFanArt[config.Get().TMDBImagesQuality]
-	thumbnailQuality = ImageQualitiesThumbnail[config.Get().TMDBImagesQuality]
 	logoQuality = ImageQualitiesLogo[config.Get().TMDBImagesQuality]
+	thumbnailQuality = ImageQualitiesThumbnail[config.Get().TMDBImagesQuality]
 	return
 }

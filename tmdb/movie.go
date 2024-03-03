@@ -415,12 +415,12 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 		item.Art = &xbmc.ListItemArt{}
 	}
 
-	posterQuality, fanArtQuality, logoQuality, _ := GetImageQualities()
+	posterQuality, fanArtQuality, logoQuality, thumbnailQuality := GetImageQualities()
 
 	item.Art.FanArt = ImageURL(movie.BackdropPath, fanArtQuality)
 	item.Art.Banner = ImageURL(movie.BackdropPath, fanArtQuality)
 	item.Art.Landscape = ImageURL(movie.BackdropPath, fanArtQuality)
-	//item.Art.Thumbnail = ImageURL(movie.BackdropPath, thumbnailQuality)
+	item.Art.Thumbnail = ImageURL(movie.BackdropPath, thumbnailQuality)
 	item.Art.Poster = ImageURL(movie.PosterPath, posterQuality)
 
 	if item.Art.AvailableArtworks == nil {
@@ -438,7 +438,6 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
 				item.Art.Banner = ImageURL(backdrop.FilePath, fanArtQuality)
 				item.Art.Landscape = ImageURL(backdrop.FilePath, fanArtQuality)
-				//item.Art.Thumbnail = ImageURL(backdrop.FilePath, thumbnailQuality)
 				foundLanguageSpecificImage = true // we take first image, it has top rating
 			}
 		}
@@ -500,7 +499,7 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 		}
 	}
 
-	item.Thumbnail = item.Art.Poster
+	item.Thumbnail = item.Art.Thumbnail
 }
 
 // ToListItem ...

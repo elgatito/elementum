@@ -509,12 +509,12 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 		item.Art = &xbmc.ListItemArt{}
 	}
 
-	posterQuality, fanArtQuality, logoQuality, _ := GetImageQualities()
+	posterQuality, fanArtQuality, logoQuality, thumbnailQuality := GetImageQualities()
 
 	item.Art.FanArt = ImageURL(show.BackdropPath, fanArtQuality)
 	item.Art.Banner = ImageURL(show.BackdropPath, fanArtQuality)
 	item.Art.Landscape = ImageURL(show.BackdropPath, fanArtQuality)
-	//item.Art.Thumbnail = ImageURL(show.BackdropPath, thumbnailQuality)
+	item.Art.Thumbnail = ImageURL(show.BackdropPath, thumbnailQuality)
 	item.Art.Poster = ImageURL(show.PosterPath, posterQuality)
 	item.Art.TvShowPoster = ImageURL(show.PosterPath, posterQuality)
 
@@ -533,7 +533,6 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
 				item.Art.Banner = ImageURL(backdrop.FilePath, fanArtQuality)
 				item.Art.Landscape = ImageURL(backdrop.FilePath, fanArtQuality)
-				//item.Art.Thumbnail = ImageURL(backdrop.FilePath, thumbnailQuality)
 				foundLanguageSpecificImage = true // we take first image, it has top rating
 			}
 		}
@@ -595,7 +594,7 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 		}
 	}
 
-	item.Thumbnail = item.Art.Poster
+	item.Thumbnail = item.Art.Thumbnail
 }
 
 // ToListItem ...

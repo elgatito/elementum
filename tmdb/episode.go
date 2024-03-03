@@ -105,6 +105,8 @@ func (episode *Episode) SetArt(show *Show, season *Season, item *xbmc.ListItem) 
 			item.Art = show.FanArt.ToEpisodeListItemArt(season.Season, item.Art)
 		}
 	}
+
+	item.Thumbnail = item.Art.Thumbnail
 }
 
 // ToListItem ...

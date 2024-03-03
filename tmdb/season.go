@@ -144,13 +144,13 @@ func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 	// Use the show's artwork as a fallback
 	show.SetArt(item)
 
-	posterQuality, fanArtQuality, _, _ := GetImageQualities()
+	posterQuality, fanArtQuality, _, thumbnailQuality := GetImageQualities()
 
 	if season.BackdropPath != "" {
 		item.Art.FanArt = ImageURL(season.BackdropPath, fanArtQuality)
 		item.Art.Banner = ImageURL(season.BackdropPath, fanArtQuality)
 		item.Art.Landscape = ImageURL(season.BackdropPath, fanArtQuality)
-		//item.Art.Thumbnail = ImageURL(season.BackdropPath, thumbnailQuality)
+		item.Art.Thumbnail = ImageURL(season.BackdropPath, thumbnailQuality)
 	}
 	if season.PosterPath != "" {
 		item.Art.Poster = ImageURL(season.PosterPath, posterQuality)
@@ -172,7 +172,6 @@ func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
 				item.Art.Banner = ImageURL(backdrop.FilePath, fanArtQuality)
 				item.Art.Landscape = ImageURL(backdrop.FilePath, fanArtQuality)
-				//item.Art.Thumbnail = ImageURL(backdrop.FilePath, thumbnailQuality)
 				foundLanguageSpecificImage = true // we take first image, it has top rating
 			}
 		}
