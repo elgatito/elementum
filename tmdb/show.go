@@ -510,6 +510,7 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 	}
 
 	posterQuality, fanArtQuality, logoQuality, thumbnailQuality := GetImageQualities()
+	log.Debugf("%s | PosterQuality: %s, FanArtQuality: %s, LogoQuality: %s, ThumbnailQuality: %s", show.GetName(), posterQuality, fanArtQuality, logoQuality, thumbnailQuality)
 
 	item.Art.FanArt = ImageURL(show.BackdropPath, fanArtQuality)
 	item.Art.Banner = ImageURL(show.BackdropPath, fanArtQuality)
@@ -597,6 +598,9 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 	}
 
 	item.Thumbnail = item.Art.Thumbnail
+
+	log.Debugf("%s | FanArt: %s, Banner: %s, Landscape: %s, Thumbnail: %s, Poster: %s, ClearLogo: %s",
+		show.GetName(), item.Art.FanArt, item.Art.Banner, item.Art.Landscape, item.Art.Thumbnail, item.Art.Poster, item.Art.ClearLogo)
 }
 
 // ToListItem ...
