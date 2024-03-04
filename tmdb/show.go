@@ -579,9 +579,6 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 	year, _ := strconv.Atoi(strings.Split(show.FirstAirDate, "-")[0])
 
 	name := show.GetName()
-	if config.Get().UseOriginalTitle && show.OriginalName != "" {
-		name = show.OriginalName
-	}
 
 	if config.Get().ShowUnwatchedEpisodesNumber {
 		// Get all seasons information for this show, it is required to get Air dates
@@ -671,6 +668,10 @@ func (show *Show) mpaa() string {
 }
 
 func (show *Show) GetName() string {
+	if config.Get().UseOriginalTitle && show.OriginalName != "" {
+		return show.OriginalName
+	}
+
 	// By default, if TMDB is returning a translated title - we use it
 	if show.Name != "" && show.Name == show.OriginalName && show.OriginalLanguage == config.Get().Language {
 		return show.Name
