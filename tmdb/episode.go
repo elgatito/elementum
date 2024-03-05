@@ -83,18 +83,14 @@ func (episode *Episode) SetArt(show *Show, season *Season, item *xbmc.ListItem) 
 		item.Art = &xbmc.ListItemArt{}
 	}
 
-	posterQuality, fanArtQuality, _, thumbnailQuality := GetImageQualities()
-	log.Debugf("%s | PosterQuality: %s, FanArtQuality: %s, ThumbnailQuality: %s", episode.GetName(show), posterQuality, fanArtQuality, thumbnailQuality)
+	// Episode only have Still aka Thumbnail, thus we take other artworks from the season/show
+	season.SetArt(show, item)
+
+	_, _, _, thumbnailQuality := GetImageQualities()
+	log.Debugf("%s | ThumbnailQuality: %s", episode.GetName(show), thumbnailQuality)
 
 	if episode.StillPath != "" {
-		item.Art.FanArt = ImageURL(episode.StillPath, fanArtQuality)
-		item.Art.Landscape = ImageURL(episode.StillPath, fanArtQuality)
 		item.Art.Thumbnail = ImageURL(episode.StillPath, thumbnailQuality)
-		item.Art.Poster = ImageURL(episode.StillPath, posterQuality)
-		item.Art.TvShowPoster = ImageURL(episode.StillPath, posterQuality)
-	} else {
-		// Use the season's artwork as a fallback
-		season.SetArt(show, item)
 	}
 
 	if config.Get().UseFanartTv {
