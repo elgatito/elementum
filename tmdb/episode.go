@@ -88,7 +88,6 @@ func (episode *Episode) SetArt(show *Show, season *Season, item *xbmc.ListItem) 
 
 	if episode.StillPath != "" {
 		item.Art.FanArt = ImageURL(episode.StillPath, fanArtQuality)
-		item.Art.Banner = ImageURL(episode.StillPath, fanArtQuality)
 		item.Art.Landscape = ImageURL(episode.StillPath, fanArtQuality)
 		item.Art.Thumbnail = ImageURL(episode.StillPath, thumbnailQuality)
 		item.Art.Poster = ImageURL(episode.StillPath, posterQuality)
@@ -109,8 +108,8 @@ func (episode *Episode) SetArt(show *Show, season *Season, item *xbmc.ListItem) 
 
 	item.Thumbnail = item.Art.Thumbnail
 
-	log.Debugf("%s | FanArt: %s, Banner: %s, Landscape: %s, Thumbnail: %s, Poster: %s",
-		episode.GetName(show), item.Art.FanArt, item.Art.Banner, item.Art.Landscape, item.Art.Thumbnail, item.Art.Poster)
+	log.Debugf("%s | FanArt: %s, Landscape: %s, Thumbnail: %s, Poster: %s",
+		episode.GetName(show), item.Art.FanArt, item.Art.Landscape, item.Art.Thumbnail, item.Art.Poster)
 }
 
 // ToListItem ...

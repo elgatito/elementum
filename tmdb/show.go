@@ -513,7 +513,6 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 	log.Debugf("%s | PosterQuality: %s, FanArtQuality: %s, LogoQuality: %s, ThumbnailQuality: %s", show.GetName(), posterQuality, fanArtQuality, logoQuality, thumbnailQuality)
 
 	item.Art.FanArt = ImageURL(show.BackdropPath, fanArtQuality)
-	item.Art.Banner = ImageURL(show.BackdropPath, fanArtQuality)
 	item.Art.Landscape = ImageURL(show.BackdropPath, fanArtQuality)
 	item.Art.Thumbnail = ImageURL(show.BackdropPath, thumbnailQuality)
 	item.Art.Poster = ImageURL(show.PosterPath, posterQuality)
@@ -532,7 +531,6 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 
 			// try to use language specific art instead of default
 			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
-				item.Art.Banner = ImageURL(backdrop.FilePath, fanArtQuality)
 				item.Art.Landscape = ImageURL(backdrop.FilePath, fanArtQuality)
 				foundLanguageSpecificImage = true // we take first image, it has top rating
 			}
@@ -540,7 +538,6 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 		if len(fanarts) > 0 {
 			item.Art.FanArts = fanarts
 			item.Art.AvailableArtworks.FanArt = fanarts
-			item.Art.AvailableArtworks.Banner = fanarts
 			item.Art.AvailableArtworks.Landscape = fanarts
 		}
 	}
@@ -599,8 +596,8 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 
 	item.Thumbnail = item.Art.Thumbnail
 
-	log.Debugf("%s | FanArt: %s, Banner: %s, Landscape: %s, Thumbnail: %s, Poster: %s, ClearLogo: %s",
-		show.GetName(), item.Art.FanArt, item.Art.Banner, item.Art.Landscape, item.Art.Thumbnail, item.Art.Poster, item.Art.ClearLogo)
+	log.Debugf("%s | FanArt: %s, Landscape: %s, Thumbnail: %s, Poster: %s, ClearLogo: %s",
+		show.GetName(), item.Art.FanArt, item.Art.Landscape, item.Art.Thumbnail, item.Art.Poster, item.Art.ClearLogo)
 }
 
 // ToListItem ...
