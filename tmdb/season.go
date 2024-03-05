@@ -163,10 +163,16 @@ func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 
 	if season.Images != nil && season.Images.Backdrops != nil {
 		fanarts := make([]string, 0)
+		landscapes := make([]string, 0)
 		foundLanguageSpecificImage := false
 		for _, backdrop := range season.Images.Backdrops {
-			// for AvailableArtworks
-			fanarts = append(fanarts, ImageURL(backdrop.FilePath, fanArtQuality))
+			// prepare lists for AvailableArtworks
+			// remember that FanArt should be without text, but Landscape with text.
+			if backdrop.Iso639_1 == "" {
+				fanarts = append(fanarts, ImageURL(backdrop.FilePath, fanArtQuality))
+			} else {
+				landscapes = append(landscapes, ImageURL(backdrop.FilePath, fanArtQuality))
+			}
 
 			// try to use language specific art instead of default
 			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
@@ -177,7 +183,9 @@ func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 		if len(fanarts) > 0 {
 			item.Art.FanArts = fanarts
 			item.Art.AvailableArtworks.FanArt = fanarts
-			item.Art.AvailableArtworks.Landscape = fanarts
+		}
+		if len(landscapes) > 0 {
+			item.Art.AvailableArtworks.Landscape = landscapes
 		}
 	}
 
