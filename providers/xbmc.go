@@ -404,12 +404,6 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 		}
 	}
 
-	if show.IsAnime() && config.Get().UseAnimeEnTitle {
-		if t, ok := sObject.Titles["en"]; ok {
-			sObject.Titles["original"] = t
-		}
-	}
-
 	sObject.ProxyURL = config.Get().ProxyURL
 	sObject.ElementumURL = ip.ElementumURL()
 	sObject.InternalProxyURL = ip.InternalProxyURL()

@@ -90,7 +90,6 @@ type Configuration struct {
 	ChooseStreamAutoSearch      bool
 	ForceLinkType               bool
 	UseOriginalTitle            bool
-	UseAnimeEnTitle             bool
 	UseLowestReleaseDate        bool
 	AddSpecials                 bool
 	AddEpisodeNumbers           bool
@@ -597,7 +596,6 @@ func Reload() (ret *Configuration, err error) {
 		ChooseStreamAutoSearch:      settings.ToBool("choose_stream_auto_search"),
 		ForceLinkType:               settings.ToBool("force_link_type"),
 		UseOriginalTitle:            settings.ToBool("use_original_title"),
-		UseAnimeEnTitle:             settings.ToBool("use_anime_en_title"),
 		UseLowestReleaseDate:        settings.ToBool("use_lowest_release_date"),
 		AddSpecials:                 settings.ToBool("add_specials"),
 		AddEpisodeNumbers:           settings.ToBool("add_episode_numbers"),
