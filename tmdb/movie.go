@@ -419,7 +419,11 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 
 	item.Art.FanArt = ImageURL(movie.BackdropPath, imageQualities.FanArt)
 	item.Art.Landscape = ImageURL(movie.BackdropPath, imageQualities.FanArt)
-	item.Art.Thumbnail = ImageURL(movie.BackdropPath, imageQualities.Thumbnail)
+	if movie.BackdropPath != "" {
+		item.Art.Thumbnail = ImageURL(movie.BackdropPath, imageQualities.Thumbnail)
+	} else {
+		item.Art.Thumbnail = ImageURL(movie.PosterPath, imageQualities.Thumbnail) // we expect that poster always exists
+	}
 	item.Art.Poster = ImageURL(movie.PosterPath, imageQualities.Poster)
 
 	if item.Art.AvailableArtworks == nil {

@@ -513,7 +513,11 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 
 	item.Art.FanArt = ImageURL(show.BackdropPath, imageQualities.FanArt)
 	item.Art.Landscape = ImageURL(show.BackdropPath, imageQualities.FanArt)
-	item.Art.Thumbnail = ImageURL(show.BackdropPath, imageQualities.Thumbnail)
+	if show.BackdropPath != "" {
+		item.Art.Thumbnail = ImageURL(show.BackdropPath, imageQualities.Thumbnail)
+	} else {
+		item.Art.Thumbnail = ImageURL(show.PosterPath, imageQualities.Thumbnail) // we expect that poster always exists
+	}
 	item.Art.Poster = ImageURL(show.PosterPath, imageQualities.Poster)
 	item.Art.TvShowPoster = ImageURL(show.PosterPath, imageQualities.Poster)
 
