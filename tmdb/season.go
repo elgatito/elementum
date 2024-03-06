@@ -144,16 +144,16 @@ func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 	// Use the show's artwork as a fallback
 	show.SetArt(item)
 
-	posterQuality, fanArtQuality, _, thumbnailQuality := GetImageQualities()
+	imageQualities := GetImageQualities()
 
 	if season.BackdropPath != "" {
-		item.Art.FanArt = ImageURL(season.BackdropPath, fanArtQuality)
-		item.Art.Landscape = ImageURL(season.BackdropPath, fanArtQuality)
-		item.Art.Thumbnail = ImageURL(season.BackdropPath, thumbnailQuality)
+		item.Art.FanArt = ImageURL(season.BackdropPath, imageQualities.FanArt)
+		item.Art.Landscape = ImageURL(season.BackdropPath, imageQualities.FanArt)
+		item.Art.Thumbnail = ImageURL(season.BackdropPath, imageQualities.Thumbnail)
 	}
 	if season.PosterPath != "" {
-		item.Art.Poster = ImageURL(season.PosterPath, posterQuality)
-		item.Art.TvShowPoster = ImageURL(season.PosterPath, posterQuality)
+		item.Art.Poster = ImageURL(season.PosterPath, imageQualities.Poster)
+		item.Art.TvShowPoster = ImageURL(season.PosterPath, imageQualities.Poster)
 	}
 
 	if item.Art.AvailableArtworks == nil {
@@ -168,14 +168,14 @@ func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 			// prepare lists for AvailableArtworks
 			// remember that FanArt should be without text, but Landscape with text.
 			if backdrop.Iso639_1 == "" {
-				fanarts = append(fanarts, ImageURL(backdrop.FilePath, fanArtQuality))
+				fanarts = append(fanarts, ImageURL(backdrop.FilePath, imageQualities.FanArt))
 			} else {
-				landscapes = append(landscapes, ImageURL(backdrop.FilePath, fanArtQuality))
+				landscapes = append(landscapes, ImageURL(backdrop.FilePath, imageQualities.FanArt))
 			}
 
 			// try to use language specific art instead of default
 			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
-				item.Art.Landscape = ImageURL(backdrop.FilePath, fanArtQuality)
+				item.Art.Landscape = ImageURL(backdrop.FilePath, imageQualities.FanArt)
 				foundLanguageSpecificImage = true // we take first image, it has top rating
 			}
 		}
@@ -193,11 +193,11 @@ func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 		foundLanguageSpecificImage := false
 		for _, poster := range season.Images.Posters {
 			// for AvailableArtworks
-			posters = append(posters, ImageURL(poster.FilePath, posterQuality))
+			posters = append(posters, ImageURL(poster.FilePath, imageQualities.Poster))
 
 			// try to use language specific art instead of default
 			if !foundLanguageSpecificImage && poster.Iso639_1 == config.Get().Language {
-				item.Art.Poster = ImageURL(poster.FilePath, posterQuality)
+				item.Art.Poster = ImageURL(poster.FilePath, imageQualities.Poster)
 				foundLanguageSpecificImage = true // we take first image, it has top rating
 			}
 		}

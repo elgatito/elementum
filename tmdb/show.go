@@ -509,13 +509,13 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 		item.Art = &xbmc.ListItemArt{}
 	}
 
-	posterQuality, fanArtQuality, logoQuality, thumbnailQuality := GetImageQualities()
+	imageQualities := GetImageQualities()
 
-	item.Art.FanArt = ImageURL(show.BackdropPath, fanArtQuality)
-	item.Art.Landscape = ImageURL(show.BackdropPath, fanArtQuality)
-	item.Art.Thumbnail = ImageURL(show.BackdropPath, thumbnailQuality)
-	item.Art.Poster = ImageURL(show.PosterPath, posterQuality)
-	item.Art.TvShowPoster = ImageURL(show.PosterPath, posterQuality)
+	item.Art.FanArt = ImageURL(show.BackdropPath, imageQualities.FanArt)
+	item.Art.Landscape = ImageURL(show.BackdropPath, imageQualities.FanArt)
+	item.Art.Thumbnail = ImageURL(show.BackdropPath, imageQualities.Thumbnail)
+	item.Art.Poster = ImageURL(show.PosterPath, imageQualities.Poster)
+	item.Art.TvShowPoster = ImageURL(show.PosterPath, imageQualities.Poster)
 
 	if item.Art.AvailableArtworks == nil {
 		item.Art.AvailableArtworks = &xbmc.Artworks{}
@@ -529,14 +529,14 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 			// prepare lists for AvailableArtworks
 			// remember that FanArt should be without text, but Landscape with text.
 			if backdrop.Iso639_1 == "" {
-				fanarts = append(fanarts, ImageURL(backdrop.FilePath, fanArtQuality))
+				fanarts = append(fanarts, ImageURL(backdrop.FilePath, imageQualities.FanArt))
 			} else {
-				landscapes = append(landscapes, ImageURL(backdrop.FilePath, fanArtQuality))
+				landscapes = append(landscapes, ImageURL(backdrop.FilePath, imageQualities.FanArt))
 			}
 
 			// try to use language specific art instead of default
 			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
-				item.Art.Landscape = ImageURL(backdrop.FilePath, fanArtQuality)
+				item.Art.Landscape = ImageURL(backdrop.FilePath, imageQualities.FanArt)
 				foundLanguageSpecificImage = true // we take first image, it has top rating
 			}
 		}
@@ -554,11 +554,11 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 		foundLanguageSpecificImage := false
 		for _, poster := range show.Images.Posters {
 			// for AvailableArtworks
-			posters = append(posters, ImageURL(poster.FilePath, posterQuality))
+			posters = append(posters, ImageURL(poster.FilePath, imageQualities.Poster))
 
 			// try to use language specific art instead of default
 			if !foundLanguageSpecificImage && poster.Iso639_1 == config.Get().Language {
-				item.Art.Poster = ImageURL(poster.FilePath, posterQuality)
+				item.Art.Poster = ImageURL(poster.FilePath, imageQualities.Poster)
 				foundLanguageSpecificImage = true // we take first image, it has top rating
 			}
 		}
@@ -573,11 +573,11 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 		for _, logo := range show.Images.Logos {
 			if !strings.HasSuffix(logo.FilePath, ".svg") { //Kodi does not support svg images for logos
 				// for AvailableArtworks
-				logos = append(logos, ImageURL(logo.FilePath, posterQuality))
+				logos = append(logos, ImageURL(logo.FilePath, imageQualities.Poster))
 
 				// try to find language specific art
 				if !foundLanguageSpecificImage && logo.Iso639_1 == config.Get().Language {
-					item.Art.ClearLogo = ImageURL(logo.FilePath, logoQuality)
+					item.Art.ClearLogo = ImageURL(logo.FilePath, imageQualities.Logo)
 					foundLanguageSpecificImage = true // we take first image, it has top rating
 				}
 			}
@@ -587,7 +587,7 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 
 			// if there is no language specific image - just use the first one
 			if !foundLanguageSpecificImage {
-				item.Art.ClearLogo = ImageURL(show.Images.Logos[0].FilePath, logoQuality)
+				item.Art.ClearLogo = ImageURL(show.Images.Logos[0].FilePath, imageQualities.Logo)
 			}
 		}
 	}

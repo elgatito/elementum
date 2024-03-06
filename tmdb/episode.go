@@ -86,10 +86,10 @@ func (episode *Episode) SetArt(show *Show, season *Season, item *xbmc.ListItem) 
 	// Episode only have Still aka Thumbnail, thus we take other artworks from the season/show
 	season.SetArt(show, item)
 
-	_, _, _, thumbnailQuality := GetImageQualities()
+	imageQualities := GetImageQualities()
 
 	if episode.StillPath != "" {
-		item.Art.Thumbnail = ImageURL(episode.StillPath, thumbnailQuality)
+		item.Art.Thumbnail = ImageURL(episode.StillPath, imageQualities.Thumbnail)
 	}
 
 	if config.Get().UseFanartTv {

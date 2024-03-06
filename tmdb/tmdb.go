@@ -28,8 +28,8 @@ var (
 	//                                  Original    High    Medium  Low
 	ImageQualitiesPoster    = []string{"original", "w780", "w500", "w342"}
 	ImageQualitiesFanArt    = []string{"original", "w1280", "w1280", "w780"}
-	ImageQualitiesThumbnail = []string{"original", "w780", "w500", "w342"}
 	ImageQualitiesLogo      = []string{"original", "w500", "w500", "w300"}
+	ImageQualitiesThumbnail = []string{"original", "w780", "w500", "w342"}
 )
 
 // Movies ...
@@ -649,10 +649,17 @@ func (credits *Credits) GetWriters() []string {
 	return writers
 }
 
-func GetImageQualities() (posterQuality, fanArtQuality, logoQuality, thumbnailQuality string) {
-	posterQuality = ImageQualitiesPoster[config.Get().TMDBImagesQuality]
-	fanArtQuality = ImageQualitiesFanArt[config.Get().TMDBImagesQuality]
-	logoQuality = ImageQualitiesLogo[config.Get().TMDBImagesQuality]
-	thumbnailQuality = ImageQualitiesThumbnail[config.Get().TMDBImagesQuality]
+type ImageQualityBundle struct {
+	Poster    string
+	FanArt    string
+	Logo      string
+	Thumbnail string
+}
+
+func GetImageQualities() (imageQualities ImageQualityBundle) {
+	imageQualities.Poster = ImageQualitiesPoster[config.Get().TMDBImagesQuality]
+	imageQualities.FanArt = ImageQualitiesFanArt[config.Get().TMDBImagesQuality]
+	imageQualities.Logo = ImageQualitiesLogo[config.Get().TMDBImagesQuality]
+	imageQualities.Thumbnail = ImageQualitiesThumbnail[config.Get().TMDBImagesQuality]
 	return
 }
