@@ -145,7 +145,6 @@ func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 	show.SetArt(item)
 
 	posterQuality, fanArtQuality, _, thumbnailQuality := GetImageQualities()
-	log.Debugf("%s | PosterQuality: %s, FanArtQuality: %s, ThumbnailQuality: %s", season.GetName(show), posterQuality, fanArtQuality, thumbnailQuality)
 
 	if season.BackdropPath != "" {
 		item.Art.FanArt = ImageURL(season.BackdropPath, fanArtQuality)
@@ -217,9 +216,6 @@ func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 	}
 
 	item.Thumbnail = item.Art.Thumbnail
-
-	log.Debugf("%s | FanArt: %s, Landscape: %s, Thumbnail: %s, Poster: %s",
-		season.GetName(show), item.Art.FanArt, item.Art.Landscape, item.Art.Thumbnail, item.Art.Poster)
 }
 
 // ToListItem ...

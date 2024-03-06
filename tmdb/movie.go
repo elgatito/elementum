@@ -416,7 +416,6 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 	}
 
 	posterQuality, fanArtQuality, logoQuality, thumbnailQuality := GetImageQualities()
-	log.Debugf("%s | PosterQuality: %s, FanArtQuality: %s, LogoQuality: %s, ThumbnailQuality: %s", movie.GetTitle(), posterQuality, fanArtQuality, logoQuality, thumbnailQuality)
 
 	item.Art.FanArt = ImageURL(movie.BackdropPath, fanArtQuality)
 	item.Art.Landscape = ImageURL(movie.BackdropPath, fanArtQuality)
@@ -508,9 +507,6 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 	}
 
 	item.Thumbnail = item.Art.Thumbnail
-
-	log.Debugf("%s | FanArt: %s, Landscape: %s, Thumbnail: %s, Poster: %s, ClearLogo: %s",
-		movie.GetTitle(), item.Art.FanArt, item.Art.Landscape, item.Art.Thumbnail, item.Art.Poster, item.Art.ClearLogo)
 }
 
 // ToListItem ...
