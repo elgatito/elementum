@@ -1383,8 +1383,8 @@ func (btp *Player) processUpNextEpisode(show *tmdb.Show, season *tmdb.Season, ep
 		return upnext.Episode{}
 	}
 
-	runtime := 1800
-	if len(show.EpisodeRunTime) > 0 {
+	runtime := episode.Runtime * 60
+	if runtime == 0 && len(show.EpisodeRunTime) > 0 {
 		runtime = show.EpisodeRunTime[len(show.EpisodeRunTime)-1] * 60
 	}
 

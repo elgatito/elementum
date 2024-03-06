@@ -115,8 +115,8 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 		episodeLabel = fmt.Sprintf("%dx%02d %s", episode.SeasonNumber, episode.EpisodeNumber, episode.GetName(show))
 	}
 
-	runtime := 1800
-	if len(show.EpisodeRunTime) > 0 {
+	runtime := episode.Runtime * 60
+	if runtime == 0 && len(show.EpisodeRunTime) > 0 {
 		runtime = show.EpisodeRunTime[len(show.EpisodeRunTime)-1] * 60
 	}
 
