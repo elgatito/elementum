@@ -74,7 +74,7 @@ const (
 	TraktMoviesCollectionKey               = TraktKey + "movies.collection"
 	TraktMoviesCollectionExpire            = CacheExpireLong
 	TraktMoviesListKey                     = TraktKey + "movies.list.%s"
-	TraktMoviesListExpire                  = CacheExpireLong
+	TraktMoviesListExpire                  = CacheExpireExtra
 	TraktMoviesCalendarKey                 = TraktKey + "movies.calendar.%s.%s.%d"
 	TraktMoviesCalendarAllExpire           = CacheExpireLong
 	TraktMoviesCalendarMyExpire            = CacheExpireShort
@@ -99,7 +99,7 @@ const (
 	TraktShowsCollectionKey                = TraktKey + "shows.collection"
 	TraktShowsCollectionExpire             = CacheExpireLong
 	TraktShowsListKey                      = TraktKey + "shows.list.%s"
-	TraktShowsListExpire                   = CacheExpireLong
+	TraktShowsListExpire                   = CacheExpireExtra
 	TraktShowsCalendarKey                  = TraktKey + "shows.calendar.%s.%s.%d"
 	TraktShowsCalendarAllExpire            = CacheExpireExtra
 	TraktShowsCalendarMyExpire             = CacheExpireLong
