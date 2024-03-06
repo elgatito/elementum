@@ -623,6 +623,9 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 		item.Info.Code = show.ExternalIDs.IMDBId
 		item.Info.IMDBNumber = show.ExternalIDs.IMDBId
 	}
+	if len(show.EpisodeRunTime) > 0 {
+		item.Info.Duration = show.EpisodeRunTime[len(show.EpisodeRunTime)-1] * 60 * show.NumberOfEpisodes
+	}
 
 	if ls, err := uid.GetShowByTMDB(show.ID); ls != nil && err == nil {
 		item.Info.DBID = ls.UIDs.Kodi

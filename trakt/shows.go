@@ -816,7 +816,7 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 				PlotOutline:   show.Overview,
 				Rating:        show.Rating,
 				Votes:         strconv.Itoa(show.Votes),
-				Duration:      show.Runtime * 60,
+				Duration:      show.Runtime * 60 * show.AiredEpisodes,
 				MPAA:          show.Certification,
 				Code:          show.IDs.IMDB,
 				IMDBNumber:    show.IDs.IMDB,
@@ -891,9 +891,9 @@ func (episode *Episode) ToListItem(show *Show, tmdbShow *tmdb.Show) (item *xbmc.
 			episodeLabel = fmt.Sprintf("%dx%02d %s", episode.Season, episode.Number, episode.Title)
 		}
 
-		runtime := 1800
-		if show.Runtime > 0 {
-			runtime = show.Runtime
+		runtime := episode.Runtime * 60
+		if runtime == 0 {
+			runtime = show.Runtime * 60
 		}
 
 		firstAired, _ := time.Parse(time.RFC3339, episode.FirstAired)
