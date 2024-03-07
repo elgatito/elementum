@@ -245,7 +245,7 @@ func (d *StormDatabase) AddTorrentLink(tmdbID, infoHash string, b []byte, force 
 			InfoHash: infoHash,
 			Metadata: b,
 		}
-		// we could use just Save() since TorrentAssignMetadata does not have unique field, but bettert to be explicit
+		// we could use just Save() since TorrentAssignMetadata does not have unique field, but better to be explicit
 		if err == nil {
 			d.db.Update(&tm)
 		} else {
