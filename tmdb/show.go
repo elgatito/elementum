@@ -585,14 +585,15 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 		foundLanguageSpecificImage := false
 		for _, logo := range show.Images.Logos {
 			if !strings.HasSuffix(logo.FilePath, ".svg") { //Kodi does not support svg images for logos
-				// for AvailableArtworks
-				logos = append(logos, ImageURL(logo.FilePath, imageQualities.Poster))
+				continue
+			}
+			// for AvailableArtworks
+			logos = append(logos, ImageURL(logo.FilePath, imageQualities.Poster))
 
-				// try to find language specific art
-				if !foundLanguageSpecificImage && logo.Iso639_1 == config.Get().Language {
-					item.Art.ClearLogo = ImageURL(logo.FilePath, imageQualities.Logo)
-					foundLanguageSpecificImage = true // we take first image, it has top rating
-				}
+			// try to find language specific art
+			if !foundLanguageSpecificImage && logo.Iso639_1 == config.Get().Language {
+				item.Art.ClearLogo = ImageURL(logo.FilePath, imageQualities.Logo)
+				foundLanguageSpecificImage = true // we take first image, it has top rating
 			}
 		}
 		if len(logos) > 0 {
