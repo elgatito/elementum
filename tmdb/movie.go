@@ -492,7 +492,7 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 				continue
 			}
 			// for AvailableArtworks
-			logos = append(logos, ImageURL(logo.FilePath, imageQualities.Poster))
+			logos = append(logos, ImageURL(logo.FilePath, imageQualities.Logo))
 
 			// try to find language specific art
 			if !foundLanguageSpecificImage && logo.Iso639_1 == config.Get().Language {
