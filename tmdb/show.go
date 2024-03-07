@@ -584,7 +584,7 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 		logos := make([]string, 0)
 		foundLanguageSpecificImage := false
 		for _, logo := range show.Images.Logos {
-			if !strings.HasSuffix(logo.FilePath, ".svg") { //Kodi does not support svg images for logos
+			if strings.HasSuffix(logo.FilePath, ".svg") { //Kodi does not support svg images for logos
 				continue
 			}
 			// for AvailableArtworks
