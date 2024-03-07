@@ -76,7 +76,8 @@ func GetMovieByID(movieID string, language string) *Movie {
 		Result:      &movie,
 		Description: "movie",
 
-		Cache: true,
+		Cache:       true,
+		CacheExpire: cache.CacheExpireLong,
 	}
 
 	if req.Do(); movie == nil {
@@ -525,15 +526,13 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 	defer perf.ScopeTimer()()
 
 	title := movie.GetTitle()
-	if config.Get().UseOriginalTitle && movie.OriginalTitle != "" {
-		title = movie.OriginalTitle
-	}
 
 	item := &xbmc.ListItem{
 		Label:  title,
 		Label2: fmt.Sprintf("%f", movie.VoteAverage),
 		Info: &xbmc.ListItemInfo{
 			Year:          movie.Year(),
+			Date:          movie.ReleaseDate,
 			Count:         rand.Int(),
 			Title:         title,
 			OriginalTitle: movie.OriginalTitle,
@@ -543,7 +542,6 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 			Duration:      movie.Runtime * 60,
 			Code:          movie.IMDBId,
 			IMDBNumber:    movie.IMDBId,
-			Date:          movie.ReleaseDate,
 			Votes:         strconv.Itoa(movie.VoteCount),
 			Rating:        movie.VoteAverage,
 			PlayCount:     playcount.GetWatchedMovieByTMDB(movie.ID).Int(),
@@ -612,6 +610,10 @@ func (movie *Movie) mpaa() string {
 }
 
 func (movie *Movie) GetTitle() string {
+	if config.Get().UseOriginalTitle && movie.OriginalTitle != "" {
+		return movie.OriginalTitle
+	}
+
 	// By default, if TMDB is returning a translated title - we use it
 	if movie.Title != "" && movie.Title == movie.OriginalTitle && movie.OriginalLanguage == config.Get().Language {
 		return movie.Title

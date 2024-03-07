@@ -39,6 +39,11 @@ func UTCBod() time.Time {
 func AirDateWithAiredCheck(dt string, dateFormat string, allowSameDay bool) (airDate time.Time, isAired bool) {
 	airDate, _ = time.Parse(dateFormat, dt)
 	now := UTCBod()
+	//if we got date with time - we also should compare air time with our time
+	if dateFormat != time.DateOnly {
+		now = time.Now().UTC()
+	}
+
 	if airDate.After(now) || (!allowSameDay && airDate.Equal(now)) {
 		return airDate, false
 	}

@@ -131,7 +131,8 @@ func GetShow(showID int, language string) (show *Show) {
 		Result:      &show,
 		Description: "show",
 
-		Cache: true,
+		Cache:       true,
+		CacheExpire: cache.CacheExpireLong,
 	}
 
 	req.Do()
@@ -623,9 +624,6 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 	year, _ := strconv.Atoi(strings.Split(show.FirstAirDate, "-")[0])
 
 	name := show.GetName()
-	if config.Get().UseOriginalTitle && show.OriginalName != "" {
-		name = show.OriginalName
-	}
 
 	if config.Get().ShowUnwatchedEpisodesNumber {
 		// Get all seasons information for this show, it is required to get Air dates
@@ -636,6 +634,7 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 		Label: name,
 		Info: &xbmc.ListItemInfo{
 			Year:          year,
+			Aired:         show.FirstAirDate,
 			Count:         rand.Int(),
 			Title:         name,
 			OriginalTitle: show.OriginalName,
@@ -665,6 +664,9 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 	if show.ExternalIDs != nil {
 		item.Info.Code = show.ExternalIDs.IMDBId
 		item.Info.IMDBNumber = show.ExternalIDs.IMDBId
+	}
+	if len(show.EpisodeRunTime) > 0 {
+		item.Info.Duration = show.EpisodeRunTime[len(show.EpisodeRunTime)-1] * 60 * show.NumberOfEpisodes
 	}
 
 	if ls, err := uid.GetShowByTMDB(show.ID); ls != nil && err == nil {
@@ -714,6 +716,10 @@ func (show *Show) mpaa() string {
 }
 
 func (show *Show) GetName() string {
+	if config.Get().UseOriginalTitle && show.OriginalName != "" {
+		return show.OriginalName
+	}
+
 	// By default, if TMDB is returning a translated title - we use it
 	if show.Name != "" && show.Name == show.OriginalName && show.OriginalLanguage == config.Get().Language {
 		return show.Name

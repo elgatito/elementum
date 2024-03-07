@@ -440,9 +440,9 @@ func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 	listActivities, err := GetListActivities(user, listID)
 	isUpdateNeeded := err != nil || listActivities.IsUpdated()
 
-	url := fmt.Sprintf("/lists/%s/items/shows", listID)
-	if user == "" || user == config.Get().TraktUsername {
-		url = fmt.Sprintf("users/%s/lists/%s/items/shows", config.Get().TraktUsername, listID)
+	url := fmt.Sprintf("users/%s/lists/%s/items/shows", user, listID)
+	if user == "Trakt" { // if this is "Official" public list - we use special endpoint
+		url = fmt.Sprintf("/lists/%s/items/shows", listID)
 	}
 
 	cacheStore := cache.NewDBStore()
@@ -802,6 +802,7 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 		}
 	}
 	if item == nil {
+		firstAired, _ := time.Parse(time.RFC3339, show.FirstAired)
 		item = &xbmc.ListItem{
 			Label: show.Title,
 			Info: &xbmc.ListItemInfo{
@@ -809,12 +810,13 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 				Title:         show.Title,
 				OriginalTitle: show.Title,
 				Year:          show.Year,
+				Aired:         firstAired.Format(time.DateOnly),
 				Genre:         show.Genres,
 				Plot:          show.Overview,
 				PlotOutline:   show.Overview,
 				Rating:        show.Rating,
 				Votes:         strconv.Itoa(show.Votes),
-				Duration:      show.Runtime * 60,
+				Duration:      show.Runtime * 60 * show.AiredEpisodes,
 				MPAA:          show.Certification,
 				Code:          show.IDs.IMDB,
 				IMDBNumber:    show.IDs.IMDB,
@@ -889,11 +891,12 @@ func (episode *Episode) ToListItem(show *Show, tmdbShow *tmdb.Show) (item *xbmc.
 			episodeLabel = fmt.Sprintf("%dx%02d %s", episode.Season, episode.Number, episode.Title)
 		}
 
-		runtime := 1800
-		if show.Runtime > 0 {
-			runtime = show.Runtime
+		runtime := episode.Runtime * 60
+		if runtime == 0 {
+			runtime = show.Runtime * 60
 		}
 
+		firstAired, _ := time.Parse(time.RFC3339, episode.FirstAired)
 		item = &xbmc.ListItem{
 			Label:  episodeLabel,
 			Label2: fmt.Sprintf("%f", episode.Rating),
@@ -907,7 +910,8 @@ func (episode *Episode) ToListItem(show *Show, tmdbShow *tmdb.Show) (item *xbmc.
 				Plot:          episode.Overview,
 				PlotOutline:   episode.Overview,
 				Rating:        episode.Rating,
-				Aired:         episode.FirstAired,
+				Year:          firstAired.Year(),
+				Aired:         firstAired.Format(time.DateOnly),
 				Duration:      runtime,
 				Genre:         show.Genres,
 				Code:          show.IDs.IMDB,

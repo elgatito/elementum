@@ -165,10 +165,7 @@ func (as *AddonSearcher) GetMovieSearchSilentObject(movie *tmdb.Movie, withAuth 
 // GetMovieSearchObject ...
 func (as *AddonSearcher) GetMovieSearchObject(movie *tmdb.Movie) *MovieSearchObject {
 	year, _ := strconv.Atoi(strings.Split(movie.ReleaseDate, "-")[0])
-	title := movie.GetTitle()
-	if config.Get().UseOriginalTitle && movie.OriginalTitle != "" {
-		title = movie.OriginalTitle
-	}
+	title := movie.OriginalTitle
 
 	// Iterate through all available dates and take the earliest one as a basic date for searching
 	if config.Get().UseLowestReleaseDate && movie.ReleaseDates != nil && movie.ReleaseDates.Results != nil {
@@ -261,10 +258,7 @@ func (as *AddonSearcher) GetMovieSearchObject(movie *tmdb.Movie) *MovieSearchObj
 // GetSeasonSearchObject ...
 func (as *AddonSearcher) GetSeasonSearchObject(show *tmdb.Show, season *tmdb.Season) *SeasonSearchObject {
 	year, _ := strconv.Atoi(strings.Split(season.AirDate, "-")[0])
-	title := show.GetName()
-	if config.Get().UseOriginalTitle && show.OriginalName != "" {
-		title = show.OriginalName
-	}
+	title := show.OriginalName
 
 	sObject := &SeasonSearchObject{
 		IMDBId:     show.ExternalIDs.IMDBId,
@@ -331,10 +325,7 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 		showYear, _ = strconv.Atoi(strings.Split(seasonFirst.AirDate, "-")[0])
 	}
 
-	title := show.GetName()
-	if config.Get().UseOriginalTitle && show.OriginalName != "" {
-		title = show.OriginalName
-	}
+	title := show.OriginalName
 
 	seasonName := ""
 	if s := show.GetSeasonByRealNumber(episode.SeasonNumber); s != nil {
@@ -401,12 +392,6 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 
 			sObject.Titles[strings.ToLower(tr.Iso3166_1)] = NormalizeTitle(tr.Data.Name)
 			sObject.Titles[strings.ToLower(tr.Iso639_1)] = NormalizeTitle(tr.Data.Name)
-		}
-	}
-
-	if show.IsAnime() && config.Get().UseAnimeEnTitle {
-		if t, ok := sObject.Titles["en"]; ok {
-			sObject.Titles["original"] = t
 		}
 	}
 
