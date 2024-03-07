@@ -26,10 +26,10 @@ var (
 	log = logging.MustGetLogger("tmdb")
 
 	//                                  Original    High    Medium  Low
-	ImageQualitiesPoster    = []string{"original", "w780", "w500", "w342"}
-	ImageQualitiesFanArt    = []string{"original", "w1280", "w1280", "w780"}
-	ImageQualitiesLogo      = []string{"original", "w500", "w500", "w300"}
-	ImageQualitiesThumbnail = []string{"original", "w780", "w500", "w342"}
+	ImageQualitiesPoster    = []ImageQualityIdentifier{"original", "w780", "w500", "w342"}
+	ImageQualitiesFanArt    = []ImageQualityIdentifier{"original", "w1280", "w1280", "w780"}
+	ImageQualitiesLogo      = []ImageQualityIdentifier{"original", "w500", "w500", "w300"}
+	ImageQualitiesThumbnail = []ImageQualityIdentifier{"original", "w780", "w500", "w342"}
 )
 
 // Movies ...
@@ -466,12 +466,13 @@ func tmdbCheck(key string) bool {
 }
 
 // ImageURL ...
-func ImageURL(uri string, size string) string {
+func ImageURL(uri string, size ImageQualityIdentifier) (imageURL string) {
 	if uri == "" {
 		return ""
 	}
 
-	return imageEndpoint + size + uri
+	imageURL, _ = url.JoinPath(imageEndpoint, string(size), uri)
+	return
 }
 
 // ListEntities ...
@@ -650,17 +651,20 @@ func (credits *Credits) GetWriters() []string {
 	return writers
 }
 
+type ImageQualityIdentifier string
+
 type ImageQualityBundle struct {
-	Poster    string
-	FanArt    string
-	Logo      string
-	Thumbnail string
+	Poster    ImageQualityIdentifier
+	FanArt    ImageQualityIdentifier
+	Logo      ImageQualityIdentifier
+	Thumbnail ImageQualityIdentifier
 }
 
 func GetImageQualities() (imageQualities ImageQualityBundle) {
-	imageQualities.Poster = ImageQualitiesPoster[config.Get().TMDBImagesQuality]
-	imageQualities.FanArt = ImageQualitiesFanArt[config.Get().TMDBImagesQuality]
-	imageQualities.Logo = ImageQualitiesLogo[config.Get().TMDBImagesQuality]
-	imageQualities.Thumbnail = ImageQualitiesThumbnail[config.Get().TMDBImagesQuality]
-	return
+	return ImageQualityBundle{
+		Poster:    ImageQualitiesPoster[config.Get().TMDBImagesQuality],
+		FanArt:    ImageQualitiesFanArt[config.Get().TMDBImagesQuality],
+		Logo:      ImageQualitiesLogo[config.Get().TMDBImagesQuality],
+		Thumbnail: ImageQualitiesThumbnail[config.Get().TMDBImagesQuality],
+	}
 }
