@@ -511,15 +511,23 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 
 	imageQualities := GetImageQualities()
 
-	item.Art.FanArt = ImageURL(show.BackdropPath, imageQualities.FanArt)
-	item.Art.Landscape = ImageURL(show.BackdropPath, imageQualities.FanArt)
 	if show.BackdropPath != "" {
+		item.Art.FanArt = ImageURL(show.BackdropPath, imageQualities.FanArt)
+		item.Art.Landscape = ImageURL(show.BackdropPath, imageQualities.FanArt)
 		item.Art.Thumbnail = ImageURL(show.BackdropPath, imageQualities.Thumbnail)
-	} else {
-		item.Art.Thumbnail = ImageURL(show.PosterPath, imageQualities.Thumbnail) // we expect that poster always exists
+	} else if show.PosterPath != "" { // use poster as a fallback if backdrop is not available
+		item.Art.FanArt = ImageURL(show.PosterPath, imageQualities.FanArt)
+		item.Art.Landscape = ImageURL(show.PosterPath, imageQualities.FanArt)
+		item.Art.Thumbnail = ImageURL(show.PosterPath, imageQualities.Thumbnail)
 	}
-	item.Art.Poster = ImageURL(show.PosterPath, imageQualities.Poster)
-	item.Art.TvShowPoster = ImageURL(show.PosterPath, imageQualities.Poster)
+
+	if show.PosterPath != "" {
+		item.Art.Poster = ImageURL(show.PosterPath, imageQualities.Poster)
+		item.Art.TvShowPoster = ImageURL(show.PosterPath, imageQualities.Poster)
+	} else if show.BackdropPath != "" { // use backdrop as a fallback if poster is not available
+		item.Art.Poster = ImageURL(show.BackdropPath, imageQualities.Poster)
+		item.Art.TvShowPoster = ImageURL(show.BackdropPath, imageQualities.Poster)
+	}
 
 	if item.Art.AvailableArtworks == nil {
 		item.Art.AvailableArtworks = &xbmc.Artworks{}

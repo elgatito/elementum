@@ -417,14 +417,21 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 
 	imageQualities := GetImageQualities()
 
-	item.Art.FanArt = ImageURL(movie.BackdropPath, imageQualities.FanArt)
-	item.Art.Landscape = ImageURL(movie.BackdropPath, imageQualities.FanArt)
 	if movie.BackdropPath != "" {
+		item.Art.FanArt = ImageURL(movie.BackdropPath, imageQualities.FanArt)
+		item.Art.Landscape = ImageURL(movie.BackdropPath, imageQualities.FanArt)
 		item.Art.Thumbnail = ImageURL(movie.BackdropPath, imageQualities.Thumbnail)
-	} else {
+	} else if movie.PosterPath != "" { // use poster as a fallback if backdrop is not available
+		item.Art.FanArt = ImageURL(movie.PosterPath, imageQualities.FanArt)
+		item.Art.Landscape = ImageURL(movie.PosterPath, imageQualities.FanArt)
 		item.Art.Thumbnail = ImageURL(movie.PosterPath, imageQualities.Thumbnail) // we expect that poster always exists
 	}
-	item.Art.Poster = ImageURL(movie.PosterPath, imageQualities.Poster)
+
+	if movie.PosterPath != "" {
+		item.Art.Poster = ImageURL(movie.PosterPath, imageQualities.Poster)
+	} else if movie.BackdropPath != "" { // use backdrop as a fallback if poster is not available
+		item.Art.Poster = ImageURL(movie.BackdropPath, imageQualities.Poster)
+	}
 
 	if item.Art.AvailableArtworks == nil {
 		item.Art.AvailableArtworks = &xbmc.Artworks{}
