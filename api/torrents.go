@@ -80,12 +80,32 @@ func AssignTorrent(s *bittorrent.Service) gin.HandlerFunc {
 		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 
 		torrentID := ctx.Params.ByName("torrentId")
-		torrent, err := GetTorrentFromParam(s, torrentID)
-		if err != nil {
-			log.Error(err.Error())
-			xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-			ctx.Error(err)
-			return
+
+		var infoHash string
+		var metadata []byte
+		var found bool
+
+		//Try to find torrent in torrents history first
+		if config.Get().UseTorrentHistory {
+			var th database.TorrentHistory
+			if err := database.GetStormDB().One("InfoHash", torrentID, &th); err == nil {
+				infoHash = th.InfoHash
+				metadata = th.Metadata
+				found = true
+			}
+		}
+
+		//Try to find torrent in active torrents list
+		if !found {
+			torrent, err := GetTorrentFromParam(s, torrentID)
+			if err != nil {
+				log.Error(err.Error())
+				xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
+				ctx.Error(err)
+				return
+			}
+			infoHash = torrent.InfoHash()
+			metadata = torrent.GetMetadata()
 		}
 
 		tmdbID := ctx.Params.ByName("tmdbId")
@@ -98,7 +118,7 @@ func AssignTorrent(s *bittorrent.Service) gin.HandlerFunc {
 		if err := database.GetStormDB().One("TmdbID", tmdbInt, &ti); err == nil {
 			// check that old torrent is not equal to chosen torrent
 			oldInfoHash := ti.InfoHash
-			if oldInfoHash != torrent.InfoHash() {
+			if oldInfoHash != infoHash {
 				oldTorrent := s.GetTorrentByHash(oldInfoHash)
 				if oldTorrent != nil {
 					oldTorrent.DBItem.ID = 0
@@ -107,7 +127,7 @@ func AssignTorrent(s *bittorrent.Service) gin.HandlerFunc {
 			}
 		}
 
-		database.GetStorm().AddTorrentLink(tmdbID, torrent.InfoHash(), torrent.GetMetadata(), false)
+		database.GetStorm().AddTorrentLink(tmdbID, infoHash, metadata, false)
 
 		// TODO: if we will pass media type and season/episode number to this func, then we also can
 		// update torrent's DBItem in queue so it will be used in "found in active torrents" dialog in runtime
