@@ -482,9 +482,6 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 	defer perf.ScopeTimer()()
 
 	title := movie.GetTitle()
-	if config.Get().UseOriginalTitle && movie.OriginalTitle != "" {
-		title = movie.OriginalTitle
-	}
 
 	item := &xbmc.ListItem{
 		Label:  title,
@@ -569,6 +566,10 @@ func (movie *Movie) mpaa() string {
 }
 
 func (movie *Movie) GetTitle() string {
+	if config.Get().UseOriginalTitle && movie.OriginalTitle != "" {
+		return movie.OriginalTitle
+	}
+
 	// By default, if TMDB is returning a translated title - we use it
 	if movie.Title != "" && movie.Title == movie.OriginalTitle && movie.OriginalLanguage == config.Get().Language {
 		return movie.Title
