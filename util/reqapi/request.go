@@ -45,8 +45,8 @@ type Request struct {
 	Cache            bool
 	CacheExpire      time.Duration
 	CacheForceExpire bool
+	CacheKey         string
 	cachePending     bool
-	cacheKey         string
 
 	locker util.Unlocker
 }
@@ -92,14 +92,16 @@ func (r *Request) Unlock() error {
 }
 
 func (r *Request) CacheRead() error {
-	r.cacheKey = r.requestKey()
+	if r.CacheKey == "" {
+		r.CacheKey = r.requestKey()
+	}
 
 	if r.CacheForceExpire {
 		return errors.New("cache read forced")
 	}
 
 	cacheStore := cache.NewDBStore()
-	data, err := cacheStore.GetBytes(r.cacheKey)
+	data, err := cacheStore.GetBytes(r.CacheKey)
 	r.Stage("CacheReadBytes")
 	if err != nil {
 		return err
@@ -131,7 +133,7 @@ func (r *Request) CacheWrite() error {
 	}
 
 	cacheStore := cache.NewDBStore()
-	err = cacheStore.SetBytes(r.cacheKey, data, cacheExpire)
+	err = cacheStore.SetBytes(r.CacheKey, data, cacheExpire)
 	r.Stage("CacheWriteBytes")
 	return err
 }

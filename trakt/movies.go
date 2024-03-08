@@ -230,7 +230,7 @@ func WatchlistMovies(isUpdateNeeded bool) (movies []*Movies, err error) {
 	}
 	movies = movieListing
 
-	cacheStore.Set(cache.TraktMoviesWatchlistKey, &movies, cache.TraktMoviesWatchlistExpire)
+	defer cacheStore.Set(cache.TraktMoviesWatchlistKey, &movies, cache.TraktMoviesWatchlistExpire)
 	return
 }
 
@@ -288,7 +288,7 @@ func CollectionMovies(isUpdateNeeded bool) (movies []*Movies, err error) {
 	}
 	movies = movieListing
 
-	cacheStore.Set(cache.TraktMoviesCollectionKey, &movies, cache.TraktMoviesCollectionExpire)
+	defer cacheStore.Set(cache.TraktMoviesCollectionKey, &movies, cache.TraktMoviesCollectionExpire)
 	return movies, err
 }
 
@@ -463,7 +463,7 @@ func ListItemsMovies(user, listID string) (movies []*Movies, err error) {
 	}
 	movies = movieListing
 
-	cacheStore.Set(key, &movies, cache.TraktMoviesListExpire)
+	defer cacheStore.Set(key, &movies, cache.TraktMoviesListExpire)
 	return movies, err
 }
 
@@ -530,7 +530,7 @@ func WatchedMovies(isUpdateNeeded bool) (WatchedMoviesType, error) {
 	})
 
 	if len(movies) != 0 {
-		cache.
+		defer cache.
 			NewDBStore().
 			Set(cache.TraktMoviesWatchedKey, &movies, cache.TraktMoviesWatchedExpire)
 	}

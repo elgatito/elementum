@@ -362,7 +362,7 @@ func WatchlistShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 	}
 	shows = showListing
 
-	cacheStore.Set(cache.TraktShowsWatchlistKey, &shows, cache.TraktShowsWatchlistExpire)
+	defer cacheStore.Set(cache.TraktShowsWatchlistKey, &shows, cache.TraktShowsWatchlistExpire)
 	return
 }
 
@@ -419,7 +419,7 @@ func CollectionShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 		showListing = append(showListing, &showItem)
 	}
 
-	cacheStore.Set(cache.TraktShowsCollectionKey, &showListing, cache.TraktShowsCollectionExpire)
+	defer cacheStore.Set(cache.TraktShowsCollectionKey, &showListing, cache.TraktShowsCollectionExpire)
 	return showListing, err
 }
 
@@ -482,7 +482,7 @@ func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 	}
 	shows = showListing
 
-	cacheStore.Set(key, &shows, cache.TraktShowsListExpire)
+	defer cacheStore.Set(key, &shows, cache.TraktShowsListExpire)
 	return shows, err
 }
 
@@ -553,7 +553,7 @@ func WatchedShows(isUpdateNeeded bool) (WatchedShowsType, error) {
 	)
 
 	if len(shows) != 0 {
-		cache.
+		defer cache.
 			NewDBStore().
 			Set(cache.TraktShowsWatchedKey, &shows, cache.TraktShowsWatchedExpire)
 	}
@@ -665,7 +665,7 @@ func WatchedShowsProgress() (shows []*ProgressShow, err error) {
 				return
 			}
 
-			cacheStore.Set(fmt.Sprintf(cache.TraktWatchedShowsProgressKey, show.Show.IDs.Trakt), &watchedProgressShow, cache.TraktWatchedShowsProgressExpire)
+			defer cacheStore.Set(fmt.Sprintf(cache.TraktWatchedShowsProgressKey, show.Show.IDs.Trakt), &watchedProgressShow, cache.TraktWatchedShowsProgressExpire)
 		}(i, show)
 	}
 	wg.Wait()
@@ -785,7 +785,7 @@ func ListHiddenShows(section string, isUpdateNeeded bool) (shows []*Shows, err e
 		totalPages = pagination.PageCount
 	}
 
-	cacheStore.Set(cacheKey, &shows, cacheExpiration)
+	defer cacheStore.Set(cacheKey, &shows, cacheExpiration)
 	return
 }
 

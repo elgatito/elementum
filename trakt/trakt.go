@@ -390,13 +390,6 @@ func Request(endPoint string, params napping.Params, isWithAuth bool, isUpdateNe
 		}
 	}
 
-	cacheStore := cache.NewDBStore()
-	if !isUpdateNeeded {
-		if err := cacheStore.Get(cacheKey, &ret); err == nil {
-			return nil
-		}
-	}
-
 	header := GetHeader()
 	if isWithAuth {
 		header = GetAuthenticatedHeader()
@@ -408,13 +401,17 @@ func Request(endPoint string, params napping.Params, isWithAuth bool, isUpdateNe
 		Header: header,
 		Params: params.AsUrlValues(),
 		Result: &ret,
+
+		Cache:            true,
+		CacheExpire:      cacheExpiration,
+		CacheKey:         cacheKey,
+		CacheForceExpire: isUpdateNeeded,
 	}
 
 	if err := req.Do(); err != nil {
 		return err
 	}
 
-	cacheStore.Set(cacheKey, &ret, cacheExpiration)
 	return nil
 }
 
