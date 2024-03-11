@@ -404,7 +404,6 @@ func Request(endPoint string, params napping.Params, isWithAuth bool, isUpdateNe
 
 		Cache:            true,
 		CacheExpire:      cacheExpiration,
-		CacheKey:         cacheKey,
 		CacheForceExpire: isUpdateNeeded,
 	}
 
