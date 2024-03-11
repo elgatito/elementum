@@ -293,7 +293,8 @@ func TopShows(topCategory string, page string) (shows []*Shows, total int, err e
 		Result:      &shows,
 		Description: "list shows",
 
-		Cache: true,
+		Cache:       true,
+		CacheExpire: cache.CacheExpireMedium,
 	}
 
 	if topCategory == "popular" || topCategory == "recommendations" {
