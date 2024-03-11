@@ -92,14 +92,6 @@ func (episode *Episode) SetArt(show *Show, season *Season, item *xbmc.ListItem) 
 		item.Art.Thumbnail = ImageURL(episode.StillPath, imageQualities.Thumbnail)
 	}
 
-	//if show is very new, we might not have some artwork, thus we use Still
-	if item.Art.Poster == "" {
-		item.Art.Poster = ImageURL(episode.StillPath, imageQualities.Thumbnail)
-	}
-	if item.Art.FanArt == "" {
-		item.Art.FanArt = ImageURL(episode.StillPath, imageQualities.Thumbnail)
-	}
-
 	if config.Get().UseFanartTv {
 		if show.FanArt == nil && show.ExternalIDs != nil {
 			show.FanArt = fanart.GetShow(util.StrInterfaceToInt(show.ExternalIDs.TVDBID))
