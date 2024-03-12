@@ -410,7 +410,7 @@ func ParseCacheItem(item []byte) (int64, []byte) {
 	}
 
 	expire, _ := strconv.ParseInt(string(item[0:10]), 10, 64)
-	return expire, item[10:]
+	return expire, item[11:]
 }
 
 // GetCachedBytes ...
