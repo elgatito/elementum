@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"net/url"
 	"sort"
+	"strings"
 
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
@@ -25,11 +26,12 @@ const (
 var (
 	log = logging.MustGetLogger("tmdb")
 
-	//                                  Original    High    Medium  Low
+	//                                                  Original    High    Medium  Low
 	ImageQualitiesPoster    = []ImageQualityIdentifier{"original", "w780", "w500", "w342"}
 	ImageQualitiesFanArt    = []ImageQualityIdentifier{"original", "w1280", "w1280", "w780"}
 	ImageQualitiesLogo      = []ImageQualityIdentifier{"original", "w500", "w500", "w300"}
-	ImageQualitiesThumbnail = []ImageQualityIdentifier{"original", "w780", "w500", "w342"}
+	ImageQualitiesThumbnail = []ImageQualityIdentifier{"original", "w1280", "w780", "w300"}
+	ImageQualitiesLandscape = []ImageQualityIdentifier{"original", "w1280", "w780", "w300"}
 )
 
 // Movies ...
@@ -50,7 +52,6 @@ type Movie struct {
 
 	FanArt              *fanart.Movie `json:"fanart"`
 	IMDBId              string        `json:"imdb_id"`
-	Overview            string        `json:"overview"`
 	ProductionCompanies []*IDNameLogo `json:"production_companies"`
 	ProductionCountries []*Country    `json:"production_countries"`
 	Runtime             int           `json:"runtime"`
@@ -73,7 +74,6 @@ type Movie struct {
 	} `json:"trailers"`
 
 	Credits *Credits `json:"credits,omitempty"`
-	Images  *Images  `json:"images,omitempty"`
 
 	ReleaseDates *ReleaseDatesResults `json:"release_dates"`
 }
@@ -91,7 +91,6 @@ type Show struct {
 	NumberOfEpisodes    int           `json:"number_of_episodes"`
 	NumberOfSeasons     int           `json:"number_of_seasons"`
 	OriginCountry       []string      `json:"origin_country"`
-	Overview            string        `json:"overview"`
 	RawPopularity       interface{}   `json:"popularity"`
 	Popularity          float64       `json:"-"`
 	ProductionCompanies []*IDNameLogo `json:"production_companies"`
@@ -112,21 +111,17 @@ type Show struct {
 	} `json:"content_ratings"`
 
 	Credits *Credits `json:"credits,omitempty"`
-	Images  *Images  `json:"images,omitempty"`
 
 	Seasons SeasonList `json:"seasons"`
 }
 
 // Season ...
 type Season struct {
-	ID           int          `json:"id"`
-	Name         string       `json:"name,omitempty"`
-	Overview     string       `json:"overview"`
+	Entity
+
 	Season       int          `json:"season_number"`
 	EpisodeCount int          `json:"episode_count,omitempty"`
 	AirDate      string       `json:"air_date"`
-	PosterPath   string       `json:"poster_path"`
-	BackdropPath string       `json:"backdrop_path"`
 	ExternalIDs  *ExternalIDs `json:"external_ids"`
 
 	AlternativeTitles *struct {
@@ -142,22 +137,18 @@ type Season struct {
 	} `json:"trailers"`
 
 	Credits *Credits `json:"credits,omitempty"`
-	Images  *Images  `json:"images,omitempty"`
 
 	Episodes EpisodeList `json:"episodes"`
 }
 
 // Episode ...
 type Episode struct {
-	ID            int          `json:"id"`
-	Name          string       `json:"name"`
-	Overview      string       `json:"overview"`
+	Entity
+
 	AirDate       string       `json:"air_date"`
 	Runtime       int          `json:"runtime"`
 	SeasonNumber  int          `json:"season_number"`
 	EpisodeNumber int          `json:"episode_number"`
-	VoteAverage   float32      `json:"vote_average"`
-	VoteCount     int          `json:"vote_count"`
 	StillPath     string       `json:"still_path"`
 	ExternalIDs   *ExternalIDs `json:"external_ids"`
 
@@ -174,25 +165,28 @@ type Episode struct {
 	} `json:"trailers"`
 
 	Credits *Credits `json:"credits,omitempty"`
-	Images  *Images  `json:"images,omitempty"`
 }
 
 // Entity ...
 type Entity struct {
-	IsAdult          bool      `json:"adult"`
-	BackdropPath     string    `json:"backdrop_path"`
-	ID               int       `json:"id"`
+	ID            int    `json:"id"`
+	Name          string `json:"name,omitempty"`
+	OriginalName  string `json:"original_name,omitempty"`
+	Title         string `json:"title,omitempty"`
+	OriginalTitle string `json:"original_title,omitempty"`
+	Overview      string `json:"overview"`
+	ReleaseDate   string `json:"release_date"`
+	FirstAirDate  string `json:"first_air_date"`
+	BackdropPath  string `json:"backdrop_path"`
+	PosterPath    string `json:"poster_path"`
+
 	Genres           []*IDName `json:"genres"`
-	OriginalTitle    string    `json:"original_title,omitempty"`
 	OriginalLanguage string    `json:"original_language,omitempty"`
-	ReleaseDate      string    `json:"release_date"`
-	FirstAirDate     string    `json:"first_air_date"`
-	PosterPath       string    `json:"poster_path"`
-	Title            string    `json:"title,omitempty"`
 	VoteAverage      float32   `json:"vote_average"`
 	VoteCount        int       `json:"vote_count"`
-	OriginalName     string    `json:"original_name,omitempty"`
-	Name             string    `json:"name,omitempty"`
+	IsAdult          bool      `json:"adult"`
+
+	Images *Images `json:"images,omitempty"`
 }
 
 // EntityList ...
@@ -658,6 +652,7 @@ type ImageQualityBundle struct {
 	FanArt    ImageQualityIdentifier
 	Logo      ImageQualityIdentifier
 	Thumbnail ImageQualityIdentifier
+	Landscape ImageQualityIdentifier
 }
 
 func GetImageQualities() (imageQualities ImageQualityBundle) {
@@ -666,5 +661,82 @@ func GetImageQualities() (imageQualities ImageQualityBundle) {
 		FanArt:    ImageQualitiesFanArt[config.Get().TMDBImagesQuality],
 		Logo:      ImageQualitiesLogo[config.Get().TMDBImagesQuality],
 		Thumbnail: ImageQualitiesThumbnail[config.Get().TMDBImagesQuality],
+		Landscape: ImageQualitiesLandscape[config.Get().TMDBImagesQuality],
+	}
+}
+
+// GetLocalizedImages returns localized image, all images, images with text and images without text, so those can be used to set Kodi Arts
+func GetLocalizedImages(images []*Image, imageQuality ImageQualityIdentifier) (localizedImage string, allImages []string, imagesWithText []string, imagesWithoutText []string) {
+	foundLanguageSpecificImage := false
+	for _, image := range images {
+		if strings.HasSuffix(image.FilePath, ".svg") { //Kodi does not support svg images
+			continue
+		}
+
+		imageURL := ImageURL(image.FilePath, imageQuality)
+		allImages = append(allImages, imageURL)
+
+		if image.Iso639_1 == "" {
+			imagesWithoutText = append(imagesWithoutText, imageURL)
+		} else {
+			imagesWithText = append(imagesWithText, imageURL)
+		}
+
+		// Try find localized image
+		if !foundLanguageSpecificImage && image.Iso639_1 == config.Get().Language {
+			localizedImage = imageURL
+			foundLanguageSpecificImage = true // we take first image, it has top rating
+		}
+
+		// If there is no localized image - then set it to the first image with text, if user allows.
+		// It would be English, since we always get English images alongside with localized ones.
+		if config.Get().ArtworkFallbackToEnglish && !foundLanguageSpecificImage && len(imagesWithText) > 0 {
+			localizedImage = imagesWithText[0]
+		}
+	}
+
+	return
+}
+
+func SetLocalizedArt(video *Entity, item *xbmc.ListItem) {
+	if video.Images != nil {
+		imageQualities := GetImageQualities()
+
+		localizedBackdrop, _, backdropsWithText, _ := GetLocalizedImages(video.Images.Backdrops, imageQualities.Landscape)
+		// Landscape should be with text
+		if localizedBackdrop != "" { // We set Landscape only if there is a localized backdrop with text
+			item.Art.Landscape = localizedBackdrop // otherwise we let skin construct Landscape
+		}
+		// Do not assign empty list since fallback Art could have been be set in parent (e.g. season and show)
+		if len(backdropsWithText) > 0 {
+			item.Art.AvailableArtworks.Landscape = backdropsWithText
+		}
+
+		_, _, _, backdropsWithoutText := GetLocalizedImages(video.Images.Backdrops, imageQualities.FanArt)
+		// FanArt should be without text and it is already set by default, so set only AvailableArtworks
+		if len(backdropsWithoutText) > 0 {
+			item.Art.FanArts = backdropsWithoutText
+			item.Art.AvailableArtworks.FanArt = backdropsWithoutText
+		}
+
+		// Default Poster is already localized, so set only AvailableArtworks
+		_, allPosters, _, _ := GetLocalizedImages(video.Images.Posters, imageQualities.Poster)
+		if len(allPosters) > 0 {
+			item.Art.AvailableArtworks.Poster = allPosters
+		}
+
+		localizedLogo, allLogos, _, _ := GetLocalizedImages(video.Images.Logos, imageQualities.Logo)
+		if localizedLogo != "" {
+			item.Art.ClearLogo = localizedLogo
+		}
+		if len(allLogos) > 0 {
+			item.Art.AvailableArtworks.ClearLogo = allLogos
+		}
+
+		// Thumbnail does not have localization, so set only AvailableArtworks
+		_, allStills, _, _ := GetLocalizedImages(video.Images.Stills, imageQualities.Thumbnail)
+		if len(allStills) > 0 {
+			item.Art.AvailableArtworks.Thumbnail = allStills
+		}
 	}
 }

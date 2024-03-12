@@ -61,6 +61,7 @@ func GetSeason(showID int, seasonNumber int, language string, seasonsCount int, 
 		// If we have empty Names/Overviews then we need to collect Translations separately
 		wg := sync.WaitGroup{}
 		for i, episode := range season.Episodes {
+			// TODO: episode.Images is always nil when we get episode from season endpoint, thus no extra Thumbnails for Kodi
 			if episode.Translations == nil && (episode.Name == "" || episode.Overview == "") {
 				wg.Add(1)
 				go func(idx int, episode *Episode) {
@@ -146,12 +147,11 @@ func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 
 	imageQualities := GetImageQualities()
 
-	if season.BackdropPath != "" {
+	if season.BackdropPath != "" { // TODO: looks like BackdropPath is always empty for season
 		item.Art.FanArt = ImageURL(season.BackdropPath, imageQualities.FanArt)
-		item.Art.Landscape = ImageURL(season.BackdropPath, imageQualities.FanArt)
 		item.Art.Thumbnail = ImageURL(season.BackdropPath, imageQualities.Thumbnail)
 	}
-	if season.PosterPath != "" {
+	if season.PosterPath != "" { // Try to use Poster of season if available
 		item.Art.Poster = ImageURL(season.PosterPath, imageQualities.Poster)
 		item.Art.TvShowPoster = ImageURL(season.PosterPath, imageQualities.Poster)
 	}
@@ -160,51 +160,7 @@ func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 		item.Art.AvailableArtworks = &xbmc.Artworks{}
 	}
 
-	if season.Images != nil && season.Images.Backdrops != nil {
-		fanarts := make([]string, 0)
-		landscapes := make([]string, 0)
-		foundLanguageSpecificImage := false
-		for _, backdrop := range season.Images.Backdrops {
-			// prepare lists for AvailableArtworks
-			// remember that FanArt should be without text, but Landscape with text.
-			if backdrop.Iso639_1 == "" {
-				fanarts = append(fanarts, ImageURL(backdrop.FilePath, imageQualities.FanArt))
-			} else {
-				landscapes = append(landscapes, ImageURL(backdrop.FilePath, imageQualities.FanArt))
-			}
-
-			// try to use language specific art instead of default
-			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
-				item.Art.Landscape = ImageURL(backdrop.FilePath, imageQualities.FanArt)
-				foundLanguageSpecificImage = true // we take first image, it has top rating
-			}
-		}
-		if len(fanarts) > 0 {
-			item.Art.FanArts = fanarts
-			item.Art.AvailableArtworks.FanArt = fanarts
-		}
-		if len(landscapes) > 0 {
-			item.Art.AvailableArtworks.Landscape = landscapes
-		}
-	}
-
-	if season.Images != nil && season.Images.Posters != nil {
-		posters := make([]string, 0)
-		foundLanguageSpecificImage := false
-		for _, poster := range season.Images.Posters {
-			// for AvailableArtworks
-			posters = append(posters, ImageURL(poster.FilePath, imageQualities.Poster))
-
-			// try to use language specific art instead of default
-			if !foundLanguageSpecificImage && poster.Iso639_1 == config.Get().Language {
-				item.Art.Poster = ImageURL(poster.FilePath, imageQualities.Poster)
-				foundLanguageSpecificImage = true // we take first image, it has top rating
-			}
-		}
-		if len(posters) > 0 {
-			item.Art.AvailableArtworks.Poster = posters
-		}
-	}
+	SetLocalizedArt(&season.Entity, item)
 
 	if config.Get().UseFanartTv {
 		if show.FanArt == nil && show.ExternalIDs != nil {

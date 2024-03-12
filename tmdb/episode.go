@@ -90,7 +90,22 @@ func (episode *Episode) SetArt(show *Show, season *Season, item *xbmc.ListItem) 
 
 	if episode.StillPath != "" {
 		item.Art.Thumbnail = ImageURL(episode.StillPath, imageQualities.Thumbnail)
+
+		// Last resort: if show and season does not have Poster/FanArt - we use Still
+		if item.Art.Poster == "" {
+			item.Art.Poster = ImageURL(episode.StillPath, imageQualities.Thumbnail)
+		}
+		if item.Art.FanArt == "" {
+			item.Art.FanArt = ImageURL(episode.StillPath, imageQualities.Thumbnail)
+		}
 	}
+
+	if item.Art.AvailableArtworks == nil {
+		item.Art.AvailableArtworks = &xbmc.Artworks{}
+	}
+
+	// This only will set available thumbnails
+	SetLocalizedArt(&episode.Entity, item)
 
 	if config.Get().UseFanartTv {
 		if show.FanArt == nil && show.ExternalIDs != nil {

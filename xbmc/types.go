@@ -172,6 +172,7 @@ type Artworks struct {
 	Icon      []string `json:"icon,omitempty"`
 	DiscArt   []string `json:"discart,omitempty"`
 	KeyArt    []string `json:"keyart,omitempty"`
+	Thumbnail []string `json:"thumb,omitempty"`
 }
 
 // ListItemCastMember represents Cast member information from TMDB

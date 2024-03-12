@@ -419,7 +419,6 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 	imageQualities := GetImageQualities()
 
 	item.Art.FanArt = ImageURL(movie.BackdropPath, imageQualities.FanArt)
-	item.Art.Landscape = ImageURL(movie.BackdropPath, imageQualities.FanArt)
 	item.Art.Thumbnail = ImageURL(movie.BackdropPath, imageQualities.Thumbnail)
 	item.Art.Poster = ImageURL(movie.PosterPath, imageQualities.Poster)
 
@@ -427,77 +426,7 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 		item.Art.AvailableArtworks = &xbmc.Artworks{}
 	}
 
-	if movie.Images != nil && movie.Images.Backdrops != nil {
-		fanarts := make([]string, 0)
-		landscapes := make([]string, 0)
-		foundLanguageSpecificImage := false
-		for _, backdrop := range movie.Images.Backdrops {
-			// prepare lists for AvailableArtworks
-			// remember that FanArt should be without text, but Landscape with text.
-			if backdrop.Iso639_1 == "" {
-				fanarts = append(fanarts, ImageURL(backdrop.FilePath, imageQualities.FanArt))
-			} else {
-				landscapes = append(landscapes, ImageURL(backdrop.FilePath, imageQualities.FanArt))
-			}
-
-			// try to use language specific art instead of default
-			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
-				item.Art.Landscape = ImageURL(backdrop.FilePath, imageQualities.FanArt)
-				foundLanguageSpecificImage = true // we take first image, it has top rating
-			}
-		}
-		if len(fanarts) > 0 {
-			item.Art.FanArts = fanarts
-			item.Art.AvailableArtworks.FanArt = fanarts
-		}
-		if len(landscapes) > 0 {
-			item.Art.AvailableArtworks.Landscape = landscapes
-		}
-	}
-
-	if movie.Images != nil && movie.Images.Posters != nil {
-		posters := make([]string, 0)
-		foundLanguageSpecificImage := false
-		for _, poster := range movie.Images.Posters {
-			// for AvailableArtworks
-			posters = append(posters, ImageURL(poster.FilePath, imageQualities.Poster))
-
-			// try to use language specific art instead of default
-			if !foundLanguageSpecificImage && poster.Iso639_1 == config.Get().Language {
-				item.Art.Poster = ImageURL(poster.FilePath, imageQualities.Poster)
-				foundLanguageSpecificImage = true // we take first image, it has top rating
-			}
-		}
-		if len(posters) > 0 {
-			item.Art.AvailableArtworks.Poster = posters
-		}
-	}
-
-	if movie.Images != nil && movie.Images.Logos != nil {
-		logos := make([]string, 0)
-		foundLanguageSpecificImage := false
-		for _, logo := range movie.Images.Logos {
-			if strings.HasSuffix(logo.FilePath, ".svg") { //Kodi does not support svg images for logos
-				continue
-			}
-			// for AvailableArtworks
-			logos = append(logos, ImageURL(logo.FilePath, imageQualities.Logo))
-
-			// try to find language specific art
-			if !foundLanguageSpecificImage && logo.Iso639_1 == config.Get().Language {
-				item.Art.ClearLogo = ImageURL(logo.FilePath, imageQualities.Logo)
-				foundLanguageSpecificImage = true // we take first image, it has top rating
-			}
-		}
-		if len(logos) > 0 {
-			item.Art.AvailableArtworks.ClearLogo = logos
-
-			// if there is no language specific image - just use the first one
-			if !foundLanguageSpecificImage {
-				item.Art.ClearLogo = ImageURL(movie.Images.Logos[0].FilePath, imageQualities.Logo)
-			}
-		}
-	}
+	SetLocalizedArt(&movie.Entity, item)
 
 	if config.Get().UseFanartTv {
 		if movie.FanArt == nil {
