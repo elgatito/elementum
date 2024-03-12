@@ -232,7 +232,8 @@ func listShows(endpoint string, cacheKey string, params napping.Params, page int
 				Result:      &results,
 				Description: "list shows",
 
-				Cache: true,
+				Cache:       true,
+				CacheExpire: cache.CacheExpireMedium,
 			}
 
 			if err := req.Do(); err != nil || results == nil {

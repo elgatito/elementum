@@ -45,7 +45,8 @@ func GetImages(movieID int) *Images {
 		Result:      &images,
 		Description: "movie images",
 
-		Cache: true,
+		Cache:       true,
+		CacheExpire: cache.CacheExpireLong,
 	}
 
 	req.Do()
