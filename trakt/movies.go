@@ -145,7 +145,8 @@ func TopMovies(topCategory string, page string) (movies []*Movies, total int, er
 		Result:      &movies,
 		Description: "list movies",
 
-		Cache: true,
+		Cache:       true,
+		CacheExpire: cache.CacheExpireMedium,
 	}
 
 	if topCategory == "popular" || topCategory == "recommendations" {
