@@ -547,7 +547,6 @@ func WatchedShows(isUpdateNeeded bool) (WatchedShowsType, error) {
 		napping.Params{"extended": "full"},
 		true,
 		isUpdateNeeded,
-		cache.TraktShowsWatchedKey,
 		cache.TraktShowsWatchedExpire,
 		&shows,
 	)
@@ -582,10 +581,15 @@ func PausedShows(isUpdateNeeded bool) ([]*PausedEpisode, error) {
 		},
 		true,
 		isUpdateNeeded,
-		cache.TraktShowsPausedKey,
 		cache.TraktShowsPausedExpire,
 		&shows,
 	)
+
+	/*if len(shows) != 0 {
+		defer cache.
+			NewDBStore().
+			Set(cache.TraktShowsPausedKey, &shows, cache.TraktShowsPausedExpire)
+	}*/
 
 	return shows, err
 }

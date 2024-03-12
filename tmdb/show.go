@@ -197,7 +197,7 @@ func SearchShows(query string, language string, page int) (Shows, int) {
 	return GetShows(tmdbIds, language), results.TotalResults
 }
 
-func listShows(endpoint string, cacheKey string, params napping.Params, page int) (Shows, int) {
+func listShows(endpoint string, params napping.Params, page int) (Shows, int) {
 	defer perf.ScopeTimer()()
 
 	params["api_key"] = apiKey
@@ -297,7 +297,7 @@ func PopularShows(params DiscoverFilters, language string, page int) (Shows, int
 		}
 	}
 
-	return listShows("discover/tv", "popular", p, page)
+	return listShows("discover/tv", p, page)
 }
 
 // RecentShows ...
@@ -332,7 +332,7 @@ func RecentShows(params DiscoverFilters, language string, page int) (Shows, int)
 		}
 	}
 
-	return listShows("discover/tv", "recent.shows", p, page)
+	return listShows("discover/tv", p, page)
 }
 
 // RecentEpisodes ...
@@ -368,17 +368,17 @@ func RecentEpisodes(params DiscoverFilters, language string, page int) (Shows, i
 		}
 	}
 
-	return listShows("discover/tv", "recent.episodes", p, page)
+	return listShows("discover/tv", p, page)
 }
 
 // TopRatedShows ...
 func TopRatedShows(genre string, language string, page int) (Shows, int) {
-	return listShows("tv/top_rated", "toprated", napping.Params{"language": language}, page)
+	return listShows("tv/top_rated", napping.Params{"language": language}, page)
 }
 
 // MostVotedShows ...
 func MostVotedShows(genre string, language string, page int) (Shows, int) {
-	return listShows("discover/tv", "mostvoted", napping.Params{
+	return listShows("discover/tv", napping.Params{
 		"language":           language,
 		"sort_by":            "vote_count.desc",
 		"first_air_date.lte": time.Now().UTC().Format(time.DateOnly),
