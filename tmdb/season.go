@@ -61,8 +61,19 @@ func GetSeason(showID int, seasonNumber int, language string, seasonsCount int, 
 		// If we have empty Names/Overviews then we need to collect Translations separately
 		wg := sync.WaitGroup{}
 		for i, episode := range season.Episodes {
+			// TODO: episode.Translations is always nil when we get episode from season endpoint, so check is useless
 			// TODO: episode.Images is always nil when we get episode from season endpoint, thus no extra Thumbnails for Kodi
 			if episode.Translations == nil && (episode.Name == "" || episode.Overview == "") {
+				// Usually unaired episode does not have translated info, so we get inside if,
+				// but we should not get data about unaired episodes if not needed
+				if !config.Get().ShowUnairedEpisodes {
+					if episode.AirDate == "" {
+						continue
+					}
+					if _, isAired := util.AirDateWithAiredCheck(episode.AirDate, time.DateOnly, config.Get().ShowEpisodesOnReleaseDay); !isAired {
+						continue
+					}
+				}
 				wg.Add(1)
 				go func(idx int, episode *Episode) {
 					defer wg.Done()
