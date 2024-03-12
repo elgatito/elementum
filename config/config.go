@@ -1139,14 +1139,22 @@ func fetchConfiguration(xbmcHost *xbmc.XBMCHost) (*ConfigBundle, error) {
 		Info:           info,
 		Platform:       platform,
 		Settings:       settings,
-		Language:       xbmcHost.GetLanguageISO639_1(),
-		SecondLanguage: getSecondLanguage(xbmcHost),
+		Language:       getLanguage(xbmcHost, settings.ToString("language")),
+		SecondLanguage: getSecondLanguage(settings.ToString("language")),
 		Region:         xbmcHost.GetRegion(),
 	}, nil
 }
 
-func getSecondLanguage(xbmcHost *xbmc.XBMCHost) string {
-	if xbmcHost.GetLanguageISO639_1() != "en" {
+func getLanguage(xbmcHost *xbmc.XBMCHost, lang string) string {
+	if lang == "" || !strings.Contains(lang, " | ") {
+		return xbmcHost.GetLanguageISO639_1()
+	}
+
+	return strings.Split(lang, " | ")[1]
+}
+
+func getSecondLanguage(lang string) string {
+	if lang != "en" {
 		return "en"
 	}
 

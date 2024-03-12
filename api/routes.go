@@ -431,6 +431,8 @@ func Routes(s *bittorrent.Service, shutdown func(code int)) *gin.Engine {
 		cmd.GET("/paste/:type", Pastebin)
 
 		cmd.GET("/select_interface/:type", SelectNetworkInterface)
+
+		cmd.GET("/select_language", SelectLanguage)
 		cmd.GET("/select_strm_language", SelectStrmLanguage)
 
 		database := cmd.Group("/database")
