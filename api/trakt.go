@@ -431,8 +431,6 @@ func renderTraktMovies(ctx *gin.Context, movies []*trakt.Movies, total int, page
 		}
 	}
 
-	language := config.Get().Language
-
 	items := make(xbmc.ListItems, len(movies))
 	wg := sync.WaitGroup{}
 	for idx := 0; idx < len(movies); idx++ {
@@ -443,16 +441,9 @@ func renderTraktMovies(ctx *gin.Context, movies []*trakt.Movies, total int, page
 				return
 			}
 
-			var movie *tmdb.Movie
-			if movieListing.Movie.IDs.TMDB != 0 {
-				movie = tmdb.GetMovie(movieListing.Movie.IDs.TMDB, language)
-			}
-
-			var item *xbmc.ListItem
-			if !config.Get().ForceUseTrakt && movie != nil {
-				item = movie.ToListItem()
-			} else {
-				item = movieListing.Movie.ToListItem(movie)
+			item := movieListing.Movie.ToListItem()
+			if item == nil {
+				return
 			}
 
 			// Example of adding UTF8 char into title,
@@ -764,7 +755,7 @@ func renderTraktShows(ctx *gin.Context, shows []*trakt.Shows, total int, page in
 			}
 
 			item := showListing.Show.ToListItem()
-			if item == nil || item.Info == nil {
+			if item == nil {
 				return
 			}
 
@@ -1177,7 +1168,6 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 		}
 	}
 
-	language := config.Get().Language
 	colorDate := config.Get().TraktCalendarsColorDate
 	colorShow := config.Get().TraktCalendarsColorShow
 	dateFormat := getCalendarsDateFormat()
@@ -1198,8 +1188,6 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 
 			airDateFormat := time.DateOnly
 
-			var movie *tmdb.Movie
-			movieName := movieListing.Movie.Title
 			airDate := movieListing.Movie.Released
 			if isDVD {
 				airDate = movieListing.Released
@@ -1215,18 +1203,9 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 				return
 			}
 
-			if movieListing.Movie.IDs.TMDB != 0 {
-				movie = tmdb.GetMovie(movieListing.Movie.IDs.TMDB, language)
-			}
-
-			var item *xbmc.ListItem
-			if !config.Get().ForceUseTrakt && movie != nil {
-				if title := movie.GetTitle(); title != "" {
-					movieName = title
-				}
-				item = movie.ToListItem()
-			} else {
-				item = movieListing.Movie.ToListItem(movie)
+			item := movieListing.Movie.ToListItem()
+			if item == nil {
+				return
 			}
 
 			if config.Get().TraktCalendarsHideWatched && item.Info.PlayCount == 0 {
@@ -1234,7 +1213,7 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 			}
 
 			label := fmt.Sprintf(`[COLOR %s]%s[/COLOR] | [B][COLOR %s]%s[/COLOR][/B] `,
-				colorDate, aired.Format(dateFormat), colorShow, movieName)
+				colorDate, aired.Format(dateFormat), colorShow, item.Label)
 			item.Label = label
 			item.Info.Title = label
 

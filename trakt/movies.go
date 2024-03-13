@@ -567,10 +567,11 @@ func PausedMovies(isUpdateNeeded bool) ([]*PausedMovie, error) {
 }
 
 // ToListItem ...
-func (movie *Movie) ToListItem(tmdbMovie *tmdb.Movie) (item *xbmc.ListItem) {
+func (movie *Movie) ToListItem() (item *xbmc.ListItem) {
 	defer perf.ScopeTimer()()
 
-	if tmdbMovie == nil && movie.IDs.TMDB != 0 {
+	var tmdbMovie *tmdb.Movie
+	if movie.IDs.TMDB != 0 {
 		if tmdbMovie = tmdb.GetMovie(movie.IDs.TMDB, config.Get().Language); tmdbMovie != nil {
 			if !config.Get().ForceUseTrakt {
 				item = tmdbMovie.ToListItem()
