@@ -32,8 +32,8 @@ func GetEpisode(showID int, seasonNumber int, episodeNumber int, language string
 		Params: napping.Params{
 			"api_key":                apiKey,
 			"append_to_response":     "credits,images,videos,alternative_titles,translations,external_ids,trailers",
-			"include_image_language": fmt.Sprintf("%s,en,null", config.Get().Language),
-			"include_video_language": fmt.Sprintf("%s,en,null", config.Get().Language),
+			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
 			"language":               language,
 		}.AsUrlValues(),
 		Result:      &episode,

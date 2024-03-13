@@ -42,8 +42,8 @@ func GetShowImages(showID int) *Images {
 		URL: fmt.Sprintf("/tv/%d/images", showID),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,en,null", config.Get().Language),
-			"include_video_language": fmt.Sprintf("%s,en,null", config.Get().Language),
+			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "show images",
@@ -66,8 +66,8 @@ func GetSeasonImages(showID int, season int) *Images {
 		URL: fmt.Sprintf("/tv/%d/season/%d/images", showID, season),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,en,null", config.Get().Language),
-			"include_video_language": fmt.Sprintf("%s,en,null", config.Get().Language),
+			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "season images",
@@ -90,8 +90,8 @@ func GetEpisodeImages(showID, season, episode int) *Images {
 		URL: fmt.Sprintf("/tv/%d/season/%d/episode/%d/images", showID, season, episode),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,en,null", config.Get().Language),
-			"include_video_language": fmt.Sprintf("%s,en,null", config.Get().Language),
+			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "episode images",
@@ -124,8 +124,8 @@ func GetShow(showID int, language string) (show *Show) {
 		Params: napping.Params{
 			"api_key":                apiKey,
 			"append_to_response":     "credits,images,alternative_titles,translations,external_ids,content_ratings",
-			"include_image_language": fmt.Sprintf("%s,en,null", config.Get().Language),
-			"include_video_language": fmt.Sprintf("%s,en,null", config.Get().Language),
+			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
 			"language":               language,
 		}.AsUrlValues(),
 		Result:      &show,
