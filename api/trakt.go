@@ -1386,17 +1386,7 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 				episode = tmdb.GetEpisode(showListing.Show.IDs.TMDB, epi.Season, epi.Number, language)
 
 				if episode != nil {
-					if config.Get().TraktUseLowestReleaseDate {
-						traktAirDate, err1 := time.Parse(time.RFC3339, airDate)
-						tmdbAirDate, err2 := time.Parse(time.DateOnly, episode.AirDate)
-						if err1 == nil && err2 == nil && tmdbAirDate.Before(traktAirDate) {
-							airDate = episode.AirDate
-							airDateFormat = time.DateOnly
-						}
-					} else {
-						airDate = episode.AirDate
-						airDateFormat = time.DateOnly
-					}
+					airDate, airDateFormat = episode.GetLowestAirDate(airDate, airDateFormat)
 
 					seasonNumber = episode.SeasonNumber
 					episodeNumber = episode.EpisodeNumber
@@ -1569,17 +1559,7 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 				}
 
 				if episode != nil {
-					if config.Get().TraktUseLowestReleaseDate {
-						traktAirDate, err1 := time.Parse(time.RFC3339, airDate)
-						tmdbAirDate, err2 := time.Parse(time.DateOnly, episode.AirDate)
-						if err1 == nil && err2 == nil && tmdbAirDate.Before(traktAirDate) {
-							airDate = episode.AirDate
-							airDateFormat = time.DateOnly
-						}
-					} else {
-						airDate = episode.AirDate
-						airDateFormat = time.DateOnly
-					}
+					airDate, airDateFormat = episode.GetLowestAirDate(airDate, airDateFormat)
 
 					seasonNumber = episode.SeasonNumber
 					episodeNumber = episode.EpisodeNumber
