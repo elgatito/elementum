@@ -30,8 +30,8 @@ var (
 	ImageQualitiesPoster    = []ImageQualityIdentifier{"original", "w780", "w500", "w342"}
 	ImageQualitiesFanArt    = []ImageQualityIdentifier{"original", "w1280", "w1280", "w780"}
 	ImageQualitiesLogo      = []ImageQualityIdentifier{"original", "w500", "w500", "w300"}
-	ImageQualitiesThumbnail = []ImageQualityIdentifier{"original", "w1280", "w780", "w300"}
-	ImageQualitiesLandscape = []ImageQualityIdentifier{"original", "w1280", "w780", "w300"}
+	ImageQualitiesThumbnail = []ImageQualityIdentifier{"original", "w1280", "w780", "w500"}
+	ImageQualitiesLandscape = []ImageQualityIdentifier{"original", "w1280", "w780", "w500"}
 )
 
 // Movies ...
