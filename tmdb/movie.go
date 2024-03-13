@@ -39,8 +39,8 @@ func GetImages(movieID int) *Images {
 		URL: fmt.Sprintf("/movie/%d/images", movieID),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,en,null", config.Get().Language),
-			"include_video_language": fmt.Sprintf("%s,en,null", config.Get().Language),
+			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "movie images",
@@ -70,8 +70,8 @@ func GetMovieByID(movieID string, language string) *Movie {
 		Params: napping.Params{
 			"api_key":                apiKey,
 			"append_to_response":     "credits,images,alternative_titles,translations,external_ids,trailers,release_dates",
-			"include_image_language": fmt.Sprintf("%s,en,null", config.Get().Language),
-			"include_video_language": fmt.Sprintf("%s,en,null", config.Get().Language),
+			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
 			"language":               language,
 		}.AsUrlValues(),
 		Result:      &movie,
