@@ -90,7 +90,6 @@ type Configuration struct {
 	ChooseStreamAutoSearch      bool
 	ForceLinkType               bool
 	UseOriginalTitle            bool
-	TraktUseLowestReleaseDate   bool
 	AddSpecials                 bool
 	AddEpisodeNumbers           bool
 	ShowUnairedSeasons          bool
@@ -209,6 +208,7 @@ type Configuration struct {
 	TraktCalendarsColorShow        string
 	TraktCalendarsColorEpisode     string
 	TraktCalendarsColorUnaired     string
+	TraktUseLowestReleaseDate      bool
 
 	UpdateFrequency                int
 	UpdateDelay                    int
@@ -597,7 +597,6 @@ func Reload() (ret *Configuration, err error) {
 		ChooseStreamAutoSearch:      settings.ToBool("choose_stream_auto_search"),
 		ForceLinkType:               settings.ToBool("force_link_type"),
 		UseOriginalTitle:            settings.ToBool("use_original_title"),
-		TraktUseLowestReleaseDate:   settings.ToBool("trakt_use_lowest_release_date"),
 		AddSpecials:                 settings.ToBool("add_specials"),
 		AddEpisodeNumbers:           settings.ToBool("add_episode_numbers"),
 		ShowUnairedSeasons:          settings.ToBool("unaired_seasons"),
@@ -693,6 +692,7 @@ func Reload() (ret *Configuration, err error) {
 		TraktCalendarsColorShow:        settings.ToString("trakt_calendars_color_show"),
 		TraktCalendarsColorEpisode:     settings.ToString("trakt_calendars_color_episode"),
 		TraktCalendarsColorUnaired:     settings.ToString("trakt_calendars_color_unaired"),
+		TraktUseLowestReleaseDate:      settings.ToBool("trakt_use_lowest_release_date"),
 
 		UpdateFrequency:                settings.ToInt("library_update_frequency"),
 		UpdateDelay:                    settings.ToInt("library_update_delay"),
