@@ -383,7 +383,7 @@ func Authorized() error {
 }
 
 // Request is a general proxy for making requests
-func Request(endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, cacheKey string, cacheExpiration time.Duration, ret interface{}) error {
+func Request(endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, cacheExpiration time.Duration, ret interface{}) error {
 	if isWithAuth {
 		if err := Authorized(); err != nil {
 			return err
@@ -592,7 +592,7 @@ func RemoveFromCollection(itemType string, tmdbID string) (req *reqapi.Request, 
 	return req, req.Do()
 }
 
-// SetWatched addes and removes from watched history
+// SetWatched adds and removes from watched history
 func SetWatched(item *WatchedItem) (req *reqapi.Request, err error) {
 	if err := Authorized(); err != nil {
 		return nil, err
@@ -696,7 +696,7 @@ func (item *WatchedItem) String() (query string) {
 }
 
 // This is commented for future use (if needed)
-// // SetMultipleWatched addes and removes list from watched history
+// // SetMultipleWatched adds and removes list from watched history
 // func SetMultipleWatched(watched bool, itemType string, tmdbID []string) (resp *napping.Response, err error) {
 // 	if err := Authorized(); err != nil {
 // 		return nil, err

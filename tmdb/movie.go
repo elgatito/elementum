@@ -237,7 +237,7 @@ func GetIMDBList(listID string, language string, page int) (movies Movies, total
 	return
 }
 
-func listMovies(endpoint string, cacheKey string, params napping.Params, page int) (Movies, int) {
+func listMovies(endpoint string, params napping.Params, page int) (Movies, int) {
 	defer perf.ScopeTimer()()
 
 	params["api_key"] = apiKey
@@ -338,7 +338,7 @@ func PopularMovies(params DiscoverFilters, language string, page int) (Movies, i
 		}
 	}
 
-	return listMovies("discover/movie", "popular", p, page)
+	return listMovies("discover/movie", p, page)
 }
 
 // RecentMovies ...
@@ -377,12 +377,12 @@ func RecentMovies(params DiscoverFilters, language string, page int) (Movies, in
 		}
 	}
 
-	return listMovies("discover/movie", "recent", p, page)
+	return listMovies("discover/movie", p, page)
 }
 
 // TopRatedMovies ...
 func TopRatedMovies(genre string, language string, page int) (Movies, int) {
-	return listMovies("movie/top_rated", "toprated", napping.Params{"language": language}, page)
+	return listMovies("movie/top_rated", napping.Params{"language": language}, page)
 }
 
 // MostVotedMovies ...
@@ -402,7 +402,7 @@ func MostVotedMovies(genre string, language string, page int) (Movies, int) {
 			"with_genres":              genre,
 		}
 	}
-	return listMovies("discover/movie", "mostvoted", p, page)
+	return listMovies("discover/movie", p, page)
 }
 
 // Year returns year of the movie

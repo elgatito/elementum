@@ -521,7 +521,6 @@ func WatchedMovies(isUpdateNeeded bool) (WatchedMoviesType, error) {
 		napping.Params{},
 		true,
 		isUpdateNeeded,
-		cache.TraktMoviesWatchedKey,
 		cache.TraktMoviesWatchedExpire,
 		&movies,
 	)
@@ -560,7 +559,6 @@ func PausedMovies(isUpdateNeeded bool) ([]*PausedMovie, error) {
 		},
 		true,
 		isUpdateNeeded,
-		cache.TraktMoviesPausedKey,
 		cache.TraktMoviesPausedExpire,
 		&movies,
 	)
