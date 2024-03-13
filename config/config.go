@@ -90,7 +90,7 @@ type Configuration struct {
 	ChooseStreamAutoSearch      bool
 	ForceLinkType               bool
 	UseOriginalTitle            bool
-	UseLowestReleaseDate        bool
+	TraktUseLowestReleaseDate   bool
 	AddSpecials                 bool
 	AddEpisodeNumbers           bool
 	ShowUnairedSeasons          bool
@@ -237,6 +237,7 @@ type Configuration struct {
 
 	CustomProviderTimeoutEnabled bool
 	CustomProviderTimeout        int
+	ProviderUseLowestReleaseDate bool
 
 	InternalDNSEnabled  bool
 	InternalDNSSkipIPv6 bool
@@ -596,7 +597,7 @@ func Reload() (ret *Configuration, err error) {
 		ChooseStreamAutoSearch:      settings.ToBool("choose_stream_auto_search"),
 		ForceLinkType:               settings.ToBool("force_link_type"),
 		UseOriginalTitle:            settings.ToBool("use_original_title"),
-		UseLowestReleaseDate:        settings.ToBool("use_lowest_release_date"),
+		TraktUseLowestReleaseDate:   settings.ToBool("trakt_use_lowest_release_date"),
 		AddSpecials:                 settings.ToBool("add_specials"),
 		AddEpisodeNumbers:           settings.ToBool("add_episode_numbers"),
 		ShowUnairedSeasons:          settings.ToBool("unaired_seasons"),
@@ -720,6 +721,7 @@ func Reload() (ret *Configuration, err error) {
 
 		CustomProviderTimeoutEnabled: settings.ToBool("custom_provider_timeout_enabled"),
 		CustomProviderTimeout:        settings.ToInt("custom_provider_timeout"),
+		ProviderUseLowestReleaseDate: settings.ToBool("provider_use_lowest_release_date"),
 
 		InternalDNSEnabled:  settings.ToBool("internal_dns_enabled"),
 		InternalDNSSkipIPv6: settings.ToBool("internal_dns_skip_ipv6"),
