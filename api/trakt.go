@@ -1370,7 +1370,7 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 			episodeName := epi.Title
 			showName := showListing.Show.Title
 			showOriginalName := showListing.Show.Title
-			airDateFormat := time.DateOnly
+			airDateFormat := time.RFC3339
 
 			var episode *tmdb.Episode
 			var season *tmdb.Season
@@ -1386,7 +1386,8 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 				episode = tmdb.GetEpisode(showListing.Show.IDs.TMDB, epi.Season, epi.Number, language)
 
 				if episode != nil {
-					airDate = episode.AirDate
+					airDate, airDateFormat = episode.GetLowestAirDate(airDate, airDateFormat)
+
 					seasonNumber = episode.SeasonNumber
 					episodeNumber = episode.EpisodeNumber
 
@@ -1406,15 +1407,10 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 				for _, e := range episodes {
 					if e != nil && e.Number == epi.Number {
 						airDate = e.FirstAired
+						airDateFormat = time.RFC3339
 						break
 					}
 				}
-			}
-			if epi.FirstAired != "" {
-				airDate = epi.FirstAired
-			}
-			if len(airDate) > 10 && strings.Contains(airDate, "T") {
-				airDateFormat = time.RFC3339
 			}
 
 			aired, isAired := util.AirDateWithAiredCheck(airDate, airDateFormat, config.Get().ShowEpisodesOnReleaseDay)
@@ -1549,7 +1545,7 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 			episodeNumber := epi.Number
 			episodeName := epi.Title
 			showName := showListing.Show.Title
-			airDateFormat := time.DateOnly
+			airDateFormat := time.RFC3339
 
 			var episode *tmdb.Episode
 			var season *tmdb.Season
@@ -1563,7 +1559,8 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 				}
 
 				if episode != nil {
-					airDate = episode.AirDate
+					airDate, airDateFormat = episode.GetLowestAirDate(airDate, airDateFormat)
+
 					seasonNumber = episode.SeasonNumber
 					episodeNumber = episode.EpisodeNumber
 
@@ -1580,7 +1577,7 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 			if airDate == "" {
 				episodes := trakt.GetSeasonEpisodes(showListing.Show.IDs.Trakt, seasonNumber)
 				for _, e := range episodes {
-					if e != nil && e.Number == epi.Number && strings.Contains(e.FirstAired, "T") {
+					if e != nil && e.Number == epi.Number {
 						airDate = e.FirstAired
 						airDateFormat = time.RFC3339
 						break

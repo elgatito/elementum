@@ -114,7 +114,7 @@ func GetSeasonEpisodes(showID, seasonNumber int) (episodes []*Episode) {
 		API:         reqapi.TraktAPI,
 		URL:         fmt.Sprintf("shows/%d/seasons/%d", showID, seasonNumber),
 		Header:      GetAvailableHeader(),
-		Params:      napping.Params{"extended": "episodes,full"}.AsUrlValues(),
+		Params:      napping.Params{"extended": "full"}.AsUrlValues(),
 		Result:      &episodes,
 		Description: "show season episodes",
 
@@ -617,6 +617,7 @@ func WatchedShowsProgress() (shows []*ProgressShow, err error) {
 		"hidden":         "false",
 		"specials":       "false",
 		"count_specials": "false",
+		"extended":       "full",
 	}.AsUrlValues()
 
 	showsList := make([]*ProgressShow, len(watchedShows))

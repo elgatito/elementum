@@ -241,3 +241,19 @@ func (episode *Episode) findTranslation(language string) *Translation {
 
 	return nil
 }
+
+func (episode *Episode) GetLowestAirDate(airDate string, airDateFormat string) (newAirDate string, newAirDateFormat string) {
+	newAirDate = episode.AirDate
+	newAirDateFormat = time.DateOnly
+
+	if config.Get().TraktUseLowestReleaseDate {
+		airDateParsed, err1 := time.Parse(airDateFormat, airDate)
+		tmdbAirDateParsed, err2 := time.Parse(time.DateOnly, episode.AirDate)
+		if err1 == nil && err2 == nil && airDateParsed.Before(tmdbAirDateParsed) {
+			newAirDate = airDate
+			newAirDateFormat = airDateFormat
+		}
+	}
+
+	return
+}
