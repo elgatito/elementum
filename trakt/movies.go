@@ -562,12 +562,6 @@ func PausedMovies(isUpdateNeeded bool) ([]*PausedMovie, error) {
 		&movies,
 	)
 
-	/*if len(movies) != 0 {
-		defer cache.
-			NewDBStore().
-			Set(cache.TraktMoviesPausedKey, &movies, cache.TraktMoviesPausedExpire)
-	}*/
-
 	return movies, err
 }
 

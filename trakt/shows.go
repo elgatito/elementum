@@ -585,12 +585,6 @@ func PausedShows(isUpdateNeeded bool) ([]*PausedEpisode, error) {
 		&shows,
 	)
 
-	/*if len(shows) != 0 {
-		defer cache.
-			NewDBStore().
-			Set(cache.TraktShowsPausedKey, &shows, cache.TraktShowsPausedExpire)
-	}*/
-
 	return shows, err
 }
 
