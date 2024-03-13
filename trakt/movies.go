@@ -574,7 +574,7 @@ func (movie *Movie) ToListItem() (item *xbmc.ListItem) {
 
 	var tmdbMovie *tmdb.Movie
 	if movie.IDs.TMDB != 0 {
-		if tmdbMovie := tmdb.GetMovie(movie.IDs.TMDB, config.Get().Language); tmdbMovie != nil {
+		if tmdbMovie = tmdb.GetMovie(movie.IDs.TMDB, config.Get().Language); tmdbMovie != nil {
 			if !config.Get().ForceUseTrakt {
 				item = tmdbMovie.ToListItem()
 			}
