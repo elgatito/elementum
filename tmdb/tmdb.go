@@ -688,9 +688,9 @@ func GetLocalizedImages(images []*Image, imageQuality ImageQualityIdentifier) (l
 			foundLanguageSpecificImage = true // we take first image, it has top rating
 		}
 
-		// If there is no localized image - then set it to the first image with text, if user allows.
-		// It would be English, since we always get English images alongside with localized ones.
-		if config.Get().ArtworkFallbackToEnglish && !foundLanguageSpecificImage && len(imagesWithText) > 0 {
+		// If there is no localized image - then set it to the first image with text.
+		// It would be image in SecondLanguage from config, since we always get SecondLanguage images as backup.
+		if !foundLanguageSpecificImage && len(imagesWithText) > 0 {
 			localizedImage = imagesWithText[0]
 		}
 	}
@@ -719,8 +719,11 @@ func SetLocalizedArt(video *Entity, item *xbmc.ListItem) {
 			item.Art.AvailableArtworks.FanArt = backdropsWithoutText
 		}
 
-		// Default Poster is already localized, so set only AvailableArtworks
-		_, allPosters, _, _ := GetLocalizedImages(video.Images.Posters, imageQualities.Poster)
+		localizedPoster, allPosters, _, _ := GetLocalizedImages(video.Images.Posters, imageQualities.Poster)
+		// Poster in user's Language or SecondLanguage or leave Default Poster
+		if localizedPoster != "" {
+			item.Art.Poster = localizedPoster
+		}
 		if len(allPosters) > 0 {
 			item.Art.AvailableArtworks.Poster = allPosters
 		}

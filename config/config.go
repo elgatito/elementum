@@ -218,7 +218,6 @@ type Configuration struct {
 	TMDBApiKey                     string
 	TMDBShowUseProdCompanyAsStudio bool
 	TMDBImagesQuality              int
-	ArtworkFallbackToEnglish       bool
 
 	OSDBUser               string
 	OSDBPass               string
@@ -703,7 +702,6 @@ func Reload() (ret *Configuration, err error) {
 		TMDBApiKey:                     settings.ToString("tmdb_api_key"),
 		TMDBShowUseProdCompanyAsStudio: settings.ToBool("tmdb_show_use_prod_company_as_studio"),
 		TMDBImagesQuality:              settings.ToInt("tmdb_images_quality"),
-		ArtworkFallbackToEnglish:       settings.ToBool("artwork_fallback_to_english"),
 
 		OSDBUser:               settings.ToString("osdb_user"),
 		OSDBPass:               settings.ToString("osdb_pass"),
