@@ -42,8 +42,8 @@ func GetShowImages(showID int) *Images {
 		URL: fmt.Sprintf("/tv/%d/images", showID),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,en,null", config.Get().Language),
-			"include_video_language": fmt.Sprintf("%s,en,null", config.Get().Language),
+			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "show images",
@@ -66,8 +66,8 @@ func GetSeasonImages(showID int, season int) *Images {
 		URL: fmt.Sprintf("/tv/%d/season/%d/images", showID, season),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,en,null", config.Get().Language),
-			"include_video_language": fmt.Sprintf("%s,en,null", config.Get().Language),
+			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "season images",
@@ -90,8 +90,8 @@ func GetEpisodeImages(showID, season, episode int) *Images {
 		URL: fmt.Sprintf("/tv/%d/season/%d/episode/%d/images", showID, season, episode),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,en,null", config.Get().Language),
-			"include_video_language": fmt.Sprintf("%s,en,null", config.Get().Language),
+			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "episode images",
@@ -124,8 +124,8 @@ func GetShow(showID int, language string) (show *Show) {
 		Params: napping.Params{
 			"api_key":                apiKey,
 			"append_to_response":     "credits,images,alternative_titles,translations,external_ids,content_ratings",
-			"include_image_language": fmt.Sprintf("%s,en,null", config.Get().Language),
-			"include_video_language": fmt.Sprintf("%s,en,null", config.Get().Language),
+			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
 			"language":               language,
 		}.AsUrlValues(),
 		Result:      &show,
@@ -197,7 +197,7 @@ func SearchShows(query string, language string, page int) (Shows, int) {
 	return GetShows(tmdbIds, language), results.TotalResults
 }
 
-func listShows(endpoint string, cacheKey string, params napping.Params, page int) (Shows, int) {
+func listShows(endpoint string, params napping.Params, page int) (Shows, int) {
 	defer perf.ScopeTimer()()
 
 	params["api_key"] = apiKey
@@ -232,7 +232,8 @@ func listShows(endpoint string, cacheKey string, params napping.Params, page int
 				Result:      &results,
 				Description: "list shows",
 
-				Cache: true,
+				Cache:       true,
+				CacheExpire: cache.CacheExpireMedium,
 			}
 
 			if err := req.Do(); err != nil || results == nil {
@@ -297,7 +298,7 @@ func PopularShows(params DiscoverFilters, language string, page int) (Shows, int
 		}
 	}
 
-	return listShows("discover/tv", "popular", p, page)
+	return listShows("discover/tv", p, page)
 }
 
 // RecentShows ...
@@ -332,7 +333,7 @@ func RecentShows(params DiscoverFilters, language string, page int) (Shows, int)
 		}
 	}
 
-	return listShows("discover/tv", "recent.shows", p, page)
+	return listShows("discover/tv", p, page)
 }
 
 // RecentEpisodes ...
@@ -368,17 +369,17 @@ func RecentEpisodes(params DiscoverFilters, language string, page int) (Shows, i
 		}
 	}
 
-	return listShows("discover/tv", "recent.episodes", p, page)
+	return listShows("discover/tv", p, page)
 }
 
 // TopRatedShows ...
 func TopRatedShows(genre string, language string, page int) (Shows, int) {
-	return listShows("tv/top_rated", "toprated", napping.Params{"language": language}, page)
+	return listShows("tv/top_rated", napping.Params{"language": language}, page)
 }
 
 // MostVotedShows ...
 func MostVotedShows(genre string, language string, page int) (Shows, int) {
-	return listShows("discover/tv", "mostvoted", napping.Params{
+	return listShows("discover/tv", napping.Params{
 		"language":           language,
 		"sort_by":            "vote_count.desc",
 		"first_air_date.lte": time.Now().UTC().Format(time.DateOnly),

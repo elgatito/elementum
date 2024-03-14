@@ -210,6 +210,28 @@ func SelectNetworkInterface(ctx *gin.Context) {
 	ctx.String(200, "")
 }
 
+// SelectLanguage ...
+func SelectLanguage(ctx *gin.Context) {
+	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+
+	items := make([]string, 0)
+	items = append(items, xbmcHost.GetLocalizedString(30698))
+
+	languages := tmdb.GetLanguages(config.Get().Language)
+	for _, l := range languages {
+		items = append(items, l.Name)
+	}
+
+	choice := xbmcHost.ListDialog("LOCALIZE[30373]", items...)
+	if choice >= 1 {
+		xbmcHost.SetSetting("language", languages[choice-1].Name+" | "+languages[choice-1].Iso639_1)
+	} else if choice == 0 {
+		xbmcHost.SetSetting("language", "")
+	}
+
+	ctx.String(200, "")
+}
+
 // SelectStrmLanguage ...
 func SelectStrmLanguage(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)

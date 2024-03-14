@@ -114,7 +114,7 @@ func GetSeasonEpisodes(showID, seasonNumber int) (episodes []*Episode) {
 		API:         reqapi.TraktAPI,
 		URL:         fmt.Sprintf("shows/%d/seasons/%d", showID, seasonNumber),
 		Header:      GetAvailableHeader(),
-		Params:      napping.Params{"extended": "episodes,full"}.AsUrlValues(),
+		Params:      napping.Params{"extended": "full"}.AsUrlValues(),
 		Result:      &episodes,
 		Description: "show season episodes",
 
@@ -293,7 +293,8 @@ func TopShows(topCategory string, page string) (shows []*Shows, total int, err e
 		Result:      &shows,
 		Description: "list shows",
 
-		Cache: true,
+		Cache:       true,
+		CacheExpire: cache.CacheExpireMedium,
 	}
 
 	if topCategory == "popular" || topCategory == "recommendations" {
@@ -362,7 +363,7 @@ func WatchlistShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 	}
 	shows = showListing
 
-	cacheStore.Set(cache.TraktShowsWatchlistKey, &shows, cache.TraktShowsWatchlistExpire)
+	defer cacheStore.Set(cache.TraktShowsWatchlistKey, &shows, cache.TraktShowsWatchlistExpire)
 	return
 }
 
@@ -419,7 +420,7 @@ func CollectionShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 		showListing = append(showListing, &showItem)
 	}
 
-	cacheStore.Set(cache.TraktShowsCollectionKey, &showListing, cache.TraktShowsCollectionExpire)
+	defer cacheStore.Set(cache.TraktShowsCollectionKey, &showListing, cache.TraktShowsCollectionExpire)
 	return showListing, err
 }
 
@@ -482,7 +483,7 @@ func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 	}
 	shows = showListing
 
-	cacheStore.Set(key, &shows, cache.TraktShowsListExpire)
+	defer cacheStore.Set(key, &shows, cache.TraktShowsListExpire)
 	return shows, err
 }
 
@@ -547,13 +548,12 @@ func WatchedShows(isUpdateNeeded bool) (WatchedShowsType, error) {
 		napping.Params{"extended": "full"},
 		true,
 		isUpdateNeeded,
-		cache.TraktShowsWatchedKey,
 		cache.TraktShowsWatchedExpire,
 		&shows,
 	)
 
 	if len(shows) != 0 {
-		cache.
+		defer cache.
 			NewDBStore().
 			Set(cache.TraktShowsWatchedKey, &shows, cache.TraktShowsWatchedExpire)
 	}
@@ -582,7 +582,6 @@ func PausedShows(isUpdateNeeded bool) ([]*PausedEpisode, error) {
 		},
 		true,
 		isUpdateNeeded,
-		cache.TraktShowsPausedKey,
 		cache.TraktShowsPausedExpire,
 		&shows,
 	)
@@ -618,6 +617,7 @@ func WatchedShowsProgress() (shows []*ProgressShow, err error) {
 		"hidden":         "false",
 		"specials":       "false",
 		"count_specials": "false",
+		"extended":       "full",
 	}.AsUrlValues()
 
 	showsList := make([]*ProgressShow, len(watchedShows))
@@ -665,7 +665,7 @@ func WatchedShowsProgress() (shows []*ProgressShow, err error) {
 				return
 			}
 
-			cacheStore.Set(fmt.Sprintf(cache.TraktWatchedShowsProgressKey, show.Show.IDs.Trakt), &watchedProgressShow, cache.TraktWatchedShowsProgressExpire)
+			defer cacheStore.Set(fmt.Sprintf(cache.TraktWatchedShowsProgressKey, show.Show.IDs.Trakt), &watchedProgressShow, cache.TraktWatchedShowsProgressExpire)
 		}(i, show)
 	}
 	wg.Wait()
@@ -785,7 +785,7 @@ func ListHiddenShows(section string, isUpdateNeeded bool) (shows []*Shows, err e
 		totalPages = pagination.PageCount
 	}
 
-	cacheStore.Set(cacheKey, &shows, cacheExpiration)
+	defer cacheStore.Set(cacheKey, &shows, cacheExpiration)
 	return
 }
 

@@ -27,39 +27,69 @@ var (
 		"ListItem.TMDB",
 		"ListItem.UniqueId",
 
+		"ListItem.Code",
+		"ListItem.Country",
+		"ListItem.Director",
+		"ListItem.Duration",
+		"ListItem.Episode",
+		"ListItem.EpisodeName",
+		"ListItem.Genre",
+		"ListItem.IMDBNumber",
 		"ListItem.Label",
 		"ListItem.Label2",
-		"ListItem.ThumbnailImage",
-		"ListItem.Title",
+		"ListItem.Mediatype",
+		"ListItem.MPAA",
 		"ListItem.OriginalTitle",
-		"ListItem.TVShowTitle",
-		"ListItem.Season",
-		"ListItem.Episode",
-		"ListItem.Premiered",
+		"ListItem.Path",
+		"ListItem.PlayCount",
 		"ListItem.Plot",
 		"ListItem.PlotOutline",
-		"ListItem.Tagline",
-		"ListItem.Year",
-		"ListItem.Trailer",
-		"ListItem.Studio",
-		"ListItem.MPAA",
-		"ListItem.Genre",
-		"ListItem.Mediatype",
-		"ListItem.Writer",
-		"ListItem.Director",
+		"ListItem.Premiered",
 		"ListItem.Rating",
+		"ListItem.Season",
+		"ListItem.Studio",
+		"ListItem.Tagline",
+		"ListItem.Thumb",
+		"ListItem.Title",
+		"ListItem.Trailer",
+		"ListItem.TVShowTitle",
 		"ListItem.Votes",
-		"ListItem.IMDBNumber",
-		"ListItem.Code",
-		"ListItem.ArtFanart",
-		"ListItem.ArtBanner",
-		"ListItem.ArtPoster",
-		"ListItem.ArtLandscape",
-		"ListItem.ArtTvshowPoster",
-		"ListItem.ArtClearArt",
-		"ListItem.ArtClearLogo",
+		"ListItem.Writer",
+		"ListItem.Year",
+
+		"ListItem.Art(thumb)",
+		"ListItem.Art(poster)",
+		"ListItem.Art(tvshowposter)",
+		"ListItem.Art(banner)",
+		"ListItem.Art(fanart)",
+		"ListItem.Art(fanarts)",
+		"ListItem.Art(clearart)",
+		"ListItem.Art(clearlogo)",
+		"ListItem.Art(landscape)",
+		"ListItem.Art(icon)",
 	}
 )
+
+func itemWithDefault(item, def string) string {
+	if item == "" {
+		return def
+	}
+	return item
+}
+
+func itemToList(item string) []string {
+	return strings.Split(item, " / ")
+}
+
+func itemToInt(item string) int {
+	ret, _ := strconv.Atoi(item)
+	return ret
+}
+
+func itemToFloat(item string) float32 {
+	ret, _ := strconv.ParseFloat(item, 32)
+	return float32(ret)
+}
 
 func saveEncoded(xbmcHost *xbmc.XBMCHost, encoded string) {
 	xbmcHost.SetWindowProperty("ListItem.Encoded", encoded)
@@ -67,8 +97,62 @@ func saveEncoded(xbmcHost *xbmc.XBMCHost, encoded string) {
 
 func encodeItem(item *xbmc.ListItem) string {
 	data, _ := json.Marshal(item)
-
 	return string(data)
+}
+
+func labelsToListItem(labels map[string]string) *xbmc.ListItem {
+	// Remove 'ListItem.' from labels map keys + lowercase all keys
+	for k, v := range labels {
+		key := strings.Replace(k, "ListItem.", "", 1)
+		labels[strings.ToLower(key)] = v
+	}
+
+	return &xbmc.ListItem{
+		Label:     labels["label"],
+		Label2:    labels["label2"],
+		Icon:      labels["icon"],
+		Thumbnail: labels["thumb"],
+		Path:      labels["path"],
+
+		Info: &xbmc.ListItemInfo{
+			Date: labels["premiered"],
+
+			DBID:      itemToInt(labels["dbid"]),
+			DBTYPE:    itemWithDefault(labels["dbtype"], "movie"),
+			Mediatype: itemWithDefault(labels["dbtype"], "movie"),
+
+			Genre:         itemToList(labels["genre"]),
+			Country:       itemToList(labels["country"]),
+			Year:          itemToInt(labels["year"]),
+			Episode:       itemToInt(labels["episode"]),
+			Season:        itemToInt(labels["season"]),
+			Rating:        itemToFloat(labels["rating"]),
+			PlayCount:     itemToInt(labels["playcount"]),
+			Director:      itemToList(labels["director"]),
+			MPAA:          labels["mpaa"],
+			Plot:          labels["plot"],
+			PlotOutline:   labels["plotoutline"],
+			Title:         labels["title"],
+			OriginalTitle: labels["originaltitle"],
+			Duration:      itemToInt(labels["duration"]),
+			Studio:        itemToList(labels["studio"]),
+			TVShowTitle:   labels["tvshowtitle"],
+			Premiered:     labels["premiered"],
+			Aired:         labels["premiered"],
+		},
+		Properties: &xbmc.ListItemProperties{},
+		Art: &xbmc.ListItemArt{
+			Thumbnail:    labels["art(thumb)"],
+			Poster:       labels["art(poster)"],
+			TvShowPoster: labels["art(tvshowposter)"],
+			Banner:       labels["art(banner)"],
+			FanArt:       labels["art(fanart)"],
+			ClearArt:     labels["art(clearart)"],
+			ClearLogo:    labels["art(clearlogo)"],
+			Landscape:    labels["art(landscape)"],
+			Icon:         labels["art(icon)"],
+		},
+	}
 }
 
 // InfoLabelsStored ...
@@ -81,16 +165,8 @@ func InfoLabelsStored(s *bittorrent.Service) gin.HandlerFunc {
 		labelsString := "{}"
 
 		if listLabel := xbmcHost.InfoLabel("ListItem.Label"); len(listLabel) > 0 {
-			labels := xbmcHost.InfoLabels(infoLabels...)
-
-			listItemLabels := make(map[string]string, len(labels))
-			for k, v := range labels {
-				key := strings.Replace(k, "ListItem.", "", 1)
-				listItemLabels[key] = v
-			}
-
-			b, _ := json.Marshal(listItemLabels)
-			labelsString = string(b)
+			item := labelsToListItem(xbmcHost.InfoLabels(infoLabels...))
+			labelsString = encodeItem(item)
 			saveEncoded(xbmcHost, labelsString)
 		} else if encoded := xbmcHost.GetWindowProperty("ListItem.Encoded"); len(encoded) > 0 {
 			labelsString = encoded

@@ -168,7 +168,7 @@ func (as *AddonSearcher) GetMovieSearchObject(movie *tmdb.Movie) *MovieSearchObj
 	title := movie.OriginalTitle
 
 	// Iterate through all available dates and take the earliest one as a basic date for searching
-	if config.Get().UseLowestReleaseDate && movie.ReleaseDates != nil && movie.ReleaseDates.Results != nil {
+	if config.Get().ProviderUseLowestReleaseDate && movie.ReleaseDates != nil && movie.ReleaseDates.Results != nil {
 		for _, r := range movie.ReleaseDates.Results {
 			if r.ReleaseDates == nil {
 				continue
