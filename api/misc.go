@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/asdine/storm/q"
@@ -214,20 +215,16 @@ func SelectNetworkInterface(ctx *gin.Context) {
 func SelectLanguage(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 
-	items := make([]string, 0)
-	items = append(items, xbmcHost.GetLocalizedString(30698))
+	languageSelector(xbmcHost, "language", "", []string{xbmcHost.GetLocalizedString(30698)})
 
-	languages := tmdb.GetLanguages(config.Get().Language)
-	for _, l := range languages {
-		items = append(items, l.Name)
-	}
+	ctx.String(200, "")
+}
 
-	choice := xbmcHost.ListDialog("LOCALIZE[30373]", items...)
-	if choice >= 1 {
-		xbmcHost.SetSetting("language", languages[choice-1].Name+" | "+languages[choice-1].Iso639_1)
-	} else if choice == 0 {
-		xbmcHost.SetSetting("language", "")
-	}
+// SelectSecondLanguage ...
+func SelectSecondLanguage(ctx *gin.Context) {
+	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+
+	languageSelector(xbmcHost, "second_language", xbmcHost.GetLocalizedString(30701), []string{xbmcHost.GetLocalizedString(30701)})
 
 	ctx.String(200, "")
 }
@@ -236,22 +233,36 @@ func SelectLanguage(ctx *gin.Context) {
 func SelectStrmLanguage(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 
-	items := make([]string, 0)
-	items = append(items, xbmcHost.GetLocalizedString(30477))
-
-	languages := tmdb.GetLanguages(config.Get().Language)
-	for _, l := range languages {
-		items = append(items, l.Name)
-	}
-
-	choice := xbmcHost.ListDialog("LOCALIZE[30373]", items...)
-	if choice >= 1 {
-		xbmcHost.SetSetting("strm_language", languages[choice-1].Name+" | "+languages[choice-1].Iso639_1)
-	} else if choice == 0 {
-		xbmcHost.SetSetting("strm_language", "Original")
-	}
+	languageSelector(xbmcHost, "strm_language", "Original", []string{xbmcHost.GetLocalizedString(30477)})
 
 	ctx.String(200, "")
+}
+
+func languageSelector(xbmcHost *xbmc.XBMCHost, nameSetting, defaultSetting string, initialValues []string) {
+	currentSetting := xbmcHost.GetSettingString(nameSetting)
+
+	items := make([]string, 0)
+	items = append(items, initialValues...)
+
+	selected := 0
+	counter := len(items) - 1
+	languages := tmdb.GetLanguages(config.Get().Language)
+	for _, l := range languages {
+		counter++
+
+		name := l.Name + " | " + l.Iso639_1
+		items = append(items, name)
+		if strings.HasPrefix(currentSetting, name) {
+			selected = counter
+		}
+	}
+
+	choice := xbmcHost.ListDialogWithOptions(0, selected, "LOCALIZE[30373]", items...)
+	if choice >= 1 {
+		xbmcHost.SetSetting(nameSetting, languages[choice-1].Name+" | "+languages[choice-1].Iso639_1)
+	} else if choice == 0 {
+		xbmcHost.SetSetting(nameSetting, defaultSetting)
+	}
 }
 
 func Reload(s *bittorrent.Service) gin.HandlerFunc {
