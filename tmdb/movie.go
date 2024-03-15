@@ -495,7 +495,7 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 			OriginalTitle: movie.OriginalTitle,
 			Plot:          movie.overview(),
 			PlotOutline:   movie.overview(),
-			TagLine:       movie.TagLine,
+			TagLine:       movie.tagline(),
 			Duration:      movie.Runtime * 60,
 			Code:          movie.IMDBId,
 			IMDBNumber:    movie.IMDBId,
@@ -571,7 +571,7 @@ func (movie *Movie) GetTitle() string {
 		return movie.OriginalTitle
 	}
 
-	// By default, if TMDB is returning a translated title - we use it
+	// If user's language is equal to video's language - we just use Title
 	if movie.Title != "" && movie.Title == movie.OriginalTitle && movie.OriginalLanguage == config.Get().Language {
 		return movie.Title
 	}
@@ -622,6 +622,29 @@ func (movie *Movie) overview() string {
 	}
 
 	return movie.Overview
+}
+
+func (movie *Movie) tagline() string {
+	if movie.TagLine != "" || movie.Translations == nil || movie.Translations.Translations == nil || len(movie.Translations.Translations) == 0 {
+		return movie.TagLine
+	}
+
+	current := movie.findTranslation(config.Get().Language)
+	if current != nil && current.Data != nil && current.Data.TagLine != "" {
+		return current.Data.TagLine
+	}
+
+	current = movie.findTranslation(config.Get().SecondLanguage)
+	if current != nil && current.Data != nil && current.Data.TagLine != "" {
+		return current.Data.TagLine
+	}
+
+	current = movie.findTranslation(movie.OriginalLanguage)
+	if current != nil && current.Data != nil && current.Data.TagLine != "" {
+		return current.Data.TagLine
+	}
+
+	return movie.TagLine
 }
 
 func (movie *Movie) findTranslation(language string) *Translation {

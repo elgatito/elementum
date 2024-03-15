@@ -596,7 +596,7 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 			OriginalTitle: show.OriginalName,
 			Plot:          show.overview(),
 			PlotOutline:   show.overview(),
-			TagLine:       show.TagLine,
+			TagLine:       show.tagline(),
 			Date:          show.FirstAirDate,
 			Votes:         strconv.Itoa(show.VoteCount),
 			Rating:        show.VoteAverage,
@@ -686,7 +686,7 @@ func (show *Show) GetName() string {
 		return show.OriginalName
 	}
 
-	// By default, if TMDB is returning a translated title - we use it
+	// If user's language is equal to video's language - we just use Name
 	if show.Name != "" && show.Name == show.OriginalName && show.OriginalLanguage == config.Get().Language {
 		return show.Name
 	}
@@ -737,6 +737,28 @@ func (show *Show) overview() string {
 	}
 
 	return show.Overview
+}
+func (show *Show) tagline() string {
+	if show.TagLine != "" || show.Translations == nil || show.Translations.Translations == nil || len(show.Translations.Translations) == 0 {
+		return show.TagLine
+	}
+
+	current := show.findTranslation(config.Get().Language)
+	if current != nil && current.Data != nil && current.Data.TagLine != "" {
+		return current.Data.TagLine
+	}
+
+	current = show.findTranslation(config.Get().SecondLanguage)
+	if current != nil && current.Data != nil && current.Data.TagLine != "" {
+		return current.Data.TagLine
+	}
+
+	current = show.findTranslation(show.OriginalLanguage)
+	if current != nil && current.Data != nil && current.Data.TagLine != "" {
+		return current.Data.TagLine
+	}
+
+	return show.TagLine
 }
 
 func (show *Show) findTranslation(language string) *Translation {
