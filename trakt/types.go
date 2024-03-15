@@ -65,6 +65,7 @@ type Show struct {
 	Overview      string   `json:"overview"`
 	Rating        float32  `json:"rating"`
 	Runtime       int      `json:"runtime"`
+	TagLine       string   `json:"tagline"`
 	Status        string   `json:"status"`
 	Trailer       string   `json:"trailer"`
 	Translations  []string `json:"available_translations"`
