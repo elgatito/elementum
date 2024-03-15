@@ -288,16 +288,6 @@ func (credits *Credits) GetWriters() []string {
 	return writers
 }
 
-type ImageQualityIdentifier string
-
-type ImageQualityBundle struct {
-	Poster    ImageQualityIdentifier
-	FanArt    ImageQualityIdentifier
-	Logo      ImageQualityIdentifier
-	Thumbnail ImageQualityIdentifier
-	Landscape ImageQualityIdentifier
-}
-
 func GetImageQualities() (imageQualities ImageQualityBundle) {
 	return ImageQualityBundle{
 		Poster:    ImageQualitiesPoster[config.Get().TMDBImagesQuality],

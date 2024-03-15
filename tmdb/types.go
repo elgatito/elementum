@@ -359,3 +359,15 @@ type APIRequest struct {
 	ErrMsg      interface{}
 	Description string
 }
+
+// ImageQualityIdentifier contains the image quality as a string, e.g. "w1280"
+type ImageQualityIdentifier string
+
+// ImageQualityBundle contains image qualities for different type of images
+type ImageQualityBundle struct {
+	Poster    ImageQualityIdentifier
+	FanArt    ImageQualityIdentifier
+	Logo      ImageQualityIdentifier
+	Thumbnail ImageQualityIdentifier
+	Landscape ImageQualityIdentifier
+}
