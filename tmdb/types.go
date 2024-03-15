@@ -71,9 +71,12 @@ type Show struct {
 	ProductionCompanies []*IDNameLogo `json:"production_companies"`
 	ProductionCountries []*Country    `json:"production_countries"`
 	RawPopularity       interface{}   `json:"popularity"`
+	SpokenLanguages     []*Language   `json:"spoken_languages"`
 	Status              string        `json:"status"`
+	TagLine             string        `json:"tagline"`
 
 	LastEpisodeToAir *Episode `json:"last_episode_to_air"`
+	NextEpisodeToAir *Episode `json:"next_episode_to_air"`
 
 	Translations *struct {
 		Translations []*Translation `json:"translations"`
