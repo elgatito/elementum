@@ -559,6 +559,7 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 			OriginalTitle: show.OriginalName,
 			Plot:          show.overview(),
 			PlotOutline:   show.overview(),
+			TagLine:       show.TagLine,
 			Date:          show.FirstAirDate,
 			Votes:         strconv.Itoa(show.VoteCount),
 			Rating:        show.VoteAverage,
@@ -604,6 +605,15 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 		item.Info.Status = "Continuing"
 	} else {
 		item.Info.Status = "Discontinued"
+	}
+
+	for _, language := range show.SpokenLanguages {
+		item.StreamInfo = &xbmc.StreamInfo{
+			Audio: &xbmc.StreamInfoEntry{
+				Language: language.Iso639_1,
+			},
+		}
+		break
 	}
 
 	if show.Credits != nil {

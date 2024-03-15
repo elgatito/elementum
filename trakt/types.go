@@ -36,53 +36,53 @@ type EpisodeSearchResults []struct {
 type Movie struct {
 	Object
 
-	Released      string   `json:"released"`
-	URL           string   `json:"homepage"`
-	Trailer       string   `json:"trailer"`
-	Runtime       int      `json:"runtime"`
-	TagLine       string   `json:"tagline"`
-	Overview      string   `json:"overview"`
 	Certification string   `json:"certification"`
-	Rating        float32  `json:"rating"`
-	Votes         int      `json:"votes"`
 	Genres        []string `json:"genres"`
 	Language      string   `json:"language"`
+	Overview      string   `json:"overview"`
+	Rating        float32  `json:"rating"`
+	Released      string   `json:"released"`
+	Runtime       int      `json:"runtime"`
+	TagLine       string   `json:"tagline"`
+	Trailer       string   `json:"trailer"`
 	Translations  []string `json:"available_translations"`
+	URL           string   `json:"homepage"`
+	Votes         int      `json:"votes"`
 }
 
 // Show ...
 type Show struct {
 	Object
 
-	FirstAired    string   `json:"first_aired"`
-	URL           string   `json:"homepage"`
-	Trailer       string   `json:"trailer"`
-	Runtime       int      `json:"runtime"`
-	Overview      string   `json:"overview"`
-	Certification string   `json:"certification"`
-	Status        string   `json:"status"`
-	Network       string   `json:"network"`
 	AiredEpisodes int      `json:"aired_episodes"`
 	Airs          *Airs    `json:"airs"`
-	Rating        float32  `json:"rating"`
-	Votes         int      `json:"votes"`
-	Genres        []string `json:"genres"`
+	Certification string   `json:"certification"`
 	Country       string   `json:"country"`
+	FirstAired    string   `json:"first_aired"`
+	Genres        []string `json:"genres"`
 	Language      string   `json:"language"`
+	Network       string   `json:"network"`
+	Overview      string   `json:"overview"`
+	Rating        float32  `json:"rating"`
+	Runtime       int      `json:"runtime"`
+	Status        string   `json:"status"`
+	Trailer       string   `json:"trailer"`
 	Translations  []string `json:"available_translations"`
+	URL           string   `json:"homepage"`
+	Votes         int      `json:"votes"`
 }
 
 // Season ...
 type Season struct {
 	// Show          *Show   `json:"-"`
+	AiredEpisodes int     `json:"aired_episodes"`
+	EpisodeCount  int     `json:"episode_count"`
+	FirstAired    string  `json:"first_aired"`
+	Network       string  `json:"network"`
 	Number        int     `json:"number"`
 	Overview      string  `json:"overview"`
-	EpisodeCount  int     `json:"episode_count"`
-	AiredEpisodes int     `json:"aired_episodes"`
-	FirstAired    string  `json:"first_aired"`
 	Rating        float32 `json:"rating"`
 	Votes         int     `json:"votes"`
-	Network       string  `json:"network"`
 
 	Episodes []*Episode `json:"episodes"`
 	IDs      *IDs       `json:"ids"`
@@ -92,12 +92,12 @@ type Season struct {
 type Episode struct {
 	// Show          *Show       `json:"-"`
 	// Season        *ShowSeason `json:"-"`
-	Number       int      `json:"number"`
-	Season       int      `json:"season"`
-	Title        string   `json:"title"`
-	Overview     string   `json:"overview"`
 	Absolute     int      `json:"number_abs"`
 	FirstAired   string   `json:"first_aired"`
+	Number       int      `json:"number"`
+	Overview     string   `json:"overview"`
+	Season       int      `json:"season"`
+	Title        string   `json:"title"`
 	Translations []string `json:"available_translations"`
 
 	Runtime int     `json:"runtime"`
