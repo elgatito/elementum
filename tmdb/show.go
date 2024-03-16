@@ -36,14 +36,15 @@ func LogError(err error) {
 func GetShowImages(showID int) *Images {
 	defer perf.ScopeTimer()()
 
+	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
 	var images *Images
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d/images", showID),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "show images",
@@ -60,14 +61,15 @@ func GetShowImages(showID int) *Images {
 func GetSeasonImages(showID int, season int) *Images {
 	defer perf.ScopeTimer()()
 
+	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
 	var images *Images
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d/season/%d/images", showID, season),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "season images",
@@ -84,14 +86,15 @@ func GetSeasonImages(showID int, season int) *Images {
 func GetEpisodeImages(showID, season, episode int) *Images {
 	defer perf.ScopeTimer()()
 
+	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
 	var images *Images
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d/season/%d/episode/%d/images", showID, season, episode),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "episode images",
@@ -118,14 +121,15 @@ func GetShow(showID int, language string) (show *Show) {
 
 	defer perf.ScopeTimer()()
 
+	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d", showID),
 		Params: napping.Params{
 			"api_key":                apiKey,
 			"append_to_response":     "credits,images,alternative_titles,translations,external_ids,content_ratings",
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 			"language":               language,
 		}.AsUrlValues(),
 		Result:      &show,

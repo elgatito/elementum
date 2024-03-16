@@ -33,14 +33,15 @@ func (a ByPopularity) Less(i, j int) bool { return a[i].Popularity < a[j].Popula
 func GetImages(movieID int) *Images {
 	defer perf.ScopeTimer()()
 
+	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
 	var images *Images
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/movie/%d/images", movieID),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "movie images",
@@ -64,14 +65,15 @@ func GetMovieByID(movieID string, language string) *Movie {
 	defer perf.ScopeTimer()()
 
 	var movie *Movie
+	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/movie/%s", movieID),
 		Params: napping.Params{
 			"api_key":                apiKey,
 			"append_to_response":     "credits,images,alternative_titles,translations,external_ids,trailers,release_dates",
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 			"language":               language,
 		}.AsUrlValues(),
 		Result:      &movie,

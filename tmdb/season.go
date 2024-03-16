@@ -26,6 +26,7 @@ import (
 func GetSeason(showID int, seasonNumber int, language string, seasonsCount int, includeEpisodes bool) *Season {
 	defer perf.ScopeTimer()()
 
+	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
 	var season *Season
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
@@ -33,8 +34,8 @@ func GetSeason(showID int, seasonNumber int, language string, seasonsCount int, 
 		Params: napping.Params{
 			"api_key":                apiKey,
 			"append_to_response":     "credits,images,videos,external_ids,alternative_titles,translations,trailers",
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 			"language":               language,
 		}.AsUrlValues(),
 		Result:      &season,

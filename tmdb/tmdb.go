@@ -299,8 +299,10 @@ func GetImageQualities() (imageQualities ImageQualityBundle) {
 }
 
 // GetLocalizedImages returns localized image, all images, images with text and images without text, so those can be used to set Kodi Arts
+// To find localized image we use: user's language -> second language -> English.
 func GetLocalizedImages(images []*Image, imageQuality ImageQualityIdentifier) (localizedImage string, allImages []string, imagesWithText []string, imagesWithoutText []string) {
 	foundLanguageSpecificImage := false
+	imagesWithSecondLanguageText := make([]string, 0)
 	for _, image := range images {
 		if strings.HasSuffix(image.FilePath, ".svg") { //Kodi does not support svg images
 			continue
@@ -313,6 +315,9 @@ func GetLocalizedImages(images []*Image, imageQuality ImageQualityIdentifier) (l
 			imagesWithoutText = append(imagesWithoutText, imageURL)
 		} else {
 			imagesWithText = append(imagesWithText, imageURL)
+			if image.Iso639_1 == config.Get().SecondLanguage {
+				imagesWithSecondLanguageText = append(imagesWithSecondLanguageText, imageURL)
+			}
 		}
 
 		// Try find localized image
@@ -321,10 +326,14 @@ func GetLocalizedImages(images []*Image, imageQuality ImageQualityIdentifier) (l
 			foundLanguageSpecificImage = true // we take first image, it has top rating
 		}
 	}
-	// If there is no localized image - then set it to the first image with text.
-	// It would be image in SecondLanguage from config, since we always get SecondLanguage images as backup.
-	if !foundLanguageSpecificImage && len(imagesWithText) > 0 {
-		localizedImage = imagesWithText[0]
+	// If there is no localized image - try to use SecondLanguage, then English (since
+	// we always get SecondLanguage and English images as backup)
+	if !foundLanguageSpecificImage {
+		if len(imagesWithSecondLanguageText) > 0 {
+			localizedImage = imagesWithSecondLanguageText[0]
+		} else if len(imagesWithText) > 0 { // this list will have only English images
+			localizedImage = imagesWithText[0]
+		}
 	}
 
 	return
@@ -352,7 +361,7 @@ func SetLocalizedArt(video *Entity, item *xbmc.ListItem) {
 		}
 
 		localizedPoster, allPosters, _, _ := GetLocalizedImages(video.Images.Posters, imageQualities.Poster)
-		// Poster in user's Language or SecondLanguage or leave Default Poster
+		// for Poster: user's language -> second language -> English -> original language (will be automatically provided by API as a fallback)
 		if localizedPoster != "" {
 			item.Art.Poster = localizedPoster
 		}

@@ -26,14 +26,15 @@ func GetEpisode(showID int, seasonNumber int, episodeNumber int, language string
 
 	var episode *Episode
 
+	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d/season/%d/episode/%d", showID, seasonNumber, episodeNumber),
 		Params: napping.Params{
 			"api_key":                apiKey,
 			"append_to_response":     "credits,images,videos,alternative_titles,translations,external_ids,trailers",
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 			"language":               language,
 		}.AsUrlValues(),
 		Result:      &episode,
