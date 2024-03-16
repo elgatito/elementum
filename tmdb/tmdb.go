@@ -320,12 +320,11 @@ func GetLocalizedImages(images []*Image, imageQuality ImageQualityIdentifier) (l
 			localizedImage = imageURL
 			foundLanguageSpecificImage = true // we take first image, it has top rating
 		}
-
-		// If there is no localized image - then set it to the first image with text.
-		// It would be image in SecondLanguage from config, since we always get SecondLanguage images as backup.
-		if !foundLanguageSpecificImage && len(imagesWithText) > 0 {
-			localizedImage = imagesWithText[0]
-		}
+	}
+	// If there is no localized image - then set it to the first image with text.
+	// It would be image in SecondLanguage from config, since we always get SecondLanguage images as backup.
+	if !foundLanguageSpecificImage && len(imagesWithText) > 0 {
+		localizedImage = imagesWithText[0]
 	}
 
 	return
