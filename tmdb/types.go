@@ -292,6 +292,7 @@ type TranslationData struct {
 	Title    string `json:"title"`
 	Overview string `json:"overview"`
 	Homepage string `json:"homepage"`
+	TagLine  string `json:"tagline"`
 }
 
 // FindResult ...

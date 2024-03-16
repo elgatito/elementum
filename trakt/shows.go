@@ -814,6 +814,7 @@ func (show *Show) ToListItem() (item *xbmc.ListItem) {
 				Genre:         show.Genres,
 				Plot:          show.Overview,
 				PlotOutline:   show.Overview,
+				TagLine:       show.TagLine,
 				Rating:        show.Rating,
 				Votes:         strconv.Itoa(show.Votes),
 				Duration:      show.Runtime * 60 * show.AiredEpisodes,

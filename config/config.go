@@ -1139,28 +1139,40 @@ func fetchConfiguration(xbmcHost *xbmc.XBMCHost) (*ConfigBundle, error) {
 		}
 	}
 
+	language, secondLanguage := getLanguages(xbmcHost, settings)
+
 	return &ConfigBundle{
 		Info:           info,
 		Platform:       platform,
 		Settings:       settings,
-		Language:       getLanguage(xbmcHost, settings.ToString("language")),
-		SecondLanguage: getSecondLanguage(settings.ToString("language")),
+		Language:       language,
+		SecondLanguage: secondLanguage,
 		Region:         xbmcHost.GetRegion(),
 	}, nil
 }
 
-func getLanguage(xbmcHost *xbmc.XBMCHost, lang string) string {
-	if lang == "" || !strings.Contains(lang, " | ") {
-		return xbmcHost.GetLanguageISO639_1()
+func getLanguages(xbmcHost *xbmc.XBMCHost, settings XbmcSettings) (language string, secondLanguage string) {
+	languageSetttings := settings.ToString("language")
+	secondLanguageSettings := settings.ToString("second_language")
+
+	// Define main language
+	if languageSetttings == "" || !strings.Contains(languageSetttings, " | ") {
+		language = xbmcHost.GetLanguageISO639_1()
+	} else {
+		language = strings.Split(languageSetttings, " | ")[1]
 	}
 
-	return strings.Split(lang, " | ")[1]
-}
-
-func getSecondLanguage(lang string) string {
-	if lang != "en" {
-		return "en"
+	// Define second language
+	if secondLanguageSettings == "" || !strings.Contains(secondLanguageSettings, " | ") {
+		secondLanguage = "en"
+	} else {
+		secondLanguage = strings.Split(secondLanguageSettings, " | ")[1]
 	}
 
-	return ""
+	// They should not be the same
+	if strings.HasPrefix(language, secondLanguage) || strings.HasPrefix(secondLanguage, language) {
+		secondLanguage = ""
+	}
+
+	return
 }
