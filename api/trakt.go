@@ -1169,7 +1169,7 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 	}
 
 	colorDate := config.Get().TraktCalendarsColorDate
-	colorShow := config.Get().TraktCalendarsColorShow
+	colorMovie := config.Get().TraktCalendarsColorShow
 	dateFormat := getCalendarsDateFormat()
 
 	now := util.UTCBod()
@@ -1212,8 +1212,12 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 				return
 			}
 
-			label := fmt.Sprintf(`[COLOR %s]%s[/COLOR] | [B][COLOR %s]%s[/COLOR][/B] `,
-				colorDate, aired.Format(dateFormat), colorShow, item.Label)
+			movieName := item.Label
+			if colorMovie != "none" {
+				movieName = fmt.Sprintf(`[COLOR %s]%s[/COLOR]`, colorMovie, movieName)
+			}
+			label := fmt.Sprintf(`[COLOR %s]%s[/COLOR] | [B]%s[/B]`,
+				colorDate, aired.Format(dateFormat), movieName)
 			item.Label = label
 			item.Info.Title = label
 
@@ -1421,8 +1425,11 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 			item.Info.Premiered = airDate
 			item.Info.LastPlayed = airDate
 
-			episodeLabel := fmt.Sprintf(`[COLOR %s]%s[/COLOR] | [B][COLOR %s]%s[/COLOR][/B] - [I][COLOR %s]%dx%02d %s[/COLOR][/I]`,
-				colorDate, aired.Format(dateFormat), colorShow, showName, localEpisodeColor, seasonNumber, episodeNumber, episodeName)
+			if colorShow != "none" {
+				showName = fmt.Sprintf(`[COLOR %s]%s[/COLOR]`, colorShow, showName)
+			}
+			episodeLabel := fmt.Sprintf(`[COLOR %s]%s[/COLOR] | [B]%s[/B] - [I][COLOR %s]%dx%02d %s[/COLOR][/I]`,
+				colorDate, aired.Format(dateFormat), showName, localEpisodeColor, seasonNumber, episodeNumber, episodeName)
 			item.Label = episodeLabel
 			item.Info.Title = episodeLabel
 
@@ -1589,8 +1596,11 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 			item.Info.Premiered = airDate
 			item.Info.LastPlayed = airDate
 
-			episodeLabel := fmt.Sprintf(`[COLOR %s]%s[/COLOR] | [B][COLOR %s]%s[/COLOR][/B] - [I][COLOR %s]%dx%02d %s[/COLOR][/I]`,
-				colorDate, aired.Format(dateFormat), colorShow, showName, localEpisodeColor, seasonNumber, episodeNumber, episodeName)
+			if colorShow != "none" {
+				showName = fmt.Sprintf(`[COLOR %s]%s[/COLOR]`, colorShow, showName)
+			}
+			episodeLabel := fmt.Sprintf(`[COLOR %s]%s[/COLOR] | [B]%s[/B] - [I][COLOR %s]%dx%02d %s[/COLOR][/I]`,
+				colorDate, aired.Format(dateFormat), showName, localEpisodeColor, seasonNumber, episodeNumber, episodeName)
 			item.Label = episodeLabel
 			item.Info.Title = episodeLabel
 
