@@ -25,8 +25,8 @@ func GetEpisode(showID int, seasonNumber int, episodeNumber int, language string
 	defer perf.ScopeTimer()()
 
 	var episode *Episode
+	languagesList := GetUserLanguages()
 
-	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d/season/%d/episode/%d", showID, seasonNumber, episodeNumber),

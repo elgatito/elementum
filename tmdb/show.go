@@ -36,8 +36,9 @@ func LogError(err error) {
 func GetShowImages(showID int) *Images {
 	defer perf.ScopeTimer()()
 
-	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
 	var images *Images
+	languagesList := GetUserLanguages()
+
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d/images", showID),
@@ -61,8 +62,9 @@ func GetShowImages(showID int) *Images {
 func GetSeasonImages(showID int, season int) *Images {
 	defer perf.ScopeTimer()()
 
-	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
 	var images *Images
+	languagesList := GetUserLanguages()
+
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d/season/%d/images", showID, season),
@@ -86,8 +88,9 @@ func GetSeasonImages(showID int, season int) *Images {
 func GetEpisodeImages(showID, season, episode int) *Images {
 	defer perf.ScopeTimer()()
 
-	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
 	var images *Images
+	languagesList := GetUserLanguages()
+
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d/season/%d/episode/%d/images", showID, season, episode),
@@ -121,7 +124,8 @@ func GetShow(showID int, language string) (show *Show) {
 
 	defer perf.ScopeTimer()()
 
-	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
+	languagesList := GetUserLanguages()
+
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d", showID),

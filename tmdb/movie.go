@@ -33,8 +33,9 @@ func (a ByPopularity) Less(i, j int) bool { return a[i].Popularity < a[j].Popula
 func GetImages(movieID int) *Images {
 	defer perf.ScopeTimer()()
 
-	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
 	var images *Images
+	languagesList := GetUserLanguages()
+
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/movie/%d/images", movieID),
@@ -65,7 +66,8 @@ func GetMovieByID(movieID string, language string) *Movie {
 	defer perf.ScopeTimer()()
 
 	var movie *Movie
-	languagesList := fmt.Sprintf("%s,%s,en,null", config.Get().Language, config.Get().SecondLanguage)
+	languagesList := GetUserLanguages()
+
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/movie/%s", movieID),

@@ -384,3 +384,21 @@ func SetLocalizedArt(video *Entity, item *xbmc.ListItem) {
 		}
 	}
 }
+
+// GetUserLanguages returns list of user languages to be used with include_*_language query parameters
+func GetUserLanguages() (languagesList string) {
+	// Always use user's language
+	languagesList = fmt.Sprintf("%s", config.Get().Language)
+	// Add second language as fallback
+	if config.Get().SecondLanguage != "" {
+		languagesList = fmt.Sprintf("%s,%s", languagesList, config.Get().SecondLanguage)
+	}
+	// Add English as fallback
+	if config.Get().Language != "en" && config.Get().SecondLanguage != "en" {
+		languagesList = fmt.Sprintf("%s,en", languagesList)
+	}
+	// Always add "no text" images
+	languagesList = fmt.Sprintf("%s,null", languagesList)
+
+	return
+}
