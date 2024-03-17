@@ -196,6 +196,13 @@ func (episode *Episode) GetName(show *Show) string {
 		return current.Data.Name
 	}
 
+	if config.Get().Language != "en" && config.Get().SecondLanguage != "en" {
+		current = episode.findTranslation("en")
+		if current != nil && current.Data != nil && current.Data.Name != "" {
+			return current.Data.Name
+		}
+	}
+
 	current = episode.findTranslation(show.OriginalLanguage)
 	if current != nil && current.Data != nil && current.Data.Name != "" {
 		return current.Data.Name
@@ -217,6 +224,13 @@ func (episode *Episode) overview(show *Show) string {
 	current = episode.findTranslation(config.Get().SecondLanguage)
 	if current != nil && current.Data != nil && current.Data.Overview != "" {
 		return current.Data.Overview
+	}
+
+	if config.Get().Language != "en" && config.Get().SecondLanguage != "en" {
+		current = episode.findTranslation("en")
+		if current != nil && current.Data != nil && current.Data.Overview != "" {
+			return current.Data.Overview
+		}
 	}
 
 	current = episode.findTranslation(show.OriginalLanguage)
