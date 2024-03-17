@@ -1495,7 +1495,7 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 		}
 		items = append(items, nextpage)
 	}
-	ctx.JSON(200, xbmc.NewView("tvshows", items))
+	ctx.JSON(200, xbmc.NewView("episodes", items))
 }
 
 func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total int, page int) {
