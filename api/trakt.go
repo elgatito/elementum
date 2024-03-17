@@ -1212,12 +1212,8 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 				return
 			}
 
-			movieName := item.Label
-			if colorMovie != "none" {
-				movieName = fmt.Sprintf(`[COLOR %s]%s[/COLOR]`, colorMovie, movieName)
-			}
-			label := fmt.Sprintf(`[COLOR %s]%s[/COLOR] | [B]%s[/B]`,
-				colorDate, aired.Format(dateFormat), movieName)
+			label := fmt.Sprintf(`%s | [B]%s[/B]`,
+				util.ApplyColor(aired.Format(dateFormat), colorDate), util.ApplyColor(item.Label, colorMovie))
 			item.Label = label
 			item.Info.Title = label
 
@@ -1425,11 +1421,9 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 			item.Info.Premiered = airDate
 			item.Info.LastPlayed = airDate
 
-			if colorShow != "none" {
-				showName = fmt.Sprintf(`[COLOR %s]%s[/COLOR]`, colorShow, showName)
-			}
-			episodeLabel := fmt.Sprintf(`[COLOR %s]%s[/COLOR] | [B]%s[/B] - [I][COLOR %s]%dx%02d %s[/COLOR][/I]`,
-				colorDate, aired.Format(dateFormat), showName, localEpisodeColor, seasonNumber, episodeNumber, episodeName)
+			fullEpisodeName := fmt.Sprintf(`%dx%02d %s`, seasonNumber, episodeNumber, episodeName)
+			episodeLabel := fmt.Sprintf(`%s | [B]%s[/B] - [I]%s[/I]`,
+				util.ApplyColor(aired.Format(dateFormat), colorDate), util.ApplyColor(showName, colorShow), util.ApplyColor(fullEpisodeName, localEpisodeColor))
 			item.Label = episodeLabel
 			item.Info.Title = episodeLabel
 
@@ -1596,11 +1590,9 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 			item.Info.Premiered = airDate
 			item.Info.LastPlayed = airDate
 
-			if colorShow != "none" {
-				showName = fmt.Sprintf(`[COLOR %s]%s[/COLOR]`, colorShow, showName)
-			}
-			episodeLabel := fmt.Sprintf(`[COLOR %s]%s[/COLOR] | [B]%s[/B] - [I][COLOR %s]%dx%02d %s[/COLOR][/I]`,
-				colorDate, aired.Format(dateFormat), showName, localEpisodeColor, seasonNumber, episodeNumber, episodeName)
+			fullEpisodeName := fmt.Sprintf(`%dx%02d %s`, seasonNumber, episodeNumber, episodeName)
+			episodeLabel := fmt.Sprintf(`%s | [B]%s[/B] - [I]%s[/I]`,
+				util.ApplyColor(aired.Format(dateFormat), colorDate), util.ApplyColor(showName, colorShow), util.ApplyColor(fullEpisodeName, localEpisodeColor))
 			item.Label = episodeLabel
 			item.Info.Title = episodeLabel
 

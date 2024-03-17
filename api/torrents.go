@@ -19,6 +19,7 @@ import (
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/database"
+	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/ident"
 	"github.com/elgatito/elementum/xbmc"
 )
@@ -291,7 +292,7 @@ func ListTorrents(s *bittorrent.Service) gin.HandlerFunc {
 			playURL := t.GetPlayURL("")
 
 			item := xbmc.ListItem{
-				Label: fmt.Sprintf("%.2f%% - [COLOR %s]%s[/COLOR] - %s", progress, color, status, torrentName),
+				Label: fmt.Sprintf("%.2f%% - %s - %s", progress, util.ApplyColor(status, color), torrentName),
 				Path:  playURL,
 				Info: &xbmc.ListItemInfo{
 					Title: torrentName,
