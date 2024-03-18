@@ -843,7 +843,11 @@ func Reload() (ret *Configuration, err error) {
 			newConfig.StrmLanguage = newConfig.Language
 		}
 	} else {
-		newConfig.StrmLanguage = newConfig.Language
+		if !strings.Contains(strings.ToLower(newConfig.StrmLanguage), "original") {
+			newConfig.StrmLanguage = newConfig.Language
+		} else {
+			newConfig.StrmLanguage = ""
+		}
 	}
 
 	if newConfig.SessionSave == 0 {
@@ -1175,4 +1179,13 @@ func getLanguages(xbmcHost *xbmc.XBMCHost, settings XbmcSettings) (language stri
 	}
 
 	return
+}
+
+func GetStrmLanguage() string {
+	c := Get()
+	if c.StrmLanguage != "" {
+		return c.StrmLanguage
+	}
+
+	return c.Language
 }

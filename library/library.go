@@ -467,13 +467,13 @@ func writeMovieStrm(tmdbID string, force bool) (*tmdb.Movie, error) {
 		return nil, ErrVideoRemoved
 	}
 
-	movie := tmdb.GetMovieByID(tmdbID, config.Get().StrmLanguage)
+	movie := tmdb.GetMovieByID(tmdbID, config.GetStrmLanguage())
 	if movie == nil {
 		return nil, errors.New("Can't find the movie")
 	}
 
 	movieName := movie.OriginalTitle
-	if config.Get().StrmLanguage != config.Get().Language && movie.Title != "" {
+	if config.Get().StrmLanguage != "" && movie.Title != "" {
 		movieName = movie.Title
 	}
 	movieStrm := util.ToFileName(fmt.Sprintf("%s (%s)", movieName, strings.Split(movie.ReleaseDate, "-")[0]))
@@ -552,7 +552,7 @@ func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
 		return nil, ErrVideoRemoved
 	}
 
-	show := tmdb.GetShow(showID, config.Get().StrmLanguage)
+	show := tmdb.GetShow(showID, config.GetStrmLanguage())
 	if show == nil {
 		return nil, fmt.Errorf("Unable to get show (%d)", showID)
 	}
@@ -691,7 +691,7 @@ func RemoveMovie(tmdbID int, purge bool) (*tmdb.Movie, []string, error) {
 	}()
 
 	ID := strconv.Itoa(tmdbID)
-	movie := tmdb.GetMovieByID(ID, config.Get().StrmLanguage)
+	movie := tmdb.GetMovieByID(ID, config.GetStrmLanguage())
 	if movie == nil {
 		return nil, nil, errors.New("Can't resolve movie")
 	}
@@ -727,7 +727,7 @@ func RemoveShow(tmdbID string, purge bool) (*tmdb.Show, []string, error) {
 		deleteDBItem(ID, ShowType, true, purge)
 	}()
 
-	show := tmdb.GetShow(ID, config.Get().StrmLanguage)
+	show := tmdb.GetShow(ID, config.GetStrmLanguage())
 
 	if show == nil {
 		return nil, nil, errors.New("Unable to find show to remove")
@@ -760,7 +760,7 @@ func RemoveEpisode(tmdbID int, showID int, seasonNumber int, episodeNumber int) 
 	if err := checkShowsPath(); err != nil {
 		return err
 	}
-	show := tmdb.GetShow(showID, config.Get().StrmLanguage)
+	show := tmdb.GetShow(showID, config.GetStrmLanguage())
 
 	if show == nil {
 		return errors.New("Unable to find show to remove episode")
@@ -770,7 +770,7 @@ func RemoveEpisode(tmdbID int, showID int, seasonNumber int, episodeNumber int) 
 	}
 
 	showName := show.OriginalName
-	if config.Get().StrmLanguage != config.Get().Language && show.Name != "" {
+	if config.Get().StrmLanguage != "" && show.Name != "" {
 		showName = show.Name
 	}
 
@@ -1454,7 +1454,7 @@ func getShowPath(show *tmdb.Show) (showPath, showStrm string) {
 	}
 
 	showName := show.OriginalName
-	if config.Get().StrmLanguage != config.Get().Language && show.Name != "" {
+	if config.Get().StrmLanguage != "" && show.Name != "" {
 		showName = show.Name
 	}
 
