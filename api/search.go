@@ -15,6 +15,7 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/database"
 	"github.com/elgatito/elementum/providers"
+	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -88,7 +89,7 @@ func Search(s *bittorrent.Service) gin.HandlerFunc {
 		for _, torrent := range torrents {
 			resolution := ""
 			if torrent.Resolution > 0 {
-				resolution = fmt.Sprintf("[B][COLOR %s]%s[/COLOR][/B] ", bittorrent.Colors[torrent.Resolution], bittorrent.Resolutions[torrent.Resolution])
+				resolution = fmt.Sprintf("[B]%s[/B] ", util.ApplyColor(bittorrent.Resolutions[torrent.Resolution], bittorrent.Colors[torrent.Resolution]))
 			}
 
 			info := make([]string, 0)

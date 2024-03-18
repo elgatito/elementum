@@ -795,7 +795,7 @@ func ShowSeasonLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		for _, torrent := range torrents {
 			resolution := ""
 			if torrent.Resolution > 0 {
-				resolution = fmt.Sprintf("[B][COLOR %s]%s[/COLOR][/B] ", bittorrent.Colors[torrent.Resolution], bittorrent.Resolutions[torrent.Resolution])
+				resolution = fmt.Sprintf("[B]%s[/B] ", util.ApplyColor(bittorrent.Resolutions[torrent.Resolution], bittorrent.Colors[torrent.Resolution]))
 			}
 
 			info := make([]string, 0)
@@ -991,7 +991,7 @@ func ShowEpisodeLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		for _, torrent := range torrents {
 			resolution := ""
 			if torrent.Resolution > 0 {
-				resolution = fmt.Sprintf("[B][COLOR %s]%s[/COLOR][/B] ", bittorrent.Colors[torrent.Resolution], bittorrent.Resolutions[torrent.Resolution])
+				resolution = fmt.Sprintf("[B]%s[/B] ", util.ApplyColor(bittorrent.Resolutions[torrent.Resolution], bittorrent.Colors[torrent.Resolution]))
 			}
 
 			info := make([]string, 0)
