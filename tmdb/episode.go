@@ -25,6 +25,7 @@ func GetEpisode(showID int, seasonNumber int, episodeNumber int, language string
 	defer perf.ScopeTimer()()
 
 	var episode *Episode
+	languagesList := GetUserLanguages()
 
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
@@ -32,8 +33,8 @@ func GetEpisode(showID int, seasonNumber int, episodeNumber int, language string
 		Params: napping.Params{
 			"api_key":                apiKey,
 			"append_to_response":     "credits,images,videos,alternative_titles,translations,external_ids,trailers",
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 			"language":               language,
 		}.AsUrlValues(),
 		Result:      &episode,
@@ -83,16 +84,29 @@ func (episode *Episode) SetArt(show *Show, season *Season, item *xbmc.ListItem) 
 		item.Art = &xbmc.ListItemArt{}
 	}
 
+	// Episode only have Still aka Thumbnail, thus we take other artworks from the season/show
+	season.SetArt(show, item)
+
+	imageQualities := GetImageQualities()
+
 	if episode.StillPath != "" {
-		item.Art.FanArt = ImageURL(episode.StillPath, "w1280")
-		item.Art.Banner = ImageURL(episode.StillPath, "w1280")
-		item.Art.Poster = ImageURL(episode.StillPath, "w1280")
-		item.Art.Thumbnail = ImageURL(episode.StillPath, "w1280")
-		item.Art.TvShowPoster = ImageURL(episode.StillPath, "w1280")
-	} else {
-		// Use the season's artwork as a fallback
-		season.SetArt(show, item)
+		item.Art.Thumbnail = ImageURL(episode.StillPath, imageQualities.Thumbnail)
+
+		// Last resort: if show and season does not have Poster/FanArt - we use Still
+		if item.Art.Poster == "" {
+			item.Art.Poster = ImageURL(episode.StillPath, imageQualities.Thumbnail)
+		}
+		if item.Art.FanArt == "" {
+			item.Art.FanArt = ImageURL(episode.StillPath, imageQualities.Thumbnail)
+		}
 	}
+
+	if item.Art.AvailableArtworks == nil {
+		item.Art.AvailableArtworks = &xbmc.Artworks{}
+	}
+
+	// This only will set available thumbnails
+	SetLocalizedArt(&episode.Entity, item)
 
 	if config.Get().UseFanartTv {
 		if show.FanArt == nil && show.ExternalIDs != nil {
@@ -102,6 +116,8 @@ func (episode *Episode) SetArt(show *Show, season *Season, item *xbmc.ListItem) 
 			item.Art = show.FanArt.ToEpisodeListItemArt(season.Season, item.Art)
 		}
 	}
+
+	item.Thumbnail = item.Art.Thumbnail
 }
 
 // ToListItem ...

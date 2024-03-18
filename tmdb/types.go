@@ -25,7 +25,6 @@ type Movie struct {
 	ExternalIDs         *ExternalIDs  `json:"external_ids"`
 	FanArt              *fanart.Movie `json:"fanart"`
 	IMDBId              string        `json:"imdb_id"`
-	Overview            string        `json:"overview"`
 	Popularity          float64       `json:"-"`
 	ProductionCompanies []*IDNameLogo `json:"production_companies"`
 	ProductionCountries []*Country    `json:"production_countries"`
@@ -47,7 +46,6 @@ type Movie struct {
 	} `json:"trailers"`
 
 	Credits *Credits `json:"credits,omitempty"`
-	Images  *Images  `json:"images,omitempty"`
 
 	ReleaseDates *ReleaseDatesResults `json:"release_dates"`
 }
@@ -66,7 +64,6 @@ type Show struct {
 	NumberOfEpisodes    int           `json:"number_of_episodes"`
 	NumberOfSeasons     int           `json:"number_of_seasons"`
 	OriginCountry       []string      `json:"origin_country"`
-	Overview            string        `json:"overview"`
 	Popularity          float64       `json:"-"`
 	ProductionCompanies []*IDNameLogo `json:"production_companies"`
 	ProductionCountries []*Country    `json:"production_countries"`
@@ -89,21 +86,17 @@ type Show struct {
 	} `json:"content_ratings"`
 
 	Credits *Credits `json:"credits,omitempty"`
-	Images  *Images  `json:"images,omitempty"`
 
 	Seasons SeasonList `json:"seasons"`
 }
 
 // Season ...
 type Season struct {
+	Entity
+
 	AirDate      string       `json:"air_date"`
-	Backdrop     string       `json:"backdrop_path"`
 	EpisodeCount int          `json:"episode_count,omitempty"`
 	ExternalIDs  *ExternalIDs `json:"external_ids"`
-	ID           int          `json:"id"`
-	Name         string       `json:"name,omitempty"`
-	Overview     string       `json:"overview"`
-	Poster       string       `json:"poster_path"`
 	Season       int          `json:"season_number"`
 
 	AlternativeTitles *struct {
@@ -119,24 +112,20 @@ type Season struct {
 	} `json:"trailers"`
 
 	Credits *Credits `json:"credits,omitempty"`
-	Images  *Images  `json:"images,omitempty"`
 
 	Episodes EpisodeList `json:"episodes"`
 }
 
 // Episode ...
 type Episode struct {
+	Entity
+
 	AirDate       string       `json:"air_date"`
 	EpisodeNumber int          `json:"episode_number"`
 	ExternalIDs   *ExternalIDs `json:"external_ids"`
-	ID            int          `json:"id"`
-	Name          string       `json:"name"`
-	Overview      string       `json:"overview"`
 	Runtime       int          `json:"runtime"`
 	SeasonNumber  int          `json:"season_number"`
 	StillPath     string       `json:"still_path"`
-	VoteAverage   float32      `json:"vote_average"`
-	VoteCount     int          `json:"vote_count"`
 
 	AlternativeTitles *struct {
 		Titles []*AlternativeTitle `json:"titles"`
@@ -151,7 +140,6 @@ type Episode struct {
 	} `json:"trailers"`
 
 	Credits *Credits `json:"credits,omitempty"`
-	Images  *Images  `json:"images,omitempty"`
 }
 
 // Entity ...
@@ -165,11 +153,14 @@ type Entity struct {
 	OriginalLanguage string    `json:"original_language,omitempty"`
 	OriginalName     string    `json:"original_name,omitempty"`
 	OriginalTitle    string    `json:"original_title,omitempty"`
+	Overview         string    `json:"overview"`
 	PosterPath       string    `json:"poster_path"`
 	ReleaseDate      string    `json:"release_date"`
 	Title            string    `json:"title,omitempty"`
 	VoteAverage      float32   `json:"vote_average"`
 	VoteCount        int       `json:"vote_count"`
+
+	Images *Images `json:"images,omitempty"`
 }
 
 // EntityList ...
@@ -231,6 +222,7 @@ type Images struct {
 	Backdrops []*Image `json:"backdrops"`
 	Posters   []*Image `json:"posters"`
 	Stills    []*Image `json:"stills"`
+	Logos     []*Image `json:"logos"`
 }
 
 // Cast ...
@@ -367,4 +359,16 @@ type APIRequest struct {
 	Result      interface{}
 	ErrMsg      interface{}
 	Description string
+}
+
+// ImageQualityIdentifier contains the image quality as a string, e.g. "w1280"
+type ImageQualityIdentifier string
+
+// ImageQualityBundle contains image qualities for different type of images
+type ImageQualityBundle struct {
+	Poster    ImageQualityIdentifier
+	FanArt    ImageQualityIdentifier
+	Logo      ImageQualityIdentifier
+	Thumbnail ImageQualityIdentifier
+	Landscape ImageQualityIdentifier
 }

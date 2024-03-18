@@ -3,7 +3,9 @@ package tmdb
 import (
 	"fmt"
 	"math/rand"
+	"net/url"
 	"sort"
+	"strings"
 
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
@@ -33,6 +35,13 @@ var (
 	apiKey = apiKeys[rand.Intn(len(apiKeys))]
 
 	WarmingUp = event.Event{}
+
+	//                                                  Original    High    Medium  Low
+	ImageQualitiesPoster    = []ImageQualityIdentifier{"original", "w780", "w500", "w342"}
+	ImageQualitiesFanArt    = []ImageQualityIdentifier{"original", "w1280", "w1280", "w780"}
+	ImageQualitiesLogo      = []ImageQualityIdentifier{"original", "w500", "w500", "w300"}
+	ImageQualitiesThumbnail = []ImageQualityIdentifier{"original", "w1280", "w780", "w500"}
+	ImageQualitiesLandscape = []ImageQualityIdentifier{"original", "w1280", "w780", "w500"}
 )
 
 // CheckAPIKey ...
@@ -94,12 +103,13 @@ func tmdbCheck(key string) bool {
 }
 
 // ImageURL ...
-func ImageURL(uri string, size string) string {
+func ImageURL(uri string, size ImageQualityIdentifier) (imageURL string) {
 	if uri == "" {
 		return ""
 	}
 
-	return imageEndpoint + size + uri
+	imageURL, _ = url.JoinPath(imageEndpoint, string(size), uri)
+	return
 }
 
 // ListEntities ...
@@ -276,4 +286,119 @@ func (credits *Credits) GetWriters() []string {
 		}
 	}
 	return writers
+}
+
+func GetImageQualities() (imageQualities ImageQualityBundle) {
+	return ImageQualityBundle{
+		Poster:    ImageQualitiesPoster[config.Get().TMDBImagesQuality],
+		FanArt:    ImageQualitiesFanArt[config.Get().TMDBImagesQuality],
+		Logo:      ImageQualitiesLogo[config.Get().TMDBImagesQuality],
+		Thumbnail: ImageQualitiesThumbnail[config.Get().TMDBImagesQuality],
+		Landscape: ImageQualitiesLandscape[config.Get().TMDBImagesQuality],
+	}
+}
+
+// GetLocalizedImages returns localized image, all images, images with text and images without text, so those can be used to set Kodi Arts
+// To find localized image we use: user's language -> second language -> English.
+func GetLocalizedImages(images []*Image, imageQuality ImageQualityIdentifier) (localizedImage string, allImages []string, imagesWithText []string, imagesWithoutText []string) {
+	foundLanguageSpecificImage := false
+	imagesWithSecondLanguageText := make([]string, 0)
+	for _, image := range images {
+		if strings.HasSuffix(image.FilePath, ".svg") { //Kodi does not support svg images
+			continue
+		}
+
+		imageURL := ImageURL(image.FilePath, imageQuality)
+		allImages = append(allImages, imageURL)
+
+		if image.Iso639_1 == "" {
+			imagesWithoutText = append(imagesWithoutText, imageURL)
+		} else {
+			imagesWithText = append(imagesWithText, imageURL)
+			if image.Iso639_1 == config.Get().SecondLanguage {
+				imagesWithSecondLanguageText = append(imagesWithSecondLanguageText, imageURL)
+			}
+		}
+
+		// Try find localized image
+		if !foundLanguageSpecificImage && image.Iso639_1 == config.Get().Language {
+			localizedImage = imageURL
+			foundLanguageSpecificImage = true // we take first image, it has top rating
+		}
+	}
+	// If there is no localized image - try to use SecondLanguage, then English (since
+	// we always get SecondLanguage and English images as backup)
+	if !foundLanguageSpecificImage {
+		if len(imagesWithSecondLanguageText) > 0 {
+			localizedImage = imagesWithSecondLanguageText[0]
+		} else if len(imagesWithText) > 0 { // this list will have only English images
+			localizedImage = imagesWithText[0]
+		}
+	}
+
+	return
+}
+
+func SetLocalizedArt(video *Entity, item *xbmc.ListItem) {
+	if video.Images != nil {
+		imageQualities := GetImageQualities()
+
+		localizedBackdrop, _, backdropsWithText, _ := GetLocalizedImages(video.Images.Backdrops, imageQualities.Landscape)
+		// Landscape should be with text
+		if localizedBackdrop != "" { // We set Landscape only if there is a localized backdrop with text
+			item.Art.Landscape = localizedBackdrop // otherwise we let skin construct Landscape
+		}
+		// Do not assign empty list since fallback Art could have been be set in parent (e.g. season and show)
+		if len(backdropsWithText) > 0 {
+			item.Art.AvailableArtworks.Landscape = backdropsWithText
+		}
+
+		_, _, _, backdropsWithoutText := GetLocalizedImages(video.Images.Backdrops, imageQualities.FanArt)
+		// FanArt should be without text and it is already set by default, so set only AvailableArtworks
+		if len(backdropsWithoutText) > 0 {
+			item.Art.FanArts = backdropsWithoutText
+			item.Art.AvailableArtworks.FanArt = backdropsWithoutText
+		}
+
+		localizedPoster, allPosters, _, _ := GetLocalizedImages(video.Images.Posters, imageQualities.Poster)
+		// for Poster: user's language -> second language -> English -> original language (will be automatically provided by API as a fallback)
+		if localizedPoster != "" {
+			item.Art.Poster = localizedPoster
+		}
+		if len(allPosters) > 0 {
+			item.Art.AvailableArtworks.Poster = allPosters
+		}
+
+		localizedLogo, allLogos, _, _ := GetLocalizedImages(video.Images.Logos, imageQualities.Logo)
+		if localizedLogo != "" {
+			item.Art.ClearLogo = localizedLogo
+		}
+		if len(allLogos) > 0 {
+			item.Art.AvailableArtworks.ClearLogo = allLogos
+		}
+
+		// Thumbnail does not have localization, so set only AvailableArtworks
+		_, allStills, _, _ := GetLocalizedImages(video.Images.Stills, imageQualities.Thumbnail)
+		if len(allStills) > 0 {
+			item.Art.AvailableArtworks.Thumbnail = allStills
+		}
+	}
+}
+
+// GetUserLanguages returns list of user languages to be used with include_*_language query parameters
+func GetUserLanguages() (languagesList string) {
+	// Always use user's language
+	languagesList = fmt.Sprintf("%s", config.Get().Language)
+	// Add second language as fallback
+	if config.Get().SecondLanguage != "" {
+		languagesList = fmt.Sprintf("%s,%s", languagesList, config.Get().SecondLanguage)
+	}
+	// Add English as fallback
+	if config.Get().Language != "en" && config.Get().SecondLanguage != "en" {
+		languagesList = fmt.Sprintf("%s,en", languagesList)
+	}
+	// Always add "no text" images
+	languagesList = fmt.Sprintf("%s,null", languagesList)
+
+	return
 }

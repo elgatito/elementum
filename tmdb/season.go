@@ -27,14 +27,16 @@ func GetSeason(showID int, seasonNumber int, language string, seasonsCount int, 
 	defer perf.ScopeTimer()()
 
 	var season *Season
+	languagesList := GetUserLanguages()
+
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d/season/%d", showID, seasonNumber),
 		Params: napping.Params{
 			"api_key":                apiKey,
 			"append_to_response":     "credits,images,videos,external_ids,alternative_titles,translations,trailers",
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 			"language":               language,
 		}.AsUrlValues(),
 		Result:      &season,
@@ -61,7 +63,19 @@ func GetSeason(showID int, seasonNumber int, language string, seasonsCount int, 
 		// If we have empty Names/Overviews then we need to collect Translations separately
 		wg := sync.WaitGroup{}
 		for i, episode := range season.Episodes {
+			// TODO: episode.Translations is always nil when we get episode from season endpoint, so check is useless
+			// TODO: episode.Images is always nil when we get episode from season endpoint, thus no extra Thumbnails for Kodi
 			if episode.Translations == nil && (episode.Name == "" || episode.Overview == "") {
+				// Usually unaired episode does not have translated info, so we get inside if,
+				// but we should not get data about unaired episodes if not needed
+				if !config.Get().ShowUnairedEpisodes {
+					if episode.AirDate == "" {
+						continue
+					}
+					if _, isAired := util.AirDateWithAiredCheck(episode.AirDate, time.DateOnly, config.Get().ShowEpisodesOnReleaseDay); !isAired {
+						continue
+					}
+				}
 				wg.Add(1)
 				go func(idx int, episode *Episode) {
 					defer wg.Done()
@@ -144,58 +158,22 @@ func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 	// Use the show's artwork as a fallback
 	show.SetArt(item)
 
-	if season.Poster != "" {
-		item.Art.Poster = ImageURL(season.Poster, "w1280")
-		item.Art.Thumbnail = ImageURL(season.Poster, "w1280")
+	imageQualities := GetImageQualities()
+
+	if season.BackdropPath != "" { // TODO: looks like BackdropPath is always empty for season
+		item.Art.FanArt = ImageURL(season.BackdropPath, imageQualities.FanArt)
+		item.Art.Thumbnail = ImageURL(season.BackdropPath, imageQualities.Thumbnail)
 	}
-	if season.Backdrop != "" {
-		item.Art.FanArt = ImageURL(season.Backdrop, "w1280")
-		item.Art.Banner = ImageURL(season.Backdrop, "w1280")
+	if season.PosterPath != "" { // Try to use Poster of season if available
+		item.Art.Poster = ImageURL(season.PosterPath, imageQualities.Poster)
+		item.Art.TvShowPoster = ImageURL(season.PosterPath, imageQualities.Poster)
 	}
 
 	if item.Art.AvailableArtworks == nil {
 		item.Art.AvailableArtworks = &xbmc.Artworks{}
 	}
 
-	if season.Images != nil && season.Images.Backdrops != nil {
-		fanarts := make([]string, 0)
-		foundLanguageSpecificImage := false
-		for _, backdrop := range season.Images.Backdrops {
-			// for AvailableArtworks
-			fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
-
-			// try to use language specific art
-			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
-				item.Art.FanArt = ImageURL(backdrop.FilePath, "w1280")
-				item.Art.Banner = ImageURL(backdrop.FilePath, "w1280")
-				foundLanguageSpecificImage = true // we take first image, it has top rating
-			}
-		}
-		if len(fanarts) > 0 {
-			item.Art.FanArts = fanarts
-			item.Art.AvailableArtworks.FanArt = fanarts
-			item.Art.AvailableArtworks.Banner = fanarts
-		}
-	}
-
-	if season.Images != nil && season.Images.Posters != nil {
-		posters := make([]string, 0)
-		foundLanguageSpecificImage := false
-		for _, poster := range season.Images.Posters {
-			// for AvailableArtworks
-			posters = append(posters, ImageURL(poster.FilePath, "w1280"))
-
-			// try to use language specific art
-			if !foundLanguageSpecificImage && poster.Iso639_1 == config.Get().Language {
-				item.Art.Poster = ImageURL(poster.FilePath, "w1280")
-				item.Art.Thumbnail = ImageURL(poster.FilePath, "w1280")
-				foundLanguageSpecificImage = true // we take first image, it has top rating
-			}
-		}
-		if len(posters) > 0 {
-			item.Art.AvailableArtworks.Poster = posters
-		}
-	}
+	SetLocalizedArt(&season.Entity, item)
 
 	if config.Get().UseFanartTv {
 		if show.FanArt == nil && show.ExternalIDs != nil {

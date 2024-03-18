@@ -217,6 +217,7 @@ type Configuration struct {
 	PlayResumeBack                 int
 	TMDBApiKey                     string
 	TMDBShowUseProdCompanyAsStudio bool
+	TMDBImagesQuality              int
 
 	OSDBUser               string
 	OSDBPass               string
@@ -701,6 +702,7 @@ func Reload() (ret *Configuration, err error) {
 		PlayResumeBack:                 settings.ToInt("play_resume_back"),
 		TMDBApiKey:                     settings.ToString("tmdb_api_key"),
 		TMDBShowUseProdCompanyAsStudio: settings.ToBool("tmdb_show_use_prod_company_as_studio"),
+		TMDBImagesQuality:              settings.ToInt("tmdb_images_quality"),
 
 		OSDBUser:               settings.ToString("osdb_user"),
 		OSDBPass:               settings.ToString("osdb_pass"),

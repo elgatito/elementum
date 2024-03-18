@@ -34,13 +34,15 @@ func GetImages(movieID int) *Images {
 	defer perf.ScopeTimer()()
 
 	var images *Images
+	languagesList := GetUserLanguages()
+
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/movie/%d/images", movieID),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "movie images",
@@ -64,14 +66,16 @@ func GetMovieByID(movieID string, language string) *Movie {
 	defer perf.ScopeTimer()()
 
 	var movie *Movie
+	languagesList := GetUserLanguages()
+
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/movie/%s", movieID),
 		Params: napping.Params{
 			"api_key":                apiKey,
 			"append_to_response":     "credits,images,alternative_titles,translations,external_ids,trailers,release_dates",
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 			"language":               language,
 		}.AsUrlValues(),
 		Result:      &movie,
@@ -414,57 +418,20 @@ func (movie *Movie) Year() int {
 // SetArt sets artworks for movie
 func (movie *Movie) SetArt(item *xbmc.ListItem) {
 	if item.Art == nil {
-		item.Art = &xbmc.ListItemArt{
-			FanArt:    ImageURL(movie.BackdropPath, "w1280"),
-			Banner:    ImageURL(movie.BackdropPath, "w1280"),
-			Poster:    ImageURL(movie.PosterPath, "w1280"),
-			Thumbnail: ImageURL(movie.PosterPath, "w300"),
-		}
+		item.Art = &xbmc.ListItemArt{}
 	}
+
+	imageQualities := GetImageQualities()
+
+	item.Art.FanArt = ImageURL(movie.BackdropPath, imageQualities.FanArt)
+	item.Art.Thumbnail = ImageURL(movie.BackdropPath, imageQualities.Thumbnail)
+	item.Art.Poster = ImageURL(movie.PosterPath, imageQualities.Poster)
 
 	if item.Art.AvailableArtworks == nil {
 		item.Art.AvailableArtworks = &xbmc.Artworks{}
 	}
 
-	if movie.Images != nil && movie.Images.Backdrops != nil {
-		fanarts := make([]string, 0)
-		foundLanguageSpecificImage := false
-		for _, backdrop := range movie.Images.Backdrops {
-			// for AvailableArtworks
-			fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
-
-			// try to use language specific art
-			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
-				item.Art.FanArt = ImageURL(backdrop.FilePath, "w1280")
-				item.Art.Banner = ImageURL(backdrop.FilePath, "w1280")
-				foundLanguageSpecificImage = true // we take first image, it has top rating
-			}
-		}
-		if len(fanarts) > 0 {
-			item.Art.FanArts = fanarts
-			item.Art.AvailableArtworks.FanArt = fanarts
-			item.Art.AvailableArtworks.Banner = fanarts
-		}
-	}
-
-	if movie.Images != nil && movie.Images.Posters != nil {
-		posters := make([]string, 0)
-		foundLanguageSpecificImage := false
-		for _, poster := range movie.Images.Posters {
-			// for AvailableArtworks
-			posters = append(posters, ImageURL(poster.FilePath, "w1280"))
-
-			// try to use language specific art
-			if !foundLanguageSpecificImage && poster.Iso639_1 == config.Get().Language {
-				item.Art.Poster = ImageURL(poster.FilePath, "w1280")
-				item.Art.Thumbnail = ImageURL(poster.FilePath, "w1280")
-				foundLanguageSpecificImage = true // we take first image, it has top rating
-			}
-		}
-		if len(posters) > 0 {
-			item.Art.AvailableArtworks.Poster = posters
-		}
-	}
+	SetLocalizedArt(&movie.Entity, item)
 
 	if config.Get().UseFanartTv {
 		if movie.FanArt == nil {
@@ -475,7 +442,7 @@ func (movie *Movie) SetArt(item *xbmc.ListItem) {
 		}
 	}
 
-	item.Thumbnail = item.Art.Poster
+	item.Thumbnail = item.Art.Thumbnail
 }
 
 // ToListItem ...

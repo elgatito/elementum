@@ -37,13 +37,15 @@ func GetShowImages(showID int) *Images {
 	defer perf.ScopeTimer()()
 
 	var images *Images
+	languagesList := GetUserLanguages()
+
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d/images", showID),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "show images",
@@ -61,13 +63,15 @@ func GetSeasonImages(showID int, season int) *Images {
 	defer perf.ScopeTimer()()
 
 	var images *Images
+	languagesList := GetUserLanguages()
+
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d/season/%d/images", showID, season),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "season images",
@@ -85,13 +89,15 @@ func GetEpisodeImages(showID, season, episode int) *Images {
 	defer perf.ScopeTimer()()
 
 	var images *Images
+	languagesList := GetUserLanguages()
+
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d/season/%d/episode/%d/images", showID, season, episode),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 		}.AsUrlValues(),
 		Result:      &images,
 		Description: "episode images",
@@ -118,14 +124,16 @@ func GetShow(showID int, language string) (show *Show) {
 
 	defer perf.ScopeTimer()()
 
+	languagesList := GetUserLanguages()
+
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
 		URL: fmt.Sprintf("/tv/%d", showID),
 		Params: napping.Params{
 			"api_key":                apiKey,
 			"append_to_response":     "credits,images,alternative_titles,translations,external_ids,content_ratings",
-			"include_image_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
-			"include_video_language": fmt.Sprintf("%s,%s,null", config.Get().Language, config.Get().SecondLanguage),
+			"include_image_language": languagesList,
+			"include_video_language": languagesList,
 			"language":               language,
 		}.AsUrlValues(),
 		Result:      &show,
@@ -511,55 +519,18 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 		item.Art = &xbmc.ListItemArt{}
 	}
 
-	item.Art.FanArt = ImageURL(show.BackdropPath, "w1280")
-	item.Art.Banner = ImageURL(show.BackdropPath, "w1280")
-	item.Art.Poster = ImageURL(show.PosterPath, "w1280")
-	item.Art.Thumbnail = ImageURL(show.PosterPath, "w1280")
-	item.Art.TvShowPoster = ImageURL(show.PosterPath, "w1280")
+	imageQualities := GetImageQualities()
+
+	item.Art.FanArt = ImageURL(show.BackdropPath, imageQualities.FanArt)
+	item.Art.Thumbnail = ImageURL(show.BackdropPath, imageQualities.Thumbnail)
+	item.Art.Poster = ImageURL(show.PosterPath, imageQualities.Poster)
+	item.Art.TvShowPoster = ImageURL(show.PosterPath, imageQualities.Poster)
 
 	if item.Art.AvailableArtworks == nil {
 		item.Art.AvailableArtworks = &xbmc.Artworks{}
 	}
 
-	if show.Images != nil && show.Images.Backdrops != nil {
-		fanarts := make([]string, 0)
-		foundLanguageSpecificImage := false
-		for _, backdrop := range show.Images.Backdrops {
-			// for AvailableArtworks
-			fanarts = append(fanarts, ImageURL(backdrop.FilePath, "w1280"))
-
-			// try to use language specific art
-			if !foundLanguageSpecificImage && backdrop.Iso639_1 == config.Get().Language {
-				item.Art.FanArt = ImageURL(backdrop.FilePath, "w1280")
-				item.Art.Banner = ImageURL(backdrop.FilePath, "w1280")
-				foundLanguageSpecificImage = true // we take first image, it has top rating
-			}
-		}
-		if len(fanarts) > 0 {
-			item.Art.FanArts = fanarts
-			item.Art.AvailableArtworks.FanArt = fanarts
-			item.Art.AvailableArtworks.Banner = fanarts
-		}
-	}
-
-	if show.Images != nil && show.Images.Posters != nil {
-		posters := make([]string, 0)
-		foundLanguageSpecificImage := false
-		for _, poster := range show.Images.Posters {
-			// for AvailableArtworks
-			posters = append(posters, ImageURL(poster.FilePath, "w1280"))
-
-			// try to use language specific art
-			if !foundLanguageSpecificImage && poster.Iso639_1 == config.Get().Language {
-				item.Art.Poster = ImageURL(poster.FilePath, "w1280")
-				item.Art.Thumbnail = ImageURL(poster.FilePath, "w1280")
-				foundLanguageSpecificImage = true // we take first image, it has top rating
-			}
-		}
-		if len(posters) > 0 {
-			item.Art.AvailableArtworks.Poster = posters
-		}
-	}
+	SetLocalizedArt(&show.Entity, item)
 
 	if config.Get().UseFanartTv {
 		if show.FanArt == nil && show.ExternalIDs != nil {
@@ -570,7 +541,7 @@ func (show *Show) SetArt(item *xbmc.ListItem) {
 		}
 	}
 
-	item.Thumbnail = item.Art.Poster
+	item.Thumbnail = item.Art.Thumbnail
 }
 
 // ToListItem ...
