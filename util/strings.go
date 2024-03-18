@@ -24,7 +24,7 @@ func RandomString(length int) string {
 // ApplyColor applies a color to a text to use in Kodi skin
 func ApplyColor(text string, color string) (coloredText string) {
 	coloredText = text
-	if color != "none" {
+	if color != "" && color != "none" {
 		coloredText = fmt.Sprintf(`[COLOR %s]%s[/COLOR]`, color, text)
 	}
 	return
