@@ -269,6 +269,13 @@ func (season *Season) GetName(show *Show) string {
 		return current.Data.Name
 	}
 
+	if config.Get().Language != "en" && config.Get().SecondLanguage != "en" {
+		current = season.findTranslation("en")
+		if current != nil && current.Data != nil && current.Data.Name != "" {
+			return current.Data.Name
+		}
+	}
+
 	current = season.findTranslation(show.OriginalLanguage)
 	if current != nil && current.Data != nil && current.Data.Name != "" {
 		return current.Data.Name
@@ -290,6 +297,13 @@ func (season *Season) overview(show *Show) string {
 	current = season.findTranslation(config.Get().SecondLanguage)
 	if current != nil && current.Data != nil && current.Data.Overview != "" {
 		return current.Data.Overview
+	}
+
+	if config.Get().Language != "en" && config.Get().SecondLanguage != "en" {
+		current = season.findTranslation("en")
+		if current != nil && current.Data != nil && current.Data.Overview != "" {
+			return current.Data.Overview
+		}
 	}
 
 	current = season.findTranslation(show.OriginalLanguage)

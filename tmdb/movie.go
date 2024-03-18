@@ -548,7 +548,7 @@ func (movie *Movie) GetTitle() string {
 		return movie.Title
 	}
 
-	// Find translations in this order: Kodi language -> Second language -> Original language
+	// Find translations in this order: Kodi language -> Second language -> English -> Original language
 
 	current := movie.findTranslation(config.Get().Language)
 	if current != nil && current.Data != nil && current.Data.Title != "" {
@@ -558,6 +558,13 @@ func (movie *Movie) GetTitle() string {
 	current = movie.findTranslation(config.Get().SecondLanguage)
 	if current != nil && current.Data != nil && current.Data.Title != "" {
 		return current.Data.Title
+	}
+
+	if config.Get().Language != "en" && config.Get().SecondLanguage != "en" {
+		current = movie.findTranslation("en")
+		if current != nil && current.Data != nil && current.Data.Title != "" {
+			return current.Data.Title
+		}
 	}
 
 	current = movie.findTranslation(movie.OriginalLanguage)
@@ -583,6 +590,13 @@ func (movie *Movie) overview() string {
 		return current.Data.Overview
 	}
 
+	if config.Get().Language != "en" && config.Get().SecondLanguage != "en" {
+		current = movie.findTranslation("en")
+		if current != nil && current.Data != nil && current.Data.Overview != "" {
+			return current.Data.Overview
+		}
+	}
+
 	current = movie.findTranslation(movie.OriginalLanguage)
 	if current != nil && current.Data != nil && current.Data.Overview != "" {
 		return current.Data.Overview
@@ -604,6 +618,13 @@ func (movie *Movie) tagline() string {
 	current = movie.findTranslation(config.Get().SecondLanguage)
 	if current != nil && current.Data != nil && current.Data.TagLine != "" {
 		return current.Data.TagLine
+	}
+
+	if config.Get().Language != "en" && config.Get().SecondLanguage != "en" {
+		current = movie.findTranslation("en")
+		if current != nil && current.Data != nil && current.Data.TagLine != "" {
+			return current.Data.TagLine
+		}
 	}
 
 	current = movie.findTranslation(movie.OriginalLanguage)

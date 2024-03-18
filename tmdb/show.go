@@ -667,7 +667,7 @@ func (show *Show) GetName() string {
 		return show.Name
 	}
 
-	// Find translations in this order: Kodi language -> Second language -> Original language
+	// Find translations in this order: Kodi language -> Second language -> English -> Original language
 
 	current := show.findTranslation(config.Get().Language)
 	if current != nil && current.Data != nil && current.Data.Name != "" {
@@ -677,6 +677,13 @@ func (show *Show) GetName() string {
 	current = show.findTranslation(config.Get().SecondLanguage)
 	if current != nil && current.Data != nil && current.Data.Name != "" {
 		return current.Data.Name
+	}
+
+	if config.Get().Language != "en" && config.Get().SecondLanguage != "en" {
+		current = show.findTranslation("en")
+		if current != nil && current.Data != nil && current.Data.Name != "" {
+			return current.Data.Name
+		}
 	}
 
 	current = show.findTranslation(show.OriginalLanguage)
@@ -702,6 +709,13 @@ func (show *Show) overview() string {
 		return current.Data.Overview
 	}
 
+	if config.Get().Language != "en" && config.Get().SecondLanguage != "en" {
+		current = show.findTranslation("en")
+		if current != nil && current.Data != nil && current.Data.Overview != "" {
+			return current.Data.Overview
+		}
+	}
+
 	current = show.findTranslation(show.OriginalLanguage)
 	if current != nil && current.Data != nil && current.Data.Overview != "" {
 		return current.Data.Overview
@@ -722,6 +736,13 @@ func (show *Show) tagline() string {
 	current = show.findTranslation(config.Get().SecondLanguage)
 	if current != nil && current.Data != nil && current.Data.TagLine != "" {
 		return current.Data.TagLine
+	}
+
+	if config.Get().Language != "en" && config.Get().SecondLanguage != "en" {
+		current = show.findTranslation("en")
+		if current != nil && current.Data != nil && current.Data.TagLine != "" {
+			return current.Data.TagLine
+		}
 	}
 
 	current = show.findTranslation(show.OriginalLanguage)
