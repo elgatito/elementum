@@ -5,7 +5,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/asdine/storm/q"
@@ -233,7 +232,7 @@ func SelectSecondLanguage(ctx *gin.Context) {
 func SelectStrmLanguage(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 
-	languageSelector(xbmcHost, "strm_language", "Original", []string{xbmcHost.GetLocalizedString(30477)})
+	languageSelector(xbmcHost, "strm_language", xbmcHost.GetLocalizedString(30698), []string{xbmcHost.GetLocalizedString(30698), xbmcHost.GetLocalizedString(30477) + " | Original"})
 
 	ctx.String(200, "")
 }
@@ -244,22 +243,23 @@ func languageSelector(xbmcHost *xbmc.XBMCHost, nameSetting, defaultSetting strin
 	items := make([]string, 0)
 	items = append(items, initialValues...)
 
-	selected := 0
-	counter := len(items) - 1
 	languages := tmdb.GetLanguages(config.Get().Language)
 	for _, l := range languages {
-		counter++
+		items = append(items, l.Name+" | "+l.Iso639_1)
+	}
 
-		name := l.Name + " | " + l.Iso639_1
-		items = append(items, name)
-		if strings.HasPrefix(currentSetting, name) {
+	selected := 0
+	counter := 0
+	for _, l := range items {
+		if currentSetting == l {
 			selected = counter
 		}
+		counter++
 	}
 
 	choice := xbmcHost.ListDialogWithOptions(0, selected, "LOCALIZE[30373]", items...)
 	if choice >= 1 {
-		xbmcHost.SetSetting(nameSetting, languages[choice-1].Name+" | "+languages[choice-1].Iso639_1)
+		xbmcHost.SetSetting(nameSetting, items[choice])
 	} else if choice == 0 {
 		xbmcHost.SetSetting(nameSetting, defaultSetting)
 	}

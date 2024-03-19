@@ -837,7 +837,9 @@ func Reload() (ret *Configuration, err error) {
 	// Read Strm Language settings and cut-off ISO value
 	if strings.Contains(newConfig.StrmLanguage, " | ") {
 		tokens := strings.Split(newConfig.StrmLanguage, " | ")
-		if len(tokens) == 2 {
+		if strings.Contains(strings.ToLower(newConfig.StrmLanguage), "original") {
+			newConfig.StrmLanguage = ""
+		} else if len(tokens) == 2 {
 			newConfig.StrmLanguage = tokens[1]
 		} else {
 			newConfig.StrmLanguage = newConfig.Language
