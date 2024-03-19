@@ -89,7 +89,6 @@ type Configuration struct {
 	ChooseStreamAutoShow        bool
 	ChooseStreamAutoSearch      bool
 	ForceLinkType               bool
-	UseOriginalTitle            bool
 	AddSpecials                 bool
 	AddEpisodeNumbers           bool
 	ShowUnairedSeasons          bool
@@ -597,7 +596,6 @@ func Reload() (ret *Configuration, err error) {
 		ChooseStreamAutoShow:        settings.ToBool("choose_stream_auto_show"),
 		ChooseStreamAutoSearch:      settings.ToBool("choose_stream_auto_search"),
 		ForceLinkType:               settings.ToBool("force_link_type"),
-		UseOriginalTitle:            settings.ToBool("use_original_title"),
 		AddSpecials:                 settings.ToBool("add_specials"),
 		AddEpisodeNumbers:           settings.ToBool("add_episode_numbers"),
 		ShowUnairedSeasons:          settings.ToBool("unaired_seasons"),
