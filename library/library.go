@@ -569,7 +569,10 @@ func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
 	}
 
 	if config.Get().LibraryNFOShows {
-		writeShowNFO(show, filepath.Join(showPath, "tvshow.nfo"))
+		nfoPath := filepath.Join(showPath, "tvshow.nfo")
+		if _, err := os.Stat(nfoPath); os.IsNotExist(err) || force {
+			writeShowNFO(show, nfoPath)
+		}
 	}
 
 	addSpecials := config.Get().AddSpecials
@@ -587,7 +590,7 @@ func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
 			continue
 		}
 
-		seasonTMDB := tmdb.GetSeason(showID, season.Season, config.Get().Language, len(show.Seasons), true)
+		seasonTMDB := tmdb.GetSeason(showID, season.Season, config.Get().Language, len(show.Seasons), false)
 		if seasonTMDB == nil {
 			continue
 		}
@@ -769,12 +772,7 @@ func RemoveEpisode(tmdbID int, showID int, seasonNumber int, episodeNumber int) 
 		return errors.New("Channel is closed")
 	}
 
-	showName := show.OriginalName
-	if config.Get().StrmLanguage != "" && show.Name != "" {
-		showName = show.Name
-	}
-
-	showPath := util.ToFileName(fmt.Sprintf("%s (%s)", showName, strings.Split(show.FirstAirDate, "-")[0]))
+	showPath, _ := getShowPath(show)
 	episodeStrm := fmt.Sprintf("%s S%02dE%02d.strm", showPath, seasonNumber, episodeNumber)
 	episodePath := filepath.Join(ShowsLibraryPath(), showPath, episodeStrm)
 
