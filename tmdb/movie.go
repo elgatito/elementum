@@ -534,10 +534,6 @@ func (movie *Movie) mpaa() string {
 }
 
 func (movie *Movie) GetTitle() string {
-	if config.Get().UseOriginalTitle && movie.OriginalTitle != "" {
-		return movie.OriginalTitle
-	}
-
 	// If user's language is equal to video's language - we just use Title
 	if movie.Title != "" && movie.Title == movie.OriginalTitle && movie.OriginalLanguage == config.Get().Language {
 		return movie.Title

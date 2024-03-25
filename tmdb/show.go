@@ -653,10 +653,6 @@ func (show *Show) mpaa() string {
 }
 
 func (show *Show) GetName() string {
-	if config.Get().UseOriginalTitle && show.OriginalName != "" {
-		return show.OriginalName
-	}
-
 	// If user's language is equal to video's language - we just use Name
 	if show.Name != "" && show.Name == show.OriginalName && show.OriginalLanguage == config.Get().Language {
 		return show.Name
