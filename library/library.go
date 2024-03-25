@@ -1705,9 +1705,8 @@ func RemoveDuplicates() error {
 		return err
 	}
 
-	log.Warningf("Removed duplicate stats. Movies: %d, Shows: %d, Episodes: %d", movies, shows, episodes)
-
 	if movies > 0 || shows > 0 || episodes > 0 {
+		log.Debugf("Removed duplicate stats. Movies: %d, Shows: %d, Episodes: %d", movies, shows, episodes)
 		PlanOverallUpdate()
 	}
 
