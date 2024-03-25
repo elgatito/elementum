@@ -158,6 +158,7 @@ func (s *Service) CloseSession() {
 
 	log.Info("Closing Session")
 	s.SessionGlobal.Abort()
+
 	if err := lt.DeleteSession(s.SessionGlobal); err != nil {
 		log.Errorf("Could not delete libtorrent session: %s", err)
 	}
@@ -695,15 +696,16 @@ func (s *Service) AddTorrent(xbmcHost *xbmc.XBMCHost, options AddOptions) (*Torr
 		}
 	}
 
+	errorCode := lt.NewErrorCode()
+	defer lt.DeleteErrorCode(errorCode)
+
 	if strings.HasPrefix(options.URI, "magnet:") {
 		// Remove all spaces in magnet
 		options.URI = strings.Replace(options.URI, " ", "", -1)
 
-		ec := lt.NewErrorCode()
-		defer lt.DeleteErrorCode(ec)
-		lt.ParseMagnetUri(options.URI, torrentParams, ec)
-		if ec.Failed() {
-			return nil, errors.New(ec.Message().(string))
+		lt.ParseMagnetUri(options.URI, torrentParams, errorCode)
+		if errorCode.Failed() {
+			return nil, errors.New(errorCode.Message().(string))
 		}
 
 		originalTrackersSize = int(torrentParams.GetTrackers().Size())
@@ -733,7 +735,11 @@ func (s *Service) AddTorrent(xbmcHost *xbmc.XBMCHost, options AddOptions) (*Torr
 
 		log.Debugf("Adding torrent: %#v", options.URI)
 
-		info := lt.NewTorrentInfo(options.URI)
+		info := lt.NewTorrentInfo(options.URI, errorCode)
+		if errorCode.Failed() {
+			return nil, errors.New(errorCode.Message().(string))
+		}
+
 		private = info.Priv()
 		defer lt.DeleteTorrentInfo(info)
 		torrentParams.SetTorrentInfo(info)
@@ -790,10 +796,16 @@ func (s *Service) AddTorrent(xbmcHost *xbmc.XBMCHost, options AddOptions) (*Torr
 	}
 
 	// Call torrent creation
-	th, err = s.Session.AddTorrent(torrentParams)
+	th, err = s.Session.AddTorrent(torrentParams, errorCode)
 	if err != nil {
 		return nil, err
+	} else if errorCode.Failed() || !th.IsValid() {
+		if th.Swigcptr() != 0 {
+			defer lt.DeleteWrappedTorrentHandle(th)
+		}
+		return nil, errors.New(errorCode.Message().(string))
 	}
+
 	if !options.Paused {
 		th.Resume()
 	}
