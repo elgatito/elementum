@@ -78,6 +78,9 @@ func Refresh() error {
 	if err := RefreshShows(); err != nil {
 		log.Debugf("RefreshShows got an error: %v", err)
 	}
+	if err := RemoveDuplicates(); err != nil {
+		log.Debugf("RemoveDuplicates got an error: %v", err)
+	}
 
 	log.Debugf("Library refresh finished in %s", time.Since(now))
 	return nil

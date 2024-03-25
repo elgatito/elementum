@@ -472,12 +472,7 @@ func writeMovieStrm(tmdbID string, force bool) (*tmdb.Movie, error) {
 		return nil, errors.New("Can't find the movie")
 	}
 
-	movieName := movie.OriginalTitle
-	if config.Get().StrmLanguage != "" && movie.Title != "" {
-		movieName = movie.Title
-	}
-	movieStrm := util.ToFileName(fmt.Sprintf("%s (%s)", movieName, strings.Split(movie.ReleaseDate, "-")[0]))
-	moviePath := filepath.Join(MoviesLibraryPath(), movieStrm)
+	moviePath, movieStrm := getMoviePath(movie)
 
 	if _, err := os.Stat(moviePath); os.IsNotExist(err) {
 		if err := os.Mkdir(moviePath, 0755); err != nil {
@@ -1113,7 +1108,7 @@ func SyncMoviesListAdded(movies []*trakt.Movies, updating, isUpdateNeeded bool, 
 
 		tmdbID := strconv.Itoa(movie.Movie.IDs.TMDB)
 
-		if !updating && !isUpdateNeeded && uid.IsDuplicateMovie(tmdbID) {
+		if uid.IsDuplicateMovie(tmdbID) {
 			continue
 		}
 
@@ -1441,6 +1436,31 @@ func AddShow(tmdbID string, force bool) (*tmdb.Show, error) {
 	return show, nil
 }
 
+func getMoviePath(movie *tmdb.Movie) (moviePath, movieStrm string) {
+	// If this movie already uses any directory - we should write there, to avoid having duplicates
+	paths := getMoviePathsByTMDB(movie.ID)
+	if len(paths) != 0 {
+		for path := range paths {
+			moviePath = path
+			break
+		}
+	}
+
+	movieName := movie.OriginalTitle
+	if config.Get().StrmLanguage != "" && movie.Title != "" {
+		movieName = movie.Title
+	}
+
+	movieStrm = util.ToFileName(fmt.Sprintf("%s (%s)", movieName, strings.Split(movie.ReleaseDate, "-")[0]))
+	if moviePath == "" {
+		moviePath = filepath.Join(MoviesLibraryPath(), movieStrm)
+	} else {
+		movieStrm = filepath.Base(strings.Replace(moviePath, "\\", "/", -1))
+	}
+
+	return
+}
+
 func getShowPath(show *tmdb.Show) (showPath, showStrm string) {
 	// If this show already uses any directory - we should write there, to avoid having duplicates
 	paths := getShowPathsByTMDB(show.ID)
@@ -1459,6 +1479,8 @@ func getShowPath(show *tmdb.Show) (showPath, showStrm string) {
 	showStrm = util.ToFileName(fmt.Sprintf("%s (%s)", showName, strings.Split(show.FirstAirDate, "-")[0]))
 	if showPath == "" {
 		showPath = filepath.Join(ShowsLibraryPath(), showStrm)
+	} else {
+		showStrm = filepath.Base(strings.Replace(showPath, "\\", "/", -1))
 	}
 
 	return
@@ -1665,8 +1687,6 @@ func RemoveDuplicates() error {
 	if xbmcHost == nil || err != nil {
 		return err
 	}
-
-	xbmcHost.Notify("Elementum", "LOCALIZE[30683]", config.AddonIcon())
 
 	var movies, shows, episodes int
 

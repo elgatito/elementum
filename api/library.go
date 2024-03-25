@@ -273,6 +273,8 @@ func UnduplicateLibrary(ctx *gin.Context) {
 
 	answer := xbmcHost.DialogConfirmNonTimed("Elementum", fmt.Sprintf("LOCALIZE[30681];;%d;;%d;;%d", movies, shows, episodes))
 	if answer {
+		xbmcHost.Notify("Elementum", "LOCALIZE[30683]", config.AddonIcon())
+
 		go library.RemoveDuplicates()
 	}
 	ctx.String(200, "")
