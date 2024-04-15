@@ -10,11 +10,12 @@ const (
 	CacheExpireLong   = 24 * time.Hour
 	CacheExpireExtra  = 7 * 24 * time.Hour
 
-	TMDBKey    = "com.tmdb."
-	TVDBKey    = "com.tvdb."
-	TraktKey   = "com.trakt."
-	LibraryKey = "library."
-	FanartKey  = "fanart."
+	TMDBKey          = "com.tmdb."
+	TVDBKey          = "com.tvdb."
+	TraktKey         = "com.trakt."
+	LibraryKey       = "library."
+	FanartKey        = "fanart."
+	OpensubtitlesKey = "osdb."
 
 	TMDBEpisodeKey                 = TMDBKey + "episode.%d.%d.%d.%s"
 	TMDBEpisodeExpire              = CacheExpireLong

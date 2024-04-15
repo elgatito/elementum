@@ -48,7 +48,8 @@ type Request struct {
 	CacheKey         string
 	cachePending     bool
 
-	locker util.Unlocker
+	locker          util.Unlocker
+	originalPayload []byte
 }
 
 type CacheEntry struct {
@@ -193,6 +194,10 @@ func (r *Request) Do() (err error) {
 
 	// Apply body payload to request
 	if r.Payload != nil {
+		// Save payload for optional logging
+		r.originalPayload = r.Payload.Bytes()
+		r.Payload = bytes.NewBuffer(r.originalPayload)
+
 		req.Payload = r.Payload
 		req.RawPayload = true
 	}
@@ -327,6 +332,7 @@ func (r *Request) String() string {
                URL: %s %s
             Params: %s
             Header: %+v
+           Payload: %s
 %s
 
              Error: %#v
@@ -335,7 +341,7 @@ func (r *Request) String() string {
         StatusCode: %d
    Response Header: %+v
 	`, r.Description, r.Method, r.URL,
-		params, r.Header, r.Tracer.String(),
+		params, r.Header, string(r.originalPayload), r.Tracer.String(),
 		r.ResponseError, humanize.Bytes(r.ResponseSize), r.ResponseStatus, r.ResponseStatusCode, r.ResponseHeader)
 }
 

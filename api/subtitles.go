@@ -8,7 +8,7 @@ import (
 	"github.com/elgatito/elementum/bittorrent"
 
 	"github.com/elgatito/elementum/config"
-	"github.com/elgatito/elementum/osdb"
+	"github.com/elgatito/elementum/opensubtitles"
 	"github.com/elgatito/elementum/util/ip"
 	"github.com/elgatito/elementum/xbmc"
 
@@ -38,10 +38,10 @@ func SubtitlesIndex(s *bittorrent.Service) gin.HandlerFunc {
 		if s.GetActivePlayer() != nil {
 			showID = s.GetActivePlayer().Params().ShowID
 		}
-		payloads, preferredLanguage := osdb.GetPayloads(xbmcHost, q.Get("searchstring"), strings.Split(q.Get("languages"), ","), q.Get("preferredlanguage"), showID, playingFile)
+		payloads, preferredLanguage := opensubtitles.GetPayloads(xbmcHost, q.Get("searchstring"), strings.Split(q.Get("languages"), ","), q.Get("preferredlanguage"), showID, playingFile)
 		subLog.Infof("Subtitles payload: %#v", payloads)
 
-		results, err := osdb.DoSearch(payloads, preferredLanguage)
+		results, err := opensubtitles.DoSearch(payloads, preferredLanguage)
 		if err != nil {
 			subLog.Errorf("Error searching subtitles: %s", err)
 		}
@@ -49,27 +49,26 @@ func SubtitlesIndex(s *bittorrent.Service) gin.HandlerFunc {
 		items := make(xbmc.ListItems, 0)
 
 		for _, sub := range results {
-			rating, _ := strconv.ParseFloat(sub.SubRating, 64)
-			subLang := sub.LanguageName
-			if subLang == "Brazilian" {
-				subLang = "Portuguese (Brazil)"
+			if len(sub.Attributes.Files) == 0 {
+				continue
 			}
+
+			subFile := sub.Attributes.Files[0]
+
 			item := &xbmc.ListItem{
-				Label:     subLang,
-				Label2:    sub.SubFileName,
-				Icon:      strconv.Itoa(int((rating / 2) + 0.5)),
-				Thumbnail: sub.ISO639,
-				Path: URLQuery(URLForXBMC("/subtitle/%s", sub.IDSubtitleFile),
-					"file", sub.SubFileName,
-					"lang", sub.SubLanguageID,
-					"fmt", sub.SubFormat,
-					"dl", sub.SubDownloadLink),
+				Label:  sub.Attributes.Language,
+				Label2: subFile.FileName,
+				Icon:   strconv.Itoa(int((sub.Attributes.Ratings / 2) + 0.5)),
+				Path: URLQuery(URLForXBMC("/subtitle/%d", subFile.FileID),
+					"file", subFile.FileName,
+					"lang", sub.Attributes.Language,
+					"fmt", sub.Type),
 				Properties: &xbmc.ListItemProperties{},
 			}
-			if sub.MatchedBy == "moviehash" {
+			if sub.Attributes.MovieHashMatch {
 				item.Properties.SubtitlesSync = trueType
 			}
-			if sub.SubHearingImpaired == "1" {
+			if sub.Attributes.HearingImpaired {
 				item.Properties.SubtitlesHearingImpaired = trueType
 			}
 			items = append(items, item)
@@ -81,11 +80,10 @@ func SubtitlesIndex(s *bittorrent.Service) gin.HandlerFunc {
 
 // SubtitleGet ...
 func SubtitleGet(ctx *gin.Context) {
-	q := ctx.Request.URL.Query()
-	file := q.Get("file")
-	dl := q.Get("dl")
+	id := ctx.Params.ByName("id")
 
-	outFile, _, err := osdb.DoDownload(file, dl)
+	log.Debugf("Downloading subtitles: %s", id)
+	outFile, file, _, err := opensubtitles.DoDownload(id)
 	if err != nil {
 		subLog.Error(err)
 		ctx.String(200, err.Error())

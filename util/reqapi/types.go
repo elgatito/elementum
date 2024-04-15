@@ -8,9 +8,10 @@ import (
 type APIIdent string
 
 const (
-	TMDBIdent   APIIdent = cache.TMDBKey
-	TraktIdent  APIIdent = cache.TraktKey
-	FanArtIdent APIIdent = cache.FanartKey
+	TMDBIdent          APIIdent = cache.TMDBKey
+	TraktIdent         APIIdent = cache.TraktKey
+	FanArtIdent        APIIdent = cache.FanartKey
+	OpenSubtitlesIdent APIIdent = cache.OpensubtitlesKey
 )
 
 type API struct {

@@ -25,7 +25,7 @@ import (
 	"github.com/elgatito/elementum/database"
 	"github.com/elgatito/elementum/library/playcount"
 	"github.com/elgatito/elementum/library/uid"
-	"github.com/elgatito/elementum/osdb"
+	"github.com/elgatito/elementum/opensubtitles"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/trakt"
 	"github.com/elgatito/elementum/tvdb"
@@ -347,7 +347,7 @@ func (btp *Player) processMetadata() {
 		if !(config.Get().SilentStreamStart ||
 			btp.p.ResumePlayback == ResumeYes ||
 			config.Get().PlayResumeAction == 2 ||
-			btp.xbmcHost == nil || btp.xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30535];;%s", btp.p.StoredResume.ToString()))) {
+			btp.xbmcHost == nil || btp.xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30535];;%s", resume.ToString()))) {
 			log.Infof("Resetting stored resume")
 			resume.Reset()
 			btp.SaveStoredResume()
@@ -1186,11 +1186,9 @@ func (btp *Player) InitSubtitles() {
 
 // DownloadSubtitles ...
 func (btp *Player) DownloadSubtitles() {
-	payloads, preferredLanguage := osdb.GetPayloads(btp.xbmcHost, "", []string{"English"}, btp.xbmcHost.SettingsGetSettingValue("locale.subtitlelanguage"), btp.p.ShowID, btp.xbmcHost.PlayerGetPlayingFile())
-	log.Infof("Subtitles payload auto: %#v; %s", payloads, preferredLanguage)
-
-	results, err := osdb.DoSearch(payloads, preferredLanguage)
-	if err != nil || results == nil || len(results) == 0 {
+	payloads, preferredLanguage := opensubtitles.GetPayloads(btp.xbmcHost, "", []string{"English"}, btp.xbmcHost.SettingsGetSettingValue("locale.subtitlelanguage"), btp.p.ShowID, btp.xbmcHost.PlayerGetPlayingFile())
+	results, err := opensubtitles.DoSearch(payloads, preferredLanguage)
+	if err != nil || results == nil {
 		return
 	}
 
@@ -1200,8 +1198,12 @@ func (btp *Player) DownloadSubtitles() {
 			break
 		}
 
-		subPath := sub.SubFileName[:len(sub.SubFileName)-3] + sub.IDSubtitleFile + ".srt"
-		_, path, err := osdb.DoDownload(subPath, sub.SubDownloadLink)
+		if len(sub.Attributes.Files) == 0 {
+			continue
+		}
+
+		subFile := sub.Attributes.Files[0]
+		_, _, path, err := opensubtitles.DoDownload(strconv.Itoa(subFile.FileID))
 		if err != nil {
 			continue
 		}

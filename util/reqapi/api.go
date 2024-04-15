@@ -39,6 +39,13 @@ var (
 		RetriesLeft: 3,
 		RateLimiter: util.NewRateLimiter(100, 10*time.Second, 25),
 	}
+
+	OpenSubtitlesAPI = &API{
+		Ident:       OpenSubtitlesIdent,
+		Endpoint:    "https://api.opensubtitles.com/api/v1",
+		RetriesLeft: 3,
+		RateLimiter: util.NewRateLimiter(100, 10*time.Second, 25),
+	}
 )
 
 var log = logging.MustGetLogger("reqapi")

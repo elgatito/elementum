@@ -169,7 +169,7 @@ type Configuration struct {
 	TraktUsername                  string
 	TraktToken                     string
 	TraktRefreshToken              string
-	TraktTokenExpiry               int
+	TraktTokenExpiry               int64
 	TraktSyncEnabled               bool
 	TraktSyncPlaybackEnabled       bool
 	TraktSyncFrequencyMin          int
@@ -218,6 +218,8 @@ type Configuration struct {
 	TMDBShowUseProdCompanyAsStudio bool
 	TMDBImagesQuality              int
 
+	OSDBToken              string
+	OSDBTokenExpiry        int64
 	OSDBUser               string
 	OSDBPass               string
 	OSDBLanguage           string
@@ -653,7 +655,7 @@ func Reload() (ret *Configuration, err error) {
 		TraktUsername:                  settings.ToString("trakt_username"),
 		TraktToken:                     settings.ToString("trakt_token"),
 		TraktRefreshToken:              settings.ToString("trakt_refresh_token"),
-		TraktTokenExpiry:               settings.ToInt("trakt_token_expiry"),
+		TraktTokenExpiry:               settings.ToInt64("trakt_token_expiry"),
 		TraktSyncEnabled:               settings.ToBool("trakt_sync_enabled"),
 		TraktSyncPlaybackEnabled:       settings.ToBool("trakt_sync_playback_enabled"),
 		TraktSyncFrequencyMin:          settings.ToInt("trakt_sync_frequency_min"),
@@ -702,8 +704,10 @@ func Reload() (ret *Configuration, err error) {
 		TMDBShowUseProdCompanyAsStudio: settings.ToBool("tmdb_show_use_prod_company_as_studio"),
 		TMDBImagesQuality:              settings.ToInt("tmdb_images_quality"),
 
-		OSDBUser:               settings.ToString("osdb_user"),
-		OSDBPass:               settings.ToString("osdb_pass"),
+		OSDBToken:              settings.ToString("opensubtitles_token"),
+		OSDBTokenExpiry:        settings.ToInt64("opensubtitles_token_expiry"),
+		OSDBUser:               settings.ToString("opensubtitles_user"),
+		OSDBPass:               settings.ToString("opensubtitles_pass"),
 		OSDBLanguage:           settings.ToString("osdb_language"),
 		OSDBAutoLanguage:       settings.ToBool("osdb_auto_language"),
 		OSDBAutoLoad:           settings.ToBool("osdb_auto_load"),

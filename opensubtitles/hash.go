@@ -1,4 +1,4 @@
-package osdb
+package opensubtitles
 
 import (
 	"bytes"
