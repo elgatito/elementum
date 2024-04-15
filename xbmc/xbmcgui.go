@@ -265,7 +265,7 @@ func (h *XBMCHost) ListDialog(title string, items ...string) int {
 // ListDialogWithOptions adds autoclose and preselect to a dialog
 func (h *XBMCHost) ListDialogWithOptions(autoclose, preselect int, title string, items ...string) int {
 	retVal := -1
-	h.executeJSONRPCEx("Dialog_Select", &retVal, Args{title, items, autoclose, preselect})
+	h.executeJSONRPCEx("Dialog_Select_With_Options", &retVal, Args{title, items, autoclose, preselect})
 	return retVal
 }
 
