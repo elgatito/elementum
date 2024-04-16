@@ -78,7 +78,7 @@ func AddXBMCHost(host string) (*XBMCHost, error) {
 	defer mu.Unlock()
 
 	for _, h := range XBMCHosts {
-		if h.Host == host {
+		if h != nil && h.Host == host {
 			return h, nil
 		}
 	}
@@ -139,7 +139,7 @@ func GetXBMCHost(host string) (*XBMCHost, error) {
 	}
 
 	for _, h := range XBMCHosts {
-		if h.Host == host {
+		if h != nil && h.Host == host {
 			mu.RUnlock()
 			return h, nil
 		}

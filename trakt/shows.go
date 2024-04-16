@@ -439,6 +439,10 @@ func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 
 	// Check if this list needs a refresh from cache
 	listActivities, err := GetListActivities(user, listID)
+	if listActivities == nil {
+		return shows, nil
+	}
+
 	isUpdateNeeded := err != nil || listActivities.IsUpdated()
 
 	url := fmt.Sprintf("users/%s/lists/%s/items/shows", user, listID)
@@ -598,6 +602,9 @@ func WatchedShowsProgress() (shows []*ProgressShow, err error) {
 	defer perf.ScopeTimer()()
 
 	activities, err := GetActivities("WatchedShowsProgress")
+	if activities == nil {
+		return nil, err
+	}
 
 	cacheStore := cache.NewDBStore()
 

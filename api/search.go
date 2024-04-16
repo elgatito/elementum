@@ -27,6 +27,9 @@ func Search(s *bittorrent.Service) gin.HandlerFunc {
 		defer perf.ScopeTimer()()
 
 		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+		if xbmcHost == nil {
+			return
+		}
 
 		query := ctx.Query("q")
 		keyboard := ctx.Query("keyboard")
@@ -161,6 +164,9 @@ func searchLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, query string) []*
 
 func searchHistoryProcess(ctx *gin.Context, historyType string, keyboard string) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	if len(keyboard) > 0 {
 		query := ""
@@ -175,6 +181,9 @@ func searchHistoryProcess(ctx *gin.Context, historyType string, keyboard string)
 
 func searchHistoryAppend(ctx *gin.Context, historyType string, query string) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	database.GetStorm().AddSearchHistory(historyType, query)
 
@@ -237,6 +246,9 @@ func SearchRemove(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	query := ctx.DefaultQuery("query", "")
 	historyType := ctx.DefaultQuery("type", "")
@@ -257,6 +269,9 @@ func SearchClear(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	historyType := ctx.DefaultQuery("type", "")
 

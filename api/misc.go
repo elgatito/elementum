@@ -28,6 +28,9 @@ func Changelog(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	changelogPath := filepath.Join(config.Get().Info.Path, "whatsnew.txt")
 	if _, err := os.Stat(changelogPath); err != nil {
@@ -49,6 +52,9 @@ func Changelog(ctx *gin.Context) {
 // Donate display
 func Donate(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	xbmcHost.Dialog("Elementum", "LOCALIZE[30141]")
 	ctx.String(200, "")
@@ -57,6 +63,9 @@ func Donate(ctx *gin.Context) {
 // Settings display
 func Settings(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	addon := ctx.Params.ByName("addon")
 	if addon == "" {
@@ -72,6 +81,9 @@ func Status(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	title := "LOCALIZE[30393]"
 	text := ""
@@ -153,6 +165,9 @@ func fileSize(path string) string {
 // SelectNetworkInterface ...
 func SelectNetworkInterface(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	typeName := ctx.Params.ByName("type")
 
@@ -213,6 +228,9 @@ func SelectNetworkInterface(ctx *gin.Context) {
 // SelectLanguage ...
 func SelectLanguage(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	languageSelector(xbmcHost, "language", "", []string{xbmcHost.GetLocalizedString(30698)})
 
@@ -222,6 +240,9 @@ func SelectLanguage(ctx *gin.Context) {
 // SelectSecondLanguage ...
 func SelectSecondLanguage(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	languageSelector(xbmcHost, "second_language", xbmcHost.GetLocalizedString(30701), []string{xbmcHost.GetLocalizedString(30701)})
 
@@ -231,6 +252,9 @@ func SelectSecondLanguage(ctx *gin.Context) {
 // SelectStrmLanguage ...
 func SelectStrmLanguage(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	languageSelector(xbmcHost, "strm_language", xbmcHost.GetLocalizedString(30698), []string{xbmcHost.GetLocalizedString(30698), xbmcHost.GetLocalizedString(30477) + " | Original"})
 

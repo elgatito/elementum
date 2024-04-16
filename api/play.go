@@ -90,6 +90,10 @@ func Play(s *bittorrent.Service) gin.HandlerFunc {
 		}
 
 		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+		if xbmcHost == nil {
+			return
+		}
+
 		player := bittorrent.NewPlayer(s, params, xbmcHost)
 		log.Infof("Playing item: %s", litter.Sdump(params))
 
@@ -131,6 +135,9 @@ func PlayTorrent(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	retval := xbmcHost.DialogInsert()
 	if retval["path"] == "" {
@@ -146,6 +153,9 @@ func PlayTorrent(ctx *gin.Context) {
 func PlayURI(s *bittorrent.Service) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+		if xbmcHost == nil {
+			return
+		}
 
 		uri := ctx.Request.FormValue("uri")
 		file, header, fileError := ctx.Request.FormFile("file")

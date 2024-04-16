@@ -1713,6 +1713,9 @@ func (s *Service) ClientInfo(ctx *gin.Context) {
 	defer w.Flush()
 
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	for _, t := range s.q.All() {
 		if t == nil || t.th == nil || (torrentID != "" && t.infoHash != torrentID) {

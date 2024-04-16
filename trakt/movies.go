@@ -418,6 +418,10 @@ func ListItemsMovies(user, listID string) (movies []*Movies, err error) {
 
 	// Check if this list needs a refresh from cache
 	listActivities, err := GetListActivities(user, listID)
+	if listActivities == nil {
+		return movies, nil
+	}
+
 	isUpdateNeeded := err != nil || listActivities.IsUpdated()
 
 	url := fmt.Sprintf("users/%s/lists/%s/items/movies", user, listID)

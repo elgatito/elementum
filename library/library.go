@@ -121,6 +121,7 @@ var (
 	lock = sync.Mutex{}
 
 	ErrVideoRemoved = errors.New("Video is marked as removed")
+	ErrNoContainer  = errors.New("Container is not found")
 )
 
 // InitDB ...
@@ -135,6 +136,9 @@ func Init() {
 	InitDB()
 
 	xbmcHost, _ := xbmc.GetLocalXBMCHost()
+	if xbmcHost == nil {
+		return
+	}
 
 	if err := checkMoviesPath(); err != nil {
 		if xbmcHost != nil {
@@ -1487,13 +1491,17 @@ func getShowPath(show *tmdb.Show) (showPath, showStrm string) {
 }
 
 func getMoviePathsByTMDB(id int) (ret map[string]bool) {
+	ret = map[string]bool{}
+
 	xbmcHost, err := xbmc.GetLocalXBMCHost()
+	if xbmcHost == nil {
+		return
+	}
+
 	canResolveSpecialPath := true
 	if xbmcHost == nil || err != nil {
 		canResolveSpecialPath = false
 	}
-
-	ret = map[string]bool{}
 
 	if m, err := uid.GetMovieByTMDB(id); err == nil {
 		if m != nil && m.File != "" && !util.IsNetworkPath(m.File) && strings.HasSuffix(m.File, ".strm") {
@@ -1511,13 +1519,17 @@ func getMoviePathsByTMDB(id int) (ret map[string]bool) {
 }
 
 func getShowPathsByTMDB(id int) (ret map[string]bool) {
+	ret = map[string]bool{}
+
 	xbmcHost, err := xbmc.GetLocalXBMCHost()
+	if xbmcHost == nil {
+		return
+	}
+
 	canResolveSpecialPath := true
 	if xbmcHost == nil || err != nil {
 		canResolveSpecialPath = false
 	}
-
-	ret = map[string]bool{}
 
 	if s, err := uid.FindShowByTMDB(id); err == nil {
 		for _, e := range s.Episodes {

@@ -45,6 +45,7 @@ const (
 
 var (
 	errNoCandidates = fmt.Errorf("No candidates left")
+	errNoXBMCHost   = fmt.Errorf("No xbmcHost was found")
 )
 
 const (

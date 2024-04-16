@@ -78,6 +78,9 @@ var pasteProjects = []PasteProject{
 // Pastebin uploads /debug/:type to pastebin
 func Pastebin(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	dialog := xbmcHost.NewDialogProgressBG("Elementum", "LOCALIZE[30457]", "LOCALIZE[30457]")
 	if dialog != nil {
@@ -164,9 +167,9 @@ func Pastebin(ctx *gin.Context) {
 		}
 
 		defer resp.Body.Close()
-		if !p.IsJSON && !p.IsRAW {
+		if !p.IsJSON && !p.IsRAW && resp != nil && resp.Request != nil && resp.Request.URL != nil {
 			pasteURL = resp.Request.URL.String()
-		} else {
+		} else if resp != nil {
 			content, _ := io.ReadAll(resp.Body)
 
 			var respData map[string]*json.RawMessage

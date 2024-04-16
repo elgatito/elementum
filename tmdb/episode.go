@@ -85,7 +85,9 @@ func (episode *Episode) SetArt(show *Show, season *Season, item *xbmc.ListItem) 
 	}
 
 	// Episode only have Still aka Thumbnail, thus we take other artworks from the season/show
-	season.SetArt(show, item)
+	if season != nil {
+		season.SetArt(show, item)
+	}
 
 	imageQualities := GetImageQualities()
 
@@ -108,11 +110,11 @@ func (episode *Episode) SetArt(show *Show, season *Season, item *xbmc.ListItem) 
 	// This only will set available thumbnails
 	SetLocalizedArt(&episode.Entity, item)
 
-	if config.Get().UseFanartTv {
+	if config.Get().UseFanartTv && show != nil {
 		if show.FanArt == nil && show.ExternalIDs != nil {
 			show.FanArt = fanart.GetShow(util.StrInterfaceToInt(show.ExternalIDs.TVDBID))
 		}
-		if show.FanArt != nil {
+		if show.FanArt != nil && season != nil {
 			item.Art = show.FanArt.ToEpisodeListItemArt(season.Season, item.Art)
 		}
 	}

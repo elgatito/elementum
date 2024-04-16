@@ -372,7 +372,11 @@ func appendLocalFilePayloads(playingFile string, payloads *[]SearchPayload) erro
 }
 
 func appendRemoteFilePayloads(playingFile string, payloads *[]SearchPayload) error {
-	u, _ := url.Parse(playingFile)
+	u, err := url.Parse(playingFile)
+	if u == nil {
+		return err
+	}
+
 	f := path.Base(u.Path)
 	q := strings.Replace(filepath.Base(f), filepath.Ext(f), "", -1)
 

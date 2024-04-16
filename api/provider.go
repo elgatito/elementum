@@ -21,6 +21,9 @@ type providerDebugResponse struct {
 // ProviderGetMovie ...
 func ProviderGetMovie(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	tmdbID := ctx.Params.ByName("tmdbId")
 	provider := ctx.Params.ByName("provider")
@@ -53,6 +56,9 @@ func ProviderGetMovie(ctx *gin.Context) {
 // ProviderGetEpisode ...
 func ProviderGetEpisode(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	provider := ctx.Params.ByName("provider")
 	showID, _ := strconv.Atoi(ctx.Params.ByName("showId"))

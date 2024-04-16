@@ -98,6 +98,9 @@ func (m *Menu) Has(action int, i *MenuItem) int {
 // MenuAdd ...
 func MenuAdd(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	mediaType := ctx.Params.ByName("type")
 	name := ctx.Query("name")
@@ -119,6 +122,9 @@ func MenuAdd(ctx *gin.Context) {
 // MenuRemove ...
 func MenuRemove(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	mediaType := ctx.Params.ByName("type")
 	name := ctx.Query("name")

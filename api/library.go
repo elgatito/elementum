@@ -36,6 +36,9 @@ func AddMovie(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	tmdbID := ctx.Params.ByName("tmdbId")
 	force := ctx.DefaultQuery("force", falseType) == trueType
@@ -67,8 +70,13 @@ func AddMovie(ctx *gin.Context) {
 		logMsg = "%s (%s) merged to library"
 	}
 
-	log.Noticef(logMsg, movie.GetTitle(), tmdbID)
-	if config.Get().LibraryUpdate == 0 || (config.Get().LibraryUpdate == 1 && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("%s;;%s", label, movie.GetTitle()))) {
+	movieTitle := tmdbID
+	if movie != nil {
+		movieTitle = movie.GetTitle()
+	}
+
+	log.Noticef(logMsg, movieTitle, tmdbID)
+	if config.Get().LibraryUpdate == 0 || (config.Get().LibraryUpdate == 1 && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("%s;;%s", label, movieTitle))) {
 		xbmcHost.VideoLibraryScanDirectory(library.MoviesLibraryPath(), true)
 	} else {
 		if ctx != nil {
@@ -98,6 +106,9 @@ func RemoveMovie(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	tmdbID, _ := strconv.Atoi(ctx.Params.ByName("tmdbId"))
 	tmdbStr := ctx.Params.ByName("tmdbId")
@@ -134,6 +145,9 @@ func AddShow(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	tmdbID := ctx.Params.ByName("tmdbId")
 	force := ctx.DefaultQuery("force", falseType) == trueType
@@ -165,8 +179,13 @@ func AddShow(ctx *gin.Context) {
 		logMsg = "%s (%s) merged to library"
 	}
 
-	log.Noticef(logMsg, show.GetName(), tmdbID)
-	if config.Get().LibraryUpdate == 0 || (config.Get().LibraryUpdate == 1 && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("%s;;%s", label, show.GetName()))) {
+	showTitle := tmdbID
+	if show != nil {
+		showTitle = show.GetName()
+	}
+
+	log.Noticef(logMsg, showTitle, tmdbID)
+	if config.Get().LibraryUpdate == 0 || (config.Get().LibraryUpdate == 1 && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("%s;;%s", label, showTitle))) {
 		xbmcHost.VideoLibraryScanDirectory(library.ShowsLibraryPath(), true)
 	} else {
 		library.ClearPageCache(xbmcHost)
@@ -193,6 +212,9 @@ func RemoveShow(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	tmdbID := ctx.Params.ByName("tmdbId")
 	show, paths, err := library.RemoveShow(tmdbID, false)
@@ -221,6 +243,9 @@ func RemoveShow(ctx *gin.Context) {
 // UpdateLibrary ...
 func UpdateLibrary(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	if err := library.Refresh(); err != nil {
 		ctx.String(200, err.Error())
@@ -233,6 +258,9 @@ func UpdateLibrary(ctx *gin.Context) {
 // UpdateTrakt ...
 func UpdateTrakt(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	xbmcHost.Notify("Elementum", "LOCALIZE[30358]", config.AddonIcon())
 	ctx.String(200, "")
@@ -264,6 +292,9 @@ func PlayShow(s *bittorrent.Service) gin.HandlerFunc {
 // UnduplicateLibrary ...
 func UnduplicateLibrary(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	movies, shows, episodes, err := library.GetDuplicateStats()
 	if err != nil {

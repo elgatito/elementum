@@ -259,6 +259,10 @@ func GetAddonFiles(ctx *gin.Context) {
 	}
 
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
+
 	lastReleaseTag := getLastRelease(user + "/" + repository)
 
 	switch filepath {

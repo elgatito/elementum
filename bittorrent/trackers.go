@@ -193,8 +193,9 @@ func (tracker *Tracker) Scrape(torrents []*TorrentFile) []ScrapeResponseEntry {
 
 	infoHashes := make([][]byte, 0, len(torrents))
 	for _, torrent := range torrents {
-		bhash, _ := hex.DecodeString(torrent.InfoHash)
-		infoHashes = append(infoHashes, bhash)
+		if bhash, err := hex.DecodeString(torrent.InfoHash); err == nil {
+			infoHashes = append(infoHashes, bhash)
+		}
 	}
 
 	for i := 0; i <= len(infoHashes)/maxScrapedHashes; i++ {

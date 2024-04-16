@@ -97,9 +97,13 @@ func (seasons SeasonList) ToListItems(show *Show) []*xbmc.ListItem {
 	specials := make(xbmc.ListItems, 0)
 
 	if config.Get().ShowSeasonsOrder == 0 {
-		sort.Slice(seasons, func(i, j int) bool { return seasons[i].Season < seasons[j].Season })
+		sort.Slice(seasons, func(i, j int) bool {
+			return seasons[i] != nil && seasons[j] != nil && seasons[i].Season < seasons[j].Season
+		})
 	} else {
-		sort.Slice(seasons, func(i, j int) bool { return seasons[i].Season > seasons[j].Season })
+		sort.Slice(seasons, func(i, j int) bool {
+			return seasons[i] != nil && seasons[j] != nil && seasons[i].Season > seasons[j].Season
+		})
 	}
 
 	// If we have empty Names/Overviews then we need to collect Translations separately
@@ -145,9 +149,11 @@ func (seasons SeasonList) ToListItems(show *Show) []*xbmc.ListItem {
 	return append(items, specials...)
 }
 
-func (seasons SeasonList) Len() int           { return len(seasons) }
-func (seasons SeasonList) Swap(i, j int)      { seasons[i], seasons[j] = seasons[j], seasons[i] }
-func (seasons SeasonList) Less(i, j int) bool { return seasons[i].Season < seasons[j].Season }
+func (seasons SeasonList) Len() int      { return len(seasons) }
+func (seasons SeasonList) Swap(i, j int) { seasons[i], seasons[j] = seasons[j], seasons[i] }
+func (seasons SeasonList) Less(i, j int) bool {
+	return seasons[i] != nil && seasons[j] != nil && seasons[i].Season < seasons[j].Season
+}
 
 // SetArt sets artworks for season
 func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
@@ -156,7 +162,9 @@ func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 	}
 
 	// Use the show's artwork as a fallback
-	show.SetArt(item)
+	if show != nil {
+		show.SetArt(item)
+	}
 
 	imageQualities := GetImageQualities()
 
@@ -175,7 +183,7 @@ func (season *Season) SetArt(show *Show, item *xbmc.ListItem) {
 
 	SetLocalizedArt(&season.Entity, item)
 
-	if config.Get().UseFanartTv {
+	if config.Get().UseFanartTv && show != nil {
 		if show.FanArt == nil && show.ExternalIDs != nil {
 			show.FanArt = fanart.GetShow(util.StrInterfaceToInt(show.ExternalIDs.TVDBID))
 		}

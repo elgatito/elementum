@@ -16,6 +16,9 @@ var cmdLog = logging.MustGetLogger("cmd")
 // ClearCache ...
 func ClearCache(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	key := ctx.Params.ByName("key")
 	if key != "" {
@@ -42,6 +45,9 @@ func ClearCache(ctx *gin.Context) {
 // ClearCacheTMDB ...
 func ClearCacheTMDB(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	log.Debug("Removing TMDB cache")
 
@@ -53,6 +59,9 @@ func ClearCacheTMDB(ctx *gin.Context) {
 // ClearCacheTrakt ...
 func ClearCacheTrakt(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	log.Debug("Removing Trakt cache")
 
@@ -64,6 +73,9 @@ func ClearCacheTrakt(ctx *gin.Context) {
 // ClearPageCache ...
 func ClearPageCache(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	if ctx != nil {
 		ctx.Abort()
@@ -74,6 +86,9 @@ func ClearPageCache(ctx *gin.Context) {
 // ClearTraktCache ...
 func ClearTraktCache(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	if ctx != nil {
 		ctx.Abort()
@@ -84,6 +99,9 @@ func ClearTraktCache(ctx *gin.Context) {
 // ClearTmdbCache ...
 func ClearTmdbCache(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	if ctx != nil {
 		ctx.Abort()
@@ -94,6 +112,9 @@ func ClearTmdbCache(ctx *gin.Context) {
 // ResetPath ...
 func ResetPath(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	xbmcHost.SetSetting("download_path", "")
 	xbmcHost.SetSetting("library_path", "special://temp/elementum_library/")
@@ -103,6 +124,9 @@ func ResetPath(ctx *gin.Context) {
 // ResetCustomPath ...
 func ResetCustomPath(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	path := ctx.Params.ByName("path")
 
@@ -114,6 +138,9 @@ func ResetCustomPath(ctx *gin.Context) {
 // OpenCustomPath ...
 func OpenCustomPath(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	path := ctx.Params.ByName("path")
 	loc := ""
@@ -135,6 +162,9 @@ func OpenCustomPath(ctx *gin.Context) {
 // SetViewMode ...
 func SetViewMode(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	contentType := ctx.Params.ByName("content_type")
 	viewName := xbmcHost.InfoLabel("Container.Viewmode")
@@ -149,10 +179,18 @@ func SetViewMode(ctx *gin.Context) {
 // ClearDatabaseDeletedMovies ...
 func ClearDatabaseDeletedMovies(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	log.Debug("Removing deleted movies from database")
 
-	query := database.GetStormDB().Select(q.Eq("MediaType", library.MovieType), q.Eq("State", library.StateDeleted))
+	db := database.GetStormDB()
+	if db == nil {
+		return
+	}
+
+	query := db.Select(q.Eq("MediaType", library.MovieType), q.Eq("State", library.StateDeleted))
 	_ = query.Delete(&database.LibraryItem{})
 
 	xbmcHost.Notify("Elementum", "LOCALIZE[30472]", config.AddonIcon())
@@ -163,10 +201,18 @@ func ClearDatabaseDeletedMovies(ctx *gin.Context) {
 // ClearDatabaseMovies ...
 func ClearDatabaseMovies(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	log.Debug("Removing movies from database")
 
-	query := database.GetStormDB().Select(q.Eq("MediaType", library.MovieType))
+	db := database.GetStormDB()
+	if db == nil {
+		return
+	}
+
+	query := db.Select(q.Eq("MediaType", library.MovieType))
 	_ = query.Delete(&database.LibraryItem{})
 
 	xbmcHost.Notify("Elementum", "LOCALIZE[30472]", config.AddonIcon())
@@ -177,6 +223,9 @@ func ClearDatabaseMovies(ctx *gin.Context) {
 // ClearDatabaseDeletedShows ...
 func ClearDatabaseDeletedShows(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	log.Debug("Removing deleted shows from database")
 
@@ -191,6 +240,9 @@ func ClearDatabaseDeletedShows(ctx *gin.Context) {
 // ClearDatabaseShows ...
 func ClearDatabaseShows(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	log.Debug("Removing shows from database")
 
@@ -205,6 +257,9 @@ func ClearDatabaseShows(ctx *gin.Context) {
 // ClearDatabaseTorrentHistory ...
 func ClearDatabaseTorrentHistory(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	log.Debug("Removing torrent history from database")
 
@@ -220,6 +275,9 @@ func ClearDatabaseTorrentHistory(ctx *gin.Context) {
 // ClearDatabaseSearchHistory ...
 func ClearDatabaseSearchHistory(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	log.Debug("Removing search history from database")
 
@@ -233,6 +291,9 @@ func ClearDatabaseSearchHistory(ctx *gin.Context) {
 // ClearDatabase ...
 func ClearDatabase(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	log.Debug("Removing all the database")
 
@@ -255,6 +316,9 @@ func ClearDatabase(ctx *gin.Context) {
 // CompactDatabase ...
 func CompactDatabase(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	if !xbmcHost.DialogConfirm("Elementum", "LOCALIZE[30471]") {
 		ctx.String(200, "")
@@ -275,6 +339,9 @@ func CompactDatabase(ctx *gin.Context) {
 // CompactCache ...
 func CompactCache(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
 
 	if !xbmcHost.DialogConfirm("Elementum", "LOCALIZE[30471]") {
 		ctx.String(200, "")

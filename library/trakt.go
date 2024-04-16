@@ -204,6 +204,10 @@ func refreshTraktMoviesWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) er
 	l.Running.IsMovies = true
 
 	container := l.GetContainer(uid.WatchedMoviesContainer)
+	if container == nil {
+		return ErrNoContainer
+	}
+
 	container.Mu.Lock()
 
 	defer func() {
@@ -336,6 +340,10 @@ func refreshTraktShowsWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) err
 	l.Running.IsShows = true
 
 	container := l.GetContainer(uid.WatchedShowsContainer)
+	if container == nil {
+		return ErrNoContainer
+	}
+
 	container.Mu.Lock()
 
 	defer func() {
@@ -830,6 +838,10 @@ func syncShowsRemovedBack(shows []*trakt.Shows) error {
 
 func MoviesToUIDLocked(containerType uid.ContainerType, movies []*trakt.Movies) {
 	container := uid.Get().GetContainer(containerType)
+	if container == nil {
+		return
+	}
+
 	container.Mu.Lock()
 	defer container.Mu.Unlock()
 
@@ -841,6 +853,10 @@ func MoviesToUID(containerType uid.ContainerType, movies []*trakt.Movies) {
 
 	l := uid.Get()
 	container := l.GetContainer(containerType)
+	if container == nil {
+		return
+	}
+
 	container.Clear()
 	for _, m := range movies {
 		if m == nil || m.Movie == nil || m.Movie.IDs == nil {
@@ -856,6 +872,10 @@ func MoviesToUID(containerType uid.ContainerType, movies []*trakt.Movies) {
 
 func ShowsToUIDLocked(containerType uid.ContainerType, shows []*trakt.Shows) {
 	container := uid.Get().GetContainer(containerType)
+	if container == nil {
+		return
+	}
+
 	container.Mu.Lock()
 	defer container.Mu.Unlock()
 
@@ -867,6 +887,10 @@ func ShowsToUID(containerType uid.ContainerType, shows []*trakt.Shows) {
 
 	l := uid.Get()
 	container := l.GetContainer(containerType)
+	if container == nil {
+		return
+	}
+
 	container.Clear()
 	for _, s := range shows {
 		if s == nil || s.Show == nil || s.Show.IDs == nil {

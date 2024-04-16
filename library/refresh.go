@@ -564,6 +564,10 @@ func RefreshUIDsRunner(force bool) error {
 	moviesContainer := l.GetContainer(uid.WatchedMoviesContainer)
 	showsContainer := l.GetContainer(uid.WatchedShowsContainer)
 
+	if moviesContainer == nil || showsContainer == nil {
+		return ErrNoContainer
+	}
+
 	mu := l.GetMutex(uid.UIDsMutex)
 	mu.Lock()
 	defer mu.Unlock()
