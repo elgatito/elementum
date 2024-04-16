@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/elgatito/elementum/xbmc"
 )
 
 var audioExtensions = []string{
@@ -203,8 +205,23 @@ func IsWritablePath(path string) error {
 	return nil
 }
 
+func IsSpecialPath(path string) bool {
+	return strings.HasPrefix(path, "special:")
+}
+
 func IsNetworkPath(path string) bool {
 	return strings.HasPrefix(path, "nfs") || strings.HasPrefix(path, "smb")
+}
+
+func GetRealPath(path string) (ret string) {
+	xbmcHost, err := xbmc.GetLocalXBMCHost()
+	canResolveSpecialPath := xbmcHost != nil && err == nil
+
+	if IsSpecialPath(path) && canResolveSpecialPath {
+		return xbmcHost.TranslatePath(path)
+	}
+
+	return path
 }
 
 func IsValidPath(path string) bool {

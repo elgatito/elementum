@@ -1493,18 +1493,9 @@ func getShowPath(show *tmdb.Show) (showPath, showStrm string) {
 func getMoviePathsByTMDB(id int) (ret map[string]bool) {
 	ret = map[string]bool{}
 
-	xbmcHost, err := xbmc.GetLocalXBMCHost()
-	canResolveSpecialPath := true
-	if xbmcHost == nil || err != nil {
-		canResolveSpecialPath = false
-	}
-
 	if m, err := uid.GetMovieByTMDB(id); err == nil {
 		if m != nil && m.File != "" && !util.IsNetworkPath(m.File) && strings.HasSuffix(m.File, ".strm") {
-			filePath := m.File
-			if strings.HasPrefix(filePath, "special:") && canResolveSpecialPath {
-				filePath = xbmcHost.TranslatePath(filePath)
-			}
+			filePath := util.GetRealPath(m.File)
 			if util.IsValidPath(filePath) {
 				ret[filepath.Dir(filePath)] = true
 			}
@@ -1517,19 +1508,10 @@ func getMoviePathsByTMDB(id int) (ret map[string]bool) {
 func getShowPathsByTMDB(id int) (ret map[string]bool) {
 	ret = map[string]bool{}
 
-	xbmcHost, err := xbmc.GetLocalXBMCHost()
-	canResolveSpecialPath := true
-	if xbmcHost == nil || err != nil {
-		canResolveSpecialPath = false
-	}
-
 	if s, err := uid.FindShowByTMDB(id); err == nil {
 		for _, e := range s.Episodes {
 			if e != nil && e.File != "" && !util.IsNetworkPath(e.File) && strings.HasSuffix(e.File, ".strm") {
-				filePath := e.File
-				if strings.HasPrefix(filePath, "special:") && canResolveSpecialPath {
-					filePath = xbmcHost.TranslatePath(filePath)
-				}
+				filePath := util.GetRealPath(e.File)
 				if util.IsValidPath(filePath) {
 					ret[filepath.Dir(filePath)] = true
 				}
@@ -1731,7 +1713,7 @@ func removeMovieDuplicates(xbmcHost *xbmc.XBMCHost) (int, error) {
 			continue
 		}
 
-		dir := filepath.Dir(m.File)
+		dir := filepath.Dir(util.GetRealPath(m.File))
 		log.Debugf("Removing duplicate movie '%s' from '%s'", m.Title, dir)
 
 		// Remove strm file with parent folder from disk
@@ -1761,7 +1743,7 @@ func removeShowDuplicates(xbmcHost *xbmc.XBMCHost) (int, error) {
 			continue
 		}
 
-		dir := filepath.Dir(s.Episodes[0].File)
+		dir := filepath.Dir(util.GetRealPath(s.Episodes[0].File))
 		log.Debugf("Removing duplicate show '%s' from '%s'", s.Title, dir)
 
 		// Remove strm file with parent folder from disk
@@ -1797,7 +1779,7 @@ func removeEpisodeDuplicates(xbmcHost *xbmc.XBMCHost) (int, error) {
 		log.Debugf("Removing duplicate episode '%s' from '%s'", e.Title, e.File)
 
 		// Remove strm file with parent folder from disk
-		if err := os.RemoveAll(e.File); err != nil {
+		if err := os.RemoveAll(util.GetRealPath(e.File)); err != nil {
 			log.Error(err)
 			continue
 		}
