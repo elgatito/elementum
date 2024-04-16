@@ -1720,9 +1720,9 @@ func RemoveDuplicates() error {
 	if movies > 0 || shows > 0 || episodes > 0 {
 		log.Debugf("Removed duplicate stats. Movies: %d, Shows: %d, Episodes: %d", movies, shows, episodes)
 		PlanOverallUpdate()
-	}
 
-	xbmcHost.Notify("Elementum", fmt.Sprintf("LOCALIZE[30684];;%d;;%d;;%d", movies, shows, episodes), config.AddonIcon())
+		xbmcHost.Notify("Elementum", fmt.Sprintf("LOCALIZE[30684];;%d;;%d;;%d", movies, shows, episodes), config.AddonIcon())
+	}
 
 	return nil
 }
