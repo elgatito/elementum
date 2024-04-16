@@ -781,6 +781,7 @@ func ShowSeasonLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			} else {
 				if query := xbmcHost.Keyboard(longName, "LOCALIZE[30209]"); len(query) != 0 {
 					torrents = searchLinks(xbmcHost, ctx.Request.Host, query)
+					err = nil
 				}
 			}
 
@@ -980,6 +981,7 @@ func ShowEpisodeLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			} else {
 				if query := xbmcHost.Keyboard(longName, "LOCALIZE[30209]"); len(query) != 0 {
 					torrents = searchLinks(xbmcHost, ctx.Request.Host, query)
+					err = nil
 				}
 			}
 

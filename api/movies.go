@@ -635,10 +635,16 @@ func MovieLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			} else {
 				if query := xbmcHost.Keyboard(movie.GetTitle(), "LOCALIZE[30209]"); len(query) != 0 {
 					torrents = searchLinks(xbmcHost, ctx.Request.Host, query)
+					err = nil
 				}
 			}
 
 			SetCachedTorrents(tmdbID, torrents)
+		}
+
+		if err != nil {
+			ctx.Error(err)
+			return
 		}
 
 		if len(torrents) == 0 {
