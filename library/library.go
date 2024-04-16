@@ -1494,10 +1494,6 @@ func getMoviePathsByTMDB(id int) (ret map[string]bool) {
 	ret = map[string]bool{}
 
 	xbmcHost, err := xbmc.GetLocalXBMCHost()
-	if xbmcHost == nil {
-		return
-	}
-
 	canResolveSpecialPath := true
 	if xbmcHost == nil || err != nil {
 		canResolveSpecialPath = false
@@ -1522,10 +1518,6 @@ func getShowPathsByTMDB(id int) (ret map[string]bool) {
 	ret = map[string]bool{}
 
 	xbmcHost, err := xbmc.GetLocalXBMCHost()
-	if xbmcHost == nil {
-		return
-	}
-
 	canResolveSpecialPath := true
 	if xbmcHost == nil || err != nil {
 		canResolveSpecialPath = false
