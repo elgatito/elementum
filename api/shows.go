@@ -662,17 +662,17 @@ func ShowEpisodes(ctx *gin.Context) {
 	ctx.JSON(200, xbmc.NewView("episodes", filterListItems(episodes)))
 }
 
-func showSeasonLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, showID int, seasonNumber int) ([]*bittorrent.TorrentFile, error) {
+func showSeasonLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, showID int, seasonNumber int) []*bittorrent.TorrentFile {
 	log.Info("Searching links for TMDB Id: ", showID)
 
 	show := tmdb.GetShow(showID, config.Get().Language)
 	if show == nil {
-		return nil, errors.New("Unable to find show")
+		return nil
 	}
 
 	season := tmdb.GetSeason(showID, seasonNumber, config.Get().Language, len(show.Seasons), true)
 	if season == nil {
-		return nil, errors.New("Unable to find season")
+		return nil
 	}
 
 	log.Infof("Resolved %d to %s", showID, show.GetName())
@@ -682,7 +682,7 @@ func showSeasonLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, showID int, s
 		xbmcHost.Notify("Elementum", "LOCALIZE[30204]", config.AddonIcon())
 	}
 
-	return providers.SearchSeason(xbmcHost, searchers, show, season), nil
+	return providers.SearchSeason(xbmcHost, searchers, show, season)
 }
 
 // ShowSeasonRun ...
@@ -777,20 +777,14 @@ func ShowSeasonLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		fakeTmdbID := strconv.Itoa(showID) + "_" + strconv.Itoa(seasonNumber)
 		if torrents, err = GetCachedTorrents(fakeTmdbID); err != nil || len(torrents) == 0 {
 			if !isCustom {
-				torrents, err = showSeasonLinks(xbmcHost, ctx.Request.Host, showID, seasonNumber)
+				torrents = showSeasonLinks(xbmcHost, ctx.Request.Host, showID, seasonNumber)
 			} else {
 				if query := xbmcHost.Keyboard(longName, "LOCALIZE[30209]"); len(query) != 0 {
 					torrents = searchLinks(xbmcHost, ctx.Request.Host, query)
-					err = nil
 				}
 			}
 
 			SetCachedTorrents(fakeTmdbID, torrents)
-		}
-
-		if err != nil {
-			ctx.Error(err)
-			return
 		}
 
 		if len(torrents) == 0 {
@@ -866,22 +860,22 @@ func ShowSeasonLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 	}
 }
 
-func showEpisodeLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, showID int, seasonNumber int, episodeNumber int) ([]*bittorrent.TorrentFile, error) {
+func showEpisodeLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, showID int, seasonNumber int, episodeNumber int) []*bittorrent.TorrentFile {
 	log.Info("Searching links for TMDB Id: ", showID)
 
 	show := tmdb.GetShow(showID, config.Get().Language)
 	if show == nil {
-		return nil, errors.New("Unable to find show")
+		return nil
 	}
 
 	season := tmdb.GetSeason(showID, seasonNumber, config.Get().Language, len(show.Seasons), true)
 	if season == nil {
-		return nil, errors.New("Unable to find season")
+		return nil
 	}
 
 	episode := season.GetEpisode(episodeNumber)
 	if episode == nil {
-		return nil, errors.New("Unable to find episode")
+		return nil
 	}
 	log.Infof("Resolved %d to %s", showID, show.GetName())
 
@@ -890,7 +884,7 @@ func showEpisodeLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, showID int, 
 		xbmcHost.Notify("Elementum", "LOCALIZE[30204]", config.AddonIcon())
 	}
 
-	return providers.SearchEpisode(xbmcHost, searchers, show, episode), nil
+	return providers.SearchEpisode(xbmcHost, searchers, show, episode)
 }
 
 // ShowEpisodeRun ...
@@ -977,7 +971,7 @@ func ShowEpisodeLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		fakeTmdbID := strconv.Itoa(showID) + "_" + strconv.Itoa(seasonNumber) + "_" + strconv.Itoa(episodeNumber)
 		if torrents, err = GetCachedTorrents(fakeTmdbID); err != nil || len(torrents) == 0 {
 			if !isCustom {
-				torrents, err = showEpisodeLinks(xbmcHost, ctx.Request.Host, showID, seasonNumber, episodeNumber)
+				torrents = showEpisodeLinks(xbmcHost, ctx.Request.Host, showID, seasonNumber, episodeNumber)
 			} else {
 				if query := xbmcHost.Keyboard(longName, "LOCALIZE[30209]"); len(query) != 0 {
 					torrents = searchLinks(xbmcHost, ctx.Request.Host, query)
@@ -986,11 +980,6 @@ func ShowEpisodeLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			}
 
 			SetCachedTorrents(fakeTmdbID, torrents)
-		}
-
-		if err != nil {
-			ctx.Error(err)
-			return
 		}
 
 		if len(torrents) == 0 {

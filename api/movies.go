@@ -554,14 +554,14 @@ func movieLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, tmdbID string) []*
 
 	movie := tmdb.GetMovieByID(tmdbID, config.Get().Language)
 	if movie == nil {
-		return []*bittorrent.TorrentFile{}
+		return nil
 	}
 	log.Infof("Resolved %s to %s", tmdbID, movie.GetTitle())
 
 	searchers := providers.GetMovieSearchers(xbmcHost, callbackHost)
 	if len(searchers) == 0 {
 		xbmcHost.Notify("Elementum", "LOCALIZE[30204]", config.AddonIcon())
-		return []*bittorrent.TorrentFile{}
+		return nil
 	}
 
 	return providers.SearchMovie(xbmcHost, searchers, movie)
@@ -635,16 +635,10 @@ func MovieLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			} else {
 				if query := xbmcHost.Keyboard(movie.GetTitle(), "LOCALIZE[30209]"); len(query) != 0 {
 					torrents = searchLinks(xbmcHost, ctx.Request.Host, query)
-					err = nil
 				}
 			}
 
 			SetCachedTorrents(tmdbID, torrents)
-		}
-
-		if err != nil {
-			ctx.Error(err)
-			return
 		}
 
 		if len(torrents) == 0 {
