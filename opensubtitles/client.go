@@ -199,6 +199,7 @@ func SearchSubtitles(payloads []SearchPayload) (results []SearchResponseData, er
 			err := req.Do()
 			if err != nil {
 				log.Warningf("Error searching for subtitles: %s", err)
+				checkError(req)
 				return results, err
 			}
 
@@ -229,6 +230,7 @@ func DownloadSubtitles(id string) (resp DownloadResponse, err error) {
 
 	if err = req.Do(); err != nil {
 		log.Warningf("Error downloading subtitles: %s", err)
+		checkError(req)
 	}
 
 	return
@@ -248,6 +250,14 @@ func DoSearch(payloads []SearchPayload, preferredLanguage string) ([]SearchRespo
 	}
 
 	return results, nil
+}
+
+func checkError(req *reqapi.Request) {
+	if req.ResponseStatusCode == 406 {
+		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
+			xbmcHost.Notify("Elementum", "LOCALIZE[30702]", config.AddonIcon())
+		}
+	}
 }
 
 func DoDownload(id string) (*os.File, string, string, error) {
