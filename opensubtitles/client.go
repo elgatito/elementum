@@ -57,6 +57,16 @@ func GetAuthenticatedHeader() http.Header {
 	return headers
 }
 
+func GetAvailableHeader() http.Header {
+	headers := GetHeader()
+
+	if token := config.Get().OSDBToken; token != "" {
+		headers.Add("Authorization", fmt.Sprintf("Bearer %s", config.Get().OSDBToken))
+	}
+
+	return headers
+}
+
 func Authorize() error {
 	user := config.Get().OSDBUser
 	pass := config.Get().OSDBPass
@@ -112,6 +122,14 @@ func updateExpiry() {
 	}
 }
 
+func optionalLogin() error {
+	if config.Get().OSDBUser == "" && config.Get().OSDBPass == "" {
+		return nil
+	}
+
+	return ensureLogin()
+}
+
 func ensureLogin() error {
 	// Validate existing login expiry
 	if config.Get().OSDBToken != "" && config.Get().OSDBTokenExpiry > 0 {
@@ -156,7 +174,7 @@ func payloadToParams(payload SearchPayload, page int) napping.Params {
 }
 
 func SearchSubtitles(payloads []SearchPayload) (results []SearchResponseData, err error) {
-	if err := ensureLogin(); err != nil {
+	if err := optionalLogin(); err != nil {
 		return nil, err
 	}
 
@@ -171,7 +189,7 @@ func SearchSubtitles(payloads []SearchPayload) (results []SearchResponseData, er
 				API:         reqapi.OpenSubtitlesAPI,
 				Method:      "GET",
 				URL:         "subtitles",
-				Header:      GetAuthenticatedHeader(),
+				Header:      GetAvailableHeader(),
 				Params:      payloadToParams(payload, counter).AsUrlValues(),
 				Description: "Search Subtitles",
 
@@ -194,7 +212,7 @@ func SearchSubtitles(payloads []SearchPayload) (results []SearchResponseData, er
 }
 
 func DownloadSubtitles(id string) (resp DownloadResponse, err error) {
-	if err = ensureLogin(); err != nil {
+	if err = optionalLogin(); err != nil {
 		return
 	}
 
@@ -202,7 +220,7 @@ func DownloadSubtitles(id string) (resp DownloadResponse, err error) {
 		API:         reqapi.OpenSubtitlesAPI,
 		Method:      "POST",
 		URL:         "download",
-		Header:      GetAuthenticatedHeader(),
+		Header:      GetAvailableHeader(),
 		Payload:     bytes.NewBufferString(fmt.Sprintf(`{ "file_id": %s }`, id)),
 		Description: "Download Subtitles",
 
