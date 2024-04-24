@@ -260,3 +260,14 @@ func RequestUserIP(r *http.Request) string {
 	}
 	return IPAddress
 }
+
+func TestRepositoryURL() error {
+	port := 65223
+	resp, err := http.Get(fmt.Sprintf("http://%s:%d/addons.xml", GetLocalHost(), port))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return nil
+}

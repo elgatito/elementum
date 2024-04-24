@@ -33,6 +33,7 @@ import (
 	"github.com/elgatito/elementum/trakt"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/ident"
+	"github.com/elgatito/elementum/util/ip"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -303,6 +304,15 @@ func main() {
 		}
 
 		if repository.CheckRepository(xbmcHost, conf.SkipRepositorySearch, config.Get().Info.Path) {
+			// Wait until repository is available before using it
+			for i := 0; i <= 30; i++ {
+				if ip.TestRepositoryURL() == nil {
+					break
+				}
+
+				time.Sleep(1 * time.Second)
+			}
+
 			log.Info("Updating Kodi add-on repositories... ")
 			xbmcHost.UpdateAddonRepos()
 			go repository.CheckBurst(xbmcHost, conf.SkipBurstSearch, config.AddonIcon())
