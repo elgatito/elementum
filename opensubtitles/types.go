@@ -117,3 +117,14 @@ type DownloadResponse struct {
 	UID          int       `json:"uid"`
 	TS           int       `json:"ts"`
 }
+
+type DownloadErrorResponse struct {
+	Requests     int       `json:"requests"`
+	Remaining    int       `json:"remaining"`
+	Message      string    `json:"message"`
+	ResetTime    string    `json:"reset_time"`
+	ResetTimeUtc time.Time `json:"reset_time_utc"`
+	UK           string    `json:"uk"`
+	UID          int       `json:"uid"`
+	TS           int       `json:"ts"`
+}

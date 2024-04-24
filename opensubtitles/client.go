@@ -50,17 +50,10 @@ func GetHeader() http.Header {
 	}
 }
 
-func GetAuthenticatedHeader() http.Header {
-	headers := GetHeader()
-	headers.Add("Authorization", fmt.Sprintf("Bearer %s", config.Get().OSDBToken))
-
-	return headers
-}
-
 func GetAvailableHeader() http.Header {
 	headers := GetHeader()
 
-	if token := config.Get().OSDBToken; token != "" {
+	if token := config.Get().OSDBToken; token != "" && config.Get().OSDBUser != "" && config.Get().OSDBPass != "" {
 		headers.Add("Authorization", fmt.Sprintf("Bearer %s", config.Get().OSDBToken))
 	}
 
@@ -255,7 +248,14 @@ func DoSearch(payloads []SearchPayload, preferredLanguage string) ([]SearchRespo
 func checkError(req *reqapi.Request) {
 	if req.ResponseStatusCode == 406 {
 		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", "LOCALIZE[30702]", config.AddonIcon())
+			resp := &DownloadErrorResponse{}
+			req.Result = resp
+			translated := xbmcHost.GetLocalizedString(30702)
+			if err := req.Unmarshal(req.ResponseBody); err == nil {
+				xbmcHost.Notify("Elementum", fmt.Sprintf("%s: %s", translated, resp.Message), config.AddonIcon())
+			} else {
+				xbmcHost.Notify("Elementum", translated, config.AddonIcon())
+			}
 		}
 	}
 }
