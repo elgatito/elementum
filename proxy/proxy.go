@@ -139,10 +139,10 @@ func StartProxy() *CustomProxy {
 
 	if config.Get().ProxyURL != "" {
 		proxyURL, _ := url.Parse(config.Get().ProxyURL)
-		Proxy.Tr.Proxy = GetProxyURL(proxyURL)
+		Proxy.Tr.Proxy = http.ProxyURL(proxyURL)
 		log.Debugf("Setting up proxy for internal proxy: %s", config.Get().ProxyURL)
 	} else {
-		Proxy.Tr.Proxy = GetProxyURL(nil)
+		Proxy.Tr.Proxy = http.ProxyURL(nil)
 	}
 
 	if config.Get().InternalDNSEnabled {
