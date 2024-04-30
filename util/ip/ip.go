@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/proxy"
 
 	"github.com/gin-gonic/gin"
 	"github.com/op/go-logging"
@@ -247,7 +248,7 @@ func InternalProxyURL() string {
 		ip = localIP.String()
 	}
 
-	return "http://" + ip + ":65222"
+	return "http://" + ip + ":" + strconv.Itoa(proxy.ProxyPort)
 }
 
 func RequestUserIP(r *http.Request) string {

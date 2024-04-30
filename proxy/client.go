@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,7 +21,7 @@ var (
 	}
 
 	// InternalProxyURL holds parsed internal proxy url
-	internalProxyURL, _ = url.Parse("http://127.0.0.1:65222")
+	internalProxyURL, _ = url.Parse("http://127.0.0.1:" + strconv.Itoa(ProxyPort))
 
 	directTransport = &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
