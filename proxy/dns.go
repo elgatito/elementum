@@ -62,15 +62,11 @@ func init() {
 func getProvidersOrdered(conf int) []int {
 	switch conf {
 	case 1:
-		return []int{doh.GoogleProvider, doh.CloudflareProvider, doh.Quad9Provider}
-	case 2:
-		return []int{doh.CloudflareProvider, doh.Quad9Provider, doh.GoogleProvider}
-	case 3:
 		// To unblock TMDB we should use only Quad9, b/c if we specify multiple providers
 		// then doh package "will try to select the fastest"
 		return []int{doh.Quad9Provider}
 	default:
-		return []int{doh.Quad9Provider, doh.GoogleProvider, doh.CloudflareProvider}
+		return []int{doh.GoogleProvider, doh.CloudflareProvider, doh.Quad9Provider}
 	}
 }
 
@@ -112,8 +108,6 @@ func resolve(addr string) ([]string, error) {
 
 	commonLock.RLock()
 	defer commonLock.RUnlock()
-
-	doh.Use()
 
 	resp, err := commonResolver.Query(context.TODO(), dns.Domain(addr), dns.TypeA)
 	if err == nil && resp != nil && resp.Answer != nil {
