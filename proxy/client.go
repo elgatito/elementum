@@ -77,7 +77,6 @@ func CustomDial(network, addr string) (net.Conn, error) {
 	addrs := strings.Split(addr, ":")
 	if len(addrs) == 2 && len(addrs[0]) > 2 && strings.Contains(addrs[0], ".") {
 		if ipTest := net.ParseIP(addrs[0]); ipTest == nil {
-			log.Debugf("Resolving %s", addrs[0])
 			if ips, err := resolve(addrs[0]); err == nil && len(ips) > 0 {
 				log.Debugf("Resolved %s to %s", addrs[0], ips)
 				for _, i := range ips {
@@ -92,7 +91,7 @@ func CustomDial(network, addr string) (net.Conn, error) {
 					}
 				}
 			} else {
-				log.Debugf("Failed to resolve %s: %s", addrs[0], err)
+				log.Errorf("Failed to resolve %s: %s", addrs[0], err)
 			}
 		}
 	}
@@ -109,8 +108,6 @@ func CustomDialContext(ctx context.Context, network, addr string) (net.Conn, err
 	addrs := strings.Split(addr, ":")
 	if len(addrs) == 2 && len(addrs[0]) > 2 && strings.Contains(addrs[0], ".") {
 		if ipTest := net.ParseIP(addrs[0]); ipTest == nil {
-			// NOTE: these changes were ported from CustomDial and they works.
-			log.Debugf("Resolving %s", addrs[0])
 			if ips, err := resolve(addrs[0]); err == nil && len(ips) > 0 {
 				log.Debugf("Resolved %s to %s", addrs[0], ips)
 				for _, i := range ips {
@@ -120,12 +117,12 @@ func CustomDialContext(ctx context.Context, network, addr string) (net.Conn, err
 						}
 					}
 
-					if c, err := dialer.Dial(network, i+":"+addrs[1]); err == nil {
+					if c, err := dialer.DialContext(ctx, network, i+":"+addrs[1]); err == nil {
 						return c, err
 					}
 				}
 			} else {
-				log.Debugf("Failed to resolved %s: %s", addrs[0], err)
+				log.Errorf("Failed to resolve %s: %s", addrs[0], err)
 			}
 		}
 	}
