@@ -29,10 +29,6 @@ var (
 	}
 	directClient = &http.Client{
 		Transport: directTransport,
-		// TODO: with 15 i get timeouts for many Trakt and TMDB,
-		// with 60 i get timeouts for long calls.
-		// reqapi client did not have a timeout, so maybe this client also should not have it?
-		Timeout: 120 * time.Second,
 	}
 
 	proxyTransport = &http.Transport{
@@ -41,7 +37,6 @@ var (
 	}
 	proxyClient = &http.Client{
 		Transport: proxyTransport,
-		Timeout:   120 * time.Second,
 	}
 )
 
