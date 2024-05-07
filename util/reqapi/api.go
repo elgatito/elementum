@@ -2,12 +2,10 @@ package reqapi
 
 import (
 	"fmt"
-	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
-	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/proxy"
 	"github.com/elgatito/elementum/util"
 
 	"github.com/jmcvetta/napping"
@@ -76,16 +74,7 @@ func (api *API) GetURL(url string) string {
 }
 
 func (api *API) GetSession() *napping.Session {
-	httpTransport := &http.Transport{}
-	if config.Get().ProxyURL != "" {
-		proxyURL, _ := url.Parse(config.Get().ProxyURL)
-		httpTransport.Proxy = http.ProxyURL(proxyURL)
-	}
-	httpClient := &http.Client{
-		Transport: httpTransport,
-	}
-
 	return &napping.Session{
-		Client: httpClient,
+		Client: proxy.GetClient(),
 	}
 }

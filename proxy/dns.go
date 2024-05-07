@@ -7,8 +7,7 @@ import (
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/anacrolix/sync"
 	"github.com/bogdanovich/dns_resolver"
-	"github.com/likexian/doh-go"
-	"github.com/likexian/doh-go/dns"
+	"github.com/likexian/doh/dns"
 
 	"github.com/elgatito/elementum/config"
 )
@@ -45,7 +44,7 @@ var (
 		"uu",
 	}
 
-	commonResolver  = &doh.DoH{}
+	commonResolver  = &DoH{}
 	opennicResolver = &dns_resolver.DnsResolver{}
 
 	commonLock  = sync.RWMutex{}
@@ -59,17 +58,6 @@ func init() {
 	reloadDNS()
 }
 
-func getProvidersOrdered(conf int) []int {
-	switch conf {
-	case 1:
-		return []int{doh.GoogleProvider, doh.CloudflareProvider, doh.Quad9Provider}
-	case 2:
-		return []int{doh.CloudflareProvider, doh.Quad9Provider, doh.GoogleProvider}
-	default:
-		return []int{doh.Quad9Provider, doh.GoogleProvider, doh.CloudflareProvider}
-	}
-}
-
 func reloadDNS() {
 	commonLock.Lock()
 	opennicLock.Lock()
@@ -79,8 +67,7 @@ func reloadDNS() {
 		opennicLock.Unlock()
 	}()
 
-	commonResolver = doh.Use(getProvidersOrdered(config.Get().InternalDNSOrder)...)
-	commonResolver.EnableCache(true)
+	commonResolver = UseProviders(GoogleProvider, CloudflareProvider, Quad9Provider)
 
 	opennicResolver = dns_resolver.New(config.Get().InternalDNSOpenNic)
 }
@@ -109,16 +96,11 @@ func resolve(addr string) ([]string, error) {
 	commonLock.RLock()
 	defer commonLock.RUnlock()
 
-	resp, err := commonResolver.Query(context.TODO(), dns.Domain(addr), dns.TypeA)
-	if err == nil && resp != nil && resp.Answer != nil {
-		ips := make([]string, 0, len(resp.Answer))
-		for _, a := range resp.Answer {
-			ips = append(ips, a.Data)
-		}
-		return ips, nil
+	if resp, err := commonResolver.Query(context.TODO(), dns.Domain(addr), dns.TypeA); err == nil {
+		return IPs(resp), nil
+	} else {
+		return nil, err
 	}
-
-	return nil, err
 }
 
 func getZone(addr string) string {
