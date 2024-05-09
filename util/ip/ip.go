@@ -248,7 +248,7 @@ func InternalProxyURL() string {
 		ip = localIP.String()
 	}
 
-	return "http://" + ip + ":" + strconv.Itoa(proxy.ProxyPort)
+	return fmt.Sprintf("http://%s:%d", ip, proxy.ProxyPort)
 }
 
 func RequestUserIP(r *http.Request) string {
