@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"time"
 
 	"github.com/anacrolix/missinggo/perf"
@@ -39,6 +40,7 @@ type Request struct {
 	ResponseHeader     http.Header
 	ResponseBody       *bytes.Buffer
 	ResponseSize       uint64
+	ResponseIgnore     []int
 
 	Result any
 
@@ -215,6 +217,9 @@ func (r *Request) Do() (err error) {
 
 			if err != nil {
 				log.Errorf("Failed to make request to %s for %s with %+v: %s", r.URL, r.Description, r.Params, err)
+				return err
+			} else if len(r.ResponseIgnore) > 0 && slices.Contains(r.ResponseIgnore, r.ResponseStatusCode) {
+				log.Debugf("Ignoring status code %d as the one allowed for this request (%v)", r.ResponseStatusCode, r.ResponseIgnore)
 				return err
 			} else if r.ResponseStatusCode == 429 {
 				log.Warningf("Rate limit exceeded getting %s with %+v on %s, cooling down...", r.Description, r.Params, r.URL)

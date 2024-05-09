@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -741,7 +742,10 @@ func Scrobble(action string, contentType string, tmdbID int, watched float64, ru
 		Header:      GetAuthenticatedHeader(),
 		Params:      napping.Params{}.AsUrlValues(),
 		Payload:     bytes.NewBufferString(payload),
-		Description: "scrobble",
+		Description: endPoint,
+
+		// Ignoring 201 and 409 as they inform that it was already scrobbled
+		ResponseIgnore: []int{201, 409},
 	}
 
 	if err := req.Do(); err != nil {
@@ -749,7 +753,7 @@ func Scrobble(action string, contentType string, tmdbID int, watched float64, ru
 		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
 			xbmcHost.Notify("Elementum", "Scrobble failed, check your logs.", config.AddonIcon())
 		}
-	} else if req.ResponseStatusCode != 201 {
+	} else if !slices.Contains([]int{200, 201, 409}, req.ResponseStatusCode) {
 		log.Errorf("Failed to scrobble %s #%d to %s at %f: %d", contentType, tmdbID, action, progress, req.ResponseStatusCode)
 	}
 }
