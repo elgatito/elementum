@@ -8,6 +8,7 @@ import (
 	"github.com/anacrolix/sync"
 	"github.com/bogdanovich/dns_resolver"
 	"github.com/likexian/doh/dns"
+	"github.com/likexian/gokit/xcache"
 
 	"github.com/elgatito/elementum/config"
 )
@@ -49,6 +50,9 @@ var (
 
 	commonLock  = sync.RWMutex{}
 	opennicLock = sync.RWMutex{}
+
+	dnsCacheResults = xcache.New(xcache.MemoryCache)
+	dnsRunLocks     sync.Map
 )
 
 func init() {
@@ -65,24 +69,54 @@ func reloadDNS() {
 	}()
 
 	commonResolver = UseProviders(GoogleProvider, CloudflareProvider, Quad9Provider)
-
 	opennicResolver = dns_resolver.New(config.Get().InternalDNSOpenNic)
+
+	dnsCacheResults.Flush()
 }
 
-func resolveAddr(addr string) ([]string, error) {
+// Each request is going through this workflow:
+// Check cache -> Query Opennic (is address belongs to Opennic domains) -> Query DoH providers -> Save cache
+func resolveAddr(addr string) (ret []string, err error) {
 	defer perf.ScopeTimer()()
 
+	// Check for results in the cache
+	if cached := dnsCacheResults.Get(addr); cached != nil {
+		return cached.([]string), nil
+	}
+
+	// Lock DNS calls for same address and wait for cache to fill in
+	var mu *sync.Mutex
+	if m, ok := dnsRunLocks.Load(addr); ok {
+		mu = m.(*sync.Mutex)
+	} else {
+		mu = &sync.Mutex{}
+		dnsRunLocks.Store(addr, mu)
+	}
+
+	mu.Lock()
+
+	defer func() {
+		if len(ret) > 0 {
+			dnsCacheResults.Set(addr, ret, 3600)
+		}
+		mu.Unlock()
+	}()
+
+	// Resolve Opennic address
 	if isOpennicDomain(getZone(addr)) {
 		if ips := resolveOpennicAddr(addr); len(ips) > 0 {
-			return ips, nil
+			ret = ips
+			return
 		}
 	}
 
 	commonLock.RLock()
 	defer commonLock.RUnlock()
 
+	// Resolve with common resolver using DoH
 	if resp, err := commonResolver.Query(context.TODO(), dns.Domain(addr), dns.TypeA); err == nil {
-		return IPs(resp), nil
+		ret = IPs(resp)
+		return ret, err
 	} else {
 		return nil, err
 	}
@@ -103,9 +137,6 @@ func isOpennicDomain(zone string) bool {
 	return false
 }
 
-// This is very dumb solution.
-// Each request is going through this workflow:
-// Check saved -> Query Google/Quad9 -> Check saved -> Query Opennic -> Save
 func resolveOpennicAddr(host string) (ips []string) {
 	defer perf.ScopeTimer()()
 

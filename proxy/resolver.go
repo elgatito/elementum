@@ -34,7 +34,6 @@ type Provider interface {
 type DoH struct {
 	providers []Provider
 	cache     xcache.Cachex
-	stopc     chan bool
 	sync.RWMutex
 }
 
@@ -74,7 +73,6 @@ func UseProviders(provider ...provider) *DoH {
 	c := &DoH{
 		providers: []Provider{},
 		cache:     xcache.New(xcache.MemoryCache),
-		stopc:     make(chan bool),
 	}
 
 	if len(provider) == 0 {
@@ -90,7 +88,6 @@ func UseProviders(provider ...provider) *DoH {
 
 // Close close doh client
 func (c *DoH) Close() {
-	c.stopc <- true
 	if c.cache != nil {
 		c.cache.Close()
 	}
@@ -114,48 +111,48 @@ func (c *DoH) Query(ctx context.Context, d dns.Domain, t dns.Type, s ...dns.ECS)
 	ctxs, cancels := context.WithCancel(ctx)
 	defer cancels()
 
-	r := make(chan interface{})
-	for k, p := range c.providers {
-		go func(k int, p Provider) {
-			rsp, err := p.Query(ctxs, d, t, s...)
-			if err == nil {
-				r <- rsp
-			} else {
-				r <- nil
-			}
-		}(k, p)
-	}
+	r := make(chan *dns.Response, len(c.providers))
 
-	total := 0
 	result := &dns.Response{
 		Status: -1,
 	}
 
-	for v := range r {
-		total++
-		if v != nil {
-			cancels()
-			result = v.(*dns.Response)
+	var wg sync.WaitGroup
+	for _, p := range c.providers {
+		wg.Add(1)
+		go func(p Provider) {
+			defer wg.Done()
 
-			// Ignoring results that point to ourselves
-			if ips := IPs(result); slices.Contains(ips, "127.0.0.1") {
-				log.Debugf("Ignoring response - %#v", result)
-				continue
+			resp, err := p.Query(ctxs, d, t, s...)
+			if err != nil {
+				return
 			}
+
+			// Ignoring results that point to ourselves, unless we want to resolve localhost
+			if ips := IPs(resp); d != "localhost" && slices.Contains(ips, "127.0.0.1") {
+				return
+			}
+
+			cancels()
 
 			if cacheKey != "" {
 				ttl := 30
 				if len(result.Answer) > 0 {
 					ttl = result.Answer[0].TTL
 				}
-				_ = c.cache.Set(cacheKey, result, int64(ttl))
+				_ = c.cache.Set(cacheKey, resp, int64(ttl))
 			}
-		}
-		if total >= len(c.providers) {
-			close(r)
-			break
-		}
+
+			r <- resp
+		}(p)
 	}
+
+	go func() {
+		wg.Wait()
+		close(r)
+	}()
+
+	result = <-r
 
 	if result.Status == -1 {
 		return nil, fmt.Errorf("doh: all query failed")
