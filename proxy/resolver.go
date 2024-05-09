@@ -165,6 +165,9 @@ func IPs(resp *dns.Response) []string {
 	if resp != nil && resp.Answer != nil {
 		ips := make([]string, 0, len(resp.Answer))
 		for _, a := range resp.Answer {
+			if a.Type != ResponseTypeA && a.Type != ResponseTypeAAAA {
+				continue
+			}
 			ips = append(ips, a.Data)
 		}
 		return ips

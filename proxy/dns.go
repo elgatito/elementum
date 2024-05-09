@@ -55,6 +55,12 @@ var (
 	dnsRunLocks     sync.Map
 )
 
+// Supported dns response types
+var (
+	ResponseTypeA    = 1
+	ResponseTypeAAAA = 28
+)
+
 func init() {
 	reloadDNS()
 }
@@ -75,7 +81,7 @@ func reloadDNS() {
 }
 
 // Each request is going through this workflow:
-// Check cache -> Query Opennic (is address belongs to Opennic domains) -> Query DoH providers -> Save cache
+// Check cache -> Query Opennic (if address belongs to Opennic domains) -> Query DoH providers -> Save cache
 func resolveAddr(addr string) (ret []string, err error) {
 	defer perf.ScopeTimer()()
 
