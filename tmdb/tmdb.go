@@ -48,8 +48,18 @@ var (
 func CheckAPIKey() {
 	log.Info("Checking TMDB API key...")
 
+	if !tmdbCheckDomain() {
+		log.Error("No valid TMDB API endpoint found")
+		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
+			xbmcHost.Notify("Elementum", "LOCALIZE[30705]", config.AddonIcon())
+		}
+
+		return
+	}
+
 	customAPIKey := config.Get().TMDBApiKey
 	if customAPIKey != "" {
+		log.Info("Using custom TMDB API key %.7s", customAPIKey)
 		apiKeys = append(apiKeys, customAPIKey)
 		apiKey = customAPIKey
 	}
@@ -58,10 +68,10 @@ func CheckAPIKey() {
 	for index := len(apiKeys) - 1; index >= 0; index-- {
 		result = tmdbCheck(apiKey)
 		if result {
-			log.Noticef("TMDB API key check passed, using %s...", apiKey[:7])
+			log.Noticef("TMDB API key check passed, using key %.7s ...", apiKey)
 			break
 		} else {
-			log.Warningf("TMDB API key failed: %s", apiKey)
+			log.Warningf("TMDB API key check failed for key %.7s ...", apiKey)
 			if apiKey == apiKeys[index] {
 				apiKeys = append(apiKeys[:index], apiKeys[index+1:]...)
 			}
@@ -73,8 +83,12 @@ func CheckAPIKey() {
 			}
 		}
 	}
+
 	if !result {
 		log.Error("No valid TMDB API key found")
+		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
+			xbmcHost.Notify("Elementum", "LOCALIZE[30704]", config.AddonIcon())
+		}
 	}
 }
 
@@ -93,13 +107,28 @@ func tmdbCheck(key string) bool {
 
 	if err := req.Do(); err != nil {
 		log.Error(err.Error())
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", "TMDB check failed, check your logs.", config.AddonIcon())
-		}
 		return false
 	}
 
 	return true
+}
+
+func tmdbCheckDomain() bool {
+	for _, endpoint := range []string{reqapi.TMDBAPI.Endpoint, "https://api.tmdb.org/3"} {
+		req := reqapi.Request{
+			API:         reqapi.TMDBAPI,
+			URL:         endpoint,
+			Params:      napping.Params{}.AsUrlValues(),
+			Description: "tmdb api domain check",
+		}
+
+		if req.Do(); req.ResponseStatusCode == 204 {
+			reqapi.TMDBAPI.Endpoint = endpoint
+			return true
+		}
+	}
+
+	return false
 }
 
 // ImageURL ...
@@ -388,7 +417,7 @@ func SetLocalizedArt(video *Entity, item *xbmc.ListItem) {
 // GetUserLanguages returns list of user languages to be used with include_*_language query parameters
 func GetUserLanguages() (languagesList string) {
 	// Always use user's language
-	languagesList = fmt.Sprintf("%s", config.Get().Language)
+	languagesList = config.Get().Language
 	// Add second language as fallback
 	if config.Get().SecondLanguage != "" {
 		languagesList = fmt.Sprintf("%s,%s", languagesList, config.Get().SecondLanguage)
