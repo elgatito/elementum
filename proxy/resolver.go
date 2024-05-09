@@ -154,7 +154,7 @@ func (c *DoH) Query(ctx context.Context, d dns.Domain, t dns.Type, s ...dns.ECS)
 
 	result = <-r
 
-	if result.Status == -1 {
+	if result == nil || result.Status == -1 {
 		return nil, fmt.Errorf("doh: all query failed")
 	}
 
