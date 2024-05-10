@@ -154,7 +154,7 @@ func (c *DoH) Query(ctx context.Context, d dns.Domain, t dns.Type, s ...dns.ECS)
 
 	result = <-r
 
-	if result.Status == -1 {
+	if result == nil || result.Status == -1 {
 		return nil, fmt.Errorf("doh: all query failed")
 	}
 
@@ -165,6 +165,9 @@ func IPs(resp *dns.Response) []string {
 	if resp != nil && resp.Answer != nil {
 		ips := make([]string, 0, len(resp.Answer))
 		for _, a := range resp.Answer {
+			if a.Type != ResponseTypeA && a.Type != ResponseTypeAAAA {
+				continue
+			}
 			ips = append(ips, a.Data)
 		}
 		return ips
