@@ -31,7 +31,6 @@ type RateLimiter struct {
 var (
 	ErrExceeded = errors.New("Rate-Limit Exceeded")
 	ErrNotFound = errors.New("Not Found")
-	ErrHTTP     = errors.New("HTTP error")
 )
 
 // NewRateLimiter creates a new rate limiter for the limit and interval.
