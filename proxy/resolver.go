@@ -175,3 +175,18 @@ func IPs(resp *dns.Response) []string {
 
 	return nil
 }
+
+func TTL(resp *dns.Response) int {
+	ttl := 300
+	if len(resp.Answer) > 0 {
+		for _, a := range resp.Answer {
+			if a.Type != ResponseTypeA && a.Type != ResponseTypeAAAA {
+				continue
+			}
+			ttl = a.TTL
+			break
+		}
+	}
+
+	return ttl
+}

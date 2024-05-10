@@ -101,9 +101,11 @@ func resolveAddr(addr string) (ret []string, err error) {
 
 	mu.Lock()
 
+	cacheTTL := 300
+
 	defer func() {
 		if len(ret) > 0 {
-			dnsCacheResults.Set(addr, ret, 3600)
+			dnsCacheResults.Set(addr, ret, int64(cacheTTL))
 		}
 		mu.Unlock()
 	}()
@@ -122,6 +124,8 @@ func resolveAddr(addr string) (ret []string, err error) {
 	// Resolve with common resolver using DoH
 	if resp, err := commonResolver.Query(context.TODO(), dns.Domain(addr), dns.TypeA); err == nil {
 		ret = IPs(resp)
+		cacheTTL = TTL(resp)
+
 		return ret, err
 	} else {
 		return nil, err
