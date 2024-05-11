@@ -22,7 +22,6 @@ type EpisodeList []*Episode
 type Movie struct {
 	Entity
 
-	ExternalIDs         *ExternalIDs  `json:"external_ids"`
 	FanArt              *fanart.Movie `json:"fanart"`
 	IMDBId              string        `json:"imdb_id"`
 	Popularity          float64       `json:"-"`
@@ -37,16 +36,6 @@ type Movie struct {
 		Titles []*AlternativeTitle `json:"titles"`
 	} `json:"alternative_titles"`
 
-	Translations *struct {
-		Translations []*Translation `json:"translations"`
-	} `json:"translations"`
-
-	Trailers *struct {
-		Youtube []*Trailer `json:"youtube"`
-	} `json:"trailers"`
-
-	Credits *Credits `json:"credits,omitempty"`
-
 	ReleaseDates *ReleaseDatesResults `json:"release_dates"`
 }
 
@@ -55,7 +44,6 @@ type Show struct {
 	Entity
 
 	EpisodeRunTime      []int         `json:"episode_run_time"`
-	ExternalIDs         *ExternalIDs  `json:"external_ids"`
 	FanArt              *fanart.Show  `json:"fanart"`
 	Homepage            string        `json:"homepage"`
 	InProduction        bool          `json:"in_production"`
@@ -75,17 +63,13 @@ type Show struct {
 	LastEpisodeToAir *Episode `json:"last_episode_to_air"`
 	NextEpisodeToAir *Episode `json:"next_episode_to_air"`
 
-	Translations *struct {
-		Translations []*Translation `json:"translations"`
-	} `json:"translations"`
 	AlternativeTitles *struct {
 		Titles []*AlternativeTitle `json:"results"`
 	} `json:"alternative_titles"`
+
 	ContentRatings *struct {
 		Ratings []*ContentRating `json:"results"`
 	} `json:"content_ratings"`
-
-	Credits *Credits `json:"credits,omitempty"`
 
 	Seasons SeasonList `json:"seasons"`
 }
@@ -94,24 +78,9 @@ type Show struct {
 type Season struct {
 	Entity
 
-	AirDate      string       `json:"air_date"`
-	EpisodeCount int          `json:"episode_count,omitempty"`
-	ExternalIDs  *ExternalIDs `json:"external_ids"`
-	Season       int          `json:"season_number"`
-
-	AlternativeTitles *struct {
-		Titles []*AlternativeTitle `json:"titles"`
-	} `json:"alternative_titles"`
-
-	Translations *struct {
-		Translations []*Translation `json:"translations"`
-	} `json:"translations"`
-
-	Trailers *struct {
-		Youtube []*Trailer `json:"youtube"`
-	} `json:"trailers"`
-
-	Credits *Credits `json:"credits,omitempty"`
+	AirDate      string `json:"air_date"`
+	EpisodeCount int    `json:"episode_count,omitempty"`
+	Season       int    `json:"season_number"`
 
 	Episodes EpisodeList `json:"episodes"`
 }
@@ -120,26 +89,11 @@ type Season struct {
 type Episode struct {
 	Entity
 
-	AirDate       string       `json:"air_date"`
-	EpisodeNumber int          `json:"episode_number"`
-	ExternalIDs   *ExternalIDs `json:"external_ids"`
-	Runtime       int          `json:"runtime"`
-	SeasonNumber  int          `json:"season_number"`
-	StillPath     string       `json:"still_path"`
-
-	AlternativeTitles *struct {
-		Titles []*AlternativeTitle `json:"titles"`
-	} `json:"alternative_titles"`
-
-	Translations *struct {
-		Translations []*Translation `json:"translations"`
-	} `json:"translations"`
-
-	Trailers *struct {
-		Youtube []*Trailer `json:"youtube"`
-	} `json:"trailers"`
-
-	Credits *Credits `json:"credits,omitempty"`
+	AirDate       string `json:"air_date"`
+	EpisodeNumber int    `json:"episode_number"`
+	Runtime       int    `json:"runtime"`
+	SeasonNumber  int    `json:"season_number"`
+	StillPath     string `json:"still_path"`
 }
 
 // Entity ...
@@ -161,6 +115,18 @@ type Entity struct {
 	VoteCount        int       `json:"vote_count"`
 
 	Images *Images `json:"images,omitempty"`
+
+	Translations *struct {
+		Translations []*Translation `json:"translations"`
+	} `json:"translations"`
+
+	Videos *struct {
+		Videos []*Trailer `json:"results"`
+	} `json:"videos"`
+
+	Credits *Credits `json:"credits,omitempty"`
+
+	ExternalIDs *ExternalIDs `json:"external_ids"`
 }
 
 // EntityList ...
@@ -320,10 +286,10 @@ type List struct {
 
 // Trailer ...
 type Trailer struct {
-	Name   string `json:"name"`
-	Size   string `json:"size"`
-	Source string `json:"source"`
-	Type   string `json:"type"`
+	Name string `json:"name"`
+	Key  string `json:"key"`
+	Type string `json:"type"`
+	Site string `json:"site"`
 }
 
 // ReleaseDatesResults ...

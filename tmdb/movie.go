@@ -13,7 +13,6 @@ import (
 	"github.com/elgatito/elementum/fanart"
 	"github.com/elgatito/elementum/library/playcount"
 	"github.com/elgatito/elementum/library/uid"
-	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/reqapi"
 	"github.com/elgatito/elementum/xbmc"
 
@@ -73,7 +72,7 @@ func GetMovieByID(movieID string, language string) *Movie {
 		URL: fmt.Sprintf("/movie/%s", movieID),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"append_to_response":     "credits,images,alternative_titles,translations,external_ids,trailers,release_dates",
+			"append_to_response":     "credits,images,videos,translations,external_ids,alternative_titles,release_dates",
 			"include_image_language": languagesList,
 			"include_video_language": languagesList,
 			"language":               language,
@@ -487,12 +486,7 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 
 	movie.SetArt(item)
 
-	if movie.Trailers != nil {
-		for _, trailer := range movie.Trailers.Youtube {
-			item.Info.Trailer = util.TrailerURL(trailer.Source)
-			break
-		}
-	}
+	SetTrailer(&movie.Entity, item)
 
 	for _, language := range movie.SpokenLanguages {
 		item.StreamInfo = &xbmc.StreamInfo{
