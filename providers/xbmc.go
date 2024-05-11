@@ -226,6 +226,7 @@ func (as *AddonSearcher) GetMovieSearchObject(movie *tmdb.Movie) *MovieSearchObj
 	sObject.Titles[strings.ToLower(config.Get().Language)] = NormalizeTitle(movie.GetTitle())
 
 	// Collect titles from AlternativeTitles
+	var romaji string
 	if movie.AlternativeTitles != nil && movie.AlternativeTitles.Titles != nil {
 		for _, title := range movie.AlternativeTitles.Titles {
 			lang := strings.ToLower(title.Iso3166_1)
@@ -233,7 +234,14 @@ func (as *AddonSearcher) GetMovieSearchObject(movie *tmdb.Movie) *MovieSearchObj
 			if lang == "us" {
 				sObject.Titles["en"] = sObject.Titles[lang]
 			}
+			// try to find title in Romaji for anime
+			if lang == "jp" && strings.ToLower(title.Type) == "romaji" {
+				romaji = sObject.Titles[lang]
+			}
 		}
+	}
+	if romaji != "" {
+		sObject.Titles["jp"] = romaji
 	}
 
 	// Collect titles from Translations
@@ -275,6 +283,7 @@ func (as *AddonSearcher) GetSeasonSearchObject(show *tmdb.Show, season *tmdb.Sea
 	sObject.Titles[strings.ToLower(config.Get().Language)] = NormalizeTitle(show.GetName())
 
 	// Collect titles from AlternativeTitles
+	var romaji string
 	if show.AlternativeTitles != nil && show.AlternativeTitles.Titles != nil {
 		for _, title := range show.AlternativeTitles.Titles {
 			lang := strings.ToLower(title.Iso3166_1)
@@ -282,7 +291,14 @@ func (as *AddonSearcher) GetSeasonSearchObject(show *tmdb.Show, season *tmdb.Sea
 			if lang == "us" {
 				sObject.Titles["en"] = sObject.Titles[lang]
 			}
+			// try to find title in Romaji for anime
+			if lang == "jp" && strings.ToLower(title.Type) == "romaji" {
+				romaji = sObject.Titles[lang]
+			}
 		}
+	}
+	if romaji != "" {
+		sObject.Titles["jp"] = romaji
 	}
 
 	// Collect titles from Translations
@@ -373,6 +389,7 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 	sObject.Titles[strings.ToLower(config.Get().Language)] = NormalizeTitle(show.GetName())
 
 	// Collect titles from AlternativeTitles
+	var romaji string
 	if show.AlternativeTitles != nil && show.AlternativeTitles.Titles != nil {
 		for _, title := range show.AlternativeTitles.Titles {
 			lang := strings.ToLower(title.Iso3166_1)
@@ -380,7 +397,16 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 			if lang == "us" {
 				sObject.Titles["en"] = sObject.Titles[lang]
 			}
+			// try to find title in Romaji for anime
+			if lang == "jp" && strings.ToLower(title.Type) == "romaji" {
+				romaji = sObject.Titles[lang]
+				log.Debugf("Found Romaji title for anime: %s", romaji)
+			}
 		}
+	}
+	if romaji != "" {
+		log.Debugf("Set Romaji title for anime: %s", romaji)
+		sObject.Titles["jp"] = romaji
 	}
 
 	// Collect titles from Translations
