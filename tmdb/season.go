@@ -259,6 +259,15 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 
 	season.SetArt(show, item)
 
+	if season.Credits == nil && show.Credits != nil {
+		season.Credits = show.Credits
+	}
+	if season.Credits != nil {
+		item.CastMembers = show.Credits.GetCastMembers()
+		item.Info.Director = show.Credits.GetDirectors()
+		item.Info.Writer = show.Credits.GetWriters()
+	}
+
 	return item
 }
 
