@@ -9,6 +9,7 @@ import (
 
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/event"
 	"github.com/elgatito/elementum/util/reqapi"
 	"github.com/elgatito/elementum/xbmc"
@@ -430,4 +431,15 @@ func GetUserLanguages() (languagesList string) {
 	languagesList = fmt.Sprintf("%s,null", languagesList)
 
 	return
+}
+
+func SetTrailer(entity *Entity, item *xbmc.ListItem) {
+	if entity.Videos != nil {
+		for _, trailer := range entity.Videos.Videos {
+			if trailer.Type == "Trailer" && trailer.Site == "YouTube" {
+				item.Info.Trailer = util.TrailerURL(trailer.Key)
+				break
+			}
+		}
+	}
 }

@@ -32,7 +32,7 @@ func GetEpisode(showID int, seasonNumber int, episodeNumber int, language string
 		URL: fmt.Sprintf("/tv/%d/season/%d/episode/%d", showID, seasonNumber, episodeNumber),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"append_to_response":     "credits,images,videos,alternative_titles,translations,external_ids,trailers",
+			"append_to_response":     "credits,images,videos,translations,external_ids",
 			"include_image_language": languagesList,
 			"include_video_language": languagesList,
 			"language":               language,
@@ -183,13 +183,14 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 
 	episode.SetArt(show, season, item)
 
+	SetTrailer(&episode.Entity, item)
+
 	if season != nil && episode.Credits == nil && season.Credits != nil {
 		episode.Credits = season.Credits
 	}
 	if episode.Credits == nil && show.Credits != nil {
 		episode.Credits = show.Credits
 	}
-
 	if episode.Credits != nil {
 		item.CastMembers = episode.Credits.GetCastMembers()
 		item.Info.Director = episode.Credits.GetDirectors()

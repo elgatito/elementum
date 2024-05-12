@@ -131,7 +131,7 @@ func GetShow(showID int, language string) (show *Show) {
 		URL: fmt.Sprintf("/tv/%d", showID),
 		Params: napping.Params{
 			"api_key":                apiKey,
-			"append_to_response":     "credits,images,alternative_titles,translations,external_ids,content_ratings",
+			"append_to_response":     "credits,images,videos,translations,external_ids,alternative_titles,content_ratings",
 			"include_image_language": languagesList,
 			"include_video_language": languagesList,
 			"language":               language,
@@ -602,6 +602,8 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 	}
 
 	show.SetArt(item)
+
+	SetTrailer(&show.Entity, item)
 
 	if config.Get().ShowUnwatchedEpisodesNumber {
 		watchedEpisodes := show.CountWatchedEpisodesNumber()
