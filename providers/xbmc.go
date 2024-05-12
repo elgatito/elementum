@@ -400,12 +400,10 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 			// try to find title in Romaji for anime
 			if lang == "jp" && strings.ToLower(title.Type) == "romaji" {
 				romaji = sObject.Titles[lang]
-				log.Debugf("Found Romaji title for anime: %s", romaji)
 			}
 		}
 	}
 	if romaji != "" {
-		log.Debugf("Set Romaji title for anime: %s", romaji)
 		sObject.Titles["jp"] = romaji
 	}
 
