@@ -47,7 +47,7 @@ func DefaultUserAgent() string {
 
 // DefaultPeerID return default PeerID
 func DefaultPeerID() string {
-	return "-GT0001-"
+	return "-LT1100-"
 }
 
 // PeerIDRandom generates random peer id
@@ -79,7 +79,7 @@ func GetUserAndPeer() (peerID, userAgent string) {
 			peerID = "-TR1930-"
 			return
 		case 2:
-			userAgent = "libtorrent (Rasterbar) 1.1.0"
+			userAgent = "libtorrent/1.1.0.0"
 			peerID = "-LT1100-"
 			return
 		case 3:
@@ -87,16 +87,16 @@ func GetUserAndPeer() (peerID, userAgent string) {
 			peerID = "-BT7500-"
 			return
 		case 4:
-			userAgent = "BitTorrent/7.4.3"
-			peerID = "-BT7430-"
+			userAgent = "BitTorrent/7.9.9"
+			peerID = "-BT7990-"
 			return
 		case 5:
-			userAgent = "uTorrent/3.4.9"
-			peerID = "-UT3490-"
+			userAgent = "uTorrent/3.5.5"
+			peerID = "-UT3550-"
 			return
 		case 6:
-			userAgent = "uTorrent/3.2.0"
-			peerID = "-UT3200-"
+			userAgent = "uTorrent/3.6.0"
+			peerID = "-UT3600-"
 			return
 		case 7:
 			userAgent = "uTorrent/2.2.1"
@@ -107,20 +107,32 @@ func GetUserAndPeer() (peerID, userAgent string) {
 			peerID = "-TR2920-"
 			return
 		case 9:
-			userAgent = "Deluge/1.3.6.0"
-			peerID = "-DG1360-"
+			userAgent = "Deluge/1.3.6"
+			peerID = "-DE1360-"
 			return
 		case 10:
-			userAgent = "Deluge/1.3.12.0"
-			peerID = "-DG1312-"
+			userAgent = "Deluge/2.1.1 libtorrent/1.2.15.0"
+			peerID = "-DE211s-"
 			return
 		case 11:
 			userAgent = "Vuze/5.7.3.0"
-			peerID = "-VZ5730-"
+			peerID = "-AZ5730-"
+			return
+		case 12:
+			userAgent = "Transmission/4.05"
+			peerID = "-TR4050-"
+			return
+		case 13:
+			userAgent = "qBittorrent/3.3.9"
+			peerID = "-qB3390-"
+			return
+		case 14:
+			userAgent = "qBittorrent/4.6.4"
+			peerID = "-qB4640-"
 			return
 		default:
-			userAgent = "uTorrent/3.4.9"
-			peerID = "-UT3490-"
+			userAgent = "Transmission/1.93"
+			peerID = "-TR1930-"
 			return
 		}
 	}
