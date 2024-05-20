@@ -1642,11 +1642,14 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 				collectionAction = []string{"LOCALIZE[30259]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/show/%d/collection/remove", showListing.Show.IDs.TMDB))}
 			}
 
+			openShowAction := []string{fmt.Sprintf("LOCALIZE[30709];;%s", showName), fmt.Sprintf("Container.Update(%s)", URLForXBMC("/show/%d/seasons", showListing.Show.IDs.TMDB))}
+
 			item.ContextMenu = [][]string{
 				{"LOCALIZE[30619];;LOCALIZE[30215]", fmt.Sprintf("Container.Update(%s)", URLForXBMC("/shows/"))},
 				toggleWatchedAction,
 				watchlistAction,
 				collectionAction,
+				openShowAction,
 				{"LOCALIZE[30035]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/tvshows"))},
 			}
 			item.ContextMenu = append(libraryActions, item.ContextMenu...)
@@ -1805,8 +1808,11 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 				toggleWatchedAction = []string{"LOCALIZE[30668]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/show/%d/season/%d/episode/%d/unwatched", showListing.Show.IDs.TMDB, seasonNumber, episodeNumber))}
 			}
 
+			openShowAction := []string{fmt.Sprintf("LOCALIZE[30709];;%s", showName), fmt.Sprintf("Container.Update(%s)", URLForXBMC("/show/%d/seasons", showListing.Show.IDs.TMDB))}
+
 			item.ContextMenu = [][]string{
 				toggleWatchedAction,
+				openShowAction,
 				{"LOCALIZE[30037]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/episodes"))},
 			}
 			item.ContextMenu = append(libraryActions, item.ContextMenu...)
