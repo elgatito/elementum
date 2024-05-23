@@ -476,6 +476,7 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 			Studio:        movie.GetStudios(),
 			Country:       movie.GetCountries(),
 		},
+		Properties: &xbmc.ListItemProperties{},
 		UniqueIDs: &xbmc.UniqueIDs{
 			TMDB: strconv.Itoa(movie.ID),
 		},
@@ -483,6 +484,10 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 
 	if lm, err := uid.GetMovieByTMDB(movie.ID); lm != nil && err == nil {
 		item.Info.DBID = lm.UIDs.Kodi
+		if lm.Resume != nil {
+			item.Properties.ResumeTime = strconv.FormatFloat(lm.Resume.Position, 'f', 6, 64)
+			item.Properties.TotalTime = strconv.FormatFloat(lm.Resume.Total, 'f', 6, 64)
+		}
 	}
 
 	movie.SetArt(item)
