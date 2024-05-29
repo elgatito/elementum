@@ -179,6 +179,7 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 		if le := ls.GetEpisode(episode.SeasonNumber, episode.EpisodeNumber); le != nil {
 			item.Info.DBID = le.UIDs.Kodi
 			if le.Resume != nil {
+				log.Debugf("%s S%02dE%02d le.Resume.Position: %f", show.OriginalName, episode.SeasonNumber, episode.EpisodeNumber, le.Resume.Position)
 				item.Properties.ResumeTime = strconv.FormatFloat(le.Resume.Position, 'f', 6, 64)
 				item.Properties.TotalTime = strconv.FormatFloat(le.Resume.Total, 'f', 6, 64)
 			}

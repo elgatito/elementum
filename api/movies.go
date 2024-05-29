@@ -388,6 +388,7 @@ func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, que
 			}
 
 			item.Path = contextPlayURL(thisURL, contextTitle, false)
+			setMovieItemProgress(item.Path, movie.ID)
 
 			tmdbID := strconv.Itoa(movie.ID)
 
@@ -461,6 +462,18 @@ func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, que
 	}
 
 	ctx.JSON(200, xbmc.NewView("movies", filterListItems(items)))
+}
+
+func setMovieItemProgress(path string, movieID int) {
+	if lm, err := uid.GetMovieByTMDB(movieID); lm != nil && err == nil {
+		if lm.Resume != nil {
+			xbmcHost, _ := xbmc.GetLocalXBMCHost()
+			if xbmcHost != nil {
+				log.Debug("SetFileProgress: %s %d %d", path, int(lm.Resume.Position), int(lm.Resume.Total))
+				xbmcHost.SetFileProgress(path, int(lm.Resume.Position), int(lm.Resume.Total))
+			}
+		}
+	}
 }
 
 // PopularMovies ...
