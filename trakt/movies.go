@@ -605,6 +605,7 @@ func (movie *Movie) ToListItem() (item *xbmc.ListItem) {
 				DBTYPE:        "movie",
 				Mediatype:     "movie",
 			},
+			Properties: &xbmc.ListItemProperties{},
 			UniqueIDs: &xbmc.UniqueIDs{
 				TMDB: strconv.Itoa(movie.IDs.TMDB),
 			},
