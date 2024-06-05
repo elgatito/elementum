@@ -543,6 +543,7 @@ func renderTraktMovies(ctx *gin.Context, movies []*trakt.Movies, total int, page
 			}
 
 			item.Path = contextPlayURL(thisURL, contextTitle, false)
+			setMovieItemProgress(item.Path, movieListing.Movie.IDs.TMDB)
 
 			libraryActions := [][]string{
 				{contextLabel, fmt.Sprintf("PlayMedia(%s)", contextURL)},
@@ -1414,6 +1415,7 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 			}
 
 			item.Path = contextPlayURL(thisURL, contextTitle, false)
+			setMovieItemProgress(item.Path, movieListing.Movie.IDs.TMDB)
 
 			libraryActions := [][]string{
 				{contextLabel, fmt.Sprintf("PlayMedia(%s)", contextURL)},
@@ -1604,7 +1606,7 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 			item.Info.Aired = airDate
 			item.Info.DateAdded = airDate
 			item.Info.Premiered = airDate
-			item.Info.LastPlayed = airDate
+			//item.Info.LastPlayed = airDate
 
 			fullEpisodeName := fmt.Sprintf(`%dx%02d %s`, seasonNumber, episodeNumber, episodeName)
 			episodeLabel := fmt.Sprintf(`%s | [B]%s[/B] - [I]%s[/I]`,
@@ -1617,6 +1619,7 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 				itemPath = URLQuery(URLForXBMC("/search"), "q", fmt.Sprintf("%s %d %d", showOriginalName, epi.Number, epi.Season))
 			}
 			item.Path = itemPath
+			setEpisodeItemProgress(item.Path, showListing.Show.IDs.TMDB, seasonNumber, episodeNumber)
 
 			// TODO: calendar show episodes, but libraryActions/watchlistAction/collectionAction are for shows, which might be confusing
 			libraryActions := [][]string{}
@@ -1773,7 +1776,7 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 			item.Info.Aired = airDate
 			item.Info.DateAdded = airDate
 			item.Info.Premiered = airDate
-			item.Info.LastPlayed = airDate
+			//item.Info.LastPlayed = airDate
 
 			fullEpisodeName := fmt.Sprintf(`%dx%02d %s`, seasonNumber, episodeNumber, episodeName)
 			episodeLabel := fmt.Sprintf(`%s | [B]%s[/B] - [I]%s[/I]`,
@@ -1795,6 +1798,7 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 			}
 
 			item.Path = contextPlayURL(thisURL, contextTitle, false)
+			setEpisodeItemProgress(item.Path, showListing.Show.IDs.TMDB, seasonNumber, episodeNumber)
 
 			libraryActions := [][]string{
 				{contextLabel, fmt.Sprintf("PlayMedia(%s)", contextURL)},

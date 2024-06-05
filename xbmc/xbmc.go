@@ -514,18 +514,34 @@ func (h *XBMCHost) SetSeasonWatched(seasonID int, playcount int) (ret string) {
 }
 
 // SetFileWatched ...
-func (h *XBMCHost) SetFileWatched(file string, position int, total int) (ret string) {
+func (h *XBMCHost) SetFileWatched(file string, playcount int, position int, total int) (ret string) {
 	params := map[string]interface{}{
 		"file":      file,
 		"media":     "video",
-		"playcount": 0,
+		"playcount": playcount,
 		"resume": map[string]interface{}{
 			"position": position,
 			"total":    total,
 		},
 		"lastplayed": time.Now().Format("2006-01-02 15:04:05"),
 	}
-	h.executeJSONRPCO("VideoLibrary.SetFileDetails", &ret, params)
+	h.executeJSONRPCO("Files.SetFileDetails", &ret, params)
+	return
+}
+
+// SetFileProgress sets file progress in Kodi library
+// Note: Setting a valid lastplayed without a playcount will force playcount to 1.
+// since we just set progress, we do not set lastplayed or playcount.
+func (h *XBMCHost) SetFileProgress(file string, position int, total int) (ret string) {
+	params := map[string]interface{}{
+		"file":  file,
+		"media": "video",
+		"resume": map[string]interface{}{
+			"position": position,
+			"total":    total,
+		},
+	}
+	h.executeJSONRPCO("Files.SetFileDetails", &ret, params)
 	return
 }
 

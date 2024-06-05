@@ -89,6 +89,8 @@ type ListItemProperties struct {
 	SubtitlesHearingImpaired string `json:"hearing_imp,omitempty"`
 	ShowTMDBId               string `json:"showtmdbid,omitempty"`
 	SpecialSort              string `json:"specialsort,omitempty"`
+	ResumeTime               string `json:"resumetime,omitempty"`
+	TotalTime                string `json:"totaltime,omitempty"`
 }
 
 // ListItemInfo ...
