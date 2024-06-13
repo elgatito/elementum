@@ -238,7 +238,10 @@ func main() {
 			time.Sleep(1 * time.Second)
 		}
 	}
-	go watchParentProcess()
+	// If we run with custom config, then we run as daemon, thus no need to watch for parent process
+	if config.Args.ConfigPath == "" {
+		go watchParentProcess()
+	}
 
 	// Make sure HTTP mux is empty
 	http.DefaultServeMux = new(http.ServeMux)
