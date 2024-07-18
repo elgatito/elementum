@@ -1606,7 +1606,6 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 			item.Info.Aired = airDate
 			item.Info.DateAdded = airDate
 			item.Info.Premiered = airDate
-			//item.Info.LastPlayed = airDate
 
 			fullEpisodeName := fmt.Sprintf(`%dx%02d %s`, seasonNumber, episodeNumber, episodeName)
 			episodeLabel := fmt.Sprintf(`%s | [B]%s[/B] - [I]%s[/I]`,
@@ -1776,7 +1775,6 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 			item.Info.Aired = airDate
 			item.Info.DateAdded = airDate
 			item.Info.Premiered = airDate
-			//item.Info.LastPlayed = airDate
 
 			fullEpisodeName := fmt.Sprintf(`%dx%02d %s`, seasonNumber, episodeNumber, episodeName)
 			episodeLabel := fmt.Sprintf(`%s | [B]%s[/B] - [I]%s[/I]`,
