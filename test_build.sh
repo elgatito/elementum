@@ -58,7 +58,7 @@ DEST_NAME=elementum
 DEST_LIBRARY=elementum.so
 DEST_MAKE=linux-x64
 DEST_PLATFORM=linux_x64
-DEST_DIR=$HOME/.kodi
+DEST_DIR="${DEST_DIR:-$HOME/.kodi}"
 if [[ ! -z "${WSL_USER}" ]] && [[ "${DEST_MANAGE}" != *"local"* ]]; then
   DEST_NAME=elementum.exe
   DEST_LIBRARY=elementum.dll
@@ -85,6 +85,7 @@ if [ "${DEST_ACTION}" == "local" ]
 then
   set -e
   test go build $GO_FLAGS -ldflags="-w -X github.com/elgatito/elementum/util/ident.Version=${GIT_VERSION}" -tags $TAGS -o /var/tmp/${DEST_NAME} .
+  shasum -b /var/tmp/${DEST_NAME} | cut -d' ' -f1 >> /var/tmp/${DEST_NAME}
   test chmod +x /var/tmp/elementum*
   mkdir -p $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
   mkdir -p $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
