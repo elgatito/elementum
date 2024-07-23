@@ -625,6 +625,7 @@ func ShowEpisodes(ctx *gin.Context) {
 				}
 
 				item.Path = contextPlayURL(thisURL, contextTitle, false)
+				setEpisodeItemProgress(item.Path, show.ID, seasonNumber, item.Info.Episode)
 
 				libraryActions := [][]string{
 					{contextLabel, fmt.Sprintf("PlayMedia(%s)", contextURL)},
@@ -660,6 +661,20 @@ func ShowEpisodes(ctx *gin.Context) {
 	}
 
 	ctx.JSON(200, xbmc.NewView("episodes", filterListItems(episodes)))
+}
+
+func setEpisodeItemProgress(path string, showID, seasonNumber, episodeNumber int) {
+	if ls, err := uid.GetShowByTMDB(showID); ls != nil && err == nil {
+		if le := ls.GetEpisode(seasonNumber, episodeNumber); le != nil {
+			if le.Resume != nil {
+				xbmcHost, _ := xbmc.GetLocalXBMCHost()
+				if xbmcHost != nil {
+					log.Debug("SetFileProgress: %s %d %d", path, int(le.Resume.Position), int(le.Resume.Total))
+					xbmcHost.SetFileProgress(path, int(le.Resume.Position), int(le.Resume.Total))
+				}
+			}
+		}
+	}
 }
 
 func showSeasonLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, showID int, seasonNumber int) []*bittorrent.TorrentFile {
