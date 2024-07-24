@@ -70,26 +70,28 @@ type UniqueIDs struct {
 
 // Movie represents Movie content type
 type Movie struct {
-	ID        int
-	Title     string
-	File      string
-	Year      int
-	DateAdded time.Time
-	UIDs      *UniqueIDs
-	XbmcUIDs  *xbmc.UniqueIDs
-	Resume    *Resume
+	ID         int
+	Title      string
+	File       string
+	Year       int
+	LastPlayed time.Time
+	DateAdded  time.Time
+	UIDs       *UniqueIDs
+	XbmcUIDs   *xbmc.UniqueIDs
+	Resume     *Resume
 }
 
 // Show represents Show content type
 type Show struct {
-	ID        int
-	Title     string
-	Year      int
-	DateAdded time.Time
-	Seasons   []*Season
-	Episodes  []*Episode
-	UIDs      *UniqueIDs
-	XbmcUIDs  *xbmc.UniqueIDs
+	ID         int
+	Title      string
+	Year       int
+	LastPlayed time.Time
+	DateAdded  time.Time
+	Seasons    []*Season
+	Episodes   []*Episode
+	UIDs       *UniqueIDs
+	XbmcUIDs   *xbmc.UniqueIDs
 }
 
 // Season represents Season content type
@@ -104,15 +106,16 @@ type Season struct {
 
 // Episode represents Episode content type
 type Episode struct {
-	ID        int
-	Title     string
-	Season    int
-	Episode   int
-	File      string
-	DateAdded time.Time
-	UIDs      *UniqueIDs
-	XbmcUIDs  *xbmc.UniqueIDs
-	Resume    *Resume
+	ID         int
+	Title      string
+	Season     int
+	Episode    int
+	File       string
+	LastPlayed time.Time
+	DateAdded  time.Time
+	UIDs       *UniqueIDs
+	XbmcUIDs   *xbmc.UniqueIDs
+	Resume     *Resume
 }
 
 // Resume shows watched progress information

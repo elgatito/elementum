@@ -132,14 +132,15 @@ func RefreshMovies() error {
 		}
 
 		lm := &uid.Movie{
-			ID:        m.ID,
-			Title:     m.Title,
-			File:      m.File,
-			Year:      m.Year,
-			DateAdded: m.DateAdded.Time,
-			Resume:    &uid.Resume{},
-			UIDs:      &uid.UniqueIDs{Kodi: m.ID, Playcount: m.PlayCount},
-			XbmcUIDs:  &m.UniqueIDs,
+			ID:         m.ID,
+			Title:      m.Title,
+			File:       m.File,
+			Year:       m.Year,
+			LastPlayed: m.LastPlayed.Time,
+			DateAdded:  m.DateAdded.Time,
+			Resume:     &uid.Resume{},
+			UIDs:       &uid.UniqueIDs{Kodi: m.ID, Playcount: m.PlayCount},
+			XbmcUIDs:   &m.UniqueIDs,
 		}
 
 		if m.Resume != nil {
@@ -204,14 +205,15 @@ func RefreshShows() error {
 		}
 
 		l.Shows = append(l.Shows, &uid.Show{
-			ID:        s.ID,
-			Title:     s.Title,
-			Seasons:   []*uid.Season{},
-			Episodes:  []*uid.Episode{},
-			Year:      s.Year,
-			DateAdded: s.DateAdded.Time,
-			UIDs:      &uid.UniqueIDs{Kodi: s.ID, Playcount: s.PlayCount},
-			XbmcUIDs:  &s.UniqueIDs,
+			ID:         s.ID,
+			Title:      s.Title,
+			Seasons:    []*uid.Season{},
+			Episodes:   []*uid.Episode{},
+			Year:       s.Year,
+			LastPlayed: s.LastPlayed.Time,
+			DateAdded:  s.DateAdded.Time,
+			UIDs:       &uid.UniqueIDs{Kodi: s.ID, Playcount: s.PlayCount},
+			XbmcUIDs:   &s.UniqueIDs,
 		})
 
 		parseUniqueID(ShowType, l.Shows[len(l.Shows)-1].UIDs, l.Shows[len(l.Shows)-1].XbmcUIDs, "", l.Shows[len(l.Shows)-1].Year)
@@ -405,15 +407,16 @@ func RefreshEpisodes() error {
 		e.UniqueIDs.Unknown = ""
 
 		c.Episodes = append(c.Episodes, &uid.Episode{
-			ID:        e.ID,
-			Title:     e.Title,
-			Season:    e.Season,
-			Episode:   e.Episode,
-			File:      e.File,
-			DateAdded: e.DateAdded.Time,
-			Resume:    &uid.Resume{},
-			UIDs:      &uid.UniqueIDs{Kodi: e.ID, Playcount: e.PlayCount},
-			XbmcUIDs:  &e.UniqueIDs,
+			ID:         e.ID,
+			Title:      e.Title,
+			Season:     e.Season,
+			Episode:    e.Episode,
+			File:       e.File,
+			LastPlayed: e.LastPlayed.Time,
+			DateAdded:  e.DateAdded.Time,
+			Resume:     &uid.Resume{},
+			UIDs:       &uid.UniqueIDs{Kodi: e.ID, Playcount: e.PlayCount},
+			XbmcUIDs:   &e.UniqueIDs,
 		})
 
 		if e.Resume != nil {

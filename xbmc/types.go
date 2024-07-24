@@ -230,6 +230,7 @@ type VideoLibraryMovieItem struct {
 	PlayCount  int       `json:"playcount"`
 	File       string    `json:"file"`
 	Year       int       `json:"year"`
+	LastPlayed KodiTime  `json:"lastplayed"`
 	DateAdded  KodiTime  `json:"dateadded"`
 	UniqueIDs  UniqueIDs `json:"uniqueid"`
 	Resume     *Resume
@@ -249,6 +250,7 @@ type VideoLibraryShowItem struct {
 	PlayCount  int       `json:"playcount"`
 	Year       int       `json:"year"`
 	Episodes   int       `json:"episode"`
+	LastPlayed KodiTime  `json:"lastplayed"`
 	DateAdded  KodiTime  `json:"dateadded"`
 	UniqueIDs  UniqueIDs `json:"uniqueid"`
 }
@@ -286,16 +288,17 @@ type VideoLibraryEpisode struct {
 
 // VideoLibraryEpisodeItem ...
 type VideoLibraryEpisodeItem struct {
-	ID        int       `json:"episodeid"`
-	Title     string    `json:"label"`
-	Season    int       `json:"season"`
-	Episode   int       `json:"episode"`
-	TVShowID  int       `json:"tvshowid"`
-	PlayCount int       `json:"playcount"`
-	File      string    `json:"file"`
-	DateAdded KodiTime  `json:"dateadded"`
-	UniqueIDs UniqueIDs `json:"uniqueid"`
-	Resume    *Resume
+	ID         int       `json:"episodeid"`
+	Title      string    `json:"label"`
+	Season     int       `json:"season"`
+	Episode    int       `json:"episode"`
+	TVShowID   int       `json:"tvshowid"`
+	PlayCount  int       `json:"playcount"`
+	File       string    `json:"file"`
+	LastPlayed KodiTime  `json:"lastplayed"`
+	DateAdded  KodiTime  `json:"dateadded"`
+	UniqueIDs  UniqueIDs `json:"uniqueid"`
+	Resume     *Resume
 }
 
 // UniqueIDs ...

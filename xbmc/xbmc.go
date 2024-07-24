@@ -70,7 +70,7 @@ func (h *XBMCHost) VideoLibraryGetMovies() (movies *VideoLibraryMovies, err erro
 		"resume",
 	}
 	if KodiVersion > 16 {
-		list = append(list, "uniqueid", "year")
+		list = append(list, "uniqueid", "year", "lastplayed")
 	}
 	params := map[string]interface{}{"properties": list}
 
@@ -103,7 +103,7 @@ func (h *XBMCHost) VideoLibraryGetElementumMovies() (movies *VideoLibraryMovies,
 	}
 
 	if KodiVersion > 16 {
-		list = append(list, "uniqueid", "year")
+		list = append(list, "uniqueid", "year", "lastplayed")
 	}
 	params := map[string]interface{}{
 		"properties": list,
@@ -190,7 +190,7 @@ func (h *XBMCHost) VideoLibraryGetShows() (shows *VideoLibraryShows, err error) 
 		"playcount",
 	}
 	if KodiVersion > 16 {
-		list = append(list, "uniqueid", "year")
+		list = append(list, "uniqueid", "year", "lastplayed")
 	}
 	params := map[string]interface{}{"properties": list}
 
@@ -221,7 +221,7 @@ func (h *XBMCHost) VideoLibraryGetElementumShows() (shows *VideoLibraryShows, er
 	}
 
 	if KodiVersion > 16 {
-		list = append(list, "uniqueid", "year")
+		list = append(list, "uniqueid", "year", "lastplayed")
 	}
 	params := map[string]interface{}{
 		"properties": list,
@@ -309,7 +309,7 @@ func (h *XBMCHost) VideoLibraryGetAllSeasons(shows []int) (seasons *VideoLibrary
 func (h *XBMCHost) VideoLibraryGetEpisodes(tvshowID int) (episodes *VideoLibraryEpisodes, err error) {
 	defer perf.ScopeTimer()()
 
-	params := map[string]interface{}{"tvshowid": tvshowID, "properties": []interface{}{
+	list := []interface{}{
 		"tvshowid",
 		"uniqueid",
 		"season",
@@ -318,7 +318,12 @@ func (h *XBMCHost) VideoLibraryGetEpisodes(tvshowID int) (episodes *VideoLibrary
 		"file",
 		"dateadded",
 		"resume",
-	}}
+	}
+	if KodiVersion > 16 {
+		list = append(list, "lastplayed")
+	}
+
+	params := map[string]interface{}{"tvshowid": tvshowID, "properties": list}
 	err = h.executeJSONRPCO("VideoLibrary.GetEpisodes", &episodes, params)
 	if err != nil {
 		log.Errorf("Error getting episodes: %#v", err)
