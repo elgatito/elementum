@@ -557,6 +557,10 @@ func updateMovieWatched(xbmcHost *xbmc.XBMCHost, m *trakt.WatchedMovie, watched 
 			return
 		}
 
+		// Skip setting item as watched if it is the same LastPlayed (or newer) as in Trakt
+		if r.IsWatched() && !r.LastPlayed.IsZero() && !m.LastWatchedAt.After(r.LastPlayed) {
+			return
+		}
 		r.UIDs.Playcount++
 		xbmcHost.SetMovieWatchedWithDate(r.UIDs.Kodi, r.UIDs.Playcount, 0, 0, m.LastWatchedAt)
 		// TODO: There should be a check for allowing resume state, otherwise we always reset it for already searched items
@@ -594,6 +598,11 @@ func updateShowWatched(xbmcHost *xbmc.XBMCHost, s *trakt.WatchedShow, watched bo
 				// Resetting Resume state to avoid having old resume states,
 				// when item is watched on another device
 				if watched && !e.IsWatched() {
+					// Skip setting item as watched if it is the same LastPlayed (or newer) as in Trakt
+					if !e.LastPlayed.IsZero() && !episode.LastWatchedAt.After(e.LastPlayed) {
+						continue
+					}
+
 					e.UIDs.Playcount = 1
 					xbmcHost.SetEpisodeWatchedWithDate(e.UIDs.Kodi, 1, 0, 0, episode.LastWatchedAt)
 					// TODO: There should be a check for allowing resume state, otherwise we always reset it for already searched items
