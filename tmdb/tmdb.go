@@ -60,7 +60,7 @@ func CheckAPIKey() {
 
 	customAPIKey := config.Get().TMDBApiKey
 	if customAPIKey != "" {
-		log.Info("Using custom TMDB API key %.7s", customAPIKey)
+		log.Infof("Using custom TMDB API key %.7s", customAPIKey)
 		apiKeys = append(apiKeys, customAPIKey)
 		apiKey = customAPIKey
 	}
