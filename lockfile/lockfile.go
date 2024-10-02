@@ -60,7 +60,7 @@ func (lf *LockFile) Lock() (int, error) {
 			return pid, err
 		}
 
-		if running {
+		if running && pid != ownPID { // e.g. Flatpak assigns same PID to elementum every run
 			return pid, ErrLocked
 		}
 	}
