@@ -1171,14 +1171,14 @@ func (s *Service) logAlerts() {
 
 			// Skipping Tracker communication, Save_Resume, UDP errors
 			// No need to spam logs.
-			if alert.Category&int(lt.SaveResumeDataAlertAlertType) != 0 ||
-				alert.Category&int(lt.UdpErrorAlertAlertType) != 0 ||
-				alert.Category&int(lt.AlertBlockProgressNotification) != 0 ||
-				alert.Category&int(lt.TrackerReplyAlertAlertType) != 0 ||
-				alert.Category&int(lt.DhtReplyAlertAlertType) != 0 ||
-				alert.Category&int(lt.StateChangedAlertAlertType) != 0 ||
-				alert.Category&int(lt.TorrentFinishedAlertAlertType) != 0 ||
-				alert.Category&int(lt.DhtLogAlertStaticCategory) != 0 {
+			if alert.Type == int(lt.SaveResumeDataAlertAlertType) ||
+				alert.Type == int(lt.UdpErrorAlertAlertType) ||
+				alert.Type == int(lt.AlertBlockProgressNotification) ||
+				alert.Type == int(lt.TrackerReplyAlertAlertType) ||
+				alert.Type == int(lt.DhtReplyAlertAlertType) ||
+				alert.Type == int(lt.StateChangedAlertAlertType) ||
+				alert.Type == int(lt.TorrentFinishedAlertAlertType) ||
+				alert.Type == int(lt.DhtLogAlertAlertType) {
 				continue
 			} else if alert.Category&int(lt.AlertErrorNotification) != 0 {
 				log.Errorf("%s: %s", alert.What, alert.Message)

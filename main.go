@@ -220,6 +220,8 @@ func main() {
 		// Wait until service is finally stopped
 		<-s.CloserNotifier.C()
 
+		lock.Unlock()
+
 		log.Info("Goodbye")
 
 		// If we don't give an exit code - python treat as well done and not
