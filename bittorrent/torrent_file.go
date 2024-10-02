@@ -149,7 +149,7 @@ const (
 var (
 	ripTags = map[*regexp.Regexp]int{
 		regexp.MustCompile(`(?i)\W+(cam|cam\W*rip|hd\W*cam)\W*`): RipCam,
-		regexp.MustCompile(`(?i)\W+(ts|telesync)\W*`):            RipTS,
+		regexp.MustCompile(`(?i)\W+(ts|telesync|hdts)\W*`):       RipTS,
 		regexp.MustCompile(`(?i)\W+(tc|telecine)\W*`):            RipTC,
 		regexp.MustCompile(`(?i)\W+(scr|screener)\W*`):           RipScr,
 		regexp.MustCompile(`(?i)\W+dvd\W*scr\W*`):                RipDVDScr,
