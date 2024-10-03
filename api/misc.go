@@ -77,22 +77,24 @@ func Settings(ctx *gin.Context) {
 }
 
 // Status display
-func Status(ctx *gin.Context) {
-	defer perf.ScopeTimer()()
+func Status(s *bittorrent.Service) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		defer perf.ScopeTimer()()
 
-	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
-	if xbmcHost == nil {
-		return
-	}
+		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+		if xbmcHost == nil {
+			return
+		}
 
-	title := "LOCALIZE[30393]"
-	text := ""
+		title := "LOCALIZE[30393]"
+		text := ""
 
-	text += `[B]LOCALIZE[30394]:[/B] %s
+		text += `[B]LOCALIZE[30394]:[/B] %s
 
 [B]LOCALIZE[30395]:[/B] %s
 [B]LOCALIZE[30396]:[/B] %d
 [B]LOCALIZE[30488]:[/B] %d
+[B]LOCALIZE[30710]:[/B] %s
 
 [COLOR pink][B]LOCALIZE[30399]:[/B][/COLOR]
     [B]LOCALIZE[30397]:[/B] %s
@@ -110,47 +112,49 @@ func Status(ctx *gin.Context) {
     [B]LOCALIZE[30459]:[/B] %d
 `
 
-	ip := "127.0.0.1"
-	if localIP, err := iputil.LocalIP(); err == nil {
-		ip = localIP.String()
+		ip := "127.0.0.1"
+		if localIP, err := iputil.LocalIP(); err == nil {
+			ip = localIP.String()
+		}
+
+		port := config.Args.LocalPort
+		webAddress := fmt.Sprintf("http://%s:%d/web", ip, port)
+		debugAllAddress := fmt.Sprintf("http://%s:%d/debug/all", ip, port)
+		debugBundleAddress := fmt.Sprintf("http://%s:%d/debug/bundle", ip, port)
+		infoAddress := fmt.Sprintf("http://%s:%d/info", ip, port)
+
+		appSize := fileSize(filepath.Join(config.Get().Info.Profile, database.GetStorm().GetFilename()))
+		cacheSize := fileSize(filepath.Join(config.Get().Info.Profile, database.GetCache().GetFilename()))
+
+		torrentsCount, _ := database.GetStormDB().Count(&database.TorrentAssignMetadata{})
+		queriesCount, _ := database.GetStormDB().Count(&database.QueryHistory{})
+		deletedMoviesCount, _ := database.GetStormDB().Select(q.Eq("MediaType", library.MovieType), q.Eq("State", library.StateDeleted)).Count(&database.LibraryItem{})
+		deletedShowsCount, _ := database.GetStormDB().Select(q.Eq("MediaType", library.ShowType), q.Eq("State", library.StateDeleted)).Count(&database.LibraryItem{})
+
+		text = fmt.Sprintf(text,
+			ident.GetVersion(),
+			ip,
+			port,
+			proxy.ProxyPort,
+			s.PackSettings.GetStr("listen_interfaces"),
+
+			webAddress,
+			infoAddress,
+			debugAllAddress,
+			debugBundleAddress,
+
+			appSize,
+			cacheSize,
+
+			torrentsCount,
+			queriesCount,
+			deletedMoviesCount,
+			deletedShowsCount,
+		)
+
+		xbmcHost.DialogText(title, string(text))
+		ctx.String(200, "")
 	}
-
-	port := config.Args.LocalPort
-	webAddress := fmt.Sprintf("http://%s:%d/web", ip, port)
-	debugAllAddress := fmt.Sprintf("http://%s:%d/debug/all", ip, port)
-	debugBundleAddress := fmt.Sprintf("http://%s:%d/debug/bundle", ip, port)
-	infoAddress := fmt.Sprintf("http://%s:%d/info", ip, port)
-
-	appSize := fileSize(filepath.Join(config.Get().Info.Profile, database.GetStorm().GetFilename()))
-	cacheSize := fileSize(filepath.Join(config.Get().Info.Profile, database.GetCache().GetFilename()))
-
-	torrentsCount, _ := database.GetStormDB().Count(&database.TorrentAssignMetadata{})
-	queriesCount, _ := database.GetStormDB().Count(&database.QueryHistory{})
-	deletedMoviesCount, _ := database.GetStormDB().Select(q.Eq("MediaType", library.MovieType), q.Eq("State", library.StateDeleted)).Count(&database.LibraryItem{})
-	deletedShowsCount, _ := database.GetStormDB().Select(q.Eq("MediaType", library.ShowType), q.Eq("State", library.StateDeleted)).Count(&database.LibraryItem{})
-
-	text = fmt.Sprintf(text,
-		ident.GetVersion(),
-		ip,
-		port,
-		proxy.ProxyPort,
-
-		webAddress,
-		infoAddress,
-		debugAllAddress,
-		debugBundleAddress,
-
-		appSize,
-		cacheSize,
-
-		torrentsCount,
-		queriesCount,
-		deletedMoviesCount,
-		deletedShowsCount,
-	)
-
-	xbmcHost.DialogText(title, string(text))
-	ctx.String(200, "")
 }
 
 func fileSize(path string) string {
