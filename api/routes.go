@@ -92,7 +92,7 @@ func Routes(s *bittorrent.Service, shutdown func(code int)) *gin.Engine {
 	r.GET("/changelog", Changelog)
 	r.GET("/donate", Donate)
 	r.GET("/settings/:addon", Settings)
-	r.GET("/status", Status)
+	r.GET("/status", Status(s))
 
 	r.Any("/info", s.ClientInfo)
 	r.Any("/info/*ident", s.ClientInfo)
