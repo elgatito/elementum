@@ -148,18 +148,18 @@ const (
 
 var (
 	ripTags = map[*regexp.Regexp]int{
-		regexp.MustCompile(`(?i)\W+(cam|camrip|hdcam)\W*`):   RipCam,
-		regexp.MustCompile(`(?i)\W+(ts|telesync)\W*`):        RipTS,
-		regexp.MustCompile(`(?i)\W+(tc|telecine)\W*`):        RipTC,
-		regexp.MustCompile(`(?i)\W+(scr|screener)\W*`):       RipScr,
-		regexp.MustCompile(`(?i)\W+dvd\W*scr\W*`):            RipDVDScr,
-		regexp.MustCompile(`(?i)\W+dvd\W*rip\W*`):            RipDVD,
-		regexp.MustCompile(`(?i)\W+hd(tv|rip)\W*`):           RipHDTV,
-		regexp.MustCompile(`(?i)\W+(web\W*dl|web\W*rip)\W*`): RipWeb,
-		regexp.MustCompile(`(?i)\W+(bluray|b[rd]rip)\W*`):    RipBluRay,
+		regexp.MustCompile(`(?i)\W+(cam|cam\W*rip|hd\W*cam)\W*`):     RipCam,
+		regexp.MustCompile(`(?i)\W+(ts|telesync|hdts)\W*`):           RipTS,
+		regexp.MustCompile(`(?i)\W+(tc|telecine)\W*`):                RipTC,
+		regexp.MustCompile(`(?i)\W+(scr|screener)\W*`):               RipScr,
+		regexp.MustCompile(`(?i)\W+dvd\W*scr\W*`):                    RipDVDScr,
+		regexp.MustCompile(`(?i)\W+dvd\W*rip\W*`):                    RipDVD,
+		regexp.MustCompile(`(?i)\W+hd(tv|rip)\W*`):                   RipHDTV,
+		regexp.MustCompile(`(?i)\W+(web\W*dl|web\W*rip)\W*`):         RipWeb,
+		regexp.MustCompile(`(?i)\W+(bluray|b[rd]\W*rip|bdremux)\W*`): RipBluRay,
 	}
 	// Rips ...
-	Rips = []string{"", "Cam", "TeleSync", "TeleCine", "Screener", "DVD Screener", "DVDRip", "HDTV", "WebDL", "Blu-Ray"}
+	Rips = []string{"", "CamRip", "TeleSync", "TeleCine", "Screener", "DVD Screener", "DVDRip", "HDTV", "WebDL", "Blu-Ray"}
 )
 
 const (
