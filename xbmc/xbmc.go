@@ -111,7 +111,7 @@ func (h *XBMCHost) VideoLibraryGetElementumMovies() (movies *VideoLibraryMovies,
 	}
 	err = h.executeJSONRPCO("VideoLibrary.GetMovies", &movies, params)
 	if err != nil {
-		log.Errorf("Error getting tvshows: %#v", err)
+		log.Errorf("Error getting movies: %#v", err)
 		return
 	}
 
@@ -701,4 +701,58 @@ func (h *XBMCHost) WaitForSettingsClosed() {
 			return
 		}
 	}
+}
+
+// VideoLibraryHasMovies checks whether Kodi library has any movie
+func (h *XBMCHost) VideoLibraryHasMovies() (ret bool, err error) {
+	defer perf.ScopeTimer()()
+
+	params := map[string]interface{}{
+		"limits": map[string]interface{}{
+			"start": 0,
+			"end":   1,
+		},
+	}
+
+	var movies *VideoLibraryMovies
+	if err = h.executeJSONRPCO("VideoLibrary.GetMovies", &movies, params); err != nil {
+		log.Errorf("Error getting movies: %#v", err)
+		return
+	}
+
+	if movies == nil || movies.Limits == nil {
+		return false, nil
+	}
+	if movies != nil && movies.Limits != nil && movies.Limits.Total == 0 {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// VideoLibraryHasShows checks whether Kodi library has any TV show
+func (h *XBMCHost) VideoLibraryHasShows() (ret bool, err error) {
+	defer perf.ScopeTimer()()
+
+	params := map[string]interface{}{
+		"limits": map[string]interface{}{
+			"start": 0,
+			"end":   1,
+		},
+	}
+
+	var shows *VideoLibraryShows
+	if err = h.executeJSONRPCO("VideoLibrary.GetTVShows", &shows, params); err != nil {
+		log.Errorf("Error getting tvshows: %#v", err)
+		return
+	}
+
+	if shows == nil || shows.Limits == nil {
+		return false, nil
+	}
+	if shows != nil && shows.Limits != nil && shows.Limits.Total == 0 {
+		return false, nil
+	}
+
+	return true, nil
 }

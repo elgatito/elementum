@@ -361,7 +361,7 @@ func ShowsLibraryPath() string {
 // Library updates
 func updateLibraryShows(xbmcHost *xbmc.XBMCHost) error {
 	l := uid.Get()
-	if !config.Get().LibraryEnabled {
+	if !config.Get().LibraryEnabled || config.Get().LibraryReadOnly {
 		l.Pending.IsKodiShows = false
 		l.Running.IsKodiShows = false
 		return nil
@@ -1060,7 +1060,7 @@ func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err erro
 		MoviesToUIDLocked(uid.UserlistedMoviesContainer, current)
 	}
 
-	if err = checkMoviesPath(); err != nil {
+	if err = checkMoviesPath(); err != nil || config.Get().LibraryReadOnly {
 		return
 	}
 
@@ -1195,7 +1195,7 @@ func SyncShowsList(listID string, updating bool, isUpdateNeeded bool) (err error
 		ShowsToUIDLocked(uid.UserlistedShowsContainer, current)
 	}
 
-	if err = checkShowsPath(); err != nil {
+	if err = checkShowsPath(); err != nil || config.Get().LibraryReadOnly {
 		return err
 	}
 
@@ -1672,7 +1672,7 @@ func findEpisodeDuplicates() ([]*uid.Episode, error) {
 
 func RemoveDuplicates() error {
 	xbmcHost, err := xbmc.GetLocalXBMCHost()
-	if xbmcHost == nil || err != nil {
+	if xbmcHost == nil || err != nil || config.Get().LibraryReadOnly {
 		return err
 	}
 

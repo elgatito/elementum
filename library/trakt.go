@@ -223,7 +223,7 @@ func refreshTraktMoviesWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) er
 	if err != nil {
 		log.Warningf("Got error from getting watched movies: %s", err)
 		return err
-	} else if len(current) == 0 {
+	} else if len(current) == 0 || config.Get().LibraryReadOnly {
 		return nil
 	}
 
@@ -360,7 +360,7 @@ func refreshTraktShowsWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) err
 	if err != nil {
 		log.Warningf("Got error from getting watched shows: %s", err)
 		return err
-	} else if len(current) == 0 {
+	} else if len(current) == 0 || config.Get().LibraryReadOnly {
 		// Kind of strange check to make sure Trakt watched items are not empty
 		return nil
 	}
@@ -694,6 +694,8 @@ func RefreshTraktPaused(xbmcHost *xbmc.XBMCHost, itemType int, isRefreshNeeded b
 		if err != nil {
 			log.Warningf("TraktSync: Got error from PausedMovies: %s", err)
 			return err
+		} else if config.Get().LibraryReadOnly {
+			return nil
 		}
 
 		for _, m := range movies {
@@ -722,6 +724,8 @@ func RefreshTraktPaused(xbmcHost *xbmc.XBMCHost, itemType int, isRefreshNeeded b
 		if err != nil {
 			log.Warningf("TraktSync: Got error from PausedShows: %s", err)
 			return err
+		} else if config.Get().LibraryReadOnly {
+			return nil
 		}
 
 		for _, s := range shows {

@@ -101,6 +101,7 @@ type Configuration struct {
 	SmartEpisodeStart           bool
 	SmartEpisodeMatch           bool
 	SmartEpisodeChoose          bool
+	LibraryReadOnly             bool
 	LibraryEnabled              bool
 	LibrarySyncEnabled          bool
 	LibrarySyncPlaybackEnabled  bool
@@ -501,26 +502,31 @@ func Reload() (ret *Configuration, err error) {
 	}
 	log.Infof("Using download path: %s", downloadPath)
 
-	if libraryPath == "." {
-		err = fmt.Errorf("Cannot use library location '%s'", libraryPath)
-		settingsWarning = "LOCALIZE[30220]"
-		exit.PanicCovered(err)
-		return nil, err
-	} else if strings.Contains(libraryPath, "elementum_library") {
-		if err := os.MkdirAll(libraryPath, 0777); err != nil {
-			err = fmt.Errorf("Could not create temporary library directory: %#v", err)
+	libraryReadOnly := isLibraryReadOnly(xbmcHost)
+	if libraryReadOnly {
+		log.Info("Running in a library read-only mode")
+	} else {
+		if libraryPath == "." {
+			err = fmt.Errorf("Cannot use library location '%s'", libraryPath)
+			settingsWarning = "LOCALIZE[30220]"
+			exit.PanicCovered(err)
+			return nil, err
+		} else if strings.Contains(libraryPath, "elementum_library") {
+			if err := os.MkdirAll(libraryPath, 0777); err != nil {
+				err = fmt.Errorf("Could not create temporary library directory: %#v", err)
+				settingsWarning = err.Error()
+				exit.PanicCovered(err)
+				return nil, err
+			}
+		}
+		if err := util.IsWritablePath(libraryPath); err != nil {
+			err = fmt.Errorf("Cannot write to library location '%s': %#v", libraryPath, err)
 			settingsWarning = err.Error()
 			exit.PanicCovered(err)
 			return nil, err
 		}
+		log.Infof("Using library path: %s", libraryPath)
 	}
-	if err := util.IsWritablePath(libraryPath); err != nil {
-		err = fmt.Errorf("Cannot write to library location '%s': %#v", libraryPath, err)
-		settingsWarning = err.Error()
-		exit.PanicCovered(err)
-		return nil, err
-	}
-	log.Infof("Using library path: %s", libraryPath)
 
 	if torrentsPath == "." {
 		torrentsPath = filepath.Join(downloadPath, "Torrents")
@@ -611,6 +617,7 @@ func Reload() (ret *Configuration, err error) {
 		SmartEpisodeStart:           settings.ToBool("smart_episode_start"),
 		SmartEpisodeMatch:           settings.ToBool("smart_episode_match"),
 		SmartEpisodeChoose:          settings.ToBool("smart_episode_choose"),
+		LibraryReadOnly:             libraryReadOnly,
 		LibraryEnabled:              settings.ToBool("library_enabled"),
 		LibrarySyncEnabled:          settings.ToBool("library_sync_enabled"),
 		LibrarySyncPlaybackEnabled:  settings.ToBool("library_sync_playback_enabled"),
@@ -1191,4 +1198,24 @@ func GetStrmLanguage() string {
 	}
 
 	return c.Language
+}
+
+// isLibraryReadOnly is checking whether we run on a Kodi that has no file sources, but having something in a library.
+// That would mean we are not on the master device and should not write library files and run Kodi sync on this host.
+func isLibraryReadOnly(xbmcHost *xbmc.XBMCHost) bool {
+	if xbmcHost == nil {
+		return true
+	}
+
+	sources := xbmcHost.FilesGetSources()
+	if sources != nil && sources.Sources != nil && len(sources.Sources) > 0 {
+		return false
+	}
+
+	hasMovies, _ := xbmcHost.VideoLibraryHasMovies()
+	hasShows, _ := xbmcHost.VideoLibraryHasShows()
+
+	// If library DOES NOT have sources but has something - then it means library is filled on another Kodi,
+	// or outside of Kodi and we should not modify it
+	return hasMovies || hasShows
 }
