@@ -669,7 +669,7 @@ func setEpisodeItemProgress(path string, showID, seasonNumber, episodeNumber int
 			if le.Resume != nil {
 				xbmcHost, _ := xbmc.GetLocalXBMCHost()
 				if xbmcHost != nil {
-					log.Debug("SetFileProgress: %s %d %d", path, int(le.Resume.Position), int(le.Resume.Total))
+					log.Debugf("SetFileProgress: %s %d %d", path, int(le.Resume.Position), int(le.Resume.Total))
 					xbmcHost.SetFileProgress(path, int(le.Resume.Position), int(le.Resume.Total))
 				}
 			}

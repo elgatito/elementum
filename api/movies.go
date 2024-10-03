@@ -469,7 +469,7 @@ func setMovieItemProgress(path string, movieID int) {
 		if lm.Resume != nil {
 			xbmcHost, _ := xbmc.GetLocalXBMCHost()
 			if xbmcHost != nil {
-				log.Debug("SetFileProgress: %s %d %d", path, int(lm.Resume.Position), int(lm.Resume.Total))
+				log.Debugf("SetFileProgress: %s %d %d", path, int(lm.Resume.Position), int(lm.Resume.Total))
 				xbmcHost.SetFileProgress(path, int(lm.Resume.Position), int(lm.Resume.Total))
 			}
 		}
