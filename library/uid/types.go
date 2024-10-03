@@ -146,3 +146,18 @@ type Library struct {
 
 	globalMutex sync.RWMutex
 }
+
+func (s *Status) IsAny() bool {
+	return s.IsOverall ||
+		s.IsMovies ||
+		s.IsShows ||
+		s.IsEpisodes ||
+		s.IsTrakt ||
+		s.IsKodi ||
+		s.IsKodiMovies ||
+		s.IsKodiShows
+}
+
+func (s *Status) IsNone() bool {
+	return !s.IsAny()
+}

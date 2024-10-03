@@ -295,7 +295,7 @@ func Init() {
 	for {
 		select {
 		case <-watcherTicker.C:
-			if !initialized || l.Running.IsOverall || l.Running.IsMovies || l.Running.IsShows || l.Running.IsEpisodes || l.Running.IsKodi || l.Running.IsTrakt || l.Running.IsKodiMovies || l.Running.IsKodiShows {
+			if !initialized || l.Running.IsAny() {
 				continue
 			} else if l.Pending.IsKodi {
 				go RefreshKodi()
@@ -360,12 +360,14 @@ func ShowsLibraryPath() string {
 
 // Library updates
 func updateLibraryShows(xbmcHost *xbmc.XBMCHost) error {
-	if !config.Get().LibraryEnabled || !config.Get().LibrarySyncEnabled || (!config.Get().LibrarySyncPlaybackEnabled && xbmcHost != nil && xbmcHost.PlayerIsPlaying()) {
-		return nil
-	}
-
 	l := uid.Get()
-	if l.Running.IsKodiShows || l.Running.IsKodi {
+	if !config.Get().LibraryEnabled {
+		l.Pending.IsKodiShows = false
+		l.Running.IsKodiShows = false
+		return nil
+	} else if !config.Get().LibrarySyncEnabled || (!config.Get().LibrarySyncPlaybackEnabled && xbmcHost != nil && xbmcHost.PlayerIsPlaying()) {
+		return nil
+	} else if l.Running.IsKodiShows || l.Running.IsKodi {
 		return nil
 	}
 

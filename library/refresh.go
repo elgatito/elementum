@@ -167,7 +167,11 @@ func RefreshShows() error {
 	}
 
 	l := uid.Get()
-	if l.Running.IsShows || l.Running.IsKodi || !config.Get().LibraryEnabled || !config.Get().LibrarySyncEnabled || (!config.Get().LibrarySyncPlaybackEnabled && xbmcHost.PlayerIsPlaying()) {
+	if l.Running.IsShows ||
+		l.Running.IsKodi ||
+		!config.Get().LibraryEnabled ||
+		!config.Get().LibrarySyncEnabled ||
+		(!config.Get().LibrarySyncPlaybackEnabled && xbmcHost.PlayerIsPlaying()) {
 		return nil
 	}
 

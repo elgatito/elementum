@@ -40,6 +40,7 @@ func RefreshTrakt() error {
 			trakt.GetLastActivities()
 		}
 
+		l.Pending.IsTrakt = false
 		return nil
 	} else if l.Running.IsTrakt {
 		log.Debugf("TraktSync: already in scanning")
@@ -205,6 +206,7 @@ func refreshTraktMoviesWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) er
 
 	container := l.GetContainer(uid.WatchedMoviesContainer)
 	if container == nil {
+		l.Running.IsMovies = false
 		return ErrNoContainer
 	}
 
@@ -341,6 +343,7 @@ func refreshTraktShowsWatched(xbmcHost *xbmc.XBMCHost, isRefreshNeeded bool) err
 
 	container := l.GetContainer(uid.WatchedShowsContainer)
 	if container == nil {
+		l.Running.IsShows = false
 		return ErrNoContainer
 	}
 
