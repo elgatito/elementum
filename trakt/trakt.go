@@ -749,10 +749,11 @@ func Scrobble(action string, contentType string, tmdbID int, watched float64, ru
 	}
 
 	if err := req.Do(); err != nil {
-		log.Error(err.Error())
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", "Scrobble failed, check your logs.", config.AddonIcon())
-		}
+		log.Errorf("Scrobble failed: %s", err)
+		// TODO: Check what is the real error source (if there is an error)
+		// if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
+		// 	xbmcHost.Notify("Elementum", "Scrobble failed, check your logs.", config.AddonIcon())
+		// }
 	} else if !slices.Contains([]int{200, 201, 409}, req.ResponseStatusCode) {
 		log.Errorf("Failed to scrobble %s #%d to %s at %f: %d", contentType, tmdbID, action, progress, req.ResponseStatusCode)
 	}
