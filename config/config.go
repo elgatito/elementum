@@ -300,10 +300,11 @@ var (
 		EnableDatabaseTracing bool `help:"Enable database tracing"`
 		EnableCacheTracing    bool `help:"Enable cache tracing"`
 
-		DisableCache    bool `help:"Disable caching for get/set methods"`
-		DisableCacheGet bool `help:"Disable caching for get methods"`
-		DisableCacheSet bool `help:"Disable caching for set methods"`
-		DisableBackup   bool `help:"Disable database backup"`
+		DisableCache       bool `help:"Disable caching for get/set methods"`
+		DisableCacheGet    bool `help:"Disable caching for get methods"`
+		DisableCacheSet    bool `help:"Disable caching for set methods"`
+		DisableBackup      bool `help:"Disable database backup"`
+		DisableLibrarySync bool `help:"Disable library sync (local strm updates and Trakt sync process)"`
 
 		RemoteHost string `help:"Remote host IP or Hostname (Host with plugin.video.elementum running)"`
 		RemotePort int    `help:"Remote host Port (Host with plugin.video.elementum running)"`
@@ -502,7 +503,7 @@ func Reload() (ret *Configuration, err error) {
 	}
 	log.Infof("Using download path: %s", downloadPath)
 
-	libraryReadOnly := isLibraryReadOnly(xbmcHost)
+	libraryReadOnly := isLibraryReadOnly(xbmcHost) || Args.DisableLibrarySync
 	if libraryReadOnly {
 		log.Info("Running in a library read-only mode")
 	} else {
