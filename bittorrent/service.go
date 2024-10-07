@@ -32,6 +32,7 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/database"
 	"github.com/elgatito/elementum/diskusage"
+	"github.com/elgatito/elementum/library"
 	"github.com/elgatito/elementum/proxy"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/trakt"
@@ -1540,12 +1541,18 @@ func (s *Service) onDownloadProgress() {
 						var dstPath string
 						if item.Type == "movie" {
 							dstPath = util.EffectiveDir(s.config.CompletedMoviesPath)
+							if item.ID > 0 {
+								movie := tmdb.GetMovie(item.ID, config.Get().Language)
+								if movie != nil {
+									dstPath = filepath.Join(dstPath, library.GetMoviePathTitle(movie))
+									os.MkdirAll(dstPath, 0755)
+								}
+							}
 						} else {
 							dstPath = util.EffectiveDir(s.config.CompletedShowsPath)
 							if item.ShowID > 0 {
-								show := tmdb.GetShow(item.ShowID, config.Get().Language)
-								if show != nil {
-									showPath := util.ToFileName(fmt.Sprintf("%s (%s)", show.GetName(), strings.Split(show.FirstAirDate, "-")[0]))
+								if show := tmdb.GetShow(item.ShowID, config.Get().Language); show != nil {
+									showPath := library.GetShowPathTitle(show)
 									seasonPath := filepath.Join(showPath, fmt.Sprintf("Season %d", item.Season))
 									if item.Season == 0 {
 										seasonPath = filepath.Join(showPath, "Specials")
