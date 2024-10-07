@@ -1175,6 +1175,10 @@ func (s *Service) logAlerts() {
 			if alert.Category&int(lt.AlertBlockProgressNotification) != 0 ||
 				alert.Category&int(lt.AlertDhtLogNotification) != 0 ||
 				alert.Category&int(lt.AlertTrackerNotification) != 0 ||
+				alert.Category&int(lt.AlertPeerLogNotification) != 0 ||
+				alert.Category&int(lt.AlertPickerLogNotification) != 0 ||
+				alert.Category&int(lt.AlertTorrentLogNotification) != 0 ||
+				alert.Type == int(lt.PieceFinishedAlertAlertType) ||
 				alert.Type == int(lt.SaveResumeDataAlertAlertType) ||
 				alert.Type == int(lt.UdpErrorAlertAlertType) ||
 				alert.Type == int(lt.StateChangedAlertAlertType) ||
