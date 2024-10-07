@@ -483,7 +483,7 @@ func writeMovieStrm(tmdbID string, force bool) (*tmdb.Movie, error) {
 		return nil, errors.New("Can't find the movie")
 	}
 
-	moviePath, movieStrm := getMoviePath(movie)
+	moviePath, movieStrm := GetMovieLibraryPath(movie)
 
 	if _, err := os.Stat(moviePath); os.IsNotExist(err) {
 		if err := os.Mkdir(moviePath, 0755); err != nil {
@@ -567,7 +567,7 @@ func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
 		return nil, fmt.Errorf("Unable to get show (%d)", showID)
 	}
 
-	showPath, showStrm := getShowPath(show)
+	showPath, showStrm := GetShowLibraryPath(show)
 
 	if _, err := os.Stat(showPath); os.IsNotExist(err) {
 		if err := os.Mkdir(showPath, 0755); err != nil {
@@ -790,7 +790,7 @@ func RemoveEpisode(tmdbID int, showID int, seasonNumber int, episodeNumber int) 
 		return errors.New("Channel is closed")
 	}
 
-	showPath, _ := getShowPath(show)
+	showPath, _ := GetShowLibraryPath(show)
 	episodeStrm := fmt.Sprintf("%s S%02dE%02d.strm", showPath, seasonNumber, episodeNumber)
 	episodePath := filepath.Join(ShowsLibraryPath(), showPath, episodeStrm)
 
@@ -1459,7 +1459,20 @@ func AddShow(tmdbID string, force bool) (*tmdb.Show, error) {
 	return show, nil
 }
 
-func getMoviePath(movie *tmdb.Movie) (moviePath, movieStrm string) {
+func GetMoviePathTitle(movie *tmdb.Movie) string {
+	if movie == nil {
+		return ""
+	}
+
+	movieName := movie.OriginalTitle
+	if config.Get().StrmLanguage != "" && movie.Title != "" {
+		movieName = movie.Title
+	}
+
+	return util.ToFileName(fmt.Sprintf("%s (%s)", movieName, strings.Split(movie.ReleaseDate, "-")[0]))
+}
+
+func GetMovieLibraryPath(movie *tmdb.Movie) (moviePath, movieStrm string) {
 	// If this movie already uses any directory - we should write there, to avoid having duplicates
 	paths := getMoviePathsByTMDB(movie.ID)
 	if len(paths) != 0 {
@@ -1469,12 +1482,7 @@ func getMoviePath(movie *tmdb.Movie) (moviePath, movieStrm string) {
 		}
 	}
 
-	movieName := movie.OriginalTitle
-	if config.Get().StrmLanguage != "" && movie.Title != "" {
-		movieName = movie.Title
-	}
-
-	movieStrm = util.ToFileName(fmt.Sprintf("%s (%s)", movieName, strings.Split(movie.ReleaseDate, "-")[0]))
+	movieStrm = GetMoviePathTitle(movie)
 	if moviePath == "" {
 		moviePath = filepath.Join(MoviesLibraryPath(), movieStrm)
 	} else {
@@ -1484,7 +1492,20 @@ func getMoviePath(movie *tmdb.Movie) (moviePath, movieStrm string) {
 	return
 }
 
-func getShowPath(show *tmdb.Show) (showPath, showStrm string) {
+func GetShowPathTitle(show *tmdb.Show) string {
+	if show == nil {
+		return ""
+	}
+
+	showName := show.OriginalName
+	if config.Get().StrmLanguage != "" && show.Name != "" {
+		showName = show.Name
+	}
+
+	return util.ToFileName(fmt.Sprintf("%s (%s)", showName, strings.Split(show.FirstAirDate, "-")[0]))
+}
+
+func GetShowLibraryPath(show *tmdb.Show) (showPath, showStrm string) {
 	// If this show already uses any directory - we should write there, to avoid having duplicates
 	paths := getShowPathsByTMDB(show.ID)
 	if len(paths) != 0 {
@@ -1494,12 +1515,7 @@ func getShowPath(show *tmdb.Show) (showPath, showStrm string) {
 		}
 	}
 
-	showName := show.OriginalName
-	if config.Get().StrmLanguage != "" && show.Name != "" {
-		showName = show.Name
-	}
-
-	showStrm = util.ToFileName(fmt.Sprintf("%s (%s)", showName, strings.Split(show.FirstAirDate, "-")[0]))
+	showStrm = GetShowPathTitle(show)
 	if showPath == "" {
 		showPath = filepath.Join(ShowsLibraryPath(), showStrm)
 	} else {
