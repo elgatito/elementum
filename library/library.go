@@ -120,8 +120,9 @@ var (
 
 	lock = sync.Mutex{}
 
-	ErrVideoRemoved = errors.New("Video is marked as removed")
-	ErrNoContainer  = errors.New("Container is not found")
+	ErrVideoRemoved    = errors.New("Video is marked as removed")
+	ErrNoContainer     = errors.New("Container is not found")
+	ErrLibraryReadOnly = errors.New("Library is in readonly mode")
 )
 
 // InitDB ...
@@ -467,6 +468,10 @@ func checkShowsPath() error {
 func writeMovieStrm(tmdbID string, force bool) (*tmdb.Movie, error) {
 	defer perf.ScopeTimer()()
 
+	if config.Get().LibraryReadOnly {
+		return nil, ErrLibraryReadOnly
+	}
+
 	// We should not write strm files for movies that are marked as deleted
 	ID, _ := strconv.Atoi(tmdbID)
 	if wasRemoved(ID, MovieType) && !force {
@@ -547,6 +552,10 @@ https://www.themoviedb.org/movie/%v
 
 func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
 	defer perf.ScopeTimer()()
+
+	if config.Get().LibraryReadOnly {
+		return nil, ErrLibraryReadOnly
+	}
 
 	// We should not write strm files for shows that are marked as deleted
 	if wasRemoved(showID, ShowType) && !force {
@@ -694,6 +703,10 @@ func RemoveMovie(tmdbID int, purge bool) (*tmdb.Movie, []string, error) {
 		deleteDBItem(tmdbID, MovieType, true, purge)
 	}()
 
+	if config.Get().LibraryReadOnly {
+		return nil, nil, ErrLibraryReadOnly
+	}
+
 	ID := strconv.Itoa(tmdbID)
 	movie := tmdb.GetMovieByID(ID, config.GetStrmLanguage())
 	if movie == nil {
@@ -730,6 +743,10 @@ func RemoveShow(tmdbID string, purge bool) (*tmdb.Show, []string, error) {
 	defer func() {
 		deleteDBItem(ID, ShowType, true, purge)
 	}()
+
+	if config.Get().LibraryReadOnly {
+		return nil, nil, ErrLibraryReadOnly
+	}
 
 	show := tmdb.GetShow(ID, config.GetStrmLanguage())
 
