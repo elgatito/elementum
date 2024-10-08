@@ -6,6 +6,9 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/DataDog/zstd v1.5.2/go.mod h1:g4AWEaM3yOg3HYfnJ3YIawPnVdXJh9QME85blwSAmyw=
 github.com/DataDog/zstd v1.5.5 h1:oWf5W7GtOLgp6bciQYDmhHHjdhYkALu6S/5Ni9ZgSvQ=
 github.com/DataDog/zstd v1.5.5/go.mod h1:g4AWEaM3yOg3HYfnJ3YIawPnVdXJh9QME85blwSAmyw=
+github.com/ElementumOrg/bbolt v1.3.10-beta h1:nqFN+JvspHa93BvvMdk9l3DT/zyz3M67Aj9Z0SD7aoE=
+github.com/ElementumOrg/bbolt v1.3.10-beta/go.mod h1:5GoVNMRNarLX/4UYvksFAK/Bg3jaBp/be49KVzRYFHE=
+github.com/ElementumOrg/bbolt v1.3.10/go.mod h1:bK3UQLPJZly7IlNmV7uVHJDxfe5aK9Ll93e/74Y9oEQ=
 github.com/ElementumOrg/libtorrent-go v0.0.0-20230915150218-d8763f5e1783 h1:gbtlHv8JwOzMo8pEsHcAW8Gc/mhM3iLaBYtF620shJU=
 github.com/ElementumOrg/libtorrent-go v0.0.0-20230915150218-d8763f5e1783/go.mod h1:9GEaPBx1VjuJnG01yOxpL8YWAQebbK7P/C1W1dM7KZ8=
 github.com/OneOfOne/xxhash v1.2.2 h1:KMrpdQIwFcEqXDklaen+P1axHaj9BSKzvpUUfnHldSE=

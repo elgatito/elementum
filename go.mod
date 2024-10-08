@@ -95,3 +95,6 @@ require (
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect
 )
+
+// Temporary fix to add android fix for madvise error
+replace go.etcd.io/bbolt v1.3.10 => github.com/ElementumOrg/bbolt v1.3.10-beta
