@@ -220,7 +220,9 @@ func main() {
 		// Wait until service is finally stopped
 		<-s.CloserNotifier.C()
 
-		lock.Unlock()
+		if lock != nil {
+			defer lock.Unlock()
+		}
 
 		log.Info("Goodbye")
 
