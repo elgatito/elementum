@@ -220,11 +220,11 @@ func main() {
 		// Wait until service is finally stopped
 		<-s.CloserNotifier.C()
 
-		if lock != nil {
-			defer lock.Unlock()
-		}
-
 		log.Info("Goodbye")
+
+		if lock != nil {
+			lock.Unlock()
+		}
 
 		// If we don't give an exit code - python treat as well done and not
 		// restarting the daemon. So when we come here from Signal -
