@@ -904,10 +904,17 @@ func (s *Service) RemoveTorrent(xbmcHost *xbmc.XBMCHost, t *Torrent, flags Remov
 	}
 
 	keepDownloading := false
-	if flags.ForceDrop || configKeepDownloading == 2 || len(t.ChosenFiles) == 0 {
-		keepDownloading = false
-	} else if configKeepDownloading == 0 || (xbmcHost != nil && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30146];;%s", t.Name()))) {
-		keepDownloading = true
+	if flags.ForceConfirmation { // action came from menu
+		// if user said no - we do not delete torrent file
+		if xbmcHost != nil && !xbmcHost.DialogConfirmNonTimed("Elementum", fmt.Sprintf("LOCALIZE[30711];;%s", t.Name())) {
+			keepDownloading = true
+		}
+	} else { // action came from playback
+		if flags.ForceDrop || configKeepDownloading == 2 || len(t.ChosenFiles) == 0 {
+			keepDownloading = false
+		} else if configKeepDownloading == 0 || (xbmcHost != nil && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30146];;%s", t.Name()))) {
+			keepDownloading = true
+		}
 	}
 
 	keepSetting := configKeepFilesPlaying
@@ -919,12 +926,19 @@ func (s *Service) RemoveTorrent(xbmcHost *xbmc.XBMCHost, t *Torrent, flags Remov
 	deleteTorrentData := false
 
 	if !keepDownloading {
-		if flags.ForceDelete || len(t.ChosenFiles) == 0 {
-			deleteTorrentData = true
-		} else if flags.ForceKeepTorrentData || keepSetting == 0 {
-			deleteTorrentData = false
-		} else if keepSetting == 2 || (xbmcHost != nil && xbmcHost.DialogConfirm("Elementum", fmt.Sprintf("LOCALIZE[30269];;%s", t.Name()))) {
-			deleteTorrentData = true
+		if flags.ForceConfirmation { // action came from menu
+			// if user said yes - we delete torrent data
+			if xbmcHost != nil && xbmcHost.DialogConfirmNonTimed("Elementum", fmt.Sprintf("LOCALIZE[30269];;%s", t.Name())) {
+				deleteTorrentData = true
+			}
+		} else { // action came from playback
+			if flags.ForceDelete || len(t.ChosenFiles) == 0 {
+				deleteTorrentData = true
+			} else if flags.ForceKeepTorrentData || keepSetting == 0 {
+				deleteTorrentData = false
+			} else if keepSetting == 2 || (xbmcHost != nil && xbmcHost.DialogConfirm("Elementum", fmt.Sprintf("LOCALIZE[30269];;%s", t.Name()))) {
+				deleteTorrentData = true
+			}
 		}
 	}
 
