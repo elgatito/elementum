@@ -168,5 +168,6 @@ type RemoveOptions struct {
 	ForceKeepTorrentData bool
 	ForceDrop            bool
 	ForceDelete          bool
+	ForceConfirmation    bool
 	IsWatched            bool
 }

@@ -302,8 +302,7 @@ func ListTorrents(s *bittorrent.Service) gin.HandlerFunc {
 			item.ContextMenu = [][]string{
 				{"LOCALIZE[30230]", fmt.Sprintf("PlayMedia(%s)", playURL)},
 				torrentAction,
-				{"LOCALIZE[30232]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/delete/%s", t.InfoHash()))},
-				{"LOCALIZE[30276]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/delete/%s?files=true", t.InfoHash()))},
+				{"LOCALIZE[30232]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/delete/%s?confirmation=true", t.InfoHash()))},
 				{"LOCALIZE[30308]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/move/%s", t.InfoHash()))},
 				sessionAction,
 			}
@@ -588,7 +587,7 @@ func RemoveTorrent(s *bittorrent.Service) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 
-		deleteFiles := ctx.DefaultQuery("files", "false")
+		confirmation := ctx.DefaultQuery("confirmation", "false")
 
 		torrentID := ctx.Params.ByName("torrentId")
 		torrent, err := GetTorrentFromParam(s, torrentID)
@@ -597,7 +596,7 @@ func RemoveTorrent(s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 
-		s.RemoveTorrent(xbmcHost, torrent, bittorrent.RemoveOptions{ForceDrop: true, ForceDelete: deleteFiles == "true"})
+		s.RemoveTorrent(xbmcHost, torrent, bittorrent.RemoveOptions{ForceConfirmation: confirmation == "true"})
 
 		xbmcHost.Refresh()
 		ctx.String(200, "")
