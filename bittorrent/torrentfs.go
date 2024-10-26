@@ -67,9 +67,7 @@ func NewTorrentFS(service *Service, method string) *TorrentFS {
 }
 
 // Open ...
-func (tfs *TorrentFS) Open(uname string) (http.File, error) {
-	name := util.DecodeFileURL(uname)
-
+func (tfs *TorrentFS) Open(name string) (http.File, error) {
 	var file http.File
 	var err error
 
