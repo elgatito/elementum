@@ -1155,7 +1155,7 @@ func (btp *Player) InitAudio() {
 
 		for _, f := range btp.t.files {
 			if strings.Contains(f.Path, currentPath) && util.HasAudioExt(f.Path) {
-				collected = append(collected, ip.GetHTTPHost()+"/files/"+f.Path)
+				collected = append(collected, ip.GetHTTPHost()+"/files/"+util.EncodeFileURL(f.Path))
 			}
 		}
 
