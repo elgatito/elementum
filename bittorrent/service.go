@@ -450,6 +450,17 @@ func (s *Service) configure() {
 		settings.SetInt("min_reconnect_time", 20)
 	}
 
+	if s.config.DisableTCP {
+		log.Info("Disabling TCP...")
+		settings.SetBool("enable_outgoing_tcp", false)
+		settings.SetBool("enable_incoming_tcp", false)
+	}
+	if s.config.DisableUTP {
+		log.Info("Disabling UTP...")
+		settings.SetBool("enable_outgoing_utp", false)
+		settings.SetBool("enable_incoming_utp", false)
+	}
+
 	var listenPorts []string
 	if s.config.ListenAutoDetectPort {
 		s.config.ListenPortMin = 6891
