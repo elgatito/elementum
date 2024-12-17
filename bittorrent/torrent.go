@@ -1819,7 +1819,7 @@ func (t *Torrent) GetCandidateFiles(btp *Player) ([]*CandidateFile, int, error) 
 	}
 
 	if len(candidateFiles) > 1 {
-		log.Info(fmt.Sprintf("There are %d candidate files", len(candidateFiles)))
+		log.Infof("There are %d candidate files", len(candidateFiles))
 		choices := make([]*CandidateFile, 0, len(candidateFiles))
 		for _, index := range candidateFiles {
 			fileName := filepath.Base(files[index].Path)
