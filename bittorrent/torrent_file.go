@@ -478,8 +478,16 @@ func (t *TorrentFile) Download() ([]byte, error) {
 	}
 
 	// Try to download file
-	parts := strings.Split(t.URI, "|")
+	parts := strings.Split(t.URI, "|") // Burst passes headers by adding |key=value to URL
 	uri := parts[0]
+	if len(parts) > 1 {
+		// NexusPHP tracker adds private token to URL like this: URL|token, so we should keep it
+		// we do this only for the first "part" and only if there is no "=" in it (so it is not from Burst)
+		if !strings.Contains(parts[1], "=") {
+			uri += "|" + parts[1]
+			log.Debugf("Added private token %q back to URL", parts[1])
+		}
+	}
 	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		return nil, err
