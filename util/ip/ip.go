@@ -64,6 +64,8 @@ func GetHTTPHost() string {
 	if config.Args.RemoteHost == "" || config.Args.RemoteHost == "127.0.0.1" {
 		if localIP, err := LocalIP(); err == nil {
 			host = localIP.String()
+		} else {
+			log.Debugf("Error getting local IP: %s", err)
 		}
 	}
 
@@ -83,6 +85,8 @@ func GetContextHTTPHost(ctx *gin.Context) string {
 	if (config.Args.RemoteHost != "" && config.Args.RemoteHost != "127.0.0.1") || !strings.HasPrefix(ctx.Request.RemoteAddr, "127.0.0.1") {
 		if localIP, err := LocalIP(); err == nil {
 			host = localIP.String()
+		} else {
+			log.Debugf("Error getting local IP: %s", err)
 		}
 	}
 
@@ -246,6 +250,8 @@ func InternalProxyURL() string {
 	ip := "127.0.0.1"
 	if localIP, err := LocalIP(); err == nil {
 		ip = localIP.String()
+	} else {
+		log.Debugf("Error getting local IP: %s", err)
 	}
 
 	return fmt.Sprintf("http://%s:%d", ip, proxy.ProxyPort)
