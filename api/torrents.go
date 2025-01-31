@@ -587,6 +587,8 @@ func RemoveTorrent(s *bittorrent.Service) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 
+		deleteTorrent := ctx.DefaultQuery("torrent", "false")
+		deleteFiles := ctx.DefaultQuery("files", "false")
 		confirmation := ctx.DefaultQuery("confirmation", "false")
 
 		torrentID := ctx.Params.ByName("torrentId")
@@ -596,7 +598,11 @@ func RemoveTorrent(s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 
-		s.RemoveTorrent(xbmcHost, torrent, bittorrent.RemoveOptions{ForceConfirmation: confirmation == "true"})
+		s.RemoveTorrent(xbmcHost, torrent, bittorrent.RemoveOptions{
+			ForceConfirmation: confirmation == "true",
+			ForceDrop:         deleteTorrent == "true",
+			ForceDelete:       deleteFiles == "true",
+		})
 
 		xbmcHost.Refresh()
 		ctx.String(200, "")
