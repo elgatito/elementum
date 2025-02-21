@@ -333,9 +333,15 @@ func (t *TorrentFile) initialize() {
 }
 
 func (t *TorrentFile) initializeFromMagnet() {
+	// libtorrent does not support xt groups (like xt.1) so we take 1st group
+	// and use it as xt (Exact Topic) if "normal" xt is absent
+	if strings.Index(t.URI, "xt=") == -1 && strings.Index(t.URI, "xt.1=") != -1 {
+		t.URI = strings.Replace(t.URI, "xt.1=", "xt=", -1)
+	}
+
 	magnetURI, _ := url.Parse(t.URI)
 	vals := magnetURI.Query()
-	hash := strings.ToUpper(strings.TrimPrefix(vals.Get("xt"), "urn:btih:"))
+	hash := strings.ToUpper(strings.TrimPrefix(vals.Get("xt"), xtPrefix))
 
 	// for backward compatibility
 	if unBase32Hash, err := base32.StdEncoding.DecodeString(hash); err == nil {
