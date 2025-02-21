@@ -705,7 +705,6 @@ func Reload() (ret *Configuration, err error) {
 
 		UpdateFrequency:                settings.ToInt("library_update_frequency"),
 		UpdateDelay:                    settings.ToInt("library_update_delay"),
-		UpdateAutoScan:                 settings.ToBool("library_auto_scan"),
 		PlayResumeAction:               settings.ToInt("play_resume_action"),
 		PlayResumeBack:                 settings.ToInt("play_resume_back"),
 		TMDBApiKey:                     settings.ToString("tmdb_api_key"),
