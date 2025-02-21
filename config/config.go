@@ -261,6 +261,7 @@ type Configuration struct {
 	ProxyUseHTTP     bool
 	ProxyUseTracker  bool
 	ProxyUseDownload bool
+	ProxyForce       bool
 
 	CompletedMove       bool
 	CompletedMoviesPath string
@@ -750,6 +751,7 @@ func Reload() (ret *Configuration, err error) {
 		ProxyUseHTTP:     settings.ToBool("use_proxy_http"),
 		ProxyUseTracker:  settings.ToBool("use_proxy_tracker"),
 		ProxyUseDownload: settings.ToBool("use_proxy_download"),
+		ProxyForce:       settings.ToBool("proxy_force"),
 
 		CompletedMove:       settings.ToBool("completed_move"),
 		CompletedMoviesPath: settings.ToString("completed_movies_path"),

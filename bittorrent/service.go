@@ -390,8 +390,8 @@ func (s *Service) configure() {
 		// Proxy Tracker connections
 		settings.SetBool("proxy_tracker_connections", config.Get().ProxyUseTracker)
 
-		// ensure no leakage
-		settings.SetBool("force_proxy", true)
+		// ensure no leakage, this may break download
+		settings.SetBool("force_proxy", config.Get().ProxyForce)
 	}
 
 	// Set alert_mask here so it also applies on reconfigure...
