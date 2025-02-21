@@ -195,14 +195,22 @@ func PollToken(code *Code) (token *Token, err error) {
 	}
 }
 
-// TokenRefreshHandler ...
+// TokenRefreshHandler refreshes token on timer if it is already expired or near to its expiration
 func TokenRefreshHandler() {
 	if config.Get().TraktToken == "" {
 		return
 	}
 
-	var token *Token
-	ticker := time.NewTicker(12 * time.Hour)
+	// current expiration time of token is 24h, so we try to refresh 90 minutes before expiration.
+	// see https://github.com/trakt/api-help/discussions/495
+	expirationAhead := 90 * 60
+
+	// Refresh token on elementum start, if needed
+	if time.Now().Unix() > int64(config.Get().TraktTokenExpiry)-int64(expirationAhead) {
+		RefreshToken()
+	}
+
+	ticker := time.NewTicker(1 * time.Hour)
 	closer := broadcast.Closer.C()
 	defer ticker.Stop()
 
@@ -211,48 +219,66 @@ func TokenRefreshHandler() {
 		case <-closer:
 			return
 		case <-ticker.C:
-			if time.Now().Unix() > int64(config.Get().TraktTokenExpiry)-int64(259200) {
-				req := reqapi.Request{
-					API:    reqapi.TraktAPI,
-					Method: "POST",
-					URL:    "oauth/token",
-					Header: http.Header{
-						"Content-type": []string{"application/json"},
-						"User-Agent":   []string{UserAgent},
-						"Cookie":       []string{Cookies},
-					},
-					Params: napping.Params{
-						"refresh_token": config.Get().TraktRefreshToken,
-						"client_id":     config.TraktWriteClientID,
-						"client_secret": config.TraktWriteClientSecret,
-						"redirect_uri":  "urn:ietf:wg:oauth:2.0:oob",
-						"grant_type":    "refresh_token",
-					}.AsUrlValues(),
-					Result:      &token,
-					Description: "oauth token",
-				}
-
-				err := req.Do()
-				if err != nil || token == nil {
-					if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-						xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-					}
-					log.Error(err)
-					return
-				}
-
-				if req.ResponseStatusCode == 200 {
-					expiry := time.Now().Unix() + int64(token.ExpiresIn)
-					if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-						xbmcHost.SetSetting("trakt_token_expiry", strconv.Itoa(int(expiry)))
-						xbmcHost.SetSetting("trakt_token", token.AccessToken)
-						xbmcHost.SetSetting("trakt_refresh_token", token.RefreshToken)
-					}
-					log.Noticef("Token refreshed for Trakt authorization, next refresh in %s", time.Duration(token.ExpiresIn-259200)*time.Second)
-				}
+			// Refresh token on timer
+			if time.Now().Unix() > int64(config.Get().TraktTokenExpiry)-int64(expirationAhead) {
+				RefreshToken()
 			}
 		}
 	}
+}
+
+// RefreshToken refreshes Trakt token
+func RefreshToken() error {
+	var token *Token
+
+	req := reqapi.Request{
+		API:    reqapi.TraktAPI,
+		Method: "POST",
+		URL:    "oauth/token",
+		Header: http.Header{
+			"Content-type": []string{"application/json"},
+			"User-Agent":   []string{UserAgent},
+			"Cookie":       []string{Cookies},
+		},
+		Params: napping.Params{
+			"refresh_token": config.Get().TraktRefreshToken,
+			"client_id":     config.TraktWriteClientID,
+			"client_secret": config.TraktWriteClientSecret,
+			"redirect_uri":  "urn:ietf:wg:oauth:2.0:oob",
+			"grant_type":    "refresh_token",
+		}.AsUrlValues(),
+		Result:      &token,
+		Description: "oauth token",
+	}
+
+	err := req.Do()
+	if err != nil || token == nil {
+		notifyMessage := err.Error()
+		if req.ResponseStatusCode == 400 || req.ResponseStatusCode == 401 {
+			err = fmt.Errorf("Trakt refresh_token is invalid, please, re-authorize Trakt")
+			notifyMessage = "LOCALIZE[30576]"
+		}
+		log.Errorf("Failed to refresh Trakt token: %s", err)
+		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
+			xbmcHost.Notify("Elementum", notifyMessage, config.AddonIcon())
+		}
+		return err
+	}
+
+	if req.ResponseStatusCode == 200 {
+		expiry := time.Now().Unix() + int64(token.ExpiresIn)
+		config.Get().TraktTokenExpiry = expiry
+		config.Get().TraktToken = token.AccessToken
+		config.Get().TraktRefreshToken = token.RefreshToken
+		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
+			xbmcHost.SetSetting("trakt_token_expiry", strconv.Itoa(int(expiry)))
+			xbmcHost.SetSetting("trakt_token", token.AccessToken)
+			xbmcHost.SetSetting("trakt_refresh_token", token.RefreshToken)
+		}
+		log.Noticef("Token refreshed for Trakt authorization, next refresh in %s", time.Duration(token.ExpiresIn)*time.Second)
+	}
+
+	return nil
 }
 
 // Authorize ...
@@ -368,6 +394,7 @@ func Deauthorize(fromSettings bool) error {
 
 		xbmcHost.Notify("Elementum", "LOCALIZE[30652]", config.AddonIcon())
 	}
+	// TODO: call https://trakt.docs.apiary.io/#reference/authentication-oauth/revoke-token/revoke-an-access_token
 
 	return nil
 }

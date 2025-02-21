@@ -239,6 +239,9 @@ func (r *Request) Do() (err error) {
 			} else if r.ResponseStatusCode < 200 || r.ResponseStatusCode >= 300 {
 				log.Errorf("Bad status getting %s with %+v on %s: %d/%s", r.Description, r.Params, r.URL, r.ResponseStatusCode, r.ResponseStatus)
 				err = errors.New(r.ResponseStatus)
+				if resp != nil && resp.ResponseBody != nil {
+					log.Debugf("Response body: %s", resp.ResponseBody.String())
+				}
 				r.Error(err)
 				return err
 			}
