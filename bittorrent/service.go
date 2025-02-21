@@ -225,6 +225,12 @@ func (s *Service) configure() {
 	settings.SetBool("use_dht_as_fallback", false)
 	settings.SetBool("use_parole_mode", true)
 
+	// Enable TCP and uTP in case if they were disabled and then enabled again without restarting Kodi
+	settings.SetBool("enable_outgoing_tcp", true)
+	settings.SetBool("enable_incoming_tcp", true)
+	settings.SetBool("enable_outgoing_utp", true)
+	settings.SetBool("enable_incoming_utp", true)
+
 	// Disabling services, as they are enabled by default in libtorrent
 	settings.SetBool("enable_upnp", false)
 	settings.SetBool("enable_natpmp", false)
@@ -517,6 +523,17 @@ func (s *Service) configure() {
 }
 
 func (s *Service) startServices() {
+	if s.config.DisableTCP {
+		log.Info("Disabling TCP...")
+		s.PackSettings.SetBool("enable_outgoing_tcp", false)
+		s.PackSettings.SetBool("enable_incoming_tcp", false)
+	}
+	if s.config.DisableUTP {
+		log.Info("Disabling UTP...")
+		s.PackSettings.SetBool("enable_outgoing_utp", false)
+		s.PackSettings.SetBool("enable_incoming_utp", false)
+	}
+
 	if !s.config.DisableLSD {
 		log.Info("Starting LSD...")
 		s.PackSettings.SetBool("enable_lsd", true)
