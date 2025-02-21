@@ -3,6 +3,7 @@ package ip
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strconv"
@@ -275,6 +276,7 @@ func TestRepositoryURL() error {
 		return err
 	}
 	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body)
 
 	return nil
 }
