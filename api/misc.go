@@ -115,6 +115,8 @@ func Status(s *bittorrent.Service) gin.HandlerFunc {
 		ip := "127.0.0.1"
 		if localIP, err := iputil.LocalIP(); err == nil {
 			ip = localIP.String()
+		} else {
+			log.Debugf("Error getting local IP: %s", err)
 		}
 
 		port := config.Args.LocalPort
