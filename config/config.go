@@ -146,6 +146,7 @@ type Configuration struct {
 	DisableTCP               bool
 	DisableUTP               bool
 	DisableUPNP              bool
+	DisableNATPMP            bool
 	EncryptionPolicy         int
 	ListenPortMin            int
 	ListenPortMax            int
@@ -306,6 +307,9 @@ var (
 		DisableCacheSet    bool `help:"Disable caching for set methods"`
 		DisableBackup      bool `help:"Disable database backup"`
 		DisableLibrarySync bool `help:"Disable library sync (local strm updates and Trakt sync process)"`
+
+		ListenInterfaces   string `help:"List of interfaces/IPs to use for libtorrent listen_interfaces"`
+		OutgoingInterfaces string `help:"List of interfaces/IPs to use for libtorrent outgoing_interfaces"`
 
 		RemoteHost string `help:"Remote host IP or Hostname (Host with plugin.video.elementum running)"`
 		RemotePort int    `help:"Remote host Port (Host with plugin.video.elementum running)"`
@@ -637,6 +641,7 @@ func Reload() (ret *Configuration, err error) {
 		DisableTCP:                  settings.ToBool("disable_tcp"),
 		DisableUTP:                  settings.ToBool("disable_utp"),
 		DisableUPNP:                 settings.ToBool("disable_upnp"),
+		DisableNATPMP:               settings.ToBool("disable_natpmp"),
 		EncryptionPolicy:            settings.ToInt("encryption_policy"),
 		ListenPortMin:               settings.ToInt("listen_port_min"),
 		ListenPortMax:               settings.ToInt("listen_port_max"),
@@ -767,6 +772,14 @@ func Reload() (ret *Configuration, err error) {
 	}
 	if Args.MoveShowsPath != "" {
 		newConfig.CompletedShowsPath = Args.MoveShowsPath
+	}
+
+	// Use custom interfaces
+	if Args.ListenInterfaces != "" {
+		newConfig.ListenInterfaces = Args.ListenInterfaces
+	}
+	if Args.OutgoingInterfaces != "" {
+		newConfig.OutgoingInterfaces = Args.OutgoingInterfaces
 	}
 
 	reDNS := regexp.MustCompile(`\s*,\s*`)
