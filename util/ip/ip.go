@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -13,23 +14,85 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/proxy"
 
+	"github.com/c-robinson/iplib/v2"
 	"github.com/gin-gonic/gin"
+	"github.com/jackpal/gateway"
 	"github.com/op/go-logging"
+	"github.com/wader/filtertransport"
 )
 
 var log = logging.MustGetLogger("ip")
 
-// LocalIP ...
+func IsAddrLocal(ip net.IP) bool {
+	return filtertransport.FindIPNet(filtertransport.DefaultFilteredNetworks, ip)
+}
+
+// GetInterfaceAddrs returns IPv4 and IPv6 for an interface string.
+func GetInterfaceAddrs(input string) (v4 net.IP, v6 net.IP, err error) {
+	addrs := []net.Addr{}
+
+	// Try to parse input as IP
+	if ip := net.ParseIP(input); ip != nil {
+		addrs = append(addrs, &net.IPAddr{IP: ip, Zone: ""})
+	} else {
+		iface, err := net.InterfaceByName(input)
+		if err != nil {
+			log.Warningf("Could not resolve interface '%s': %s", input, err)
+			return nil, nil, err
+		}
+
+		addrs, err = iface.Addrs()
+		if err != nil {
+			log.Warningf("Cannot get address for interface '%s': %s", iface.Name, err)
+			return nil, nil, err
+		}
+	}
+
+	for _, addr := range addrs {
+		var ip net.IP
+		switch v := addr.(type) {
+		case *net.IPNet:
+			ip = v.IP
+		case *net.IPAddr:
+			ip = v.IP
+		default:
+			continue
+		}
+
+		if resp := ip.To4(); resp != nil {
+			v4 = resp
+		} else if resp := ip.To16(); resp != nil {
+			v6 = resp
+		}
+	}
+
+	if v4 == nil && v6 == nil {
+		err = fmt.Errorf("Could for detect IP addresses for %s", input)
+	}
+	return
+}
+
 func LocalIP() (net.IP, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
+		log.Warningf("Cannot get list of interfaces: %s", err)
 		return nil, err
 	}
+
+IFACES:
 	for _, i := range ifaces {
 		addrs, err := i.Addrs()
 		if err != nil {
+			log.Warningf("Cannot get address for interface %s: %s", i.Name, err)
 			return nil, err
 		}
+
+		for _, addr := range addrs {
+			if strings.HasPrefix(addr.String(), "127.") {
+				continue IFACES
+			}
+		}
+
 		for _, addr := range addrs {
 			var ip net.IP
 			switch v := addr.(type) {
@@ -41,12 +104,12 @@ func LocalIP() (net.IP, error) {
 				continue
 			}
 			v4 := ip.To4()
-			if v4 != nil && (v4[0] == 192 || v4[0] == 172 || v4[0] == 10) {
+			if v4 != nil && IsAddrLocal(v4) {
 				return v4, nil
 			}
 		}
 	}
-	return nil, errors.New("cannot find local IP address")
+	return net.IPv4(127, 0, 0, 1), errors.New("cannot find local IP address")
 }
 
 func GetLocalHost() string {
