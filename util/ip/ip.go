@@ -343,3 +343,29 @@ func TestRepositoryURL() error {
 
 	return nil
 }
+
+// GetPossibleGateways calculates possible gateways for interface IP
+func GetPossibleGateways(addr net.IP) (ret []net.IP) {
+	if gw, err := gateway.DiscoverGateway(); err == nil {
+		ret = append(ret, gw)
+	}
+
+	// Ignore IPv6 addr and 0.0.0.0 addr
+	if addr.To4() == nil || addr.String() == "0.0.0.0" {
+		return
+	}
+
+	// Iterate through common subnets to get popular gateways
+	for _, subnet := range []int{8, 16, 24} {
+		n := iplib.NewNet4(addr, subnet)
+		ip := n.FirstAddress()
+
+		if !slices.ContainsFunc(ret, func(i net.IP) bool {
+			return i.Equal(ip)
+		}) {
+			ret = append([]net.IP{ip}, ret...)
+		}
+	}
+
+	return ret
+}

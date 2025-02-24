@@ -3,15 +3,18 @@ package bittorrent
 import (
 	"bufio"
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -22,6 +25,7 @@ import (
 	"github.com/cespare/xxhash"
 	"github.com/dustin/go-humanize"
 	"github.com/gin-gonic/gin"
+	natpmp "github.com/jackpal/go-nat-pmp"
 	"github.com/radovskyb/watcher"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/zeebo/bencode"
@@ -39,8 +43,14 @@ import (
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/event"
 	"github.com/elgatito/elementum/util/ident"
+	"github.com/elgatito/elementum/util/ip"
 	"github.com/elgatito/elementum/xbmc"
 )
+
+type PortMapping struct {
+	Client *natpmp.Client
+	Port   int
+}
 
 // Service ...
 type Service struct {
@@ -53,7 +63,10 @@ type Service struct {
 	SessionGlobal lt.Session
 	PackSettings  lt.SettingsPack
 
-	mappedPorts map[string]int
+	listenInterfaces   []net.IP
+	outgoingInterfaces []net.IP
+	portsMu            sync.Mutex
+	mappedPorts        map[string]PortMapping
 
 	InternalProxy *proxy.CustomProxy
 
@@ -94,6 +107,7 @@ func NewService() *Service {
 
 		SpaceChecked: map[string]bool{},
 		Players:      map[string]*Player{},
+		mappedPorts:  map[string]PortMapping{},
 
 		alertsBroadcaster: broadcast.NewBroadcaster(),
 	}
@@ -106,7 +120,7 @@ func NewService() *Service {
 		return s
 	}
 
-	s.wg.Add(4)
+	s.wg.Add(5)
 	go s.onAlertsConsumer()
 	go s.logAlerts()
 
@@ -115,6 +129,7 @@ func NewService() *Service {
 	go s.watchConfig()
 	go s.onSaveResumeDataConsumer()
 	go s.onSaveResumeDataWriter()
+	go s.networkRefresh()
 
 	go tmdb.CheckAPIKey()
 
@@ -158,10 +173,12 @@ func (s *Service) CloseSession() {
 	}()
 
 	log.Info("Closing Session")
-	s.SessionGlobal.Abort()
+	if s.SessionGlobal != nil {
+		s.SessionGlobal.Abort()
 
-	if err := lt.DeleteSession(s.SessionGlobal); err != nil {
-		log.Errorf("Could not delete libtorrent session: %s", err)
+		if err := lt.DeleteSession(s.SessionGlobal); err != nil {
+			log.Errorf("Could not delete libtorrent session: %s", err)
+		}
 	}
 }
 
@@ -456,39 +473,18 @@ func (s *Service) configure() {
 		settings.SetInt("min_reconnect_time", 20)
 	}
 
-	var listenPorts []string
-	if s.config.ListenAutoDetectPort {
-		s.config.ListenPortMin = 6891
-		s.config.ListenPortMax = 6899
+	listenInterfaces, outgoingInterfaces, errInterface := s.getInterfaceSettings()
+	if errInterface != nil {
+		log.Errorf("Could not create configure libtorrent session due to wrong interfaces configuration: %s", errInterface)
+		return
 	}
 
-	for p := s.config.ListenPortMin; p <= s.config.ListenPortMax; p++ {
-		listenPorts = append(listenPorts, strconv.Itoa(p))
-	}
-	rand.Seed(time.Now().UTC().UnixNano())
+	settings.SetStr("listen_interfaces", strings.Join(listenInterfaces, ","))
+	log.Infof("Libtorrent listen_interfaces set to: %s", strings.Join(listenInterfaces, ","))
 
-	listenInterfaces := []string{"0.0.0.0"}
-	if !s.config.ListenAutoDetectIP && strings.TrimSpace(s.config.ListenInterfaces) != "" {
-		listenInterfaces = strings.Split(strings.Replace(strings.TrimSpace(s.config.ListenInterfaces), " ", "", -1), ",")
-	}
-
-	s.mappedPorts = map[string]int{}
-	listenInterfacesStrings := make([]string, 0)
-	for _, listenInterface := range listenInterfaces {
-		port := listenPorts[rand.Intn(len(listenPorts))]
-		s.mappedPorts[port] = -1
-		listenInterfacesStrings = append(listenInterfacesStrings, listenInterface+":"+port)
-		if len(listenPorts) > 1 {
-			port := listenPorts[rand.Intn(len(listenPorts))]
-			s.mappedPorts[port] = -1
-			listenInterfacesStrings = append(listenInterfacesStrings, listenInterface+":"+port)
-		}
-	}
-	settings.SetStr("listen_interfaces", strings.Join(listenInterfacesStrings, ","))
-	log.Infof("Listening on: %s", strings.Join(listenInterfacesStrings, ","))
-
-	if strings.TrimSpace(s.config.OutgoingInterfaces) != "" {
-		settings.SetStr("outgoing_interfaces", strings.Replace(strings.TrimSpace(s.config.OutgoingInterfaces), " ", "", -1))
+	if len(outgoingInterfaces) > 0 {
+		settings.SetStr("outgoing_interfaces", strings.Join(outgoingInterfaces, ","))
+		log.Infof("Libtorrent outgoing_interfaces set to: %s", strings.Join(outgoingInterfaces, ","))
 	}
 
 	if config.Get().LibtorrentProfile == profileMinMemory {
@@ -523,6 +519,10 @@ func (s *Service) configure() {
 }
 
 func (s *Service) startServices() {
+	if s.PackSettings == nil {
+		return
+	}
+
 	if s.config.DisableTCP {
 		log.Info("Disabling TCP...")
 		s.PackSettings.SetBool("enable_outgoing_tcp", false)
@@ -548,18 +548,9 @@ func (s *Service) startServices() {
 	if !s.config.DisableUPNP {
 		log.Info("Starting UPNP...")
 		s.PackSettings.SetBool("enable_upnp", true)
-
-		log.Info("Starting NATPMP...")
-		s.PackSettings.SetBool("enable_natpmp", true)
 	}
 
 	s.Session.ApplySettings(s.PackSettings)
-
-	for p := range s.mappedPorts {
-		port, _ := strconv.Atoi(p)
-		s.mappedPorts[p] = s.Session.AddPortMapping(lt.WrappedSessionHandleTcp, port, port)
-		log.Infof("Adding port mapping %v: %v", port, s.mappedPorts[p])
-	}
 }
 
 func (s *Service) stopServices() {
@@ -593,32 +584,28 @@ func (s *Service) stopServices() {
 		}()
 	}
 
-	if !s.config.DisableLSD {
-		log.Info("Stopping LSD...")
-		s.PackSettings.SetBool("enable_lsd", false)
+	if s.PackSettings != nil && s.Session != nil {
+		if !s.config.DisableLSD {
+			log.Info("Stopping LSD...")
+			s.PackSettings.SetBool("enable_lsd", false)
+		}
+
+		if !s.config.DisableDHT {
+			log.Info("Stopping DHT...")
+			s.PackSettings.SetBool("enable_dht", false)
+		}
+
+		if !s.config.DisableUPNP {
+			log.Info("Stopping UPNP...")
+			s.PackSettings.SetBool("enable_upnp", false)
+		}
+
+		s.portsMu.Lock()
+		s.deletePortMappings()
+		s.portsMu.Unlock()
+
+		s.Session.ApplySettings(s.PackSettings)
 	}
-
-	if !s.config.DisableDHT {
-		log.Info("Stopping DHT...")
-		s.PackSettings.SetBool("enable_dht", false)
-	}
-
-	if !s.config.DisableUPNP {
-		log.Info("Stopping UPNP...")
-		s.PackSettings.SetBool("enable_upnp", false)
-
-		log.Info("Stopping NATPMP...")
-		s.PackSettings.SetBool("enable_natpmp", false)
-	}
-
-	for p := range s.mappedPorts {
-		port, _ := strconv.Atoi(p)
-		s.Session.DeletePortMapping(s.mappedPorts[p])
-		log.Infof("Deleting port mapping %v: %v", port, s.mappedPorts[p])
-	}
-	s.mappedPorts = map[string]int{}
-
-	s.Session.ApplySettings(s.PackSettings)
 }
 
 // CheckAvailableSpace ...
@@ -671,6 +658,26 @@ func (s *Service) checkAvailableSpace(xbmcHost *xbmc.XBMCHost, t *Torrent) bool 
 	}
 
 	return true
+}
+
+func (s *Service) updateInterfaces() {
+	settings := s.PackSettings
+
+	listenInterfaces, outgoingInterfaces, errInterface := s.getInterfaceSettings()
+	if errInterface != nil {
+		log.Errorf("Could not create configure libtorrent session due to wrong interfaces configuration: %s", errInterface)
+		return
+	}
+
+	settings.SetStr("listen_interfaces", strings.Join(listenInterfaces, ","))
+	log.Infof("Libtorrent listen_interfaces set to: %s", strings.Join(listenInterfaces, ","))
+
+	if len(outgoingInterfaces) > 0 {
+		settings.SetStr("outgoing_interfaces", strings.Join(outgoingInterfaces, ","))
+		log.Infof("Libtorrent outgoing_interfaces set to: %s", strings.Join(outgoingInterfaces, ","))
+	}
+
+	s.Session.ApplySettings(settings)
 }
 
 // AddTorrent ...
@@ -1169,6 +1176,65 @@ func (s *Service) onAlertsConsumer() {
 					InfoHash: infoHash,
 				}
 				s.alertsBroadcaster.Broadcast(alert)
+			}
+		}
+	}
+}
+
+func (s *Service) networkRefresh() {
+	defer s.wg.Done()
+
+	netTicker := time.NewTicker(time.Duration(5*60) * time.Second)
+	portTicker := time.NewTicker(time.Duration(60) * time.Second)
+	closing := s.Closer.C()
+	defer func() {
+		netTicker.Stop()
+		portTicker.Stop()
+	}()
+
+	for {
+		select {
+		case <-closing:
+			log.Info("Closing port refresh loop...")
+			return
+		case <-netTicker.C:
+			needUpdate := false
+			if listenInterfaces, outgoingInterfaces, err := s.calcInterfaces(); err == nil {
+				if slices.CompareFunc(s.listenInterfaces, listenInterfaces, func(a, b net.IP) int {
+					return cmp.Compare(a.String(), b.String())
+				}) != 0 {
+					needUpdate = true
+				}
+				if slices.CompareFunc(s.outgoingInterfaces, outgoingInterfaces, func(a, b net.IP) int {
+					return cmp.Compare(a.String(), b.String())
+				}) != 0 {
+					needUpdate = true
+				}
+			}
+
+			if needUpdate {
+				log.Infof("Updating listen interfaces due to network changes")
+				go s.updateInterfaces()
+			}
+		case <-portTicker.C:
+			needUpdate := false
+			s.portsMu.Lock()
+			for _, mapping := range s.mappedPorts {
+				if mapping.Client == nil {
+					continue
+				}
+
+				log.Infof("Updating port mapping: %d", mapping.Port)
+				port := tryNatPort(mapping.Client, mapping.Port)
+				if port > 0 && port != mapping.Port {
+					needUpdate = true
+				}
+			}
+			s.portsMu.Unlock()
+
+			if needUpdate {
+				log.Infof("Updating listen interfaces due to port changes")
+				go s.updateInterfaces()
 			}
 		}
 	}
@@ -2125,4 +2191,199 @@ func SetWatchedFile(path string, size int64, watched bool) {
 	key := fmt.Sprintf("stored.watched_file.%s.%d", path, size)
 
 	database.GetCache().SetCachedBool(database.CommonBucket, storedWatchedFileExpiration, key, watched)
+}
+
+// getInterfaceSettings is parsing configuration settings and forming list of IPs with ports for libtorrent
+func (s *Service) getInterfaceSettings() ([]string, []string, error) {
+	s.portsMu.Lock()
+	defer s.portsMu.Unlock()
+
+	// Clear existing mappings
+	s.deletePortMappings()
+
+	// Collect interface strings
+	listenInterfaces, outgoingInterfaces, err := s.calcInterfaces()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	s.listenInterfaces = listenInterfaces
+	s.outgoingInterfaces = outgoingInterfaces
+
+	// Search for available port to use
+	listenInterfacesStrings := s.calcInterfacePorts(listenInterfaces)
+	outgoingInterfacesStrings := []string{}
+	for _, i := range outgoingInterfaces {
+		outgoingInterfacesStrings = append(outgoingInterfacesStrings, i.String())
+	}
+
+	return listenInterfacesStrings, outgoingInterfacesStrings, nil
+}
+
+// calcInterfaces is parsing configuration values and returns list of IPs
+func (s *Service) calcInterfaces() ([]net.IP, []net.IP, error) {
+	listenInterfacesInput := "0.0.0.0"
+	if !s.config.ListenAutoDetectIP && strings.TrimSpace(s.config.ListenInterfaces) != "" {
+		listenInterfacesInput = s.config.ListenInterfaces
+	}
+
+	listenInterfaces, err := parseInterfaces(listenInterfacesInput)
+	log.Debugf("Parsed listen %v: %v", listenInterfacesInput, listenInterfaces)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	outgoingInterfaces, err := parseInterfaces(s.config.OutgoingInterfaces)
+	log.Debugf("Parsed output %v: %v", s.config.OutgoingInterfaces, outgoingInterfaces)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return listenInterfaces, outgoingInterfaces, nil
+}
+
+func (s *Service) getNatPort(local net.IP, port int) (int, *natpmp.Client) {
+	gateways := ip.GetPossibleGateways(local)
+	for _, gw := range gateways {
+		nat := natpmp.NewClientWithTimeout(gw, 1500*time.Millisecond)
+		log.Debugf("Testing NAT ports for %s", gw)
+
+		tryPort := tryNatPort(nat, port)
+		if tryPort > 0 {
+			return tryPort, nat
+		}
+
+		tryPort = tryNatPort(nat, 0)
+		if tryPort > 0 {
+			return tryPort, nat
+		}
+	}
+
+	return 0, nil
+}
+
+func (s *Service) deletePortMappings() {
+	for _, mapping := range s.mappedPorts {
+		if mapping.Client == nil {
+			continue
+		}
+
+		log.Infof("Deleting port mapping: %d", mapping.Port)
+		deleteNatPort(mapping.Client, mapping.Port)
+	}
+	s.mappedPorts = map[string]PortMapping{}
+}
+
+func deleteNatPort(nat *natpmp.Client, port int) {
+	_, err := nat.AddPortMapping("tcp", port, port, 0)
+	if err != nil {
+		log.Errorf("failed to request TCP mapping: %v", err)
+	}
+
+	_, err = nat.AddPortMapping("udp", port, port, 0)
+	if err != nil {
+		log.Errorf("failed to request UDP mapping: %v", err)
+	}
+}
+
+func tryNatPort(nat *natpmp.Client, port int) int {
+	tcp, err := nat.AddPortMapping("tcp", port, port, int(time.Duration(60*time.Second)))
+	if err != nil {
+		log.Errorf("failed to request TCP mapping: %v", err)
+		return 0
+	}
+	log.Debugf("Got TCP port %v -> %v", tcp.MappedExternalPort, tcp.InternalPort)
+
+	udp, err := nat.AddPortMapping("udp", port, port, int(time.Duration(60*time.Second)))
+	if err != nil {
+		log.Errorf("failed to request UDP mapping: %v", err)
+		return 0
+	}
+	log.Debugf("Got UDP port %v -> %v", udp.MappedExternalPort, udp.InternalPort)
+
+	if tcp.InternalPort != tcp.MappedExternalPort {
+		log.Debugf("TCP internal (%v) and external (%v) ports do not match", tcp.InternalPort, tcp.MappedExternalPort)
+		return 0
+	}
+	if udp.InternalPort != udp.MappedExternalPort {
+		log.Debugf("UDP internal (%v) and external (%v) port do not match", udp.InternalPort, udp.MappedExternalPort)
+		return 0
+	}
+
+	if tcp.InternalPort != udp.InternalPort {
+		log.Debugf("WARN: TCP (%v) and UDP (%v) ports do not match, using TCP", tcp.InternalPort, udp.InternalPort)
+	}
+
+	return int(tcp.MappedExternalPort)
+}
+
+// calcInterfacePorts is searching for a proper port to use for each interface and returns an IP:port list
+func (s *Service) calcInterfacePorts(addrs []net.IP) []string {
+	// Set port range for automatic port detect
+	if s.config.ListenAutoDetectPort {
+		s.config.ListenPortMin = 6891
+		s.config.ListenPortMax = 6899
+	}
+
+	var listenPorts []int
+	for p := s.config.ListenPortMin; p <= s.config.ListenPortMax; p++ {
+		listenPorts = append(listenPorts, p)
+	}
+
+	rand.Seed(time.Now().UTC().UnixNano())
+
+	ret := []string{}
+	for _, addr := range addrs {
+		// Get random port from a range
+		port := listenPorts[rand.Intn(len(listenPorts))]
+		mapping := PortMapping{}
+
+		// Use NAT-PMP to get available port to use from gateway
+		if s.config.ListenAutoDetectPort && !s.config.DisableNATPMP {
+			if natPort, natClient := s.getNatPort(addr, port); natPort > 0 {
+				port = natPort
+				mapping.Client = natClient
+			}
+		}
+
+		// Store port mapping
+		mapping.Port = port
+		s.mappedPorts[addr.String()] = mapping
+
+		// Construct libtorrent-compatible settings
+		if addr.To4() != nil {
+			ret = append(ret, fmt.Sprintf("%s:%d", addr.To4().String(), port))
+		} else {
+			ret = append(ret, fmt.Sprintf("[%s]:%d", addr.To16().String(), port))
+		}
+	}
+
+	return ret
+}
+
+func parseInterfaces(input string) ([]net.IP, error) {
+	interfaces := strings.Split(strings.Replace(strings.TrimSpace(input), " ", "", -1), ",")
+	ret := []net.IP{}
+
+	// Prepare listen_interfaces
+	for _, ifName := range interfaces {
+		if ifName == "" {
+			continue
+		}
+
+		// Get IPs for interface
+		v4, v6, err := ip.GetInterfaceAddrs(ifName)
+		if err != nil {
+			return nil, err
+		}
+
+		if v4 != nil {
+			ret = append(ret, v4)
+		}
+		if v6 != nil {
+			ret = append(ret, v6)
+		}
+	}
+
+	return ret, nil
 }
