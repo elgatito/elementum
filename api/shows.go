@@ -665,13 +665,11 @@ func ShowEpisodes(ctx *gin.Context) {
 
 func setEpisodeItemProgress(path string, showID, seasonNumber, episodeNumber int) {
 	if ls, err := uid.GetShowByTMDB(showID); ls != nil && err == nil {
-		if le := ls.GetEpisode(seasonNumber, episodeNumber); le != nil {
-			if le.Resume != nil {
-				xbmcHost, _ := xbmc.GetLocalXBMCHost()
-				if xbmcHost != nil {
-					log.Debugf("SetFileProgress: %s %d %d", path, int(le.Resume.Position), int(le.Resume.Total))
-					xbmcHost.SetFileProgress(path, int(le.Resume.Position), int(le.Resume.Total))
-				}
+		if le := ls.GetEpisode(seasonNumber, episodeNumber); le != nil && le.Resume != nil && le.Resume.Position > 0 {
+			xbmcHost, _ := xbmc.GetLocalXBMCHost()
+			if xbmcHost != nil {
+				log.Debugf("SetFileProgress: %s %d %d", path, int(le.Resume.Position), int(le.Resume.Total))
+				xbmcHost.SetFileProgress(path, int(le.Resume.Position), int(le.Resume.Total))
 			}
 		}
 	}

@@ -465,7 +465,7 @@ func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, que
 }
 
 func setMovieItemProgress(path string, movieID int) {
-	if lm, err := uid.GetMovieByTMDB(movieID); lm != nil && err == nil {
+	if lm, err := uid.GetMovieByTMDB(movieID); lm != nil && lm.Resume != nil && lm.Resume.Position > 0 && err == nil {
 		if lm.Resume != nil {
 			xbmcHost, _ := xbmc.GetLocalXBMCHost()
 			if xbmcHost != nil {
