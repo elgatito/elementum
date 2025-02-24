@@ -20,12 +20,12 @@ import (
 	"strings"
 	"time"
 
+	natpmp "github.com/ElementumOrg/go-nat-pmp"
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/anacrolix/sync"
 	"github.com/cespare/xxhash"
 	"github.com/dustin/go-humanize"
 	"github.com/gin-gonic/gin"
-	natpmp "github.com/jackpal/go-nat-pmp"
 	"github.com/radovskyb/watcher"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/zeebo/bencode"
@@ -2287,14 +2287,14 @@ func deleteNatPort(nat *natpmp.Client, port int) {
 }
 
 func tryNatPort(nat *natpmp.Client, port int) int {
-	tcp, err := nat.AddPortMapping("tcp", port, port, int(time.Duration(60*time.Second)))
+	tcp, err := nat.AddPortMapping("tcp", port, port, int64(time.Duration(60*time.Second)))
 	if err != nil {
 		log.Errorf("failed to request TCP mapping: %v", err)
 		return 0
 	}
 	log.Debugf("Got TCP port %v -> %v", tcp.MappedExternalPort, tcp.InternalPort)
 
-	udp, err := nat.AddPortMapping("udp", port, port, int(time.Duration(60*time.Second)))
+	udp, err := nat.AddPortMapping("udp", port, port, int64(time.Duration(60*time.Second)))
 	if err != nil {
 		log.Errorf("failed to request UDP mapping: %v", err)
 		return 0

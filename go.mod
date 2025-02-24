@@ -5,6 +5,7 @@ go 1.21
 toolchain go1.21.1
 
 require (
+	github.com/ElementumOrg/go-nat-pmp v0.0.0-20250224152958-33a79384df6a
 	github.com/ElementumOrg/libtorrent-go v0.0.0-20230915150218-d8763f5e1783
 	github.com/RoaringBitmap/roaring v1.9.3
 	github.com/anacrolix/missinggo v1.3.0
@@ -13,6 +14,7 @@ require (
 	github.com/anacrolix/tagflag v1.4.0
 	github.com/asdine/storm v2.1.2+incompatible
 	github.com/bogdanovich/dns_resolver v0.0.0-20170211073258-a8e42bc6a5b6
+	github.com/c-robinson/iplib/v2 v2.0.5
 	github.com/cespare/xxhash v1.1.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/elazarl/goproxy v0.0.0-20231117061959-7cc037d33fb5
@@ -20,11 +22,12 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/goccy/go-json v0.10.2
 	github.com/hectane/go-acl v0.0.0-20230122075934-ca0b05cb1adb
+	github.com/jackpal/gateway v1.0.16
 	github.com/jmcvetta/napping v3.2.0+incompatible
 	github.com/karrick/godirwalk v1.17.0
 	github.com/klauspost/compress v1.17.8
-	github.com/kolo/xmlrpc v0.0.0-20220921171641-a4b6fa1dd06b
 	github.com/likexian/doh v0.7.1
+	github.com/likexian/gokit v0.25.15
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/radovskyb/watcher v1.0.7
@@ -33,6 +36,7 @@ require (
 	github.com/spf13/cast v1.6.0
 	github.com/valyala/bytebufferpool v1.0.0
 	github.com/vmihailenco/msgpack/v4 v4.3.13
+	github.com/wader/filtertransport v0.0.0-20200316221534-bdd9e61eee78
 	github.com/zeebo/bencode v1.0.0
 	go.etcd.io/bbolt v1.3.10
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -51,9 +55,6 @@ require (
 	github.com/bradfitz/iter v0.0.0-20191230175014-e8f45d346db8 // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
-	github.com/c-robinson/iplib/v2 v2.0.5 // indirect
-	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
-	github.com/chenzhuoyu/iasm v0.9.1 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect
 	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -64,15 +65,11 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.20.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/huandu/xstrings v1.4.0 // indirect
-	github.com/jackpal/gateway v1.0.16 // indirect
-	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jmcvetta/randutil v0.0.0-20150817122601-2bb1b664bcff // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/likexian/gokit v0.25.15 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/miekg/dns v1.1.59 // indirect
@@ -88,7 +85,6 @@ require (
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/vmihailenco/tagparser v0.1.2 // indirect
-	github.com/wader/filtertransport v0.0.0-20200316221534-bdd9e61eee78 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/arch v0.8.0 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
