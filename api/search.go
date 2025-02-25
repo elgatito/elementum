@@ -290,12 +290,3 @@ func searchHistoryGetXbmcURL(historyType string, query string) string {
 
 	return URLQuery(URLForXBMC(urlPrefix+"/search"), "q", query)
 }
-
-func searchHistoryGetHTTPUrl(historyType string, query string) string {
-	urlPrefix := ""
-	if len(historyType) > 0 {
-		urlPrefix = "/" + historyType
-	}
-
-	return URLQuery(URLForHTTP(urlPrefix+"/search"), "q", query)
-}

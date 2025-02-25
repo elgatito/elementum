@@ -109,7 +109,3 @@ func HistoryClear(ctx *gin.Context) {
 func torrentHistoryGetXbmcURL(infohash string) string {
 	return URLQuery(URLForXBMC("/history"), "infohash", infohash)
 }
-
-func torrentHistoryGetHTTPUrl(infohash string) string {
-	return URLQuery(URLForHTTP("/history"), "infohash", infohash)
-}

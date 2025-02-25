@@ -1155,7 +1155,7 @@ func (btp *Player) InitAudio() {
 
 		for _, f := range btp.t.files {
 			if strings.Contains(f.Path, currentPath) && util.HasAudioExt(f.Path) {
-				collected = append(collected, ip.GetHTTPHost()+"/files/"+util.EncodeFileURL(f.Path))
+				collected = append(collected, ip.GetHTTPHost(btp.xbmcHost)+"/files/"+util.EncodeFileURL(f.Path))
 			}
 		}
 
@@ -1238,7 +1238,7 @@ func (btp *Player) SetSubtitles() {
 
 		for _, f := range btp.t.files {
 			if strings.Contains(f.Path, currentPath) && util.HasSubtitlesExt(f.Path) {
-				collected = append(collected, ip.GetHTTPHost()+"/files/"+util.EncodeFileURL(f.Path))
+				collected = append(collected, ip.GetHTTPHost(btp.xbmcHost)+"/files/"+util.EncodeFileURL(f.Path))
 			}
 		}
 

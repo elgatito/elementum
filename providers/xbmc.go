@@ -147,8 +147,8 @@ func (as *AddonSearcher) GetQuerySearchObject(query string) *QuerySearchObject {
 	}
 
 	sObject.ProxyURL = config.Get().ProxyURL
-	sObject.ElementumURL = ip.ElementumURL()
-	sObject.InternalProxyURL = ip.InternalProxyURL()
+	sObject.ElementumURL = ip.ElementumURL(as.xbmcHost)
+	sObject.InternalProxyURL = ip.InternalProxyURL(as.xbmcHost)
 
 	return sObject
 }
@@ -257,8 +257,8 @@ func (as *AddonSearcher) GetMovieSearchObject(movie *tmdb.Movie) *MovieSearchObj
 	sObject.Titles[strings.ToLower(config.Get().Language)] = NormalizeTitle(movie.GetTitle())
 
 	sObject.ProxyURL = config.Get().ProxyURL
-	sObject.ElementumURL = ip.ElementumURL()
-	sObject.InternalProxyURL = ip.InternalProxyURL()
+	sObject.ElementumURL = ip.ElementumURL(as.xbmcHost)
+	sObject.InternalProxyURL = ip.InternalProxyURL(as.xbmcHost)
 
 	return sObject
 }
@@ -314,8 +314,8 @@ func (as *AddonSearcher) GetSeasonSearchObject(show *tmdb.Show, season *tmdb.Sea
 	sObject.Titles[strings.ToLower(config.Get().Language)] = NormalizeTitle(show.GetName())
 
 	sObject.ProxyURL = config.Get().ProxyURL
-	sObject.ElementumURL = ip.ElementumURL()
-	sObject.InternalProxyURL = ip.InternalProxyURL()
+	sObject.ElementumURL = ip.ElementumURL(as.xbmcHost)
+	sObject.InternalProxyURL = ip.InternalProxyURL(as.xbmcHost)
 
 	return sObject
 }
@@ -420,8 +420,8 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 	sObject.Titles[strings.ToLower(config.Get().Language)] = NormalizeTitle(show.GetName())
 
 	sObject.ProxyURL = config.Get().ProxyURL
-	sObject.ElementumURL = ip.ElementumURL()
-	sObject.InternalProxyURL = ip.InternalProxyURL()
+	sObject.ElementumURL = ip.ElementumURL(as.xbmcHost)
+	sObject.InternalProxyURL = ip.InternalProxyURL(as.xbmcHost)
 
 	return sObject
 }

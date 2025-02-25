@@ -13,6 +13,7 @@ import (
 
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/proxy"
+	"github.com/elgatito/elementum/xbmc"
 
 	"github.com/c-robinson/iplib/v2"
 	"github.com/gin-gonic/gin"
@@ -72,7 +73,14 @@ func GetInterfaceAddrs(input string) (v4 net.IP, v6 net.IP, err error) {
 	return
 }
 
-func LocalIP() (net.IP, error) {
+func LocalIP(xbmcHost *xbmc.XBMCHost) (net.IP, error) {
+	// Use IP that was requested by client in the request, if possible
+	if xbmcHost != nil && xbmcHost.Host != "" {
+		if ip := net.ParseIP(xbmcHost.Host); ip != nil {
+			return ip, nil
+		}
+	}
+
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		log.Warningf("Cannot get list of interfaces: %s", err)
@@ -121,12 +129,14 @@ func GetLocalHost() string {
 }
 
 // GetHTTPHost ...
-func GetHTTPHost() string {
+func GetHTTPHost(xbmcHost *xbmc.XBMCHost) string {
 	// We should always use local IP, instead of external one, if possible
 	// to avoid situations when ip has changed and Kodi expects it anyway.
 	host := "127.0.0.1"
-	if config.Args.RemoteHost == "" || config.Args.RemoteHost == "127.0.0.1" {
-		if localIP, err := LocalIP(); err == nil {
+	if xbmcHost != nil && xbmcHost.Host != "" {
+		host = xbmcHost.Host
+	} else if config.Args.RemoteHost == "" || config.Args.RemoteHost == "127.0.0.1" {
+		if localIP, err := LocalIP(xbmcHost); err == nil {
 			host = localIP.String()
 		} else {
 			log.Debugf("Error getting local IP: %s", err)
@@ -147,7 +157,7 @@ func GetContextHTTPHost(ctx *gin.Context) string {
 	// to avoid situations when ip has changed and Kodi expects it anyway.
 	host := "127.0.0.1"
 	if (config.Args.RemoteHost != "" && config.Args.RemoteHost != "127.0.0.1") || !strings.HasPrefix(ctx.Request.RemoteAddr, "127.0.0.1") {
-		if localIP, err := LocalIP(); err == nil {
+		if localIP, err := LocalIP(nil); err == nil {
 			host = localIP.String()
 		} else {
 			log.Debugf("Error getting local IP: %s", err)
@@ -305,14 +315,16 @@ func isUDPPortUsed(network string, addr string) bool {
 }
 
 // ElementumURL returns elementum url for external calls
-func ElementumURL() string {
-	return GetHTTPHost()
+func ElementumURL(xbmcHost *xbmc.XBMCHost) string {
+	return GetHTTPHost(xbmcHost)
 }
 
 // InternalProxyURL returns internal proxy url
-func InternalProxyURL() string {
+func InternalProxyURL(xbmcHost *xbmc.XBMCHost) string {
 	ip := "127.0.0.1"
-	if localIP, err := LocalIP(); err == nil {
+	if xbmcHost != nil && xbmcHost.Host != "" {
+		ip = xbmcHost.Host
+	} else if localIP, err := LocalIP(xbmcHost); err == nil {
 		ip = localIP.String()
 	} else {
 		log.Debugf("Error getting local IP: %s", err)
