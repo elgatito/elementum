@@ -1226,14 +1226,15 @@ func (s *Service) networkRefresh() {
 
 				log.Infof("Updating port mapping: %d", mapping.Port)
 				port := tryNatPort(mapping.Client, mapping.Port)
-				if port > 0 && port != mapping.Port {
+				if port == 0 || port != mapping.Port {
 					needUpdate = true
 				}
 			}
 			s.portsMu.Unlock()
 
 			if needUpdate {
-				log.Infof("Updating listen interfaces due to port changes")
+				log.Infof("Updating listen interfaces due to port changes in 5s")
+				time.Sleep(5 * time.Second)
 				go s.updateInterfaces()
 			}
 		}
@@ -2292,14 +2293,14 @@ func tryNatPort(nat *natpmp.Client, port int) int {
 		log.Errorf("failed to request TCP mapping: %v", err)
 		return 0
 	}
-	log.Debugf("Got TCP port %v -> %v", tcp.MappedExternalPort, tcp.InternalPort)
+	log.Debugf("Got TCP port (for port %d) %v -> %v", port, tcp.MappedExternalPort, tcp.InternalPort)
 
 	udp, err := nat.AddPortMapping("udp", port, port, int64(time.Duration(60*time.Second)))
 	if err != nil {
 		log.Errorf("failed to request UDP mapping: %v", err)
 		return 0
 	}
-	log.Debugf("Got UDP port %v -> %v", udp.MappedExternalPort, udp.InternalPort)
+	log.Debugf("Got UDP port (for port %d) %v -> %v", port, udp.MappedExternalPort, udp.InternalPort)
 
 	if tcp.InternalPort != tcp.MappedExternalPort {
 		log.Debugf("TCP internal (%v) and external (%v) ports do not match", tcp.InternalPort, tcp.MappedExternalPort)
