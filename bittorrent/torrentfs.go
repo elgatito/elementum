@@ -68,9 +68,9 @@ func NewTorrentFS(service *Service, method string) *TorrentFS {
 
 // Open ...
 func (tfs *TorrentFS) Open(uname string) (http.File, error) {
-	// URLs always come with "/" as the separator, but while we compare it to file storage path,
-	// it should be using OS specific separators in the path
-	name := util.DecodeFileURL(uname)
+	// URL always comes with "/" as the separator, but while we compare it to file storage path,
+	// we should use OS specific separator in the path. URL comes already decoded.
+	name := util.ReconstructFileURL(uname)
 
 	var file http.File
 	var err error

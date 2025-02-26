@@ -22,7 +22,7 @@ func TrailerURL(u string) (ret string) {
 	return
 }
 
-// DecodeFileURL decodes file path from url
+// DecodeFileURL decodes file path from raw (not yet decoded) url
 func DecodeFileURL(u string) (ret string) {
 	us := strings.Split(u, string("/"))
 	for i, v := range us {
@@ -40,4 +40,9 @@ func EncodeFileURL(u string) (ret string) {
 	}
 
 	return strings.Join(us, "/")
+}
+
+// ReconstructFileURL reconstructs file path from already decoded url with correct separator
+func ReconstructFileURL(u string) (ret string) {
+	return strings.Join(strings.Split(u, string("/")), string(os.PathSeparator))
 }
