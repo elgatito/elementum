@@ -503,7 +503,7 @@ func (t *TorrentFile) Download() ([]byte, error) {
 		for _, part := range parts[1:] {
 			if keyVal := strings.SplitN(part, "=", 2); len(keyVal) > 1 {
 				req.Header.Add(keyVal[0], keyVal[1])
-				log.Debugf("Added header %q: %q", keyVal[0], keyVal[1])
+				//log.Debugf("Added header %q: %q", keyVal[0], keyVal[1])
 			}
 		}
 	}
