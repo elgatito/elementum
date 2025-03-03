@@ -1273,6 +1273,17 @@ func (t *Torrent) Resume() {
 	t.IsPaused = false
 }
 
+// ForceRecheck re-checks torrent's data
+func (t *Torrent) ForceRecheck() {
+	if t.Closer.IsSet() || t.th == nil || t.th.Swigcptr() == 0 {
+		return
+	}
+
+	log.Infof("Re-checking torrent: %s", t.InfoHash())
+
+	t.th.ForceRecheck()
+}
+
 // GetDBItem ...
 func (t *Torrent) GetDBItem() *database.BTItem {
 	return t.DBItem

@@ -316,6 +316,8 @@ func ListTorrents(s *bittorrent.Service) gin.HandlerFunc {
 				} else {
 					item.ContextMenu = append(item.ContextMenu, []string{"LOCALIZE[30532]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/undownloadall/%s", t.InfoHash()))})
 				}
+
+				item.ContextMenu = append(item.ContextMenu, []string{"LOCALIZE[30714]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/recheck/%s", t.InfoHash()))})
 			}
 
 			item.IsPlayable = true
@@ -576,6 +578,27 @@ func PauseTorrent(s *bittorrent.Service) gin.HandlerFunc {
 		}
 
 		torrent.Pause()
+
+		xbmcHost.Refresh()
+		ctx.String(200, "")
+	}
+}
+
+// RecheckTorrent re-checks torrent's data
+func RecheckTorrent(s *bittorrent.Service) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		defer perf.ScopeTimer()()
+
+		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+
+		torrentID := ctx.Params.ByName("torrentId")
+		torrent, err := GetTorrentFromParam(s, torrentID)
+		if err != nil {
+			ctx.Error(fmt.Errorf("Unable to re-check torrent with index %s", torrentID))
+			return
+		}
+
+		torrent.ForceRecheck()
 
 		xbmcHost.Refresh()
 		ctx.String(200, "")
