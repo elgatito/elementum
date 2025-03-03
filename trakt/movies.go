@@ -618,7 +618,6 @@ func (movie *Movie) ToListItem() (item *xbmc.ListItem) {
 	if lm, err := uid.GetMovieByTMDB(movie.IDs.TMDB); lm != nil && err == nil {
 		item.Info.DBID = lm.UIDs.Kodi
 		if lm.Resume != nil {
-			log.Debugf("%s lm.Resume.Position: %f", movie.Title, lm.Resume.Position)
 			item.Properties.ResumeTime = strconv.FormatFloat(lm.Resume.Position, 'f', 6, 64)
 			item.Properties.TotalTime = strconv.FormatFloat(lm.Resume.Total, 'f', 6, 64)
 		}

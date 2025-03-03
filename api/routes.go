@@ -143,6 +143,7 @@ func Routes(s *bittorrent.Service, shutdown func(code int)) *gin.Engine {
 		torrents.GET("/move/:torrentId", MoveTorrent(s))
 		torrents.GET("/pause/:torrentId", PauseTorrent(s))
 		torrents.GET("/resume/:torrentId", ResumeTorrent(s))
+		torrents.GET("/recheck/:torrentId", RecheckTorrent(s))
 		torrents.GET("/delete/:torrentId", RemoveTorrent(s))
 		torrents.GET("/downloadall/:torrentId", DownloadAllTorrent(s))
 		torrents.GET("/undownloadall/:torrentId", UnDownloadAllTorrent(s))
