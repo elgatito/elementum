@@ -302,11 +302,12 @@ var (
 		EnableDatabaseTracing bool `help:"Enable database tracing"`
 		EnableCacheTracing    bool `help:"Enable cache tracing"`
 
-		DisableCache       bool `help:"Disable caching for get/set methods"`
-		DisableCacheGet    bool `help:"Disable caching for get methods"`
-		DisableCacheSet    bool `help:"Disable caching for set methods"`
-		DisableBackup      bool `help:"Disable database backup"`
-		DisableLibrarySync bool `help:"Disable library sync (local strm updates and Trakt sync process)"`
+		DisableParentProcessWatcher bool `help:"Disable functionality that checks whether parent process is alive"`
+		DisableCache                bool `help:"Disable caching for get/set methods"`
+		DisableCacheGet             bool `help:"Disable caching for get methods"`
+		DisableCacheSet             bool `help:"Disable caching for set methods"`
+		DisableBackup               bool `help:"Disable database backup"`
+		DisableLibrarySync          bool `help:"Disable library sync (local strm updates and Trakt sync process)"`
 
 		ListenInterfaces   string `help:"List of interfaces/IPs to use for libtorrent listen_interfaces"`
 		OutgoingInterfaces string `help:"List of interfaces/IPs to use for libtorrent outgoing_interfaces"`

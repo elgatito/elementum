@@ -243,7 +243,7 @@ func main() {
 		}
 	}
 	// If we run with custom config, then we run as daemon, thus no need to watch for parent process
-	if config.Args.ConfigPath == "" {
+	if config.Args.ConfigPath == "" && !config.Args.DisableParentProcessWatcher {
 		go watchParentProcess()
 	}
 
