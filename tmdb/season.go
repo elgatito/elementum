@@ -469,3 +469,13 @@ func (season *Season) GetEpisode(episode int) *Episode {
 	}
 	return nil
 }
+
+func (season *Season) GetSearchTitle(show *Show) string {
+	if season.AirDate != "" {
+		if dt, _ := util.AirDateWithAiredCheck(season.AirDate, time.DateOnly, config.Get().ShowEpisodesOnReleaseDay); !dt.IsZero() {
+			return fmt.Sprintf("%s Season %d (%d)", show.GetName(), season.Season, dt.Year())
+		}
+	}
+
+	return fmt.Sprintf("%s Season %d", show.GetName(), season.Season)
+}

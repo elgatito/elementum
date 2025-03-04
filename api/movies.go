@@ -704,7 +704,7 @@ func MovieLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		if action == "play" {
 			choice = 0
 		} else {
-			choice = xbmcHost.ListDialogLarge("LOCALIZE[30228]", movie.GetTitle(), choices...)
+			choice = xbmcHost.ListDialogLarge("LOCALIZE[30228]", movie.GetSearchTitle(), choices...)
 		}
 
 		if choice >= 0 {

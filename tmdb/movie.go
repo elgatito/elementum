@@ -532,6 +532,13 @@ func (movie *Movie) mpaa() string {
 	return ""
 }
 
+func (movie *Movie) GetSearchTitle() string {
+	if year := movie.Year(); year > 0 {
+		return fmt.Sprintf("%s (%d)", movie.GetTitle(), year)
+	}
+	return movie.GetTitle()
+}
+
 func (movie *Movie) GetTitle() string {
 	// If user's language is equal to video's language - we just use Title
 	if movie.Title != "" && movie.Title == movie.OriginalTitle && movie.OriginalLanguage == config.Get().Language {

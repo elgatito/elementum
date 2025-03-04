@@ -204,6 +204,16 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 	return item
 }
 
+func (episode *Episode) GetSearchTitle(show *Show) string {
+	if episode.AirDate != "" {
+		if dt, _ := util.AirDateWithAiredCheck(episode.AirDate, time.DateOnly, config.Get().ShowEpisodesOnReleaseDay); !dt.IsZero() {
+			return fmt.Sprintf("%s S%02dE%02d (%d)", show.GetName(), episode.SeasonNumber, episode.EpisodeNumber, dt.Year())
+		}
+	}
+
+	return fmt.Sprintf("%s S%02dE%02d", show.GetName(), episode.SeasonNumber, episode.EpisodeNumber)
+}
+
 func (episode *Episode) GetName(show *Show) string {
 	if episode.Name != "" || episode.Translations == nil || episode.Translations.Translations == nil || len(episode.Translations.Translations) == 0 {
 		return episode.Name
