@@ -302,23 +302,25 @@ func ListTorrents(s *bittorrent.Service) gin.HandlerFunc {
 			item.ContextMenu = [][]string{
 				{"LOCALIZE[30230]", fmt.Sprintf("PlayMedia(%s)", playURL)},
 				torrentAction,
-				{"LOCALIZE[30232]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/delete/%s?confirmation=true", t.InfoHash()))},
-				{"LOCALIZE[30308]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/move/%s", t.InfoHash()))},
 				sessionAction,
 			}
 
 			if !t.IsMemoryStorage() {
-				item.ContextMenu = append(item.ContextMenu, []string{"LOCALIZE[30573]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/selectfile/%s", t.InfoHash()))})
-				item.ContextMenu = append(item.ContextMenu, []string{"LOCALIZE[30612]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/downloadfile/%s", t.InfoHash()))})
-
-				if t.HasAvailableFiles() {
-					item.ContextMenu = append(item.ContextMenu, []string{"LOCALIZE[30531]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/downloadall/%s", t.InfoHash()))})
-				} else {
-					item.ContextMenu = append(item.ContextMenu, []string{"LOCALIZE[30532]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/undownloadall/%s", t.InfoHash()))})
+				downloadAllAction := []string{"LOCALIZE[30531]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/downloadall/%s", t.InfoHash()))}
+				if !t.HasAvailableFiles() {
+					downloadAllAction = []string{"LOCALIZE[30532]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/undownloadall/%s", t.InfoHash()))}
 				}
 
-				item.ContextMenu = append(item.ContextMenu, []string{"LOCALIZE[30714]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/recheck/%s", t.InfoHash()))})
+				item.ContextMenu = append(item.ContextMenu,
+					[]string{"LOCALIZE[30573]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/selectfile/%s", t.InfoHash()))},
+					[]string{"LOCALIZE[30612]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/downloadfile/%s", t.InfoHash()))},
+					downloadAllAction,
+					[]string{"LOCALIZE[30308]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/move/%s", t.InfoHash()))},
+					[]string{"LOCALIZE[30714]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/recheck/%s", t.InfoHash()))},
+				)
 			}
+
+			item.ContextMenu = append(item.ContextMenu, []string{"LOCALIZE[30232]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/delete/%s?confirmation=true", t.InfoHash()))})
 
 			item.IsPlayable = true
 			items = append(items, &item)
