@@ -102,7 +102,7 @@ func setupLogging() {
 	if config.Args.LogPath != "" {
 		logPath = config.Args.LogPath
 	}
-	if logPath != "" && util.IsWritablePath(filepath.Base(logPath)) == nil {
+	if logPath != "" && util.IsWritablePath(filepath.Dir(logPath)) == nil {
 		fileLogger = &lumberjack.Logger{
 			Filename:   logPath,
 			MaxSize:    10, // Size in Megabytes
