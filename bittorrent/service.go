@@ -27,7 +27,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/gin-gonic/gin"
 	"github.com/radovskyb/watcher"
-	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/zeebo/bencode"
 
 	lt "github.com/ElementumOrg/libtorrent-go"
