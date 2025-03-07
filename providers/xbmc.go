@@ -432,9 +432,11 @@ func (as *AddonSearcher) call(method string, searchObject interface{}) []*bittor
 	cbURL := fmt.Sprintf("http://%s/callbacks/%s", as.callbackHost, cid)
 
 	payload := &SearchPayload{
-		Method:       method,
-		CallbackURL:  cbURL,
-		SearchObject: searchObject,
+		Method:           method,
+		CallbackURL:      cbURL,
+		CallbackLogin:    config.Args.LocalLogin,
+		CallbackPassword: config.Args.LocalPassword,
+		SearchObject:     searchObject,
 	}
 
 	as.xbmcHost.ExecuteAddon(as.addonID, payload.String())

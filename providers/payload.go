@@ -8,9 +8,11 @@ import (
 
 // SearchPayload ...
 type SearchPayload struct {
-	Method       string      `json:"method"`
-	CallbackURL  string      `json:"callback_url"`
-	SearchObject interface{} `json:"search_object"`
+	Method           string      `json:"method"`
+	CallbackURL      string      `json:"callback_url"`
+	CallbackLogin    string      `json:"callback_login"`
+	CallbackPassword string      `json:"callback_password"`
+	SearchObject     interface{} `json:"search_object"`
 }
 
 // GeneralSearchObject ...
