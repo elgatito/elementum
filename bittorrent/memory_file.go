@@ -14,6 +14,7 @@ import (
 
 // MemoryFile ...
 type MemoryFile struct {
+	t    *Torrent
 	tf   *TorrentFS
 	s    lt.MemoryStorage
 	f    *File
@@ -26,9 +27,10 @@ type MemoryFile struct {
 }
 
 // NewMemoryFile ...
-func NewMemoryFile(tf *TorrentFS, storage lt.MemoryStorage, file *File, path string) *MemoryFile {
+func NewMemoryFile(t *Torrent, tf *TorrentFS, storage lt.MemoryStorage, file *File, path string) *MemoryFile {
 	// log.Debugf("New memory file: %v", path)
 	return &MemoryFile{
+		t:    t,
 		tf:   tf,
 		s:    storage,
 		f:    file,
@@ -54,6 +56,11 @@ func (mf *MemoryFile) ReadPiece(b []byte, piece int, pieceOffset int) (n int, er
 
 	mf.opMu.Lock()
 	defer mf.opMu.Unlock()
+
+	// Check if torrent is closed to avoid panics
+	if mf.t.Closer.IsSet() {
+		return
+	}
 
 	n = mf.s.Read(b, len(b), piece, pieceOffset)
 

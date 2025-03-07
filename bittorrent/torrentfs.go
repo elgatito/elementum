@@ -106,7 +106,7 @@ func (tfs *TorrentFS) Open(uname string) (http.File, error) {
 // NewTorrentFSEntry ...
 func NewTorrentFSEntry(file http.File, tfs *TorrentFS, t *Torrent, f *File, name string) (*TorrentFSEntry, error) {
 	if file == nil {
-		file = NewMemoryFile(tfs, t.th.GetMemoryStorage(), f, name)
+		file = NewMemoryFile(t, tfs, t.th.GetMemoryStorage(), f, name)
 	}
 
 	tf := &TorrentFSEntry{
