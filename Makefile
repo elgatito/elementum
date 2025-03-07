@@ -224,11 +224,11 @@ prepare: force
 	$(DOCKER) run --rm -v $(GOPATH):/go -e GOPATH=/go -v $(shell pwd):/go/src/$(GO_PKG) --ulimit memlock=67108864 -w /go/src/$(GO_PKG) $(DOCKER_IMAGE):$(TARGET_OS)-$(TARGET_ARCH) $(GO) get -u -x ./...
 
 prepare_windows:
-	$(GO) get -u github.com/StackExchange/wmi
+	# $(GO) get -u -x github.com/yusufpapurcu/wmi
 
 build: force
 ifeq ($(TARGET_OS), windows)
-	GOOS=windows $(GO) get -u github.com/StackExchange/wmi
+	# GOOS=windows $(GO) get -u -x github.com/yusufpapurcu/wmi
 endif
 	$(DOCKER) run --rm -v $(GOPATH):/go -e GOPATH=/go -e GOCACHE=/go-cache -v $(shell pwd):/go/src/$(GO_PKG) -v $(shell go env GOCACHE):/go-cache -u `stat -c "%u:%g" $(shell go env GOCACHE)` --ulimit memlock=67108864 -w /go/src/$(GO_PKG) $(DOCKER_IMAGE):$(TARGET_OS)-$(TARGET_ARCH) make dist TARGET_OS=$(TARGET_OS) TARGET_ARCH=$(TARGET_ARCH) TARGET_SHARED=$(TARGET_SHARED) GIT_VERSION=$(GIT_VERSION) IS_RACE=$(IS_RACE)
 
