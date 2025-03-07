@@ -325,6 +325,7 @@ var (
 		ConfigPath     string `help:"Custom path to Elementum config (Yaml or JSON format)"`
 		AddonPath      string `help:"Custom path to addon folder (where Kodi stored files, coming with addon zip)"`
 		ProfilePath    string `help:"Custom path to addon files folder (where Elementum will write data)"`
+		TempPath       string `help:"Custom path to temp folder (where Elementum will write temporary files)"`
 		LibraryPath    string `help:"Custom path to addon library folder"`
 		TorrentsPath   string `help:"Custom path to addon torrent files folder"`
 		DownloadsPath  string `help:"Custom path to addon downloads folder"`
@@ -409,6 +410,10 @@ func Reload() (ret *Configuration, err error) {
 	if Args.ProfilePath != "" {
 		log.Infof("Setting custom profile path to: %s", Args.ProfilePath)
 		configBundle.Info.Profile = Args.ProfilePath
+	}
+	if Args.TempPath != "" {
+		log.Infof("Setting custom temp path to: %s", Args.TempPath)
+		configBundle.Info.TempPath = Args.TempPath
 	}
 
 	if Args.ExportConfig != "" {
