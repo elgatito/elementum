@@ -910,7 +910,7 @@ func Reload() (ret *Configuration, err error) {
 
 // AddonIcon ...
 func AddonIcon() string {
-	return filepath.Join(Get().Info.Path, "icon.png")
+	return Get().Info.Icon
 }
 
 // AddonResource ...
