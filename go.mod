@@ -99,4 +99,4 @@ require (
 )
 
 // Temporary fix to add android fix for madvise error
-// replace go.etcd.io/bbolt v1.3.10 => github.com/ElementumOrg/bbolt v1.3.10-beta
+replace go.etcd.io/bbolt v1.3.10 => github.com/ElementumOrg/bbolt v1.3.10-beta
