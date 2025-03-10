@@ -483,6 +483,9 @@ func writeMovieStrm(tmdbID string, force bool) (*tmdb.Movie, error) {
 	}
 
 	moviePath, movieStrm := GetMovieLibraryPath(movie)
+	if movieStrm == "" {
+		return nil, errors.New("Can't find movie path")
+	}
 
 	if _, err := os.Stat(moviePath); os.IsNotExist(err) {
 		if err := os.Mkdir(moviePath, 0755); err != nil {
@@ -567,6 +570,9 @@ func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
 	}
 
 	showPath, showStrm := GetShowLibraryPath(show)
+	if showStrm == "" {
+		return nil, errors.New("Can't find show path")
+	}
 
 	if _, err := os.Stat(showPath); os.IsNotExist(err) {
 		if err := os.Mkdir(showPath, 0755); err != nil {
@@ -789,7 +795,11 @@ func RemoveEpisode(tmdbID int, showID int, seasonNumber int, episodeNumber int) 
 		return errors.New("Channel is closed")
 	}
 
-	showPath, _ := GetShowLibraryPath(show)
+	showPath, showStrm := GetShowLibraryPath(show)
+	if showStrm == "" {
+		return errors.New("cannot find show path")
+	}
+
 	episodeStrm := fmt.Sprintf("%s S%02dE%02d.strm", showPath, seasonNumber, episodeNumber)
 	episodePath := filepath.Join(ShowsLibraryPath(), showPath, episodeStrm)
 
@@ -1476,6 +1486,10 @@ func GetMovieLibraryPath(movie *tmdb.Movie) (moviePath, movieStrm string) {
 	}
 
 	movieStrm = GetMoviePathTitle(movie)
+	if movieStrm == "" {
+		return "", ""
+	}
+
 	if moviePath == "" {
 		moviePath = filepath.Join(MoviesLibraryPath(), movieStrm)
 	} else {
@@ -1509,6 +1523,10 @@ func GetShowLibraryPath(show *tmdb.Show) (showPath, showStrm string) {
 	}
 
 	showStrm = GetShowPathTitle(show)
+	if showStrm == "" {
+		return "", ""
+	}
+
 	if showPath == "" {
 		showPath = filepath.Join(ShowsLibraryPath(), showStrm)
 	} else {
