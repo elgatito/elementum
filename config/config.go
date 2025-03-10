@@ -315,12 +315,14 @@ var (
 		RemoteHost string `help:"Remote host IP or Hostname (Host with plugin.video.elementum running)"`
 		RemotePort int    `help:"Remote host Port (Host with plugin.video.elementum running)"`
 
+		ServerExternalIP string `help:"Set to external IP if you run server behind NAT (e.g. in container with NAT network), so elementum will use this IP in replies and will not try to identify Kodi's IP based on client's IP"`
+
 		LocalHost     string `help:"Local host IP (IP that would be used for running Elementum HTTP server on a local host)"`
 		LocalPort     int    `help:"Local host Port (Port that would be used for running Elementum HTTP server on a local host)"`
 		LocalLogin    string `help:"Local host Login (To use for authentication from plugin.video.elementum calls)"`
 		LocalPassword string `help:"Local host Password (To use for authentication from plugin.video.elementum calls)"`
 
-		LogPath string `help:"Log location path"`
+		LogPath string `help:"Log file location path"`
 
 		ConfigPath     string `help:"Custom path to Elementum config (Yaml or JSON format)"`
 		AddonPath      string `help:"Custom path to addon folder (where Kodi stored files, coming with addon zip)"`

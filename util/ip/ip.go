@@ -136,7 +136,10 @@ func GetHTTPHost(xbmcHost *xbmc.XBMCHost) string {
 	if xbmcHost != nil && xbmcHost.Host != "" {
 		host = xbmcHost.Host
 	} else if config.Args.RemoteHost == "" || config.Args.RemoteHost == "127.0.0.1" {
-		if localIP, err := LocalIP(xbmcHost); err == nil {
+		// If behind NAT - use external server IP to create URL for client.
+		if config.Args.ServerExternalIP != "" {
+			host = config.Args.ServerExternalIP
+		} else if localIP, err := LocalIP(xbmcHost); err == nil {
 			host = localIP.String()
 		} else {
 			log.Debugf("Error getting local IP: %s", err)
@@ -157,7 +160,10 @@ func GetContextHTTPHost(ctx *gin.Context) string {
 	// to avoid situations when ip has changed and Kodi expects it anyway.
 	host := "127.0.0.1"
 	if (config.Args.RemoteHost != "" && config.Args.RemoteHost != "127.0.0.1") || !strings.HasPrefix(ctx.Request.RemoteAddr, "127.0.0.1") {
-		if localIP, err := LocalIP(nil); err == nil {
+		// If behind NAT - use external server IP to create URL for client.
+		if config.Args.ServerExternalIP != "" {
+			host = config.Args.ServerExternalIP
+		} else if localIP, err := LocalIP(nil); err == nil {
 			host = localIP.String()
 		} else {
 			log.Debugf("Error getting local IP: %s", err)
