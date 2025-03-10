@@ -31,12 +31,16 @@ var (
 	// XBMCExJSONRPCPort is a port for XBMCExJSONRPC (RCP of python part of the plugin)
 	XBMCExJSONRPCPort = "65221"
 
+	BehindNAT = false
+
 	mu sync.RWMutex
 )
 
-func Init() {
+func Init(externalIP string) {
 	mu.Lock()
 	defer mu.Unlock()
+
+	BehindNAT = externalIP != ""
 
 	XBMCHosts = []*XBMCHost{}
 	for _, host := range []string{
@@ -123,7 +127,8 @@ func GetLocalXBMCHost() (*XBMCHost, error) {
 func GetXBMCHostWithContext(ctx *gin.Context) (*XBMCHost, error) {
 	// If request is not coming from addon's python part - then it can be a browser request or Kodi,
 	// so we communicate with any existing Kodi connection.
-	if ctx.GetHeader("User-Agent") != "plugin.video.elementum" {
+	// Same if we are behind NAT - in this case ClientIP is NAT gateway IP, so we should not use it.
+	if ctx.GetHeader("User-Agent") != "plugin.video.elementum" || BehindNAT {
 		return GetLocalXBMCHost()
 	}
 

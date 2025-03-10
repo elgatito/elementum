@@ -158,7 +158,7 @@ func main() {
 	log.Infof("Version: %s LibTorrent: %s Go: %s, Threads: %d", ident.GetVersion(), ident.GetTorrentVersion(), runtime.Version(), runtime.GOMAXPROCS(0))
 
 	// Init default XBMC connections
-	xbmc.Init()
+	xbmc.Init(config.Args.ServerExternalIP)
 
 	conf, err := config.Reload()
 	if err != nil || conf == nil {
