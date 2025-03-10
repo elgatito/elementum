@@ -265,7 +265,7 @@ func main() {
 	})
 	http.Handle("/debug/vars", expvar.Handler())
 
-	http.Handle("/", api.Routes(s, shutdown))
+	http.Handle("/", api.Routes(s, shutdown, fileLogger))
 
 	http.Handle("/files/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Connection", "close")
