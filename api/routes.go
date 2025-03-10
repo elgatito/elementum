@@ -2,8 +2,10 @@ package api
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/elgatito/elementum/api/repository"
@@ -73,12 +75,18 @@ func Auth() gin.HandlerFunc {
 }
 
 // Routes ...
-func Routes(s *bittorrent.Service, shutdown func(code int)) *gin.Engine {
+func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
+
+	logOutput := gin.DefaultWriter
+	if fileLogger != nil && !reflect.ValueOf(fileLogger).IsNil() {
+		logOutput = fileLogger
+	}
+
 	r.Use(gin.LoggerWithConfig(gin.LoggerConfig{
 		Formatter: logFormatter,
-		Output:    gin.DefaultWriter,
+		Output:    logOutput,
 		SkipPaths: []string{"/torrents/list", "/notification"},
 	}))
 	r.Use(CORS())
