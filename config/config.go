@@ -809,6 +809,7 @@ func Reload() (ret *Configuration, err error) {
 	// Use custom interfaces
 	if len(Args.ListenInterfaces) > 0 {
 		newConfig.ListenInterfaces = strings.Join(Args.ListenInterfaces, ",")
+		newConfig.ListenAutoDetectIP = false
 	}
 	if len(Args.OutgoingInterfaces) > 0 {
 		newConfig.OutgoingInterfaces = strings.Join(Args.OutgoingInterfaces, ",")
