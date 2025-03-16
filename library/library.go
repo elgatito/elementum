@@ -1541,7 +1541,7 @@ func getMoviePathsByTMDB(id int) (ret map[string]bool) {
 
 	if m, err := uid.GetMovieByTMDB(id); err == nil {
 		if m != nil && m.File != "" && !util.IsNetworkPath(m.File) && strings.HasSuffix(m.File, ".strm") {
-			filePath := util.GetRealPath(m.File)
+			filePath := util.GetRealPath(m.File, &config.LibrarySubstitutions)
 			if util.IsValidPath(filePath) {
 				ret[filepath.Dir(filePath)] = true
 			}
@@ -1557,7 +1557,7 @@ func getShowPathsByTMDB(id int) (ret map[string]bool) {
 	if s, err := uid.FindShowByTMDB(id); err == nil {
 		for _, e := range s.Episodes {
 			if e != nil && e.File != "" && !util.IsNetworkPath(e.File) && strings.HasSuffix(e.File, ".strm") {
-				filePath := util.GetRealPath(e.File)
+				filePath := util.GetRealPath(e.File, &config.LibrarySubstitutions)
 				if util.IsValidPath(filePath) {
 					ret[filepath.Dir(filePath)] = true
 				}
@@ -1759,7 +1759,7 @@ func removeMovieDuplicates(xbmcHost *xbmc.XBMCHost) (int, error) {
 			continue
 		}
 
-		dir := filepath.Dir(util.GetRealPath(m.File))
+		dir := filepath.Dir(util.GetRealPath(m.File, &config.LibrarySubstitutions))
 		log.Debugf("Removing duplicate movie '%s' from '%s'", m.Title, dir)
 
 		// Remove strm file with parent folder from disk
@@ -1789,7 +1789,7 @@ func removeShowDuplicates(xbmcHost *xbmc.XBMCHost) (int, error) {
 			continue
 		}
 
-		dir := filepath.Dir(util.GetRealPath(s.Episodes[0].File))
+		dir := filepath.Dir(util.GetRealPath(s.Episodes[0].File, &config.LibrarySubstitutions))
 		log.Debugf("Removing duplicate show '%s' from '%s'", s.Title, dir)
 
 		// Remove strm file with parent folder from disk
@@ -1825,7 +1825,7 @@ func removeEpisodeDuplicates(xbmcHost *xbmc.XBMCHost) (int, error) {
 		log.Debugf("Removing duplicate episode '%s' from '%s'", e.Title, e.File)
 
 		// Remove strm file with parent folder from disk
-		if err := os.RemoveAll(util.GetRealPath(e.File)); err != nil {
+		if err := os.RemoveAll(util.GetRealPath(e.File, &config.LibrarySubstitutions)); err != nil {
 			log.Error(err)
 			continue
 		}

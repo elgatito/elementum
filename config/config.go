@@ -293,6 +293,8 @@ var (
 		"HTTP",
 		"HTTPS",
 	}
+
+	LibrarySubstitutions = map[string]string{}
 )
 
 var (
@@ -309,8 +311,8 @@ var (
 		DisableBackup               bool `help:"Disable database backup"`
 		DisableLibrarySync          bool `help:"Disable library sync (local strm updates and Trakt sync process)"`
 
-		ListenInterfaces   string `help:"List of interfaces/IPs to use for libtorrent listen_interfaces"`
-		OutgoingInterfaces string `help:"List of interfaces/IPs to use for libtorrent outgoing_interfaces"`
+		ListenInterfaces   []string `help:"List of interfaces/IPs to use for libtorrent listen_interfaces"`
+		OutgoingInterfaces []string `help:"List of interfaces/IPs to use for libtorrent outgoing_interfaces"`
 
 		RemoteHost string `help:"Remote host IP or Hostname (Host with plugin.video.elementum running)"`
 		RemotePort int    `help:"Remote host Port (Host with plugin.video.elementum running)"`
@@ -335,11 +337,29 @@ var (
 		MoveShowsPath  string `help:"Custom path to addon folder, used for moving completed Show downloads"`
 
 		ExportConfig string `help:"Export current configuration, taken from Kodi into a file. Should end with json or yml suffix"`
+
+		LibrarySubstitutions []string `help:"Define substitutions to perform for Kodi library paths in format: from|to. Can be used to operate cross-platform paths."`
 	}{
 		RemotePort: 65221,
 		LocalPort:  65220,
 	}
 )
+
+func Init() error {
+	// Convert library substitutions into ready-to-use map
+	if len(Args.LibrarySubstitutions) > 0 {
+		for _, p := range Args.LibrarySubstitutions {
+			args := strings.SplitN(p, "|", 2)
+			if len(args) < 2 {
+				return fmt.Errorf("wrong librarySubstitution defined, should be `from|to`, is %s", p)
+			}
+
+			LibrarySubstitutions[strings.TrimSpace(args[0])] = strings.TrimSpace(args[1])
+		}
+	}
+
+	return nil
+}
 
 // Get ...
 func Get() *Configuration {
@@ -373,6 +393,10 @@ func Reload() (ret *Configuration, err error) {
 
 	if Args.LocalLogin != "" || Args.LocalPassword != "" {
 		log.Infof("Setting authentication for remote connections to %s:%s (login:password)", Args.LocalLogin, Args.LocalPassword)
+	}
+
+	if len(LibrarySubstitutions) > 0 {
+		log.Infof("Using library substitutions: %v", LibrarySubstitutions)
 	}
 
 	defer func() {
@@ -783,11 +807,11 @@ func Reload() (ret *Configuration, err error) {
 	}
 
 	// Use custom interfaces
-	if Args.ListenInterfaces != "" {
-		newConfig.ListenInterfaces = Args.ListenInterfaces
+	if len(Args.ListenInterfaces) > 0 {
+		newConfig.ListenInterfaces = strings.Join(Args.ListenInterfaces, ",")
 	}
-	if Args.OutgoingInterfaces != "" {
-		newConfig.OutgoingInterfaces = Args.OutgoingInterfaces
+	if len(Args.OutgoingInterfaces) > 0 {
+		newConfig.OutgoingInterfaces = strings.Join(Args.OutgoingInterfaces, ",")
 	}
 
 	reDNS := regexp.MustCompile(`\s*,\s*`)

@@ -5,10 +5,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 
 	"github.com/elgatito/elementum/xbmc"
+)
+
+const (
+	WindowsPathSeparator = `\`
+	LinuxPathSeparator   = `/`
+)
+
+var (
+	windowsPathRegex = regexp.MustCompile(`^[a-zA-Z]:\\`)
+	networkPathRegex = regexp.MustCompile(`^\\\\`)
 )
 
 var audioExtensions = []string{
@@ -213,12 +224,36 @@ func IsNetworkPath(path string) bool {
 	return strings.HasPrefix(path, "nfs") || strings.HasPrefix(path, "smb")
 }
 
-func GetRealPath(path string) (ret string) {
+func GetRealPath(path string, substitutions *map[string]string) (ret string) {
 	xbmcHost, err := xbmc.GetLocalXBMCHost()
 	canResolveSpecialPath := xbmcHost != nil && err == nil
 
 	if IsSpecialPath(path) && canResolveSpecialPath {
-		return xbmcHost.TranslatePath(path)
+		return SubstitutePathFromTo(xbmcHost.TranslatePath(path), substitutions)
+	}
+
+	return SubstitutePathFromTo(path, substitutions)
+}
+
+// SubstitutePathFromTo replaces path with configured substitutions
+func SubstitutePathFromTo(path string, substitutions *map[string]string) string {
+	if len(*substitutions) == 0 {
+		return path
+	}
+
+	for from, to := range *substitutions {
+		if !strings.HasPrefix(path, from) {
+			continue
+		}
+
+		var dirs []string
+		if windowsPathRegex.MatchString(path) || networkPathRegex.MatchString(path) {
+			dirs = strings.Split(strings.Replace(path, from, "", 1), WindowsPathSeparator)
+		} else {
+			dirs = strings.Split(strings.Replace(path, from, "", 1), LinuxPathSeparator)
+		}
+
+		return filepath.Join(to, strings.Join(dirs, string(os.PathSeparator)))
 	}
 
 	return path

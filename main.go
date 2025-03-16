@@ -135,6 +135,11 @@ func main() {
 		}
 	}
 
+	if err := config.Init(); err != nil {
+		fmt.Printf("Error initializing config: %s", err)
+		exit.Exit(exit.ExitCodeError)
+	}
+
 	// Make sure we are properly multithreaded.
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
