@@ -224,6 +224,16 @@ func IsNetworkPath(path string) bool {
 	return strings.HasPrefix(path, "nfs") || strings.HasPrefix(path, "smb")
 }
 
+func GetKodiPath(path string, substitutions *map[string]string, platform *xbmc.Platform) (ret string) {
+	// Select default separator depending on the Kodi platform
+	separator := LinuxPathSeparator
+	if platform != nil && strings.ToLower(platform.OS) == "windows" {
+		separator = WindowsPathSeparator
+	}
+
+	return SubstitutePathToFrom(path, substitutions, separator)
+}
+
 func GetRealPath(path string, substitutions *map[string]string) (ret string) {
 	xbmcHost, err := xbmc.GetLocalXBMCHost()
 	canResolveSpecialPath := xbmcHost != nil && err == nil
@@ -236,27 +246,58 @@ func GetRealPath(path string, substitutions *map[string]string) (ret string) {
 }
 
 // SubstitutePathFromTo replaces path with configured substitutions
-func SubstitutePathFromTo(path string, substitutions *map[string]string) string {
+func SubstitutePathFromTo(pathOrigin string, substitutions *map[string]string) string {
 	if len(*substitutions) == 0 {
-		return path
+		return pathOrigin
 	}
 
 	for from, to := range *substitutions {
-		if !strings.HasPrefix(path, from) {
+		if !strings.HasPrefix(pathOrigin, from) {
 			continue
 		}
 
 		var dirs []string
-		if windowsPathRegex.MatchString(path) || networkPathRegex.MatchString(path) {
-			dirs = strings.Split(strings.Replace(path, from, "", 1), WindowsPathSeparator)
+		if windowsPathRegex.MatchString(pathOrigin) || networkPathRegex.MatchString(pathOrigin) {
+			dirs = strings.Split(strings.Replace(pathOrigin, from, "", 1), WindowsPathSeparator)
 		} else {
-			dirs = strings.Split(strings.Replace(path, from, "", 1), LinuxPathSeparator)
+			dirs = strings.Split(strings.Replace(pathOrigin, from, "", 1), LinuxPathSeparator)
 		}
 
 		return filepath.Join(to, strings.Join(dirs, string(os.PathSeparator)))
 	}
 
-	return path
+	return pathOrigin
+}
+
+// SubstitutePathToFrom replaces path with configured substitutions backwards
+func SubstitutePathToFrom(pathOrigin string, substitutions *map[string]string, separator string) string {
+	if len(*substitutions) == 0 {
+		return pathOrigin
+	}
+
+	for from, to := range *substitutions {
+		if !strings.HasPrefix(pathOrigin, to) {
+			continue
+		}
+
+		// Make backward replacement, depending on the separator required for
+		var dirs []string
+		if windowsPathRegex.MatchString(pathOrigin) || networkPathRegex.MatchString(pathOrigin) {
+			dirs = strings.Split(strings.Replace(pathOrigin, to, "", 1), WindowsPathSeparator)
+		} else {
+			dirs = strings.Split(strings.Replace(pathOrigin, to, "", 1), LinuxPathSeparator)
+		}
+
+		// Force backslash separator for clear Windows/Network path
+		if windowsPathRegex.MatchString(from) || networkPathRegex.MatchString(from) {
+			separator = WindowsPathSeparator
+		}
+
+		// Remove duplicate separators to make more "clean" path
+		return strings.ReplaceAll(strings.Join(append([]string{from}, dirs...), separator), separator+separator, separator)
+	}
+
+	return pathOrigin
 }
 
 func IsValidPath(path string) bool {

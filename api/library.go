@@ -12,6 +12,7 @@ import (
 	"github.com/elgatito/elementum/library"
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/trakt"
+	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -77,7 +78,7 @@ func AddMovie(ctx *gin.Context) {
 
 	log.Noticef(logMsg, movieTitle, tmdbID)
 	if config.Get().LibraryUpdate == 0 || (config.Get().LibraryUpdate == 1 && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("%s;;%s", label, movieTitle))) {
-		xbmcHost.VideoLibraryScanDirectory(library.MoviesLibraryPath(), true)
+		xbmcHost.VideoLibraryScanDirectory(util.GetKodiPath(library.MoviesLibraryPath(), &config.LibrarySubstitutions, xbmcHost.GetPlatform()), true)
 	} else {
 		if ctx != nil {
 			ctx.Abort()
@@ -186,7 +187,7 @@ func AddShow(ctx *gin.Context) {
 
 	log.Noticef(logMsg, showTitle, tmdbID)
 	if config.Get().LibraryUpdate == 0 || (config.Get().LibraryUpdate == 1 && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("%s;;%s", label, showTitle))) {
-		xbmcHost.VideoLibraryScanDirectory(library.ShowsLibraryPath(), true)
+		xbmcHost.VideoLibraryScanDirectory(util.GetKodiPath(library.ShowsLibraryPath(), &config.LibrarySubstitutions, xbmcHost.GetPlatform()), true)
 	} else {
 		library.ClearPageCache(xbmcHost)
 	}
