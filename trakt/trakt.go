@@ -317,7 +317,7 @@ func Authorize(fromSettings bool) error {
 				}
 
 				token, err := PollToken(code)
-				log.Debugf("Received token: %#v, error: %s", token, err)
+				log.Debugf("Received token: %#v, error: %v", token, err)
 
 				if err != nil {
 					continue
@@ -382,19 +382,41 @@ func Authorize(fromSettings bool) error {
 
 // Deauthorize ...
 func Deauthorize(fromSettings bool) error {
+	req := reqapi.Request{
+		API:    reqapi.TraktAPI,
+		Method: "POST",
+		URL:    "oauth/revoke",
+		Header: http.Header{
+			"Content-type": []string{"application/json"},
+			"User-Agent":   []string{UserAgent},
+			"Cookie":       []string{Cookies},
+		},
+		Params: napping.Params{
+			"token":         config.Get().TraktToken,
+			"client_id":     config.TraktWriteClientID,
+			"client_secret": config.TraktWriteClientSecret,
+		}.AsUrlValues(),
+		Result:      nil,
+		Description: "oauth revoke",
+	}
+	err := req.Do()
+	// This is not optional step so we do not care if it fails
+	if err != nil {
+		log.Debugf("Failed to revoke token: %s", err)
+	}
+
 	// Cleanup last activities to force requesting again
 	cacheStore := cache.NewDBStore()
 	_ = cacheStore.Set(fmt.Sprintf(cache.TraktActivitiesKey, ""), "", 1)
 
 	if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-		xbmcHost.SetSetting("trakt_token_expiry", "")
+		xbmcHost.SetSetting("trakt_token_expiry", "0")
 		xbmcHost.SetSetting("trakt_token", "")
 		xbmcHost.SetSetting("trakt_refresh_token", "")
 		xbmcHost.SetSetting("trakt_username", "")
 
 		xbmcHost.Notify("Elementum", "LOCALIZE[30652]", config.AddonIcon())
 	}
-	// TODO: call https://trakt.docs.apiary.io/#reference/authentication-oauth/revoke-token/revoke-an-access_token
 
 	return nil
 }
