@@ -220,6 +220,7 @@ func (t *Torrent) Watch() {
 
 		case <-t.nextTimer.C:
 			if t.IsNextFile {
+				t.IsNextFile = false
 				go t.Service.RemoveTorrent(nil, t, RemoveOptions{})
 			}
 

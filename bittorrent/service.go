@@ -687,7 +687,7 @@ func (s *Service) AddTorrent(xbmcHost *xbmc.XBMCHost, options AddOptions) (*Torr
 	// To make sure no spaces coming from Web UI
 	options.URI = strings.TrimSpace(options.URI)
 
-	log.Infof("Adding torrent from %s", options.URI)
+	log.Infof("Adding torrent with options: %#v", options)
 
 	if options.DownloadStorage != config.StorageMemory && s.config.DownloadPath == "." {
 		log.Warningf("Cannot add torrent since download path is not set")
@@ -936,7 +936,7 @@ func (s *Service) RemoveTorrent(xbmcHost *xbmc.XBMCHost, t *Torrent, flags Remov
 	} else { // action came from playback
 		if flags.ForceDrop || configKeepDownloading == 2 || len(t.ChosenFiles) == 0 {
 			keepDownloading = false
-		} else if configKeepDownloading == 0 || (xbmcHost != nil && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30146];;%s", t.Name()))) {
+		} else if configKeepDownloading == 0 || (xbmcHost == nil && configKeepDownloading == 1) || (xbmcHost != nil && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30146];;%s", t.Name()))) {
 			keepDownloading = true
 		}
 	}
