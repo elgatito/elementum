@@ -336,7 +336,7 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 		show.GET("/:showId/collection/add", AddShowToCollection)
 		show.GET("/:showId/collection/remove", RemoveShowFromCollection)
 	}
-	// TODO
+	// TODO: add routes for episode.
 	// episode := r.Group("/episode")
 	// {
 	// 	episode.GET("/:episodeId/watchlist/add", AddEpisodeToWatchlist)
