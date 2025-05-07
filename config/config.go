@@ -384,6 +384,9 @@ func Reload() (ret *Configuration, err error) {
 
 	// Reloading RPC Hosts
 	var xbmcHost *xbmc.XBMCHost
+	if strconv.Itoa(Args.RemotePort) != xbmc.XBMCExJSONRPCPort {
+		xbmc.XBMCExJSONRPCPort = strconv.Itoa(Args.RemotePort)
+	}
 	if Args.RemoteHost != "" {
 		log.Infof("Setting remote address to %s:%d", Args.RemoteHost, Args.RemotePort)
 		xbmcHost, err = xbmc.AddLocalXBMCHost(Args.RemoteHost)
