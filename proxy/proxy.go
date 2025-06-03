@@ -137,12 +137,18 @@ func StartProxy() *CustomProxy {
 	Proxy.Verbose = false
 	Proxy.KeepDestinationHeaders = true
 
-	if config.Get().ProxyURL != "" {
-		proxyURL, _ := url.Parse(config.Get().ProxyURL)
-		Proxy.Tr.Proxy = http.ProxyURL(proxyURL)
-		log.Debugf("Setting up proxy for internal proxy: %s", config.Get().ProxyURL)
-	} else {
-		Proxy.Tr.Proxy = http.ProxyURL(nil)
+	Proxy.Tr.Proxy = nil
+	if config.Get().ProxyUseHTTP {
+		if config.Get().ProxyURL != "" {
+			proxyURL, _ := url.Parse(config.Get().ProxyURL)
+			Proxy.Tr.Proxy = http.ProxyURL(proxyURL)
+
+			log.Debugf("Setting up proxy for internal proxy: %s", config.Get().ProxyURL)
+		} else if config.Get().AntizapretEnabled {
+			Proxy.Tr.Proxy = antizapretProxy.ProxyURL
+
+			log.Debugf("Setting up proxy for direct client to use Antizapret proxy dynamically.")
+		}
 	}
 
 	if config.Get().InternalDNSEnabled {
