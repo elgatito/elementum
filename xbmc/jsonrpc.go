@@ -25,10 +25,10 @@ var (
 	XBMCLocalHost *XBMCHost = nil
 	XBMCHosts               = []*XBMCHost{}
 
-	// XBMCJSONRPCPort is a port for XBMCJSONRPC (RCP of Kodi)
+	// XBMCJSONRPCPort is a port for XBMCJSONRPC (RPC of Kodi)
 	XBMCJSONRPCPort = "9090"
 
-	// XBMCExJSONRPCPort is a port for XBMCExJSONRPC (RCP of python part of the plugin)
+	// XBMCExJSONRPCPort is a port for XBMCExJSONRPC (RPC of Python part of the addon)
 	XBMCExJSONRPCPort = "65221"
 
 	BehindNAT = false
