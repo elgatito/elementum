@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/util"
 )
 
 const USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
@@ -207,28 +208,23 @@ func getCacheFilePath() string {
 	if _, err := os.Stat(CACHE_DIR); os.IsNotExist(err) {
 		err := os.MkdirAll(CACHE_DIR, 0755)
 		if err != nil {
-			error_message := fmt.Sprintf("Error creating cache directory: %v", err)
+			error_message := fmt.Sprintf("Error creating cache directory %q: %v", CACHE_DIR, err)
 			log.Error(error_message)
 			// If directory creation fails, disable caching
 			CACHE_DIR = ""
+			return ""
 		}
 	}
 
 	// Check if cache directory is writable
-	if CACHE_DIR != "" {
-		testFile := filepath.Join(CACHE_DIR, ".writable")
-		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
-			error_message := fmt.Sprintf("Directory '%s' is not writable, antizapret will not work: %v", CACHE_DIR, err)
-			log.Error(error_message)
-			CACHE_DIR = "" // Disable caching
-		} else {
-			os.Remove(testFile) // Clean up test file
-		}
+	if err := util.IsWritablePath(CACHE_DIR); err != nil {
+		error_message := fmt.Sprintf("Cache directory %q is not writable, antizapret will not work: %v", CACHE_DIR, err)
+		log.Errorf(error_message)
+		// If directory is not writable, disable caching
+		CACHE_DIR = ""
+		return ""
 	}
 
-	if CACHE_DIR == "" {
-		return "" // Caching disabled
-	}
 	return filepath.Join(CACHE_DIR, CONFIG_FILE_NAME)
 }
 
