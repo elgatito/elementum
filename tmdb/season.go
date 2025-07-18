@@ -479,3 +479,12 @@ func (season *Season) GetSearchTitle(show *Show) string {
 
 	return fmt.Sprintf("%s Season %d", show.GetName(), season.Season)
 }
+
+// GetFirstEpisodeNumber returns the episode number of the first episode in the season.
+func (season *Season) GetFirstEpisodeNumber() int {
+	if len(season.Episodes) == 0 || season.Episodes[0] == nil {
+		return -1
+	}
+
+	return season.Episodes[0].EpisodeNumber
+}

@@ -321,8 +321,8 @@ func (as *AddonSearcher) GetSeasonSearchObject(show *tmdb.Show, season *tmdb.Sea
 }
 
 // GetEpisodeSearchObject ...
-func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.Episode) *EpisodeSearchObject {
-	if show == nil || episode == nil {
+func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, season *tmdb.Season, episode *tmdb.Episode) *EpisodeSearchObject {
+	if show == nil || season == nil || episode == nil {
 		return nil
 	}
 
@@ -353,11 +353,17 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, episode *tmdb.E
 	// Some Torrents use absolute episodes range in name.
 	// Provider can use Absolute number to filter such.
 	absoluteNumber := 0
-	episodesTillSeason := show.EpisodesTillSeason(episode.SeasonNumber)
-	if episodesTillSeason > 0 && episodesTillSeason < episode.EpisodeNumber {
+	if season.GetFirstEpisodeNumber() > 1 {
+		// If season starts with episode number > 1, we need to adjust absolute number
+		// to be able to search for absolute episodes.
 		absoluteNumber = episode.EpisodeNumber
-		episode.EpisodeNumber = episode.EpisodeNumber - episodesTillSeason
-	} else if tvdbID > 0 {
+		episode.EpisodeNumber = episode.EpisodeNumber - show.EpisodesTillSeason(episode.SeasonNumber)
+	} else {
+		absoluteNumber = episode.EpisodeNumber + show.EpisodesTillSeason(episode.SeasonNumber)
+	}
+
+	// Try with TVDB as the fallback
+	if absoluteNumber == 0 && tvdbID > 0 {
 		an, st := show.ShowInfo(episode)
 
 		if an != 0 {
@@ -492,10 +498,10 @@ func (as *AddonSearcher) SearchSeasonLinks(show *tmdb.Show, season *tmdb.Season)
 }
 
 // SearchEpisodeLinks ...
-func (as *AddonSearcher) SearchEpisodeLinks(show *tmdb.Show, episode *tmdb.Episode) []*bittorrent.TorrentFile {
-	if show == nil || episode == nil {
+func (as *AddonSearcher) SearchEpisodeLinks(show *tmdb.Show, season *tmdb.Season, episode *tmdb.Episode) []*bittorrent.TorrentFile {
+	if show == nil || season == nil || episode == nil {
 		return []*bittorrent.TorrentFile{}
 	}
 
-	return as.call("search_episode", as.GetEpisodeSearchObject(show, episode))
+	return as.call("search_episode", as.GetEpisodeSearchObject(show, season, episode))
 }

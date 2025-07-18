@@ -137,7 +137,7 @@ func SearchSeason(xbmcHost *xbmc.XBMCHost, searchers []SeasonSearcher, show *tmd
 }
 
 // SearchEpisode ...
-func SearchEpisode(xbmcHost *xbmc.XBMCHost, searchers []EpisodeSearcher, show *tmdb.Show, episode *tmdb.Episode) []*bittorrent.TorrentFile {
+func SearchEpisode(xbmcHost *xbmc.XBMCHost, searchers []EpisodeSearcher, show *tmdb.Show, season *tmdb.Season, episode *tmdb.Episode) []*bittorrent.TorrentFile {
 	torrentsChan := make(chan *bittorrent.TorrentFile)
 	go func() {
 		wg := sync.WaitGroup{}
@@ -145,7 +145,7 @@ func SearchEpisode(xbmcHost *xbmc.XBMCHost, searchers []EpisodeSearcher, show *t
 			wg.Add(1)
 			go func(searcher EpisodeSearcher) {
 				defer wg.Done()
-				for _, torrent := range searcher.SearchEpisodeLinks(show, episode) {
+				for _, torrent := range searcher.SearchEpisodeLinks(show, season, episode) {
 					torrentsChan <- torrent
 				}
 			}(searcher)

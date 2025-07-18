@@ -87,14 +87,14 @@ func ProviderGetEpisode(ctx *gin.Context) {
 	log.Infof("Resolved %d to %s", showID, show.GetName())
 
 	searcher := providers.NewAddonSearcher(xbmcHost, ctx.Request.Host, provider)
-	torrents := searcher.SearchEpisodeLinks(show, episode)
+	torrents := searcher.SearchEpisodeLinks(show, season, episode)
 	if ctx.Query("resolve") == "true" {
 		for _, torrent := range torrents {
 			torrent.Resolve()
 		}
 	}
 	data, err := json.MarshalIndent(providerDebugResponse{
-		Payload: searcher.GetEpisodeSearchObject(show, episode),
+		Payload: searcher.GetEpisodeSearchObject(show, season, episode),
 		Results: torrents,
 	}, "", "    ")
 	if err != nil {

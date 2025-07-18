@@ -897,7 +897,7 @@ func showEpisodeLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, showID int, 
 		xbmcHost.Notify("Elementum", "LOCALIZE[30204]", config.AddonIcon())
 	}
 
-	return providers.SearchEpisode(xbmcHost, searchers, show, episode)
+	return providers.SearchEpisode(xbmcHost, searchers, show, season, episode)
 }
 
 // ShowEpisodeRun ...

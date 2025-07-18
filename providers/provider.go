@@ -23,5 +23,5 @@ type SeasonSearcher interface {
 
 // EpisodeSearcher ...
 type EpisodeSearcher interface {
-	SearchEpisodeLinks(show *tmdb.Show, episode *tmdb.Episode) []*bittorrent.TorrentFile
+	SearchEpisodeLinks(show *tmdb.Show, season *tmdb.Season, episode *tmdb.Episode) []*bittorrent.TorrentFile
 }
