@@ -7,9 +7,8 @@ import (
 	"net"
 	"net/http"
 	"slices"
-	"strconv"
+	"sort"
 	"strings"
-	"time"
 
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/proxy"
@@ -24,8 +23,18 @@ import (
 
 var log = logging.MustGetLogger("ip")
 
+var VPNFilteredNetworks = []net.IPNet{
+	filtertransport.MustParseCIDR("10.0.0.0/8"),     // RFC1918
+	filtertransport.MustParseCIDR("172.16.0.0/12"),  // private
+	filtertransport.MustParseCIDR("192.168.0.0/16"), // private
+}
+
 func IsAddrLocal(ip net.IP) bool {
 	return filtertransport.FindIPNet(filtertransport.DefaultFilteredNetworks, ip)
+}
+
+func IsAddrVPN(ip net.IP) bool {
+	return filtertransport.FindIPNet(VPNFilteredNetworks, ip)
 }
 
 // GetInterfaceAddrs returns IPv4 and IPv6 for an interface string.
@@ -68,24 +77,43 @@ func GetInterfaceAddrs(input string) (v4 net.IP, v6 net.IP, err error) {
 	}
 
 	if v4 == nil && v6 == nil {
-		err = fmt.Errorf("Could for detect IP addresses for %s", input)
+		err = fmt.Errorf("Could not detect IP addresses for %s", input)
 	}
 	return
 }
 
-func LocalIP(xbmcHost *xbmc.XBMCHost) (net.IP, error) {
-	// Use IP that was requested by client in the request, if possible
-	if xbmcHost != nil && xbmcHost.Host != "" {
-		if ip := net.ParseIP(xbmcHost.Host); ip != nil {
-			return ip, nil
-		}
+func VPNIPs() ([]net.IP, error) {
+	addrs, err := LocalIPs()
+	if err != nil {
+		return nil, err
 	}
 
+	// Make sure 10.x.x.x addresses are prioritized
+	sort.Slice(addrs, func(i, j int) bool {
+		return strings.HasPrefix(addrs[i].String(), "10.")
+	})
+
+	// Filter out only VPN IPs
+	ret := []net.IP{}
+	for _, addr := range addrs {
+		if IsAddrVPN(addr) {
+			ret = append(ret, addr)
+		}
+	}
+	if len(ret) == 0 {
+		return nil, errors.New("no VPN IP found")
+	}
+	return ret, nil
+}
+
+func LocalIPs() ([]net.IP, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		log.Warningf("Cannot get list of interfaces: %s", err)
 		return nil, err
 	}
+
+	ret := []net.IP{}
 
 IFACES:
 	for _, i := range ifaces {
@@ -113,10 +141,32 @@ IFACES:
 			}
 			v4 := ip.To4()
 			if v4 != nil && IsAddrLocal(v4) {
-				return v4, nil
+				ret = append(ret, v4)
 			}
 		}
 	}
+	if len(ret) == 0 {
+		return nil, errors.New("no local IP found")
+	}
+	return ret, nil
+}
+
+func LocalIP(xbmcHost *xbmc.XBMCHost) (net.IP, error) {
+	// Use IP that was requested by client in the request, if possible
+	if xbmcHost != nil && xbmcHost.Host != "" {
+		if ip := net.ParseIP(xbmcHost.Host); ip != nil {
+			return ip, nil
+		}
+	}
+
+	// Get list of local IPs and return the first one
+	if localIPs, err := LocalIPs(); err != nil {
+		return nil, err
+	} else if len(localIPs) > 0 {
+		return localIPs[0], nil
+	}
+
+	// Return 127.0.0.1 as the fallback
 	return net.IPv4(127, 0, 0, 1), errors.New("cannot find local IP address")
 }
 
@@ -171,153 +221,6 @@ func GetContextHTTPHost(ctx *gin.Context) string {
 	}
 
 	return fmt.Sprintf("http://%s:%d", host, config.Args.LocalPort)
-}
-
-// GetListenAddr parsing configuration setted for interfaces and port range
-// and returning IP, IPv6, and port
-func GetListenAddr(confAutoIP bool, confAutoPort bool, confInterfaces string, confPortMin int, confPortMax int) (listenIP, listenIPv6 string, listenPort int, disableIPv6 bool, err error) {
-	if confAutoIP {
-		confInterfaces = ""
-	}
-	if confAutoPort {
-		confPortMin = 0
-		confPortMax = 0
-	}
-
-	listenIPs := []string{}
-	listenIPv6s := []string{}
-
-	if strings.TrimSpace(confInterfaces) != "" {
-		for _, iName := range strings.Split(strings.Replace(strings.TrimSpace(confInterfaces), " ", "", -1), ",") {
-			// Check whether value in interfaces string is already an IP value
-			if addr := net.ParseIP(iName); addr != nil {
-				a := addr.To4()
-				if a == nil {
-					continue
-				}
-				listenIPs = append(listenIPs, a.String())
-				continue
-			}
-
-		ifaces:
-			for iter := 0; iter < 5; iter++ {
-				if iter > 0 {
-					log.Infof("Could not get IP for interface %#v, sleeping %#v seconds till the next attempt (%#v out of %#v).", iName, iter*2, iter, 5)
-					time.Sleep(time.Duration(iter*2) * time.Second)
-				}
-
-				done := false
-				i, err := net.InterfaceByName(iName)
-				// Maybe we need to raise an error that interface not available?
-				if err != nil {
-					continue
-				}
-
-				if addrs, aErr := i.Addrs(); aErr == nil && len(addrs) > 0 {
-					for _, addr := range addrs {
-						var ip net.IP
-						switch v := addr.(type) {
-						case *net.IPNet:
-							ip = v.IP
-						case *net.IPAddr:
-							ip = v.IP
-						default:
-							continue
-						}
-
-						v6 := ip.To16()
-						v4 := ip.To4()
-
-						if v6 != nil && v4 == nil {
-							listenIPv6s = append(listenIPv6s, v6.String()+"%"+iName)
-						}
-						if v4 != nil {
-							done = true
-							listenIPs = append(listenIPs, v4.String())
-						}
-					}
-				}
-
-				if done {
-					break ifaces
-				}
-			}
-		}
-
-		if len(listenIPs) == 0 {
-			err = fmt.Errorf("Could not find IP for specified interfaces(IPs) %#v", confInterfaces)
-			return
-		}
-	}
-
-	if len(listenIPs) == 0 {
-		listenIPs = append(listenIPs, "")
-	}
-	if len(listenIPv6s) == 0 {
-		listenIPv6s = append(listenIPv6s, "")
-	}
-
-loopPorts:
-	for p := confPortMax; p >= confPortMin; p-- {
-		for _, ip := range listenIPs {
-			addr := ip + ":" + strconv.Itoa(p)
-			if !isPortUsed("tcp", addr) && !isPortUsed("udp", addr) {
-				listenIP = ip
-				listenPort = p
-				break loopPorts
-			}
-		}
-	}
-
-	if len(listenIPv6s) != 0 {
-		for _, ip := range listenIPv6s {
-			addr := ip + ":" + strconv.Itoa(listenPort)
-			if !isPortUsed("tcp6", addr) {
-				listenIPv6 = ip
-				break
-			}
-		}
-	}
-
-	if isPortUsed("tcp6", listenIPv6+":"+strconv.Itoa(listenPort)) {
-		disableIPv6 = true
-	}
-
-	return
-}
-
-func isPortUsed(network string, addr string) bool {
-	if strings.Contains(network, "tcp") {
-		return isTCPPortUsed(network, addr)
-	}
-	return isUDPPortUsed(network, addr)
-}
-
-func isTCPPortUsed(network string, addr string) bool {
-	conn, err := net.DialTimeout(network, addr, 100*time.Millisecond)
-	if conn != nil && err == nil {
-		conn.Close()
-		return true
-	} else if err != nil {
-		cause := err.Error()
-		if !strings.Contains(cause, "refused") {
-			return true
-		}
-	}
-
-	return false
-}
-
-// isUDPPortUsed checks whether UDP port is used by anyone
-func isUDPPortUsed(network string, addr string) bool {
-	udpaddr, _ := net.ResolveUDPAddr(network, addr)
-	conn, err := net.ListenUDP(network, udpaddr)
-	if conn != nil && err == nil {
-		conn.Close()
-		return false
-	}
-
-	return true
 }
 
 // ElementumURL returns elementum url for external calls

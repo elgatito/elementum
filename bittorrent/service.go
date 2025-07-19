@@ -1184,8 +1184,8 @@ func (s *Service) onAlertsConsumer() {
 func (s *Service) networkRefresh() {
 	defer s.wg.Done()
 
-	netTicker := time.NewTicker(time.Duration(5*60) * time.Second)
-	portTicker := time.NewTicker(time.Duration(60) * time.Second)
+	netTicker := time.NewTicker(time.Duration(5) * time.Minute)
+	portTicker := time.NewTicker(time.Duration(1) * time.Minute)
 	closing := s.Closer.C()
 	defer func() {
 		netTicker.Stop()
@@ -2229,13 +2229,13 @@ func (s *Service) calcInterfaces() ([]net.IP, []net.IP, error) {
 	}
 
 	listenInterfaces, err := parseInterfaces(listenInterfacesInput)
-	log.Debugf("Parsed listen %v: %v", listenInterfacesInput, listenInterfaces)
+	log.Debugf("Parsed listen interfaces %s: %s", listenInterfacesInput, listenInterfaces)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	outgoingInterfaces, err := parseInterfaces(s.config.OutgoingInterfaces)
-	log.Debugf("Parsed output %v: %v", s.config.OutgoingInterfaces, outgoingInterfaces)
+	log.Debugf("Parsed outgoing interfaces %s: %s", s.config.OutgoingInterfaces, outgoingInterfaces)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2247,7 +2247,7 @@ func (s *Service) getNatPort(local net.IP, port int) (int, *natpmp.Client) {
 	gateways := ip.GetPossibleGateways(local)
 	for _, gw := range gateways {
 		nat := natpmp.NewClientWithTimeout(gw, 1500*time.Millisecond)
-		log.Debugf("Testing NAT ports for %s", gw)
+		log.Debugf("Testing NAT ports for gateway %s", gw)
 
 		tryPort := tryNatPort(nat, port)
 		if tryPort > 0 {
@@ -2341,9 +2341,23 @@ func (s *Service) calcInterfacePorts(addrs []net.IP) []string {
 
 		// Use NAT-PMP to get available port to use from gateway
 		if s.config.ListenAutoDetectPort && !s.config.DisableNATPMP {
-			if natPort, natClient := s.getNatPort(addr, port); natPort > 0 {
-				port = natPort
-				mapping.Client = natClient
+			queryAddrs := []net.IP{addr}
+			// Try all local IPs if we don't have a specific interface to be used
+			if addr.String() == "0.0.0.0" {
+				if ips, err := ip.VPNIPs(); err == nil && len(ips) > 0 {
+					queryAddrs = ips
+				}
+			}
+
+			log.Debugf("Testing NAT-PMP ports for %s", queryAddrs)
+
+			// Try to get NAT port for each local IP
+			for _, queryAddr := range queryAddrs {
+				if natPort, natClient := s.getNatPort(queryAddr, port); natPort > 0 {
+					port = natPort
+					mapping.Client = natClient
+					break
+				}
 			}
 		}
 
