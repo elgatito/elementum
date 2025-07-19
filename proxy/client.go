@@ -44,13 +44,19 @@ var (
 func Reload() {
 	reloadDNS()
 
-	if config.Get().ProxyURL == "" || !config.Get().ProxyUseHTTP {
-		directTransport.Proxy = nil
-	} else {
-		proxyURL, _ := url.Parse(config.Get().ProxyURL)
-		directTransport.Proxy = http.ProxyURL(proxyURL)
+	directTransport.Proxy = nil
+	if config.Get().ProxyUseHTTP {
+		if config.Get().ProxyURL != "" {
+			proxyURL, _ := url.Parse(config.Get().ProxyURL)
+			directTransport.Proxy = http.ProxyURL(proxyURL)
 
-		log.Debugf("Setting up proxy for direct client: %s", config.Get().ProxyURL)
+			log.Debugf("Setting up proxy for direct client: %s", config.Get().ProxyURL)
+		} else if config.Get().AntizapretEnabled {
+			go antizapretProxy.Update()
+			directTransport.Proxy = antizapretProxy.ProxyURL
+
+			log.Debugf("Setting up proxy for direct client to use Antizapret proxy dynamically.")
+		}
 	}
 }
 

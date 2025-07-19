@@ -264,6 +264,9 @@ type Configuration struct {
 	ProxyUseDownload bool
 	ProxyForce       bool
 
+	AntizapretEnabled bool
+	AntizapretPacUrl  string
+
 	CompletedMove       bool
 	CompletedMoviesPath string
 	CompletedShowsPath  string
@@ -793,6 +796,9 @@ func Reload() (ret *Configuration, err error) {
 		ProxyUseDownload: settings.ToBool("use_proxy_download"),
 		ProxyForce:       settings.ToBool("proxy_force"),
 
+		AntizapretEnabled: settings.ToBool("antizapret_enabled"),
+		AntizapretPacUrl:  settings.ToString("antizapret_pac_url"),
+
 		CompletedMove:       settings.ToBool("completed_move"),
 		CompletedMoviesPath: settings.ToString("completed_movies_path"),
 		CompletedShowsPath:  settings.ToString("completed_shows_path"),
@@ -880,6 +886,10 @@ func Reload() (ret *Configuration, err error) {
 		}
 
 		newConfig.ProxyURL += newConfig.ProxyHost + ":" + strconv.Itoa(newConfig.ProxyPort)
+	}
+	// Do not download torrent's data through Antizapret proxy
+	if newConfig.AntizapretEnabled {
+		newConfig.ProxyUseDownload = false
 	}
 
 	// Reading Kodi's advancedsettings file for MemorySize variable to avoid waiting for playback
