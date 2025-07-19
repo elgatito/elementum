@@ -32,8 +32,6 @@ const USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, l
 const CONFIG_FILE_NAME = "antizapret_config.gob" // Using gob for caching
 
 const CACHE_TTL = 24 * time.Hour // 24 hour caching
-// Use these values for debugging
-//const CACHE_TTL = 1 * time.Second
 
 var _config *AntizapretConfig
 var configMutex sync.RWMutex // Mutex for accessing _config in memory
@@ -218,7 +216,7 @@ func getCacheFilePath() string {
 
 	// Check if cache directory is writable
 	if err := util.IsWritablePath(CACHE_DIR); err != nil {
-		error_message := fmt.Sprintf("Cache directory %q is not writable, antizapret will not work: %v", CACHE_DIR, err)
+		error_message := fmt.Sprintf("Cache directory %q is not writable, Antizapret will not work: %v", CACHE_DIR, err)
 		log.Errorf(error_message)
 		// If directory is not writable, disable caching
 		CACHE_DIR = ""
@@ -276,7 +274,7 @@ func saveConfigToFile(filePath string, cfg *AntizapretConfig) error {
 
 // Build Antizapret config and store it in cache
 func loadConfig() (*AntizapretConfig, error) {
-	configMutex.RLock()
+	configMutex.RLock() // Acquire read lock
 	if _config != nil && time.Since(_config.CreatedAt) <= CACHE_TTL {
 		// Config is already loaded in memory and not expired
 		configMutex.RUnlock()
@@ -619,25 +617,14 @@ UNZLP_START:
 		}
 	}
 
-	// Debug info (optional)
-	log.Infof("Number of blocked IP addresses = %d\n", len(dIPAddr))
-	// for _, IPhex := range dIPAddr {
-	// 	ipBytes := make([]byte, 4)
-	// 	binary.BigEndian.PutUint32(ipBytes, IPhex)
-	// 	log.Debug(net.IP(ipBytes).String())
-	// }
+	log.Infof("Number of blocked IP addresses in Antizapret PAC file: %d\n", len(dIPAddr))
 	len_domains := 0
 	for _, dmnEntry := range domains {
-		// log.Debugf("domain=%s\n", dmnEntry.TLD)
 		for _, lenEntry := range dmnEntry.Lengths {
-			// log.Debugf("dcnt=%d\n", lenEntry.Length)
-			// for _, fragment := range lenEntry.Data {
-			// 	log.Debug(patternRestore(fragment, patternsDomainsLZP) + "." + dmnEntry.TLD)
-			// }
 			len_domains += len(lenEntry.Data)
 		}
 	}
-	log.Infof("Number of blocked domains = %d\n", len_domains)
+	log.Infof("Number of blocked domains in Antizapret PAC file: %d\n", len_domains)
 
 	_config = &AntizapretConfig{
 		CreatedAt:                time.Now(),
@@ -781,10 +768,6 @@ func (ap *AntizapretProxy) Detect(host string) string {
 			// Check if the IP integer is in the d_ipaddr list
 			yip = slices.Contains(ap.config.DIpaddr, ipUint32)
 		}
-		// Debug print IP hex
-		// if ipUint32 != 0 {
-		// 	log.Debugf("iphex=%d\n", ipUint32)
-		// }
 	}
 
 	rip := false
