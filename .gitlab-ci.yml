@@ -83,4 +83,3 @@ publish:
   extends: 
     - .parallel-matrix 
     - .publish
-
