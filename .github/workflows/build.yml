@@ -43,7 +43,7 @@ jobs:
           echo "::set-output name=asset_name::$(basename "${asset_path}")"
 
       - name: Upload ${{ matrix.platform }} zip
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}
           path: ${{ steps.generate_zip.outputs.asset_path }}
