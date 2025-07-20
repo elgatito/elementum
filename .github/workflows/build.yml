@@ -14,7 +14,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    container: elgatito/elementum-builder:${{ matrix.platform }}
+    container: elgatito/libtorrent-go:${{ matrix.platform }}
     strategy:
       max-parallel: 5
       matrix:
