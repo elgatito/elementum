@@ -24,7 +24,9 @@ jobs:
           windows-x64, windows-x86, darwin-x64 ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        env:
+          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
       # - name: Setup Go
       #   uses: actions/setup-go@v2
