@@ -49,3 +49,4 @@ jobs:
         with:
           name: ${{ matrix.platform }}
           path: ${{ steps.generate_zip.outputs.asset_path }}
+
