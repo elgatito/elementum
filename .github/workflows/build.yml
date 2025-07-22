@@ -25,8 +25,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        env:
-          ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
+      - name: Get tags
+        run: git fetch --tags origin
 
       - name: Environment ${{ matrix.platform }}
         run: env | sort
