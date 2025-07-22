@@ -14,7 +14,6 @@ jobs:
   build:
     name: Build
     runs-on: self-hosted
-    # container: elementumorg/libtorrent-go:${{ matrix.platform }}
     strategy:
       max-parallel: 5
       matrix:
@@ -49,4 +48,3 @@ jobs:
         with:
           name: ${{ matrix.platform }}
           path: ${{ steps.generate_zip.outputs.asset_path }}
-
