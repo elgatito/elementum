@@ -20,7 +20,7 @@ jobs:
       matrix:
         platform: [
           android-arm, android-arm64, android-x64, android-x86,
-          linux-armv7, linux-arm64, linux-x64, linux-x86,
+          linux-armv6, linux-armv7, linux-armv7_softfp, linux-arm64, linux-x64, linux-x86,
           windows-x64, windows-x86, darwin-x64 ]
     steps:
       - name: Checkout
@@ -31,11 +31,10 @@ jobs:
           git fetch --tags origin
           git fetch --prune --unshallow
 
-      - name: Environment ${{ matrix.platform }}
-        run: env | sort
-
       - name: Build ${{ matrix.platform }}
-        run: make ${{ matrix.platform }}
+        run: | 
+          make ${{ matrix.platform }}
+          make ${{ matrix.platform }}-shared
 
       - name: Generate ${{ matrix.platform }} zip
         id: generate_zip
