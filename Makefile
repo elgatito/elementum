@@ -291,3 +291,8 @@ prepare-all:
 	for i in $(PLATFORMS); do \
 		$(MAKE) prepare PLATFORM=$(PLATFORM); \
 	done
+
+zip:
+	cd build && \
+	arch=$$(echo $(PLATFORM) | sed s/-/_/g) && \
+	cd $${arch} && zip -9 -r ../$(NAME).$(GIT_VERSION).$${arch}.zip .

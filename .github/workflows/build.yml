@@ -1,0 +1,50 @@
+name: build
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+  create:
+    tags:
+      - v*
+
+jobs:
+  build:
+    name: Build
+    runs-on: self-hosted
+    strategy:
+      max-parallel: 5
+      matrix:
+        platform: [
+          android-arm, android-arm64, android-x64, android-x86,
+          linux-armv6, linux-armv7, linux-armv7_softfp, linux-arm64, linux-x64, linux-x86,
+          windows-x64, windows-x86, darwin-x64 ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Get tags
+        run: |
+          git fetch --tags origin
+          git fetch --prune --unshallow
+
+      - name: Build ${{ matrix.platform }}
+        run: | 
+          make ${{ matrix.platform }}
+          make ${{ matrix.platform }}-shared
+
+      - name: Generate ${{ matrix.platform }} zip
+        id: generate_zip
+        run: |
+          make zip PLATFORM=${{ matrix.platform }}
+          asset_path=$(ls build/*.zip)
+          echo "::set-output name=asset_path::${asset_path}"
+          echo "::set-output name=asset_name::$(basename "${asset_path}")"
+
+      - name: Upload ${{ matrix.platform }} zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: ${{ steps.generate_zip.outputs.asset_path }}
