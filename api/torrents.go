@@ -364,7 +364,10 @@ func ListTorrentsWeb(s *bittorrent.Service) gin.HandlerFunc {
 			infoHash := t.InfoHash()
 
 			statusCode := t.GetSmartState()
-			status := xbmcHost.Translate(bittorrent.StatusStrings[statusCode])
+			status := bittorrent.StatusStrings[statusCode]
+			if !config.Get().ServerMode {
+				status = xbmcHost.Translate(bittorrent.StatusStrings[statusCode])
+			}
 
 			ratio := float64(0)
 			allTimeDownload := float64(torrentStatus.GetAllTimeDownload())
