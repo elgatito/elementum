@@ -334,7 +334,9 @@ func Authorize(fromSettings bool) error {
 					xbmcHost.SetSetting("trakt_refresh_token", token.RefreshToken)
 				}
 
+				config.Get().TraktTokenExpiry = expiry
 				config.Get().TraktToken = token.AccessToken
+				config.Get().TraktRefreshToken = token.RefreshToken
 
 				// Getting username for currently authorized user
 				user := &UserSettings{}
