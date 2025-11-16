@@ -2333,45 +2333,58 @@ func (s *Service) calcInterfacePorts(addrs []net.IP) []string {
 
 	rand.Seed(time.Now().UTC().UnixNano())
 
+	var retMu sync.Mutex
+	var wg sync.WaitGroup
 	ret := []string{}
 	for _, addr := range addrs {
-		// Get random port from a range
-		port := listenPorts[rand.Intn(len(listenPorts))]
-		mapping := PortMapping{}
+		wg.Add(1)
+		go func(addr net.IP) {
+			defer wg.Done()
 
-		// Use NAT-PMP to get available port to use from gateway
-		if s.config.ListenAutoDetectPort && !s.config.DisableNATPMP {
-			queryAddrs := []net.IP{addr}
-			// Try all local IPs if we don't have a specific interface to be used
-			if addr.String() == "0.0.0.0" {
-				if ips, err := ip.VPNIPs(); err == nil && len(ips) > 0 {
-					queryAddrs = ips
+			// Get random port from a range
+			port := listenPorts[rand.Intn(len(listenPorts))]
+			mapping := PortMapping{}
+
+			// Use NAT-PMP to get available port to use from gateway
+			if s.config.ListenAutoDetectPort && !s.config.DisableNATPMP {
+				queryAddrs := []net.IP{addr}
+				// Try all local IPs if we don't have a specific interface to be used
+				if addr.String() == "0.0.0.0" {
+					if ips, err := ip.VPNIPs(); err == nil && len(ips) > 0 {
+						queryAddrs = ips
+					}
+				}
+
+				log.Debugf("Testing NAT-PMP ports for %s", queryAddrs)
+
+				// Try to get NAT port for each local IP
+				for _, queryAddr := range queryAddrs {
+					if natPort, natClient := s.getNatPort(queryAddr, port); natPort > 0 {
+						port = natPort
+						mapping.Client = natClient
+						break
+					}
 				}
 			}
 
-			log.Debugf("Testing NAT-PMP ports for %s", queryAddrs)
+			// Store port mapping
+			mapping.Port = port
+			s.portsMu.Lock()
+			s.mappedPorts[addr.String()] = mapping
+			s.portsMu.Unlock()
 
-			// Try to get NAT port for each local IP
-			for _, queryAddr := range queryAddrs {
-				if natPort, natClient := s.getNatPort(queryAddr, port); natPort > 0 {
-					port = natPort
-					mapping.Client = natClient
-					break
-				}
+			// Construct libtorrent-compatible settings and add to results
+			retMu.Lock()
+			if addr.To4() != nil {
+				ret = append(ret, fmt.Sprintf("%s:%d", addr.To4().String(), port))
+			} else {
+				ret = append(ret, fmt.Sprintf("[%s]:%d", addr.To16().String(), port))
 			}
-		}
-
-		// Store port mapping
-		mapping.Port = port
-		s.mappedPorts[addr.String()] = mapping
-
-		// Construct libtorrent-compatible settings
-		if addr.To4() != nil {
-			ret = append(ret, fmt.Sprintf("%s:%d", addr.To4().String(), port))
-		} else {
-			ret = append(ret, fmt.Sprintf("[%s]:%d", addr.To16().String(), port))
-		}
+			retMu.Unlock()
+		}(addr)
 	}
+
+	wg.Wait()
 
 	return ret
 }
