@@ -247,8 +247,8 @@ func main() {
 			time.Sleep(1 * time.Second)
 		}
 	}
-	// If we run with custom config, then we run as daemon, thus no need to watch for parent process
-	if config.Args.ConfigPath == "" && !config.Args.DisableParentProcessWatcher {
+	// If we run in server mode - then we do not need to watch for parent (Kodi) process
+	if !config.Get().ServerMode {
 		go watchParentProcess()
 	}
 

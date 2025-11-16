@@ -273,6 +273,8 @@ type Configuration struct {
 
 	LocalOnlyClient bool
 	LogLevel        int
+
+	ServerMode bool
 }
 
 // Addon ...
@@ -590,6 +592,12 @@ func Reload() (ret *Configuration, err error) {
 	}
 	log.Infof("Using torrents path: %s", torrentsPath)
 
+	serverMode := false
+	if Args.ConfigPath != "" || Args.DisableParentProcessWatcher {
+		serverMode = true
+		log.Infof("Elementum is running in server mode")
+	}
+
 	newConfig := Configuration{
 		DownloadPath:                downloadPath,
 		LibraryPath:                 libraryPath,
@@ -805,6 +813,8 @@ func Reload() (ret *Configuration, err error) {
 
 		LocalOnlyClient: settings.ToBool("local_only_client"),
 		LogLevel:        settings.ToInt("log_level"),
+
+		ServerMode: serverMode,
 	}
 
 	// Use custom Move locations provided by CLI
