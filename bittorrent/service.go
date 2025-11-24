@@ -2334,6 +2334,7 @@ func (s *Service) calcInterfacePorts(addrs []net.IP) []string {
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	var retMu sync.Mutex
+	var mappedPortsMu sync.Mutex
 	var wg sync.WaitGroup
 	ret := []string{}
 	for _, addr := range addrs {
@@ -2369,9 +2370,9 @@ func (s *Service) calcInterfacePorts(addrs []net.IP) []string {
 
 			// Store port mapping
 			mapping.Port = port
-			s.portsMu.Lock()
+			mappedPortsMu.Lock()
 			s.mappedPorts[addr.String()] = mapping
-			s.portsMu.Unlock()
+			mappedPortsMu.Unlock()
 
 			// Construct libtorrent-compatible settings and add to results
 			retMu.Lock()
