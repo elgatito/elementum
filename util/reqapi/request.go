@@ -180,6 +180,11 @@ func (r *Request) Do() (err error) {
 	if r.Cache {
 		// Try to read result from cache
 		if err = r.CacheRead(); err == nil {
+			// Restore request's error for 404 responses
+			if r.ResponseStatusCode == 404 {
+				err = util.ErrNotFound
+				r.Error(err)
+			}
 			return err
 		}
 		r.Stage("CacheRead")
@@ -249,7 +254,6 @@ func (r *Request) Do() (err error) {
 			break
 		}
 
-		err = nil
 		return nil
 	})
 
@@ -277,7 +281,8 @@ func (r *Request) UnmarshalCache(b *bytes.Buffer) (*CacheEntry, error) {
 }
 
 func (r *Request) Unmarshal(b *bytes.Buffer) error {
-	if r.Result != nil {
+	// if we unmarshal cached "not found" response into Result - then Result will be an empty struct, not nil, which will break many checks
+	if r.Result != nil && r.ResponseStatusCode != 404 {
 		return json.Unmarshal(b.Bytes(), r.Result)
 	} else {
 		r.ResponseBody = b
