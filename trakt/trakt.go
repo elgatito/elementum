@@ -38,7 +38,7 @@ var (
 	// Cookies ...
 	Cookies = ""
 	// UserAgent ...
-	UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+	UserAgent = "Elementum/" + ident.GetVersion()
 )
 
 const (
@@ -84,7 +84,7 @@ func getIntFromHeader(headers http.Header, key string) (res int) {
 func GetHeader() http.Header {
 	return http.Header{
 		"Content-type":      []string{"application/json"},
-		"trakt-api-key":     []string{config.TraktReadClientID},
+		"trakt-api-key":     []string{config.TraktAPIClientID},
 		"trakt-api-version": []string{APIVersion},
 		"User-Agent":        []string{UserAgent},
 		"Cookie":            []string{Cookies},
@@ -95,7 +95,7 @@ func GetAuthenticatedHeader() http.Header {
 	return http.Header{
 		"Content-type":      []string{"application/json"},
 		"Authorization":     []string{fmt.Sprintf("Bearer %s", config.Get().TraktToken)},
-		"trakt-api-key":     []string{config.TraktWriteClientID},
+		"trakt-api-key":     []string{config.TraktAPIClientID},
 		"trakt-api-version": []string{APIVersion},
 		"User-Agent":        []string{UserAgent},
 		"Cookie":            []string{Cookies},
@@ -121,7 +121,7 @@ func GetCode() (code *Code, err error) {
 			"Cookie":       []string{Cookies},
 		},
 		Params: napping.Params{
-			"client_id": config.TraktWriteClientID,
+			"client_id": config.TraktAPIClientID,
 		}.AsUrlValues(),
 		Result:      &code,
 		Description: "oauth device code",
@@ -153,8 +153,8 @@ func PollToken(code *Code) (token *Token, err error) {
 				},
 				Params: napping.Params{
 					"code":          code.DeviceCode,
-					"client_id":     config.TraktWriteClientID,
-					"client_secret": config.TraktWriteClientSecret,
+					"client_id":     config.TraktAPIClientID,
+					"client_secret": config.TraktAPIClientSecret,
 				}.AsUrlValues(),
 				Result:      &token,
 				Description: "oauth device token",
@@ -242,8 +242,8 @@ func RefreshToken() error {
 		},
 		Params: napping.Params{
 			"refresh_token": config.Get().TraktRefreshToken,
-			"client_id":     config.TraktWriteClientID,
-			"client_secret": config.TraktWriteClientSecret,
+			"client_id":     config.TraktAPIClientID,
+			"client_secret": config.TraktAPIClientSecret,
 			"redirect_uri":  "urn:ietf:wg:oauth:2.0:oob",
 			"grant_type":    "refresh_token",
 		}.AsUrlValues(),
@@ -395,8 +395,8 @@ func Deauthorize(fromSettings bool) error {
 		},
 		Params: napping.Params{
 			"token":         config.Get().TraktToken,
-			"client_id":     config.TraktWriteClientID,
-			"client_secret": config.TraktWriteClientSecret,
+			"client_id":     config.TraktAPIClientID,
+			"client_secret": config.TraktAPIClientSecret,
 		}.AsUrlValues(),
 		Result:      nil,
 		Description: "oauth revoke",

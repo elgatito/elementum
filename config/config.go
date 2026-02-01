@@ -39,14 +39,10 @@ const (
 	defaultEndBufferSize         = 1 * 1024 * 1024
 	defaultDiskCacheSize         = 12 * 1024 * 1024
 
-	// TraktReadClientID ...
-	TraktReadClientID = "eb8839a79fb2af4ebfb93f993a8a539abd4d9674a7638497bbc662d2a4b22346"
-	// TraktReadClientSecret ...
-	TraktReadClientSecret = "338cfda318c5879c9d7d0888bf1875e303576d4ad7e72a2230addf5db326c791"
-	// TraktWriteClientID ...
-	TraktWriteClientID = "66f7807c55e9fec2d6627846baf8bc667a5e82620b6e037a044034c64e3cb5e2"
-	// TraktWriteClientSecret ...
-	TraktWriteClientSecret = "5d37802b559c17a8dc10daaf96c55b196b1c86a723e6667310556288b3cac7fb"
+	// TraktAPIClientID used make requests to Trakt API (both with and without auth)
+	TraktAPIClientID = "66f7807c55e9fec2d6627846baf8bc667a5e82620b6e037a044034c64e3cb5e2"
+	// TraktAPIClientSecret used to make requests to Trakt API (both with and without auth)
+	TraktAPIClientSecret = "5d37802b559c17a8dc10daaf96c55b196b1c86a723e6667310556288b3cac7fb"
 )
 
 // Configuration ...
