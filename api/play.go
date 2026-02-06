@@ -48,6 +48,8 @@ func Play(s *bittorrent.Service) gin.HandlerFunc {
 		season := ctx.Query("season")
 		episode := ctx.Query("episode")
 		background := ctx.DefaultQuery("background", "false")
+		fileMatch := ctx.Query("file_match")
+		position := ctx.Query("position")
 
 		if uri == "" && resume == "" {
 			return
@@ -75,11 +77,12 @@ func Play(s *bittorrent.Service) gin.HandlerFunc {
 			URI:               uri,
 			OriginalIndex:     originalIndex,
 			FileIndex:         fileIndex,
+			FileMatch:         fileMatch,
 			NextOriginalIndex: nextOriginalIndex,
 			NextFileIndex:     nextFileIndex,
 			ResumeHash:        resume,
 			ResumePlayback:    resumePlayback,
-			KodiPosition:      -1,
+			KodiPosition:      strToInt(position, -1),
 			ContentType:       contentType,
 			TMDBId:            tmdbID,
 			ShowID:            showID,

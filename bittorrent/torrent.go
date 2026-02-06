@@ -1933,6 +1933,22 @@ func (t *Torrent) ChooseFile(btp *Player) (*File, int, error) {
 		return nil, -1, err
 	}
 
+	// Automatic file selection via regex match
+	if btp != nil && btp.p.FileMatch != "" && btp.p.FileIndex < 0 {
+		re, err := regexp.Compile("(?i)" + btp.p.FileMatch)
+		if err == nil {
+			for i, choice := range choices {
+				if re.MatchString(choice.Filename) || re.MatchString(choice.Path) {
+					log.Infof("File found via regex match ('%s'): %s", btp.p.FileMatch, choice.Path)
+					return files[choice.Index], i, nil
+				}
+			}
+			log.Infof("No file matches the provided regex: %s", btp.p.FileMatch)
+		} else {
+			log.Errorf("Invalid regex provided in file_match: %s", err)
+		}
+	}
+
 	if len(choices) > 1 {
 		// Adding sizes to file names
 		if btp != nil && btp.p.Episode == 0 {
