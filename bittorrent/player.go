@@ -115,6 +115,8 @@ type PlayerParams struct {
 	AbsoluteNumber    int
 	Query             string
 	FileMatch         string
+	MinSize           int64
+	SizeAtStart       bool
 	UpNextSent        bool
 	UIDs              *uid.UniqueIDs
 	Resume            *uid.Resume

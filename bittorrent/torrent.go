@@ -1747,10 +1747,16 @@ func (t *Torrent) GetCandidateFiles(btp *Player) ([]*CandidateFile, int, error) 
 	files := t.files
 	isBluRay := false
 
-	// Calculate minimal size for this type of media.
-	// For shows we multiply size_per_minute to properly allow 5-10 minute episodes.
+	// Define the minimum file size limit.
+	// Hierarchy: 1. Manual request override, 2. Smart show calculation, 3. Global config.
 	minSize := config.Get().MinCandidateSize
-	if btp != nil && btp.p.ShowID != 0 {
+
+	if btp != nil && btp.p.MinSize >= 0 {
+		// Apply manual override from the request parameter (URL)
+		minSize = btp.p.MinSize
+		log.Infof("Overriding min_size to %d bytes via request parameter", minSize)
+	} else if btp != nil && btp.p.ShowID != 0 {
+		// Fallback to smart calculation for TV shows based on runtime
 		if s := tmdb.GetShow(btp.p.ShowID, config.Get().Language); s != nil {
 			runtime := 30
 			if len(s.EpisodeRunTime) > 0 {
@@ -1950,10 +1956,18 @@ func (t *Torrent) ChooseFile(btp *Player) (*File, int, error) {
 	}
 
 	if len(choices) > 1 {
-		// Adding sizes to file names
-		if btp != nil && btp.p.Episode == 0 {
+		// Adding sizes to file names with optional position control
+		if btp != nil {
 			for _, c := range choices {
-				c.DisplayName += " [COLOR lightyellow][" + humanize.Bytes(uint64(files[c.Index].Size)) + "][/COLOR]"
+				sizeLabel := "[COLOR lightyellow][" + humanize.Bytes(uint64(files[c.Index].Size)) + "][/COLOR]"
+
+				if btp.p.SizeAtStart {
+					// Prepend size label to the display name for better visibility in long names
+					c.DisplayName = sizeLabel + " " + c.DisplayName
+				} else if btp.p.Episode == 0 {
+					// Default legacy behavior: append size only for movies
+					c.DisplayName += " " + sizeLabel
+				}
 			}
 		}
 
