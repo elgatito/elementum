@@ -114,6 +114,9 @@ type PlayerParams struct {
 	Episode           int
 	AbsoluteNumber    int
 	Query             string
+	FileMatch         string
+	MinSize           int64
+	SizeAtStart       bool
 	UpNextSent        bool
 	UIDs              *uid.UniqueIDs
 	Resume            *uid.Resume
@@ -332,6 +335,7 @@ func (btp *Player) processMetadata() {
 	log.Infof("Chosen file: %s", btp.fileName)
 	log.Infof("Saving torrent to database")
 
+	// Handling resume logic
 	btp.FetchStoredResume()
 
 	var resume *uid.Resume
@@ -339,17 +343,22 @@ func (btp *Player) processMetadata() {
 		resume = btp.p.StoredResume
 	} else if btp.p.Resume != nil && btp.p.Resume.Position > 0 {
 		resume = btp.p.Resume
-	} else {
-		resume = nil
 	}
 
-	btp.p.ResumePlayback = ResumeNo
-	if resume != nil && !btp.p.Background && config.Get().PlayResumeAction != 0 {
+	// Respect doresume=false and manual position from external add-ons
+	if btp.p.ResumePlayback == ResumeNo {
+		log.Infof("Resume dialog suppressed via URL parameter for: %s", btp.fileName)
+	} else if btp.p.KodiPosition > 0 {
+		btp.p.ResumePlayback = ResumeYes
+		log.Infof("Forcing playback position to %d seconds for: %s", btp.p.KodiPosition, btp.fileName)
+	} else if resume != nil && !btp.p.Background && config.Get().PlayResumeAction != 0 {
+		// Standard Elementum resume dialog
 		if !(config.Get().SilentStreamStart ||
 			btp.p.ResumePlayback == ResumeYes ||
 			config.Get().PlayResumeAction == 2 ||
 			btp.xbmcHost == nil || btp.xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30535];;%s", resume.ToString()))) {
-			log.Infof("Resetting stored resume")
+
+			log.Infof("Resetting stored resume for: %s", btp.fileName)
 			resume.Reset()
 			btp.SaveStoredResume()
 			btp.p.ResumePlayback = ResumeNo

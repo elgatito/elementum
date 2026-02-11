@@ -48,6 +48,10 @@ func Play(s *bittorrent.Service) gin.HandlerFunc {
 		season := ctx.Query("season")
 		episode := ctx.Query("episode")
 		background := ctx.DefaultQuery("background", "false")
+		fileMatch := ctx.Query("file_match")
+		minSize := ctx.DefaultQuery("min_size", "-1")
+		sizeAtStart := ctx.DefaultQuery("size_at_start", "false")
+		position := ctx.Query("position")
 
 		if uri == "" && resume == "" {
 			return
@@ -75,11 +79,14 @@ func Play(s *bittorrent.Service) gin.HandlerFunc {
 			URI:               uri,
 			OriginalIndex:     originalIndex,
 			FileIndex:         fileIndex,
+			FileMatch:         fileMatch,
+			MinSize:           strToInt64(minSize, -1),
+			SizeAtStart:       sizeAtStart == "true",
 			NextOriginalIndex: nextOriginalIndex,
 			NextFileIndex:     nextFileIndex,
 			ResumeHash:        resume,
 			ResumePlayback:    resumePlayback,
-			KodiPosition:      -1,
+			KodiPosition:      strToInt(position, -1),
 			ContentType:       contentType,
 			TMDBId:            tmdbID,
 			ShowID:            showID,
@@ -224,5 +231,15 @@ func strToInt(str string, def int) int {
 		}
 	}
 
+	return def
+}
+
+// strToInt64 parses string to int64, and returning default value if no int found
+func strToInt64(str string, def int64) int64 {
+	if str != "" {
+		if i, err := strconv.ParseInt(str, 10, 64); err == nil && i >= 0 {
+			return i
+		}
+	}
 	return def
 }
