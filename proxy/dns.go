@@ -21,6 +21,7 @@ var (
 		"chan",
 		"cyb",
 		"dyn",
+		"epic",
 		"geek",
 		"gopher",
 		"indy",
@@ -43,6 +44,8 @@ var (
 		"te",
 		"ti",
 		"uu",
+		"ko",
+		"rm",
 	}
 
 	commonResolver  = &DoH{}
