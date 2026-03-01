@@ -19,7 +19,7 @@ import (
 // Download ...
 func Download(s *bittorrent.Service) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		rURL, _ := url.Parse(fmt.Sprintf("%s%s", ip.GetContextHTTPHost(ctx), strings.Replace(ctx.Request.RequestURI, "/download", "/play", 1)+"&background=true"))
+		rURL, _ := url.Parse(fmt.Sprintf("%s%s", "plugin://"+config.Get().Info.ID, strings.Replace(ctx.Request.RequestURI, "/download", "/play", 1)+"&background=true"))
 		ctx.Redirect(302, rURL.String())
 	}
 }
