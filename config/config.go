@@ -239,10 +239,12 @@ type Configuration struct {
 	CustomProviderTimeout        int
 	ProviderUseLowestReleaseDate bool
 
-	InternalDNSEnabled  bool
-	InternalDNSSkipIPv6 bool
-	InternalDNSOrder    int
-	InternalDNSOpenNic  []string
+	InternalDNSEnabled                 bool
+	InternalDNSSkipIPv6                bool
+	InternalDNSServer                  string
+	InternalDNSServerCustom            string
+	InternalDNSOpenNicUse              bool
+	InternalDNSOpenNicOnlySpecialZones bool
 
 	InternalProxyEnabled     bool
 	InternalProxyLogging     bool
@@ -782,8 +784,10 @@ func Reload() (ret *Configuration, err error) {
 		CustomProviderTimeout:        settings.ToInt("custom_provider_timeout"),
 		ProviderUseLowestReleaseDate: settings.ToBool("provider_use_lowest_release_date"),
 
-		InternalDNSEnabled:  settings.ToBool("internal_dns_enabled"),
-		InternalDNSSkipIPv6: settings.ToBool("internal_dns_skip_ipv6"),
+		InternalDNSEnabled:                 settings.ToBool("internal_dns_enabled"),
+		InternalDNSSkipIPv6:                settings.ToBool("internal_dns_skip_ipv6"),
+		InternalDNSOpenNicUse:              settings.ToBool("internal_dns_opennic_use"),
+		InternalDNSOpenNicOnlySpecialZones: settings.ToBool("internal_dns_opennic_only_special_zones"),
 
 		InternalProxyEnabled:     settings.ToBool("internal_proxy_enabled"),
 		InternalProxyLogging:     settings.ToBool("internal_proxy_logging"),
@@ -830,8 +834,11 @@ func Reload() (ret *Configuration, err error) {
 		newConfig.OutgoingInterfaces = strings.Join(Args.OutgoingInterfaces, ",")
 	}
 
-	reDNS := regexp.MustCompile(`\s*,\s*`)
-	newConfig.InternalDNSOpenNic = reDNS.Split(settings.ToString("internal_dns_opennic"), -1)
+	newConfig.InternalDNSServer = settings.ToString("internal_dns_server")
+	newConfig.InternalDNSServerCustom = settings.ToString("internal_dns_server_custom")
+	if newConfig.InternalDNSServer == "custom" {
+		newConfig.InternalDNSServer = newConfig.InternalDNSServerCustom
+	}
 
 	updateLoggingLevel(newConfig.LogLevel)
 
