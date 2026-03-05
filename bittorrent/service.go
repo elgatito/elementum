@@ -471,7 +471,7 @@ func (s *Service) configure() {
 		settings.SetInt("min_reconnect_time", 20)
 	}
 
-	listenInterfaces, outgoingInterfaces, errInterface := s.getInterfaceSettings()
+	listenInterfaces, outgoingInterfaces, errInterface := s.getInterfaceSettings(false)
 	if errInterface != nil {
 		log.Errorf("Could not create configure libtorrent session due to wrong interfaces configuration: %s", errInterface)
 		return
@@ -660,7 +660,7 @@ func (s *Service) checkAvailableSpace(xbmcHost *xbmc.XBMCHost, t *Torrent) bool 
 func (s *Service) updateInterfaces() {
 	settings := s.PackSettings
 
-	listenInterfaces, outgoingInterfaces, errInterface := s.getInterfaceSettings()
+	listenInterfaces, outgoingInterfaces, errInterface := s.getInterfaceSettings(true)
 	if errInterface != nil {
 		log.Errorf("Could not create configure libtorrent session due to wrong interfaces configuration: %s", errInterface)
 		return
@@ -1181,6 +1181,9 @@ func (s *Service) onAlertsConsumer() {
 func (s *Service) networkRefresh() {
 	defer s.wg.Done()
 
+	// Initial refresh to make sure we have correct interfaces before starting the session
+	go s.updateInterfaces()
+
 	netTicker := time.NewTicker(time.Duration(5) * time.Minute)
 	portTicker := time.NewTicker(time.Duration(45) * time.Second)
 	closing := s.Closer.C()
@@ -1224,7 +1227,6 @@ func (s *Service) networkRefresh() {
 						return
 					}
 
-					log.Debugf("Updating port mapping: %d", mapping.Port)
 					port := tryNatPort(mapping.Client, mapping.Port)
 					if port == 0 || port != mapping.Port {
 						needUpdate = true
@@ -1290,6 +1292,11 @@ func (s *Service) logAlerts() {
 				log.Debugf("%s: %s", alert.What, alert.Message)
 			} else if alert.Category&int(lt.AlertPerformanceWarning) != 0 {
 				log.Warningf("%s: %s", alert.What, alert.Message)
+			} else if alert.Type == int(lt.ListenSucceededAlertAlertType) {
+				log.Warningf("%s: %s", alert.What, alert.Message)
+				if port, err := ip.ParseListenPort(alert.Message); err == nil {
+					s.verifyListenPort(port)
+				}
 			} else {
 				log.Noticef("%s: %s", alert.What, alert.Message)
 			}
@@ -2197,7 +2204,7 @@ func SetWatchedFile(path string, size int64, watched bool) {
 }
 
 // getInterfaceSettings is parsing configuration settings and forming list of IPs with ports for libtorrent
-func (s *Service) getInterfaceSettings() ([]string, []string, error) {
+func (s *Service) getInterfaceSettings(enableNatScan bool) ([]string, []string, error) {
 	// Clear existing mappings
 	s.deletePortMappings()
 
@@ -2211,7 +2218,7 @@ func (s *Service) getInterfaceSettings() ([]string, []string, error) {
 	s.outgoingInterfaces = outgoingInterfaces
 
 	// Search for available port to use
-	listenInterfacesStrings := s.calcInterfacePorts(listenInterfaces)
+	listenInterfacesStrings := s.calcInterfacePorts(enableNatScan, listenInterfaces)
 	outgoingInterfacesStrings := []string{}
 	for _, i := range outgoingInterfaces {
 		outgoingInterfacesStrings = append(outgoingInterfacesStrings, i.String())
@@ -2341,7 +2348,7 @@ func tryNatPort(nat *natpmp.Client, port int) int {
 }
 
 // calcInterfacePorts is searching for a proper port to use for each interface and returns an IP:port list
-func (s *Service) calcInterfacePorts(queryAddrs []net.IP) []string {
+func (s *Service) calcInterfacePorts(enableNatScan bool, queryAddrs []net.IP) []string {
 	// Set port range for automatic port detect
 	if s.config.ListenAutoDetectPort {
 		s.config.ListenPortMin = 6891
@@ -2373,7 +2380,7 @@ func (s *Service) calcInterfacePorts(queryAddrs []net.IP) []string {
 			mapping := PortMapping{}
 
 			// Use NAT-PMP to get available port to use from gateway
-			if s.config.ListenAutoDetectPort && !s.config.DisableNATPMP {
+			if s.config.ListenAutoDetectPort && !s.config.DisableNATPMP && enableNatScan {
 				// Try to get NAT port for each local IP
 				if natPort, natClient := s.getNatPort(queryAddr, port); natPort > 0 {
 					port = natPort
@@ -2399,13 +2406,32 @@ func (s *Service) calcInterfacePorts(queryAddrs []net.IP) []string {
 					}
 					retMu.Unlock()
 				}
+			} else {
+				// Use the selected port without NAT-PMP
+				retMu.Lock()
+				if addr.To4() != nil {
+					ret = append(ret, fmt.Sprintf("%s:%d", addr.To4().String(), port))
+				} else {
+					ret = append(ret, fmt.Sprintf("[%s]:%d", addr.To16().String(), port))
+				}
+				retMu.Unlock()
 			}
 		}(net.IP(queryAddr), addr)
 	}
 
 	wg.Wait()
 
-	return ret
+	// If we have wildcard address, use only it, otherwise we can have issues with some routers
+	if slices.ContainsFunc(ret, func(item string) bool {
+		return strings.HasPrefix(item, "0.0.0.0") || strings.HasPrefix(item, "[::]")
+	}) {
+		ret = util.SliceFilter(ret, func(item string) bool {
+			return strings.HasPrefix(item, "0.0.0.0") || strings.HasPrefix(item, "[::]")
+		})
+	}
+
+	// Return only unique listen interfaces
+	return slices.Compact(ret)
 }
 
 // transformInterfaceAddrs is converting logical addresses into physical ones
@@ -2455,4 +2481,28 @@ func parseInterfaces(input string) ([]net.IP, error) {
 	}
 
 	return ret, nil
+}
+
+func (s *Service) verifyListenPort(port int) {
+	if util.SyncMapLen(&s.mappedPorts) == 0 {
+		return
+	}
+	if port <= 0 || port > 65535 {
+		log.Errorf("Invalid listen port in listen verification: %d", port)
+		return
+	}
+
+	matched := false
+	s.mappedPorts.Range(func(key, value any) bool {
+		mapping := value.(PortMapping)
+		if mapping.Port == port {
+			matched = true
+		}
+		return true
+	})
+
+	if !matched {
+		log.Infof("Verified listen port %d needs an update", port)
+		go s.updateInterfaces()
+	}
 }
