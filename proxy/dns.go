@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	// opennicZones contains all zones from Opennic services.
+	// opennicZones contains all zones from OpenNIC services.
 	// List can be taken here: https://wiki.opennic.org/opennic/dot
 	opennicZones = []string{
 		"bbs",
@@ -94,7 +94,7 @@ func reloadDNS() {
 
 	commonResolver = NewDoHResolver(config.Get().InternalDNSServer)
 
-	if config.Get().InternalDNSOpenNicUse {
+	if config.Get().InternalDNSOpenNICUse {
 		opennicResolvers, source := fetchOpenNICResolvers()
 		opennicResolver = NewOpenNICResolver(opennicResolvers)
 		log.Debugf("Configured OpenNIC resolvers from %s: %+v", source, opennicResolvers)
@@ -104,12 +104,13 @@ func reloadDNS() {
 }
 
 // Each request is going through this workflow:
-// Check cache -> Query DoH & Query Opennic (if enabled for everything or if address belongs to Opennic domains) -> Save cache
+// Check cache -> Query DoH & Query OpenNIC (if enabled for everything or if address belongs to OpenNIC domains) -> Save cache
 func resolveAddr(addr string) (ret []string, err error) {
 	defer perf.ScopeTimer()()
 
 	// Check for results in the cache
 	if cached := dnsCacheResults.Get(addr); cached != nil {
+		log.Debugf("1 DNS cache hit for %s", addr) //TODO: remove
 		return cached.([]string), nil
 	}
 
@@ -126,14 +127,15 @@ func resolveAddr(addr string) (ret []string, err error) {
 	defer mu.Unlock()
 
 	if cached := dnsCacheResults.Get(addr); cached != nil {
+		log.Debugf("2 DNS cache hit for %s", addr) //TODO: remove
 		return cached.([]string), nil
 	}
 
 	zone := getZone(addr)
-	isOpenNICZone := isOpennicDomain(zone)
+	isOpenNICZone := isOpenNICDomain(zone)
 
 	runDoH := !isOpenNICZone
-	runOpenNIC := config.Get().InternalDNSOpenNicUse && (isOpenNICZone || !config.Get().InternalDNSOpenNicOnlySpecialZones)
+	runOpenNIC := config.Get().InternalDNSOpenNICUse && (isOpenNICZone || !config.Get().InternalDNSOpenNICOnlySpecialZones)
 
 	results := make(chan resolveResult, 2)
 	queriesCount := 0
@@ -197,6 +199,7 @@ func resolveAddr(addr string) (ret []string, err error) {
 	if cacheTTL <= 0 {
 		cacheTTL = defaultDNSCacheTTL
 	}
+	log.Debugf("DNS cache TTL for %s is %d seconds", addr, cacheTTL) //TODO: remove
 
 	dnsCacheResults.Set(addr, ret, int64(cacheTTL))
 
@@ -213,7 +216,7 @@ func getZone(addr string) string {
 	return strings.ToLower(ary[len(ary)-1])
 }
 
-func isOpennicDomain(zone string) bool {
+func isOpenNICDomain(zone string) bool {
 	for _, z := range opennicZones {
 		if z == zone {
 			return true

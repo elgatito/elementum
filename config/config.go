@@ -243,8 +243,8 @@ type Configuration struct {
 	InternalDNSSkipIPv6                bool
 	InternalDNSServer                  string
 	InternalDNSServerCustom            string
-	InternalDNSOpenNicUse              bool
-	InternalDNSOpenNicOnlySpecialZones bool
+	InternalDNSOpenNICUse              bool
+	InternalDNSOpenNICOnlySpecialZones bool
 
 	InternalProxyEnabled     bool
 	InternalProxyLogging     bool
@@ -786,8 +786,8 @@ func Reload() (ret *Configuration, err error) {
 
 		InternalDNSEnabled:                 settings.ToBool("internal_dns_enabled"),
 		InternalDNSSkipIPv6:                settings.ToBool("internal_dns_skip_ipv6"),
-		InternalDNSOpenNicUse:              settings.ToBool("internal_dns_opennic_use"),
-		InternalDNSOpenNicOnlySpecialZones: settings.ToBool("internal_dns_opennic_only_special_zones"),
+		InternalDNSOpenNICUse:              settings.ToBool("internal_dns_opennic_use"),
+		InternalDNSOpenNICOnlySpecialZones: settings.ToBool("internal_dns_opennic_only_special_zones"),
 
 		InternalProxyEnabled:     settings.ToBool("internal_proxy_enabled"),
 		InternalProxyLogging:     settings.ToBool("internal_proxy_logging"),
