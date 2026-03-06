@@ -7,11 +7,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/elgatito/elementum/proxy/dns/quad9"
+
 	"github.com/likexian/doh/dns"
 	"github.com/likexian/doh/provider/cloudflare"
 	"github.com/likexian/doh/provider/dnspod"
 	"github.com/likexian/doh/provider/google"
-	"github.com/likexian/doh/provider/quad9"
 	"github.com/likexian/gokit/xcache"
 	"github.com/likexian/gokit/xhash"
 )
