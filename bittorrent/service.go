@@ -48,8 +48,9 @@ import (
 )
 
 type PortMapping struct {
-	Client *natpmp.Client
-	Port   int
+	Gateway net.IP
+	Client  *natpmp.Client
+	Port    int
 }
 
 // Service ...
@@ -1227,7 +1228,7 @@ func (s *Service) networkRefresh() {
 						return
 					}
 
-					port := tryNatPort(mapping.Client, mapping.Port)
+					port := tryNatPort(mapping.Gateway, mapping.Client, mapping.Port)
 					if port == 0 || port != mapping.Port {
 						needUpdate = true
 					}
@@ -2263,14 +2264,14 @@ func (s *Service) getNatPort(local net.IP, port int) (int, *natpmp.Client) {
 			defer wg.Done()
 			nat := natpmp.NewClientWithTimeout(gw, 1500*time.Millisecond)
 
-			tryPort := tryNatPort(nat, port)
+			tryPort := tryNatPort(gw, nat, port)
 			if tryPort > 0 {
 				retNat = nat
 				retPort = tryPort
 				return
 			}
 
-			tryPort = tryNatPort(nat, 0)
+			tryPort = tryNatPort(gw, nat, 0)
 			if tryPort > 0 {
 				retNat = nat
 				retPort = tryPort
@@ -2316,20 +2317,20 @@ func deleteNatPort(nat *natpmp.Client, port int) {
 	}
 }
 
-func tryNatPort(nat *natpmp.Client, port int) int {
+func tryNatPort(gw net.IP, nat *natpmp.Client, port int) int {
 	tcp, err := nat.AddPortMapping("tcp", port, port, int64(time.Duration(60*time.Second)))
 	if err != nil {
 		log.Errorf("failed to request TCP mapping: %v", err)
 		return 0
 	}
-	log.Debugf("Got TCP port (for port %d) %v -> %v", port, tcp.MappedExternalPort, tcp.InternalPort)
+	log.Debugf("Got TCP port (from endpoint %s for port %d) %v -> %v", gw.String(), port, tcp.MappedExternalPort, tcp.InternalPort)
 
 	udp, err := nat.AddPortMapping("udp", port, port, int64(time.Duration(60*time.Second)))
 	if err != nil {
 		log.Errorf("failed to request UDP mapping: %v", err)
 		return 0
 	}
-	log.Debugf("Got UDP port (for port %d) %v -> %v", port, udp.MappedExternalPort, udp.InternalPort)
+	log.Debugf("Got UDP port (from endpoint %s for port %d) %v -> %v", gw.String(), port, udp.MappedExternalPort, udp.InternalPort)
 
 	if tcp.InternalPort != tcp.MappedExternalPort {
 		log.Debugf("TCP internal (%v) and external (%v) ports do not match", tcp.InternalPort, tcp.MappedExternalPort)
@@ -2385,6 +2386,7 @@ func (s *Service) calcInterfacePorts(enableNatScan bool, queryAddrs []net.IP) []
 				if natPort, natClient := s.getNatPort(queryAddr, port); natPort > 0 {
 					port = natPort
 					mapping.Client = natClient
+					mapping.Gateway = queryAddr
 
 					// Store port mapping
 					mapping.Port = port
