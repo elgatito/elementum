@@ -54,7 +54,7 @@ var (
 	defaultOpenNICResolverServers = []string{
 		"94.247.43.254",
 		"152.53.15.127",
-		"185.181.61.24",
+		"95.216.99.249",
 	}
 
 	commonResolver  = NewDoHResolver(defaultDoHServer)
