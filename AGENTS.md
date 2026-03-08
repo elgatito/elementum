@@ -18,7 +18,7 @@ Build outputs are written to `build/<os>_<arch>/`. Operational fixtures and manu
 - `make` builds all platform targets defined in `Makefile`.
 - `make zip PLATFORM=linux-x64` packages a platform artifact zip.
 - `./test_build.sh local restart-local` builds locally and copies binaries into local Kodi addon paths.
-- `/bin/bash test_build.sh sanitize` builds with Address/Leak Sanitizers for memory debugging.
+- `./test_build.sh sanitize` builds with Address/Leak Sanitizers for memory debugging.
 
 ## Coding Style & Naming Conventions
 This is a Go codebase; follow standard Go formatting and naming.

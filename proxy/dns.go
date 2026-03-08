@@ -110,7 +110,6 @@ func resolveAddr(addr string) (ret []string, err error) {
 
 	// Check for results in the cache
 	if cached := dnsCacheResults.Get(addr); cached != nil {
-		log.Debugf("1 DNS cache hit for %s", addr) //TODO: remove
 		return cached.([]string), nil
 	}
 
@@ -127,7 +126,6 @@ func resolveAddr(addr string) (ret []string, err error) {
 	defer mu.Unlock()
 
 	if cached := dnsCacheResults.Get(addr); cached != nil {
-		log.Debugf("2 DNS cache hit for %s", addr) //TODO: remove
 		return cached.([]string), nil
 	}
 
@@ -168,7 +166,7 @@ func resolveAddr(addr string) (ret []string, err error) {
 			log.Debugf("DNS resolver %s failed for %s: %s", result.source, addr, result.err)
 			continue
 		}
-		log.Debugf("DNS resolver %s returned %v IPs for %s", result.source, result.ips, addr) //TODO: remove
+		//log.Debugf("DNS resolver %s returned %v IPs for %s", result.source, result.ips, addr)
 
 		ips := filterResolvedIPs(result.ips, addr)
 		if len(ips) == 0 {
@@ -199,7 +197,6 @@ func resolveAddr(addr string) (ret []string, err error) {
 	if cacheTTL <= 0 {
 		cacheTTL = defaultDNSCacheTTL
 	}
-	log.Debugf("DNS cache TTL for %s is %d seconds", addr, cacheTTL) //TODO: remove
 
 	dnsCacheResults.Set(addr, ret, int64(cacheTTL))
 
