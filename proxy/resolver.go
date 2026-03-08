@@ -3,190 +3,243 @@ package proxy
 import (
 	"context"
 	"fmt"
-	"slices"
+	"io"
+	"net"
+	"net/http"
+	"net/netip"
+	"net/url"
 	"strings"
-	"sync"
+	"time"
 
-	"github.com/likexian/doh/dns"
-	"github.com/likexian/doh/provider/cloudflare"
-	"github.com/likexian/doh/provider/dnspod"
-	"github.com/likexian/doh/provider/google"
-	"github.com/likexian/doh/provider/quad9"
-	"github.com/likexian/gokit/xcache"
-	"github.com/likexian/gokit/xhash"
+	"codeberg.org/miekg/dns"
+	"codeberg.org/miekg/dns/dnshttp"
 )
 
-// Slightly modified DNS resolver, taken from github.com/likexian/doh/dns
-// Differences:
-// 		- Does not store stats, so always will query all providers and return fastest response.
-// 		- Checks whether response points to localhost (127.0.0.1) to ignore that response.
-
-// provider is provider
-type provider uint
-
-// Provider is the provider interface
-type Provider interface {
-	Query(context.Context, dns.Domain, dns.Type, ...dns.ECS) (*dns.Response, error)
-	String() string
-}
-
-// DoH is doh client
-type DoH struct {
-	providers []Provider
-	cache     xcache.Cachex
-	sync.RWMutex
-}
-
-// DoH Providers enum
 const (
-	CloudflareProvider provider = iota
-	DNSPodProvider
-	GoogleProvider
-	Quad9Provider
+	defaultDoHServer   = "https://dns.quad9.net/dns-query"
+	defaultDNSCacheTTL = 300
 )
 
-// DoH Providers list
-var (
-	Providers = []provider{
-		CloudflareProvider,
-		DNSPodProvider,
-		GoogleProvider,
-		Quad9Provider,
-	}
-)
+type DoHResolver struct {
+	endpoint string
+	client   *http.Client
+}
 
-// New returns a new DoH client, quad9 is default
-func New(provider provider) Provider {
-	switch provider {
-	case CloudflareProvider:
-		return cloudflare.NewClient()
-	case DNSPodProvider:
-		return dnspod.NewClient()
-	case GoogleProvider:
-		return google.NewClient()
-	default:
-		return quad9.NewClient()
+type OpenNICResolver struct {
+	servers []string
+	client  *dns.Client
+}
+
+func NewDoHResolver(server string) *DoHResolver {
+	return &DoHResolver{
+		endpoint: normalizeDoHEndpoint(server),
+		client: &http.Client{
+			Timeout: 5 * time.Second,
+		},
 	}
 }
 
-func UseProviders(provider ...provider) *DoH {
-	c := &DoH{
-		providers: []Provider{},
-		cache:     xcache.New(xcache.MemoryCache),
-	}
-
-	if len(provider) == 0 {
-		provider = Providers
-	}
-
-	for _, v := range provider {
-		c.providers = append(c.providers, New(v))
-	}
-
-	return c
-}
-
-// Close close doh client
-func (c *DoH) Close() {
-	if c.cache != nil {
-		c.cache.Close()
-	}
-}
-
-// Query do DoH query
-func (c *DoH) Query(ctx context.Context, d dns.Domain, t dns.Type, s ...dns.ECS) (*dns.Response, error) {
-	cacheKey := ""
-	if c.cache != nil {
-		var ss string
-		if len(s) > 0 && s[0] != "" {
-			ss = strings.TrimSpace(string(s[0]))
+func NewOpenNICResolver(servers []string) *OpenNICResolver {
+	cleanServers := make([]string, 0, len(servers))
+	seen := make(map[string]struct{}, len(servers))
+	for _, s := range servers {
+		resolverAddr, ok := ensureResolverAddress(s)
+		if !ok {
+			continue
 		}
-		cacheKey = xhash.Sha1(string(d), string(t), ss).Hex()
-		v := c.cache.Get(cacheKey)
-		if v != nil {
-			return v.(*dns.Response), nil
+		if _, exists := seen[resolverAddr]; exists {
+			continue
 		}
+
+		seen[resolverAddr] = struct{}{}
+		cleanServers = append(cleanServers, resolverAddr)
 	}
 
-	ctxs, cancels := context.WithCancel(ctx)
-	defer cancels()
-
-	r := make(chan *dns.Response, len(c.providers))
-
-	result := &dns.Response{
-		Status: -1,
+	return &OpenNICResolver{
+		servers: cleanServers,
+		client:  dns.NewClient(),
 	}
-
-	var wg sync.WaitGroup
-	for _, p := range c.providers {
-		wg.Add(1)
-		go func(p Provider) {
-			defer wg.Done()
-
-			resp, err := p.Query(ctxs, d, t, s...)
-			if err != nil {
-				return
-			}
-
-			// Ignoring results that point to ourselves, unless we want to resolve localhost
-			if ips := IPs(resp); d != "localhost" && slices.Contains(ips, "127.0.0.1") {
-				return
-			}
-
-			cancels()
-
-			if cacheKey != "" {
-				ttl := 30
-				if len(result.Answer) > 0 {
-					ttl = result.Answer[0].TTL
-				}
-				_ = c.cache.Set(cacheKey, resp, int64(ttl))
-			}
-
-			r <- resp
-		}(p)
-	}
-
-	go func() {
-		wg.Wait()
-		close(r)
-	}()
-
-	result = <-r
-
-	if result == nil || result.Status == -1 {
-		return nil, fmt.Errorf("doh: all query failed")
-	}
-
-	return result, nil
 }
 
-func IPs(resp *dns.Response) []string {
-	if resp != nil && resp.Answer != nil {
-		ips := make([]string, 0, len(resp.Answer))
-		for _, a := range resp.Answer {
-			if a.Type != ResponseTypeA && a.Type != ResponseTypeAAAA {
-				continue
-			}
-			ips = append(ips, a.Data)
-		}
-		return ips
+func (c *DoHResolver) Resolve(ctx context.Context, host string) ([]string, int, error) {
+	m := dns.NewMsg(host, dns.TypeA)
+	if m == nil {
+		return nil, 0, fmt.Errorf("invalid DNS query type for host %s", host)
 	}
 
-	return nil
+	req, err := dnshttp.NewRequest(http.MethodPost, c.endpoint, m)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	req = req.WithContext(ctx)
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 256))
+		resp.Body.Close()
+
+		return nil, 0, fmt.Errorf("doh: status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	dnsResp, err := dnshttp.Response(resp)
+	if err != nil {
+		return nil, 0, err
+	}
+	if dnsResp == nil {
+		return nil, 0, fmt.Errorf("doh: empty response")
+	}
+	if dnsResp.Rcode != dns.RcodeSuccess {
+		return nil, 0, fmt.Errorf("doh: rcode=%d", dnsResp.Rcode)
+	}
+
+	ips, ttl := extractIPsAndTTL(dnsResp)
+	if len(ips) == 0 {
+		return nil, 0, fmt.Errorf("doh: no A/AAAA answers")
+	}
+
+	return ips, ttl, nil
 }
 
-func TTL(resp *dns.Response) int {
-	ttl := 300
-	if len(resp.Answer) > 0 {
-		for _, a := range resp.Answer {
-			if a.Type != ResponseTypeA && a.Type != ResponseTypeAAAA {
-				continue
-			}
-			ttl = a.TTL
-			break
+func (c *OpenNICResolver) Resolve(ctx context.Context, host string) ([]string, int, error) {
+	if len(c.servers) == 0 {
+		return nil, 0, fmt.Errorf("opennic: no resolvers configured")
+	}
+
+	var lastErr error
+	for _, server := range c.servers {
+		m := dns.NewMsg(host, dns.TypeA)
+		if m == nil {
+			return nil, 0, fmt.Errorf("invalid DNS query type for host %s", host)
+		}
+
+		resp, _, err := c.client.Exchange(ctx, m, "udp", server)
+		if err != nil {
+			lastErr = fmt.Errorf("opennic resolver %s: %w", server, err)
+			continue
+		}
+		if resp == nil {
+			lastErr = fmt.Errorf("opennic resolver %s: empty response", server)
+			continue
+		}
+		if resp.Rcode != dns.RcodeSuccess {
+			lastErr = fmt.Errorf("opennic resolver %s: rcode=%d", server, resp.Rcode)
+			continue
+		}
+
+		ips, ttl := extractIPsAndTTL(resp)
+		if len(ips) == 0 {
+			lastErr = fmt.Errorf("opennic resolver %s: no A/AAAA answers", server)
+			continue
+		}
+
+		return ips, ttl, nil
+	}
+
+	if lastErr == nil {
+		lastErr = fmt.Errorf("opennic: all resolvers failed")
+	}
+
+	return nil, 0, lastErr
+}
+
+func normalizeDoHEndpoint(server string) string {
+	server = strings.TrimSpace(server)
+	if server == "" {
+		server = defaultDoHServer
+	}
+	if !strings.Contains(server, "://") {
+		server = "https://" + server
+	}
+
+	u, err := url.Parse(server)
+	if err != nil || u.Host == "" {
+		return defaultDoHServer
+	}
+
+	u.RawQuery = ""
+	u.Fragment = ""
+	u.Path = trimDoHPath(u.Path)
+
+	return strings.TrimRight(u.String(), "/")
+}
+
+func trimDoHPath(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" || path == "/" {
+		return ""
+	}
+
+	path = strings.TrimRight(path, "/")
+	path = strings.TrimSuffix(path, dnshttp.Path)
+
+	if path == "/" {
+		return ""
+	}
+
+	return path
+}
+
+func extractIPsAndTTL(resp *dns.Msg) ([]string, int) {
+	if resp == nil {
+		return nil, defaultDNSCacheTTL
+	}
+
+	ips := make([]string, 0, len(resp.Answer))
+	ttl := 0
+
+	for _, rr := range resp.Answer {
+		var ip netip.Addr
+
+		switch v := rr.(type) {
+		case *dns.A:
+			ip = v.Addr
+		case *dns.AAAA:
+			ip = v.Addr
+		default:
+			continue
+		}
+
+		if !ip.IsValid() {
+			continue
+		}
+
+		ips = append(ips, ip.String())
+
+		recordTTL := int(rr.Header().TTL)
+		if recordTTL > 0 && (ttl == 0 || recordTTL < ttl) {
+			ttl = recordTTL
 		}
 	}
 
-	return ttl
+	if ttl <= 0 {
+		ttl = defaultDNSCacheTTL
+	}
+
+	return ips, ttl
+}
+
+func ensureResolverAddress(value string) (string, bool) {
+	rawHost := strings.TrimSpace(value)
+	if rawHost == "" {
+		return "", false
+	}
+	dnsPort := "53"
+
+	if host, port, err := net.SplitHostPort(rawHost); err == nil {
+		rawHost = host
+		if port != "" {
+			dnsPort = port
+		}
+	}
+
+	ip := net.ParseIP(rawHost)
+	if ip == nil {
+		return "", false
+	}
+
+	return net.JoinHostPort(ip.String(), dnsPort), true
 }
