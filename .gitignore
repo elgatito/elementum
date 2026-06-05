@@ -29,6 +29,9 @@ elementum
 /debug
 /build
 
+# Native darwin/arm64 build scratch dir (scripts/build-darwin-arm64.sh)
+/.build-darwin-arm64
+
 /cmd
 
 # Custom shell scripts
