@@ -42,7 +42,7 @@ jobs:
           echo "GOMODCACHE=$(readlink -f ~/.cache/go-modcache)" >> $GITHUB_ENV
 
       - name: Set up cache
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path: |
             ${{ env.GOPATH }}
@@ -66,7 +66,7 @@ jobs:
           echo "::set-output name=asset_name::$(basename "${asset_path}")"
 
       - name: Upload ${{ matrix.platform }} zip
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.platform }}
           path: ${{ steps.generate_zip.outputs.asset_path }}
