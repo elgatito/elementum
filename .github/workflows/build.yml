@@ -81,9 +81,13 @@ jobs:
         with:
           path: artifacts
 
-      - name: Combine into single zip
+      - name: Extract and re-bundle all platforms
         run: |
           cd artifacts
+          for d in */; do
+            echo "Processing $d"
+            find "$d" -name '*.zip' -exec unzip -o -d "$d" {} \; -delete
+          done
           zip -r ../elementum-binaries.zip .
 
       - name: Upload combined zip
