@@ -71,6 +71,27 @@ jobs:
           name: ${{ matrix.platform }}
           path: ${{ steps.generate_zip.outputs.asset_path }}
 
+  bundle:
+    name: Bundle all platforms
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download all platform artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+
+      - name: Combine into single zip
+        run: |
+          cd artifacts
+          zip -r ../elementum-binaries.zip .
+
+      - name: Upload combined zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: all-platforms
+          path: elementum-binaries.zip
+
   release:
     name: Release
     runs-on: ubuntu-22.04
