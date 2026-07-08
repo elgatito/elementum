@@ -3,43 +3,36 @@ package proxy
 import (
 	"context"
 	"fmt"
+	"net"
 	"slices"
-	"strings"
 	"sync"
+	"time"
 
-	"github.com/likexian/doh/dns"
-	"github.com/likexian/doh/provider/cloudflare"
-	"github.com/likexian/doh/provider/dnspod"
-	"github.com/likexian/doh/provider/google"
-	"github.com/likexian/doh/provider/quad9"
-	"github.com/likexian/gokit/xcache"
-	"github.com/likexian/gokit/xhash"
+	godns "github.com/ncruces/go-dns"
 )
 
-// Slightly modified DNS resolver, taken from github.com/likexian/doh/dns
-// Differences:
-// 		- Does not store stats, so always will query all providers and return fastest response.
-// 		- Checks whether response points to localhost (127.0.0.1) to ignore that response.
-
-// provider is provider
-type provider uint
+// dohprovider is provider identifier
+type dohprovider uint
 
 // Provider is the provider interface
 type Provider interface {
-	Query(context.Context, dns.Domain, dns.Type, ...dns.ECS) (*dns.Response, error)
+	Query(context.Context, string) ([]net.IPAddr, error)
 	String() string
 }
 
-// DoH is doh client
-type DoH struct {
-	providers []Provider
-	cache     xcache.Cachex
-	sync.RWMutex
+type CustomDNSProvider struct {
+	*net.Resolver
+	URI string
 }
 
-// DoH Providers enum
+// CustomDNS is custom DNS client
+type CustomDNS struct {
+	providers []CustomDNSProvider
+}
+
+// CustomDNS Providers enum
 const (
-	CloudflareProvider provider = iota
+	CloudflareProvider dohprovider = iota
 	DNSPodProvider
 	GoogleProvider
 	Quad9Provider
@@ -47,83 +40,107 @@ const (
 
 // DoH Providers list
 var (
-	Providers = []provider{
+	DoHProviders = []dohprovider{
 		CloudflareProvider,
-		DNSPodProvider,
 		GoogleProvider,
 		Quad9Provider,
 	}
 )
 
-// New returns a new DoH client, quad9 is default
-func New(provider provider) Provider {
+// NewDoHProvider returns a new DoH client, quad9 is default
+func NewDoHProvider(provider dohprovider) (uri string, p *net.Resolver, err error) {
 	switch provider {
 	case CloudflareProvider:
-		return cloudflare.NewClient()
-	case DNSPodProvider:
-		return dnspod.NewClient()
+		uri = "https://cloudflare-dns.com/dns-query"
 	case GoogleProvider:
-		return google.NewClient()
+		uri = "https://dns.google/dns-query{?dns}"
 	default:
-		return quad9.NewClient()
+		uri = "https://dns.quad9.net/dns-query"
 	}
+
+	p, err = godns.NewDoHResolver(uri)
+	return uri, p, nil
 }
 
-func UseProviders(provider ...provider) *DoH {
-	c := &DoH{
-		providers: []Provider{},
-		cache:     xcache.New(xcache.MemoryCache),
+// NewDNSProvider returns a new DNS client, local resolv is default
+func NewDNSProvider(provider string) (uri string, p *net.Resolver, err error) {
+	p = &net.Resolver{
+		PreferGo: true, // Use Go's pure-Go DNS resolver
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			d := net.Dialer{Timeout: 5 * time.Second}
+			return d.DialContext(ctx, network, fmt.Sprintf("%s:53", provider))
+		},
+	}
+
+	return provider, p, nil
+}
+
+func UseDoHProviders(provider ...dohprovider) *CustomDNS {
+	c := &CustomDNS{
+		providers: []CustomDNSProvider{},
 	}
 
 	if len(provider) == 0 {
-		provider = Providers
+		provider = DoHProviders
 	}
 
 	for _, v := range provider {
-		c.providers = append(c.providers, New(v))
+		uri, p, err := NewDoHProvider(v)
+		if err != nil {
+			log.Errorf("Failed to create DoH provider %d: %s", v, err)
+			continue
+		}
+
+		c.providers = append(c.providers, CustomDNSProvider{
+			Resolver: godns.NewCachingResolver(p),
+			URI:      uri,
+		})
 	}
 
 	return c
 }
 
-// Close close doh client
-func (c *DoH) Close() {
-	if c.cache != nil {
-		c.cache.Close()
+func UseDNSProviders(provider ...string) *CustomDNS {
+	c := &CustomDNS{
+		providers: []CustomDNSProvider{},
 	}
+
+	if len(provider) == 0 {
+		provider = []string{"localhost"}
+	}
+
+	for _, v := range provider {
+		uri, p, err := NewDNSProvider(v)
+		if err != nil {
+			log.Errorf("Failed to create DNS provider %s: %s", v, err)
+			continue
+		}
+
+		c.providers = append(c.providers, CustomDNSProvider{
+			Resolver: godns.NewCachingResolver(p),
+			URI:      uri,
+		})
+	}
+
+	return c
 }
 
 // Query do DoH query
-func (c *DoH) Query(ctx context.Context, d dns.Domain, t dns.Type, s ...dns.ECS) (*dns.Response, error) {
-	cacheKey := ""
-	if c.cache != nil {
-		var ss string
-		if len(s) > 0 && s[0] != "" {
-			ss = strings.TrimSpace(string(s[0]))
-		}
-		cacheKey = xhash.Sha1(string(d), string(t), ss).Hex()
-		v := c.cache.Get(cacheKey)
-		if v != nil {
-			return v.(*dns.Response), nil
-		}
-	}
-
+func (c *CustomDNS) Query(ctx context.Context, d string) ([]net.IPAddr, error) {
 	ctxs, cancels := context.WithCancel(ctx)
 	defer cancels()
 
-	r := make(chan *dns.Response, len(c.providers))
+	r := make(chan []net.IPAddr, len(c.providers))
 
-	result := &dns.Response{
-		Status: -1,
-	}
+	var result []net.IPAddr
 
 	var wg sync.WaitGroup
 	for _, p := range c.providers {
 		wg.Add(1)
-		go func(p Provider) {
+		go func(p CustomDNSProvider) {
 			defer wg.Done()
 
-			resp, err := p.Query(ctxs, d, t, s...)
+			resp, err := p.LookupIPAddr(ctxs, string(d))
 			if err != nil {
 				return
 			}
@@ -134,14 +151,6 @@ func (c *DoH) Query(ctx context.Context, d dns.Domain, t dns.Type, s ...dns.ECS)
 			}
 
 			cancels()
-
-			if cacheKey != "" {
-				ttl := 30
-				if len(result.Answer) > 0 {
-					ttl = result.Answer[0].TTL
-				}
-				_ = c.cache.Set(cacheKey, resp, int64(ttl))
-			}
 
 			r <- resp
 		}(p)
@@ -154,39 +163,17 @@ func (c *DoH) Query(ctx context.Context, d dns.Domain, t dns.Type, s ...dns.ECS)
 
 	result = <-r
 
-	if result == nil || result.Status == -1 {
+	if len(result) == 0 {
 		return nil, fmt.Errorf("doh: all query failed")
 	}
 
 	return result, nil
 }
 
-func IPs(resp *dns.Response) []string {
-	if resp != nil && resp.Answer != nil {
-		ips := make([]string, 0, len(resp.Answer))
-		for _, a := range resp.Answer {
-			if a.Type != ResponseTypeA && a.Type != ResponseTypeAAAA {
-				continue
-			}
-			ips = append(ips, a.Data)
-		}
-		return ips
+func IPs(ips []net.IPAddr) []string {
+	ret := make([]string, 0, len(ips))
+	for _, a := range ips {
+		ret = append(ret, a.String())
 	}
-
-	return nil
-}
-
-func TTL(resp *dns.Response) int {
-	ttl := 300
-	if len(resp.Answer) > 0 {
-		for _, a := range resp.Answer {
-			if a.Type != ResponseTypeA && a.Type != ResponseTypeAAAA {
-				continue
-			}
-			ttl = a.TTL
-			break
-		}
-	}
-
-	return ttl
+	return ret
 }

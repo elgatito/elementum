@@ -623,7 +623,7 @@ func (movie *Movie) ToListItem() (item *xbmc.ListItem) {
 		}
 	}
 
-	if item != nil && item.Info != nil && item.Info != nil && len(item.Info.Trailer) == 0 {
+	if item != nil && item.Info != nil && len(item.Info.Trailer) == 0 {
 		item.Info.Trailer = util.TrailerURL(movie.Trailer)
 	}
 

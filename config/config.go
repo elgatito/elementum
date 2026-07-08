@@ -239,10 +239,11 @@ type Configuration struct {
 	CustomProviderTimeout        int
 	ProviderUseLowestReleaseDate bool
 
-	InternalDNSEnabled  bool
-	InternalDNSSkipIPv6 bool
-	InternalDNSOrder    int
-	InternalDNSOpenNic  []string
+	InternalDNSEnabled    bool
+	InternalDNSSkipIPv6   bool
+	InternalDNSOrder      int
+	InternalDNSOpenNICUse bool
+	InternalDNSOpenNic    []string
 
 	InternalProxyEnabled     bool
 	InternalProxyLogging     bool
@@ -831,6 +832,7 @@ func Reload() (ret *Configuration, err error) {
 	}
 
 	reDNS := regexp.MustCompile(`\s*,\s*`)
+	newConfig.InternalDNSOpenNICUse = true
 	newConfig.InternalDNSOpenNic = reDNS.Split(settings.ToString("internal_dns_opennic"), -1)
 
 	updateLoggingLevel(newConfig.LogLevel)
