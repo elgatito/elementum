@@ -118,6 +118,9 @@ func resolveAddr(ctx context.Context, addr string) (ret []string, err error) {
 
 func getZone(addr string) string {
 	ary := strings.Split(addr, ".")
+	if len(ary) == 0 {
+		return ""
+	}
 	return ary[len(ary)-1]
 }
 
