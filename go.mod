@@ -13,7 +13,6 @@ require (
 	github.com/anacrolix/sync v0.5.1
 	github.com/anacrolix/tagflag v1.4.0
 	github.com/asdine/storm v2.1.2+incompatible
-	github.com/bogdanovich/dns_resolver v0.0.0-20170211073258-a8e42bc6a5b6
 	github.com/c-robinson/iplib/v2 v2.0.5
 	github.com/cespare/xxhash v1.1.0
 	github.com/dustin/go-humanize v1.0.1
@@ -26,8 +25,7 @@ require (
 	github.com/jmcvetta/napping v3.2.0+incompatible
 	github.com/karrick/godirwalk v1.17.0
 	github.com/klauspost/compress v1.17.4
-	github.com/likexian/doh v0.7.1
-	github.com/likexian/gokit v0.25.15
+	github.com/ncruces/go-dns v1.2.6
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/radovskyb/watcher v1.0.7
@@ -67,11 +65,9 @@ require (
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/miekg/dns v1.1.63 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
-	github.com/ncruces/go-dns v1.2.6 // indirect
 	github.com/pelletier/go-toml/v2 v2.0.8 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
@@ -87,12 +83,9 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
-	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
-	golang.org/x/tools v0.22.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
