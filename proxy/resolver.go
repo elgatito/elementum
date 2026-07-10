@@ -33,7 +33,6 @@ type CustomDNS struct {
 // CustomDNS Providers enum
 const (
 	CloudflareProvider dohprovider = iota
-	DNSPodProvider
 	GoogleProvider
 	Quad9Provider
 )

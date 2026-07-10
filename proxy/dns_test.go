@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 )
@@ -260,6 +261,38 @@ func TestResolveAddr_Default(t *testing.T) {
 				t.Errorf("expected non-empty result, got %v results for %s", len(ips), tt.addr)
 			}
 		})
+	}
+}
+
+// TestResolveAddr_DefaultPerProvider tests that resolution of an usual domains works correctly for each DoH provider.
+func TestResolveAddr_DefaultPerProvider(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		addr string
+	}{
+		{addr: "api.themoviedb.org"},
+		{addr: "api.trakt.tv"},
+		{addr: "webservice.fanart.tv"},
+	}
+
+	for _, provider := range DoHProviders {
+		commonLock.Lock()
+		commonResolver = UseDoHProviders(provider)
+		commonLock.Unlock()
+
+		for _, tt := range tests {
+			t.Run(fmt.Sprintf("%d-%s", provider, tt.addr), func(t *testing.T) {
+
+				ips, err := resolveAddr(ctx, tt.addr)
+				if err != nil {
+					t.Errorf("expected no error from resolver, got %v", err)
+				}
+				if len(ips) == 0 {
+					t.Errorf("expected non-empty result, got %v results for %s", len(ips), tt.addr)
+				}
+			})
+		}
 	}
 }
 
