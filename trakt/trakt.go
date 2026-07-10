@@ -434,11 +434,63 @@ func Authorized() error {
 	return nil
 }
 
+// PaginatedRequest is a general proxy for collecting all pages requests.
+// ret must be a pointer to a slice (e.g., &[]*WatchedMovie). Results from
+// each page are appended into the slice that ret points to.
+func PaginatedRequest[T any](endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, cacheExpiration time.Duration) ([]T, error) {
+	pageCurrent := 1
+	pageTotal := 1
+	pageLimit := 250
+
+	var ret []T
+
+	for pageCurrent <= pageTotal {
+		params["page"] = strconv.Itoa(pageCurrent)
+		params["limit"] = strconv.Itoa(pageLimit)
+
+		// Create a new pointer to an empty slice of the same element type
+		var pageResult []T
+		req, err := prepareRequest(endPoint, params, isWithAuth, isUpdateNeeded, cacheExpiration, &pageResult)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := req.Do(); err != nil {
+			return nil, err
+		}
+
+		ret = append(ret, pageResult...)
+
+		if pageCurrent == 1 {
+			pagination := getPagination(req.ResponseHeader)
+			pageTotal = pagination.PageCount
+		}
+
+		pageCurrent++
+	}
+
+	return ret, nil
+}
+
 // Request is a general proxy for making requests
 func Request(endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, cacheExpiration time.Duration, ret interface{}) error {
+	req, err := prepareRequest(endPoint, params, isWithAuth, isUpdateNeeded, cacheExpiration, ret)
+	if err != nil {
+		return err
+	}
+
+	if err := req.Do(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// prepareRequest is a helper function to prepare a reqapi.Request with the given parameters.
+func prepareRequest(endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, cacheExpiration time.Duration, ret interface{}) (reqapi.Request, error) {
 	if isWithAuth {
 		if err := Authorized(); err != nil {
-			return err
+			return reqapi.Request{}, err
 		}
 	}
 
@@ -459,11 +511,7 @@ func Request(endPoint string, params napping.Params, isWithAuth bool, isUpdateNe
 		CacheForceExpire: isUpdateNeeded,
 	}
 
-	if err := req.Do(); err != nil {
-		return err
-	}
-
-	return nil
+	return req, nil
 }
 
 // SyncAddedItem adds item (movie/show) to watchlist or collection

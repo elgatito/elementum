@@ -519,19 +519,21 @@ func CalendarMovies(endPoint string, page string, cacheExpire time.Duration, isU
 func WatchedMovies(isUpdateNeeded bool) (WatchedMoviesType, error) {
 	defer perf.ScopeTimer()()
 
-	var movies []*WatchedMovie
-	err := Request(
+	movies, err := PaginatedRequest[*WatchedMovie](
 		"sync/watched/movies",
-		napping.Params{},
+		napping.Params{
+			"extended": "full",
+		},
 		true,
 		isUpdateNeeded,
 		cache.TraktMoviesWatchedExpire,
-		&movies,
 	)
 
 	sort.Slice(movies, func(i int, j int) bool {
 		return movies[i].LastWatchedAt.Unix() > movies[j].LastWatchedAt.Unix()
 	})
+
+	log.Debugf("WatchedMovies: %d movies retrieved from Trakt", len(movies))
 
 	if len(movies) != 0 {
 		defer cache.

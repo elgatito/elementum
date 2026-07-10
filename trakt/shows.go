@@ -546,15 +546,17 @@ func CalendarShows(endPoint string, page string, cacheExpire time.Duration, isUp
 func WatchedShows(isUpdateNeeded bool) (WatchedShowsType, error) {
 	defer perf.ScopeTimer()()
 
-	var shows []*WatchedShow
-	err := Request(
+	shows, err := PaginatedRequest[*WatchedShow](
 		"sync/watched/shows",
-		napping.Params{"extended": "full"},
+		napping.Params{
+			"extended": "full,progress",
+		},
 		true,
 		isUpdateNeeded,
 		cache.TraktShowsWatchedExpire,
-		&shows,
 	)
+
+	log.Debugf("WatchedShows: %d shows retrieved from Trakt", len(shows))
 
 	if len(shows) != 0 {
 		defer cache.
