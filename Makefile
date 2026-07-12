@@ -161,7 +161,7 @@ all:
 		$(MAKE) $$i; \
 	done
 
-client:
+client client-shared:
 	mkdir -p $(BUILD_PATH)/client
 	touch $(BUILD_PATH)/client/.keep
 
