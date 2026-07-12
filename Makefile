@@ -48,7 +48,7 @@ else ifeq ($(TARGET_ARCH), arm64)
 	GOARM =
 endif
 
-ifeq ($(findstring client, $(GCC_TARGET)),)
+ifeq ($(MAKECMDGOALS),client)
 	IS_CLIENT = yes
 else ifeq ($(TARGET_OS), windows)
 	ifeq ($(IS_SHARED), no)
