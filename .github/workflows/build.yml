@@ -135,7 +135,7 @@ jobs:
               owner: 'elgatito',
               repo: 'plugin.video.elementum',
               workflow_id: 'build.yml',
-              ref: 'main',
+              ref: 'master',
               inputs: {
                 binaries_branch: context.refName
               }
