@@ -120,8 +120,6 @@ else
 	BUILD_MODE = -buildmode=c-shared -tags shared,go_json
 endif
 
-SPECIAL_PLATFORMS = \
-	client
 ANDROID_PLATFORMS = \
 	android-arm \
 	android-arm-shared \
@@ -153,7 +151,7 @@ DARWIN_PLATFORMS = \
 	darwin-x64 \
 	darwin-x64-shared
 
-PLATFORMS = $(SPECIAL_PLATFORMS) $(ANDROID_PLATFORMS) $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) $(DARWIN_PLATFORMS)
+PLATFORMS = $(ANDROID_PLATFORMS) $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) $(DARWIN_PLATFORMS)
 
 
 .PHONY: $(PLATFORMS)
@@ -165,6 +163,7 @@ all:
 
 client:
 	mkdir -p $(BUILD_PATH)/client
+	touch $(BUILD_PATH)/client/.keep
 
 $(PLATFORMS):
 	$(MAKE) build TARGET_OS=$(firstword $(subst -, ,$@)) TARGET_ARCH=$(word 2, $(subst -, ,$@)) TARGET_SHARED=$(word 3, $(subst -, ,$@))
