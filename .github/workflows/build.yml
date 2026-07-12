@@ -131,7 +131,7 @@ jobs:
         with:
           github-token: ${{ secrets.GH_TOKEN }}
           script: |
-            github.actions.createWorkflowDispatch({
+            await github.rest.actions.createWorkflowDispatch({
               owner: 'elgatito',
               repo: 'plugin.video.elementum',
               workflow_id: 'build.yml',
