@@ -18,6 +18,7 @@ jobs:
       max-parallel: 5
       matrix:
         platform: [
+          client,
           android-arm, android-arm64, android-x64, android-x86,
           darwin-x64,
           linux-armv6, linux-armv7, linux-armv7_softfp, linux-arm64, linux-x64, linux-x86,
