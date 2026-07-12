@@ -120,7 +120,8 @@ else
 	BUILD_MODE = -buildmode=c-shared -tags shared,go_json
 endif
 
-
+SPECIAL_PLATFORMS = \
+	client
 ANDROID_PLATFORMS = \
 	android-arm \
 	android-arm-shared \
@@ -152,7 +153,7 @@ DARWIN_PLATFORMS = \
 	darwin-x64 \
 	darwin-x64-shared
 
-PLATFORMS =	$(ANDROID_PLATFORMS) $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) $(DARWIN_PLATFORMS)
+PLATFORMS = $(SPECIAL_PLATFORMS) $(ANDROID_PLATFORMS) $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) $(DARWIN_PLATFORMS)
 
 
 .PHONY: $(PLATFORMS)
