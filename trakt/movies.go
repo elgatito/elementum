@@ -522,6 +522,7 @@ func WatchedMovies(isUpdateNeeded bool) (WatchedMoviesType, error) {
 	movies, err := PaginatedRequest[*WatchedMovie](
 		"sync/watched/movies",
 		napping.Params{
+			"limit":    strconv.Itoa(250),
 			"extended": "full",
 		},
 		true,

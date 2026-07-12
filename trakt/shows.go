@@ -549,6 +549,7 @@ func WatchedShows(isUpdateNeeded bool) (WatchedShowsType, error) {
 	shows, err := PaginatedRequest[*WatchedShow](
 		"sync/watched/shows",
 		napping.Params{
+			"limit":    strconv.Itoa(100),
 			"extended": "full,progress",
 		},
 		true,

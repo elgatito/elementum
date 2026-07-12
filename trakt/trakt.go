@@ -441,6 +441,9 @@ func PaginatedRequest[T any](endPoint string, params napping.Params, isWithAuth 
 	pageCurrent := 1
 	pageTotal := 1
 	pageLimit := 250
+	if params["limit"] != "" {
+		pageLimit, _ = strconv.Atoi(params["limit"])
+	}
 
 	var ret []T
 
@@ -459,12 +462,13 @@ func PaginatedRequest[T any](endPoint string, params napping.Params, isWithAuth 
 			return nil, err
 		}
 
-		ret = append(ret, pageResult...)
-
 		if pageCurrent == 1 {
 			pagination := getPagination(req.ResponseHeader)
 			pageTotal = pagination.PageCount
+			pageLimit = pagination.Limit
 		}
+
+		ret = append(ret, pageResult...)
 
 		pageCurrent++
 	}
