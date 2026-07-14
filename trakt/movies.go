@@ -527,6 +527,7 @@ func WatchedMovies(isUpdateNeeded bool) (WatchedMoviesType, error) {
 		},
 		true,
 		isUpdateNeeded,
+		false,
 		cache.TraktMoviesWatchedExpire,
 	)
 

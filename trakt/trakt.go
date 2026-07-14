@@ -437,7 +437,7 @@ func Authorized() error {
 // PaginatedRequest is a general proxy for collecting all pages requests.
 // ret must be a pointer to a slice (e.g., &[]*WatchedMovie). Results from
 // each page are appended into the slice that ret points to.
-func PaginatedRequest[T any](endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, cacheExpiration time.Duration) ([]T, error) {
+func PaginatedRequest[T any](endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, isCachePages bool, cacheExpiration time.Duration) ([]T, error) {
 	pageCurrent := 1
 	pageTotal := 1
 	pageLimit := 250
@@ -447,13 +447,24 @@ func PaginatedRequest[T any](endPoint string, params napping.Params, isWithAuth 
 
 	var ret []T
 
+	cacheStore := cache.NewDBStore()
+
+	// If we don't need to cache each page separately - try to fetch full list of items instead.
+	if !isCachePages {
+		if !isUpdateNeeded {
+			if err := cacheStore.Get(fmt.Sprintf(cache.TraktPaginatedRequestKey, endPoint), &ret); err == nil {
+				return ret, nil
+			}
+		}
+	}
+
 	for pageCurrent <= pageTotal {
 		params["page"] = strconv.Itoa(pageCurrent)
 		params["limit"] = strconv.Itoa(pageLimit)
 
 		// Create a new pointer to an empty slice of the same element type
 		var pageResult []T
-		req, err := prepareRequest(endPoint, params, isWithAuth, isUpdateNeeded, cacheExpiration, &pageResult)
+		req, err := prepareRequest(endPoint, params, isWithAuth, isUpdateNeeded, isCachePages, cacheExpiration, &pageResult)
 		if err != nil {
 			return nil, err
 		}
@@ -464,8 +475,12 @@ func PaginatedRequest[T any](endPoint string, params napping.Params, isWithAuth 
 
 		if pageCurrent == 1 {
 			pagination := getPagination(req.ResponseHeader)
-			pageTotal = pagination.PageCount
-			pageLimit = pagination.Limit
+			if pagination.PageCount > 0 {
+				pageTotal = pagination.PageCount
+			}
+			if pagination.Limit > 0 {
+				pageLimit = pagination.Limit
+			}
 		}
 
 		ret = append(ret, pageResult...)
@@ -473,12 +488,17 @@ func PaginatedRequest[T any](endPoint string, params napping.Params, isWithAuth 
 		pageCurrent++
 	}
 
+	// Cache collected list of items if we don't need to cache each page separately. If we do - each page is cached in the req.Do() call.
+	if !isCachePages {
+		defer cacheStore.Set(fmt.Sprintf(cache.TraktPaginatedRequestKey, endPoint), &ret, cache.TraktPaginatedRequestExpire)
+	}
+
 	return ret, nil
 }
 
 // Request is a general proxy for making requests
 func Request(endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, cacheExpiration time.Duration, ret interface{}) error {
-	req, err := prepareRequest(endPoint, params, isWithAuth, isUpdateNeeded, cacheExpiration, ret)
+	req, err := prepareRequest(endPoint, params, isWithAuth, isUpdateNeeded, true, cacheExpiration, ret)
 	if err != nil {
 		return err
 	}
@@ -491,7 +511,7 @@ func Request(endPoint string, params napping.Params, isWithAuth bool, isUpdateNe
 }
 
 // prepareRequest is a helper function to prepare a reqapi.Request with the given parameters.
-func prepareRequest(endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, cacheExpiration time.Duration, ret interface{}) (reqapi.Request, error) {
+func prepareRequest(endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, isCacheEnabled bool, cacheExpiration time.Duration, ret interface{}) (reqapi.Request, error) {
 	if isWithAuth {
 		if err := Authorized(); err != nil {
 			return reqapi.Request{}, err
@@ -510,7 +530,7 @@ func prepareRequest(endPoint string, params napping.Params, isWithAuth bool, isU
 		Params: params.AsUrlValues(),
 		Result: &ret,
 
-		Cache:            true,
+		Cache:            isCacheEnabled,
 		CacheExpire:      cacheExpiration,
 		CacheForceExpire: isUpdateNeeded,
 	}

@@ -554,6 +554,7 @@ func WatchedShows(isUpdateNeeded bool) (WatchedShowsType, error) {
 		},
 		true,
 		isUpdateNeeded,
+		false,
 		cache.TraktShowsWatchedExpire,
 	)
 
