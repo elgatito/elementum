@@ -254,7 +254,10 @@ func RefreshToken() error {
 
 	err := req.Do()
 	if err != nil || token == nil {
-		notifyMessage := err.Error()
+		notifyMessage := "Token not refreshed for Trakt authorization, please, re-authorize Trakt"
+		if err != nil {
+			notifyMessage = err.Error()
+		}
 		if req.ResponseStatusCode == 400 || req.ResponseStatusCode == 401 {
 			err = fmt.Errorf("Trakt refresh_token is invalid, please, re-authorize Trakt")
 			notifyMessage = "LOCALIZE[30576]"
