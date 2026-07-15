@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -286,7 +287,7 @@ func Authorize(fromSettings bool) error {
 	code, err := GetCode()
 	if err != nil || code == nil {
 		log.Error("Could not get authorization code from Trakt.tv: %s", err)
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
+		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil && err != nil {
 			xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 		}
 		return err
@@ -449,10 +450,14 @@ func PaginatedRequest[T any](endPoint string, params napping.Params, isWithAuth 
 
 	cacheStore := cache.NewDBStore()
 
+	// Form a cache key for this type of request
+	paramsEncoded, _ := url.QueryUnescape(params.AsUrlValues().Encode())
+	cacheKey := fmt.Sprintf(cache.TraktPaginatedRequestKey, endPoint, paramsEncoded)
+
 	// If we don't need to cache each page separately - try to fetch full list of items instead.
 	if !isCachePages {
 		if !isUpdateNeeded {
-			if err := cacheStore.Get(fmt.Sprintf(cache.TraktPaginatedRequestKey, endPoint), &ret); err == nil {
+			if err := cacheStore.Get(cacheKey, &ret); err == nil {
 				return ret, nil
 			}
 		}
@@ -490,7 +495,7 @@ func PaginatedRequest[T any](endPoint string, params napping.Params, isWithAuth 
 
 	// Cache collected list of items if we don't need to cache each page separately. If we do - each page is cached in the req.Do() call.
 	if !isCachePages {
-		defer cacheStore.Set(fmt.Sprintf(cache.TraktPaginatedRequestKey, endPoint), &ret, cache.TraktPaginatedRequestExpire)
+		defer cacheStore.Set(cacheKey, &ret, cache.TraktPaginatedRequestExpire)
 	}
 
 	return ret, nil

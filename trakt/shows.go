@@ -330,40 +330,33 @@ func WatchlistShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 
 	defer perf.ScopeTimer()()
 
-	cacheStore := cache.NewDBStore()
-
-	if !isUpdateNeeded {
-		if err := cacheStore.Get(cache.TraktShowsWatchlistKey, &shows); err == nil {
-			return shows, nil
-		}
-	}
-
-	var watchlist []*WatchlistShow
-	req := &reqapi.Request{
-		API:    reqapi.TraktAPI,
-		URL:    "sync/watchlist/shows",
-		Header: GetAvailableHeader(),
-		Params: napping.Params{
+	watchlist, err := PaginatedRequest[*WatchlistShow](
+		"sync/watchlist/shows",
+		napping.Params{
+			"limit":    strconv.Itoa(100),
 			"extended": "full",
-		}.AsUrlValues(),
-		Result:      &watchlist,
-		Description: "watchlist shows",
-	}
+		},
+		true,
+		isUpdateNeeded,
+		false,
+		cache.TraktShowsWatchlistExpire,
+	)
 
-	if err = req.Do(); err != nil {
-		return shows, err
-	}
+	log.Debugf("%d shows retrieved from Trakt", len(shows))
 
-	showListing := make([]*Shows, 0)
+	shows = make([]*Shows, 0, len(watchlist))
 	for _, show := range watchlist {
 		showItem := Shows{
 			Show: show.Show,
 		}
-		showListing = append(showListing, &showItem)
+		shows = append(shows, &showItem)
 	}
-	shows = showListing
 
-	defer cacheStore.Set(cache.TraktShowsWatchlistKey, &shows, cache.TraktShowsWatchlistExpire)
+	if err == nil {
+		defer cache.
+			NewDBStore().
+			Set(cache.TraktShowsWatchlistKey, &shows, cache.TraktShowsWatchlistExpire)
+	}
 	return
 }
 
@@ -384,44 +377,38 @@ func CollectionShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 
 	defer perf.ScopeTimer()()
 
-	cacheStore := cache.NewDBStore()
-
-	if !isUpdateNeeded {
-		if err := cacheStore.Get(cache.TraktShowsCollectionKey, &shows); err == nil {
-			return shows, nil
-		}
-	}
-
-	var collection []*CollectionShow
-	req := &reqapi.Request{
-		API:    reqapi.TraktAPI,
-		URL:    "sync/collection/shows",
-		Header: GetAvailableHeader(),
-		Params: napping.Params{
+	collection, err := PaginatedRequest[*CollectionShow](
+		"sync/collection/shows",
+		napping.Params{
+			"limit":    strconv.Itoa(100),
 			"extended": "full",
-		}.AsUrlValues(),
-		Result:      &collection,
-		Description: "collection shows",
-	}
+		},
+		true,
+		isUpdateNeeded,
+		false,
+		cache.TraktShowsCollectionExpire,
+	)
 
-	if err = req.Do(); err != nil {
-		return shows, err
-	}
+	log.Debugf("%d shows retrieved from Trakt", len(shows))
 
 	sort.Slice(collection, func(i, j int) bool {
 		return collection[i].CollectedAt.After(collection[j].CollectedAt)
 	})
 
-	showListing := make([]*Shows, 0, len(collection))
+	shows = make([]*Shows, 0, len(collection))
 	for _, show := range collection {
 		showItem := Shows{
 			Show: show.Show,
 		}
-		showListing = append(showListing, &showItem)
+		shows = append(shows, &showItem)
 	}
 
-	defer cacheStore.Set(cache.TraktShowsCollectionKey, &showListing, cache.TraktShowsCollectionExpire)
-	return showListing, err
+	if err == nil {
+		defer cache.
+			NewDBStore().
+			Set(cache.TraktShowsCollectionKey, &shows, cache.TraktShowsCollectionExpire)
+	}
+	return
 }
 
 // PreviousCollectionShows ...
@@ -450,32 +437,23 @@ func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 		url = fmt.Sprintf("/lists/%s/items/shows", listID)
 	}
 
-	cacheStore := cache.NewDBStore()
 	key := fmt.Sprintf(cache.TraktShowsListKey, listID)
 
-	if !isUpdateNeeded {
-		if err := cacheStore.Get(key, &shows); err == nil {
-			return shows, nil
-		}
-	}
-
-	var list []*ListItem
-	req := &reqapi.Request{
-		API:    reqapi.TraktAPI,
-		URL:    url,
-		Header: GetAvailableHeader(),
-		Params: napping.Params{
+	list, err := PaginatedRequest[*ListItem](
+		url,
+		napping.Params{
+			"limit":    strconv.Itoa(100),
 			"extended": "full",
-		}.AsUrlValues(),
-		Result:      &list,
-		Description: "list item shows",
-	}
+		},
+		true,
+		isUpdateNeeded,
+		false,
+		cache.TraktShowsListExpire,
+	)
 
-	if err = req.Do(); err != nil {
-		return shows, err
-	}
+	log.Debugf("%d shows retrieved from Trakt", len(shows))
 
-	showListing := make([]*Shows, 0)
+	shows = make([]*Shows, 0)
 	for _, show := range list {
 		if show.Show == nil {
 			continue
@@ -483,11 +461,14 @@ func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 		showItem := Shows{
 			Show: show.Show,
 		}
-		showListing = append(showListing, &showItem)
+		shows = append(shows, &showItem)
 	}
-	shows = showListing
 
-	defer cacheStore.Set(key, &shows, cache.TraktShowsListExpire)
+	if err == nil {
+		defer cache.
+			NewDBStore().
+			Set(key, &shows, cache.TraktShowsListExpire)
+	}
 	return shows, err
 }
 
@@ -558,9 +539,9 @@ func WatchedShows(isUpdateNeeded bool) (WatchedShowsType, error) {
 		cache.TraktShowsWatchedExpire,
 	)
 
-	log.Debugf("WatchedShows: %d shows retrieved from Trakt", len(shows))
+	log.Debugf("%d shows retrieved from Trakt", len(shows))
 
-	if len(shows) != 0 {
+	if err == nil {
 		defer cache.
 			NewDBStore().
 			Set(cache.TraktShowsWatchedKey, &shows, cache.TraktShowsWatchedExpire)

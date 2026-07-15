@@ -136,7 +136,7 @@ const (
 	TraktShowTVDBExpire                    = CacheExpireLong
 	TraktLockedAccountKey                  = TraktKey + "locked.account"
 	TraktLockedAccountExpire               = 24 * time.Hour
-	TraktPaginatedRequestKey               = TraktKey + "paginated.%s"
+	TraktPaginatedRequestKey               = TraktKey + "paginated.%s.%s"
 	TraktPaginatedRequestExpire            = 24 * time.Hour
 
 	TVDBShowByIDKey    = TVDBKey + "show.%d.%s"
