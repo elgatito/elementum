@@ -194,6 +194,14 @@ func WatchlistMovies(isUpdateNeeded bool) (movies []*Movies, err error) {
 
 	defer perf.ScopeTimer()()
 
+	cacheStore := cache.NewDBStore()
+
+	if !isUpdateNeeded {
+		if err := cacheStore.Get(cache.TraktMoviesWatchlistKey, &movies); err == nil {
+			return movies, nil
+		}
+	}
+
 	watchlist, err := PaginatedRequest[*WatchlistMovie](
 		"sync/watchlist/movies",
 		napping.Params{
@@ -221,9 +229,7 @@ func WatchlistMovies(isUpdateNeeded bool) (movies []*Movies, err error) {
 	}
 
 	if err != nil {
-		defer cache.
-			NewDBStore().
-			Set(cache.TraktMoviesWatchlistKey, &movies, cache.TraktMoviesWatchlistExpire)
+		defer cacheStore.Set(cache.TraktMoviesWatchlistKey, &movies, cache.TraktMoviesWatchlistExpire)
 	}
 	return
 }
@@ -244,6 +250,14 @@ func CollectionMovies(isUpdateNeeded bool) (movies []*Movies, err error) {
 	}
 
 	defer perf.ScopeTimer()()
+
+	cacheStore := cache.NewDBStore()
+
+	if !isUpdateNeeded {
+		if err := cacheStore.Get(cache.TraktMoviesCollectionKey, &movies); err == nil {
+			return movies, nil
+		}
+	}
 
 	collection, err := PaginatedRequest[*CollectionMovie](
 		"sync/collection/movies",
@@ -272,9 +286,7 @@ func CollectionMovies(isUpdateNeeded bool) (movies []*Movies, err error) {
 	}
 
 	if err != nil {
-		defer cache.
-			NewDBStore().
-			Set(cache.TraktMoviesCollectionKey, &movies, cache.TraktMoviesCollectionExpire)
+		defer cacheStore.Set(cache.TraktMoviesCollectionKey, &movies, cache.TraktMoviesCollectionExpire)
 	}
 	return movies, err
 }
@@ -415,7 +427,15 @@ func ListItemsMovies(user, listID string) (movies []*Movies, err error) {
 		url = fmt.Sprintf("/lists/%s/items/movies", listID)
 	}
 
+	cacheStore := cache.NewDBStore()
 	key := fmt.Sprintf(cache.TraktMoviesListKey, listID)
+
+	if !isUpdateNeeded {
+		if err := cacheStore.Get(key, &movies); err == nil {
+			return movies, nil
+		}
+	}
+
 	list, err := PaginatedRequest[*ListItem](
 		url,
 		napping.Params{
@@ -446,9 +466,7 @@ func ListItemsMovies(user, listID string) (movies []*Movies, err error) {
 	}
 
 	if err != nil {
-		defer cache.
-			NewDBStore().
-			Set(key, &movies, cache.TraktMoviesListExpire)
+		defer cacheStore.Set(key, &movies, cache.TraktMoviesListExpire)
 	}
 	return movies, err
 }
@@ -500,6 +518,15 @@ func CalendarMovies(endPoint string, page string, cacheExpire time.Duration, isU
 func WatchedMovies(isUpdateNeeded bool) (WatchedMoviesType, error) {
 	defer perf.ScopeTimer()()
 
+	cacheStore := cache.NewDBStore()
+
+	if !isUpdateNeeded {
+		movies := WatchedMoviesType{}
+		if err := cacheStore.Get(cache.TraktMoviesCollectionKey, &movies); err == nil {
+			return movies, nil
+		}
+	}
+
 	movies, err := PaginatedRequest[*WatchedMovie](
 		"sync/watched/movies",
 		napping.Params{
@@ -519,9 +546,7 @@ func WatchedMovies(isUpdateNeeded bool) (WatchedMoviesType, error) {
 	})
 
 	if err == nil {
-		defer cache.
-			NewDBStore().
-			Set(cache.TraktMoviesWatchedKey, &movies, cache.TraktMoviesWatchedExpire)
+		defer cacheStore.Set(cache.TraktMoviesWatchedKey, &movies, cache.TraktMoviesWatchedExpire)
 	}
 
 	return movies, err

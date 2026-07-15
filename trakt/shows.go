@@ -330,6 +330,14 @@ func WatchlistShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 
 	defer perf.ScopeTimer()()
 
+	cacheStore := cache.NewDBStore()
+
+	if !isUpdateNeeded {
+		if err := cacheStore.Get(cache.TraktShowsWatchlistKey, &shows); err == nil {
+			return shows, nil
+		}
+	}
+
 	watchlist, err := PaginatedRequest[*WatchlistShow](
 		"sync/watchlist/shows",
 		napping.Params{
@@ -353,9 +361,7 @@ func WatchlistShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 	}
 
 	if err == nil {
-		defer cache.
-			NewDBStore().
-			Set(cache.TraktShowsWatchlistKey, &shows, cache.TraktShowsWatchlistExpire)
+		defer cacheStore.Set(cache.TraktShowsWatchlistKey, &shows, cache.TraktShowsWatchlistExpire)
 	}
 	return
 }
@@ -376,6 +382,14 @@ func CollectionShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 	}
 
 	defer perf.ScopeTimer()()
+
+	cacheStore := cache.NewDBStore()
+
+	if !isUpdateNeeded {
+		if err := cacheStore.Get(cache.TraktShowsCollectionKey, &shows); err == nil {
+			return shows, nil
+		}
+	}
 
 	collection, err := PaginatedRequest[*CollectionShow](
 		"sync/collection/shows",
@@ -404,9 +418,7 @@ func CollectionShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 	}
 
 	if err == nil {
-		defer cache.
-			NewDBStore().
-			Set(cache.TraktShowsCollectionKey, &shows, cache.TraktShowsCollectionExpire)
+		defer cacheStore.Set(cache.TraktShowsCollectionKey, &shows, cache.TraktShowsCollectionExpire)
 	}
 	return
 }
@@ -438,6 +450,13 @@ func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 	}
 
 	key := fmt.Sprintf(cache.TraktShowsListKey, listID)
+	cacheStore := cache.NewDBStore()
+
+	if !isUpdateNeeded {
+		if err := cacheStore.Get(key, &shows); err == nil {
+			return shows, nil
+		}
+	}
 
 	list, err := PaginatedRequest[*ListItem](
 		url,
@@ -465,9 +484,7 @@ func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 	}
 
 	if err == nil {
-		defer cache.
-			NewDBStore().
-			Set(key, &shows, cache.TraktShowsListExpire)
+		defer cacheStore.Set(key, &shows, cache.TraktShowsListExpire)
 	}
 	return shows, err
 }
@@ -526,6 +543,15 @@ func CalendarShows(endPoint string, page string, cacheExpire time.Duration, isUp
 // WatchedShows ...
 func WatchedShows(isUpdateNeeded bool) (WatchedShowsType, error) {
 	defer perf.ScopeTimer()()
+
+	cacheStore := cache.NewDBStore()
+
+	if !isUpdateNeeded {
+		shows := WatchedShowsType{}
+		if err := cacheStore.Get(cache.TraktShowsWatchedKey, &shows); err == nil {
+			return shows, nil
+		}
+	}
 
 	shows, err := PaginatedRequest[*WatchedShow](
 		"sync/watched/shows",
