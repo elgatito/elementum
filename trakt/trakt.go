@@ -113,17 +113,12 @@ func GetAvailableHeader() http.Header {
 // GetCode ...
 func GetCode() (code *Code, err error) {
 	req := reqapi.Request{
-		API:    reqapi.TraktAPI,
-		Method: "POST",
-		URL:    "oauth/device/code",
-		Header: http.Header{
-			"Content-type": []string{"application/json"},
-			"User-Agent":   []string{UserAgent},
-			"Cookie":       []string{Cookies},
-		},
-		Params: napping.Params{
-			"client_id": config.TraktAPIClientID,
-		}.AsUrlValues(),
+		API:         reqapi.TraktAPI,
+		Method:      "POST",
+		URL:         "oauth/device/code",
+		Header:      GetHeader(),
+		Params:      napping.Params{}.AsUrlValues(),
+		Payload:     bytes.NewBufferString(fmt.Sprintf(`{"client_id": %q}`, config.TraktAPIClientID)),
 		Result:      &code,
 		Description: "oauth device code",
 	}
@@ -144,19 +139,12 @@ func PollToken(code *Code) (token *Token, err error) {
 		select {
 		case <-interval.C:
 			req := reqapi.Request{
-				API:    reqapi.TraktAPI,
-				Method: "POST",
-				URL:    "oauth/device/token",
-				Header: http.Header{
-					"Content-type": []string{"application/json"},
-					"User-Agent":   []string{UserAgent},
-					"Cookie":       []string{Cookies},
-				},
-				Params: napping.Params{
-					"code":          code.DeviceCode,
-					"client_id":     config.TraktAPIClientID,
-					"client_secret": config.TraktAPIClientSecret,
-				}.AsUrlValues(),
+				API:         reqapi.TraktAPI,
+				Method:      "POST",
+				URL:         "oauth/device/token",
+				Header:      GetHeader(),
+				Params:      napping.Params{}.AsUrlValues(),
+				Payload:     bytes.NewBufferString(fmt.Sprintf(`{"code": %q, "client_id": %q, "client_secret": %q}`, code.DeviceCode, config.TraktAPIClientID, config.TraktAPIClientSecret)),
 				Result:      &token,
 				Description: "oauth device token",
 			}
@@ -233,21 +221,12 @@ func RefreshToken() error {
 	var token *Token
 
 	req := reqapi.Request{
-		API:    reqapi.TraktAPI,
-		Method: "POST",
-		URL:    "oauth/token",
-		Header: http.Header{
-			"Content-type": []string{"application/json"},
-			"User-Agent":   []string{UserAgent},
-			"Cookie":       []string{Cookies},
-		},
-		Params: napping.Params{
-			"refresh_token": config.Get().TraktRefreshToken,
-			"client_id":     config.TraktAPIClientID,
-			"client_secret": config.TraktAPIClientSecret,
-			"redirect_uri":  "urn:ietf:wg:oauth:2.0:oob",
-			"grant_type":    "refresh_token",
-		}.AsUrlValues(),
+		API:         reqapi.TraktAPI,
+		Method:      "POST",
+		URL:         "oauth/token",
+		Header:      GetHeader(),
+		Params:      napping.Params{}.AsUrlValues(),
+		Payload:     bytes.NewBufferString(fmt.Sprintf(`{"refresh_token": %q, "client_id": %q, "client_secret": %q, "redirect_uri": "urn:ietf:wg:oauth:2.0:oob", "grant_type": "refresh_token"}`, config.Get().TraktRefreshToken, config.TraktAPIClientID, config.TraktAPIClientSecret)),
 		Result:      &token,
 		Description: "oauth token",
 	}
@@ -289,7 +268,7 @@ func RefreshToken() error {
 func Authorize(fromSettings bool) error {
 	code, err := GetCode()
 	if err != nil || code == nil {
-		log.Error("Could not get authorization code from Trakt.tv: %s", err)
+		log.Errorf("Could not get authorization code from Trakt.tv: %s", err)
 		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil && err != nil {
 			xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 		}
@@ -389,19 +368,12 @@ func Authorize(fromSettings bool) error {
 // Deauthorize ...
 func Deauthorize(fromSettings bool) error {
 	req := reqapi.Request{
-		API:    reqapi.TraktAPI,
-		Method: "POST",
-		URL:    "oauth/revoke",
-		Header: http.Header{
-			"Content-type": []string{"application/json"},
-			"User-Agent":   []string{UserAgent},
-			"Cookie":       []string{Cookies},
-		},
-		Params: napping.Params{
-			"token":         config.Get().TraktToken,
-			"client_id":     config.TraktAPIClientID,
-			"client_secret": config.TraktAPIClientSecret,
-		}.AsUrlValues(),
+		API:         reqapi.TraktAPI,
+		Method:      "POST",
+		URL:         "oauth/revoke",
+		Header:      GetHeader(),
+		Params:      napping.Params{}.AsUrlValues(),
+		Payload:     bytes.NewBufferString(fmt.Sprintf(`{"token": %q, "client_id": %q, "client_secret": %q}`, config.Get().TraktToken, config.TraktAPIClientID, config.TraktAPIClientSecret)),
 		Result:      nil,
 		Description: "oauth revoke",
 	}
