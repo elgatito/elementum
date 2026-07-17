@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,28 +33,43 @@ type CustomDNS struct {
 
 // CustomDNS Providers enum
 const (
-	CloudflareProvider dohprovider = iota
+	AllProviders dohprovider = iota
+	CloudflareProvider
 	GoogleProvider
 	Quad9Provider
+	OpenNameServerProvider
+	CustomProvider
 )
 
-// DoH Providers list
+// Default DoH Providers list
 var (
 	DoHProviders = []dohprovider{
 		CloudflareProvider,
 		GoogleProvider,
 		Quad9Provider,
+		OpenNameServerProvider,
 	}
 )
 
 // NewDoHProvider returns a new DoH client, quad9 is default
 func NewDoHProvider(provider dohprovider) (uri string, p *net.Resolver, err error) {
 	switch provider {
+	case CustomProvider:
+		if customDoHServer == "" {
+			return "", nil, fmt.Errorf("doh: custom provider is not configured")
+		}
+		if strings.Contains(customDoHServer, "://") {
+			uri = customDoHServer
+		} else {
+			uri = fmt.Sprintf("https://%s/dns-query", customDoHServer)
+		}
 	case CloudflareProvider:
 		uri = "https://cloudflare-dns.com/dns-query"
 	case GoogleProvider:
 		uri = "https://dns.google/dns-query{?dns}"
-	default:
+	case OpenNameServerProvider:
+		uri = "https://ns4.opennameserver.org/dns-query/{?dns}"
+	case Quad9Provider:
 		uri = "https://dns.quad9.net/dns-query"
 	}
 

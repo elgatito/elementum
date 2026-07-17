@@ -56,9 +56,11 @@ var (
 
 	defaultOpenNICResolverServers = []string{
 		"94.247.43.254",
-		"152.53.15.127",
 		"95.216.99.249",
 	}
+
+	// Should contain the custom DoH server URL if configured, otherwise empty.
+	customDoHServer = ""
 
 	commonResolver  = &CustomDNS{}
 	opennicResolver = &CustomDNS{}
@@ -80,7 +82,29 @@ func reloadDNS() {
 		opennicLock.Unlock()
 	}()
 
-	commonResolver = UseDoHProviders(GoogleProvider, CloudflareProvider, Quad9Provider)
+	if config.Get().InternalDNSServer == "custom" {
+		// For custom use, we will use the configured DoH server URL.
+		customDoHServer = config.Get().InternalDNSServerCustom
+		commonResolver = UseDoHProviders(CustomProvider)
+	} else if strings.Contains(config.Get().InternalDNSServer, "+") {
+		// For all-in-one we use all the DNS servers configured in the settings.
+		commonResolver = UseDoHProviders(GoogleProvider, CloudflareProvider, Quad9Provider, OpenNameServerProvider)
+	} else {
+		// For specific provider selection, we use the selected provider from the settings.
+		switch config.Get().InternalDNSServer {
+		case "Cloudflare":
+			commonResolver = UseDoHProviders(CloudflareProvider)
+		case "Google":
+			commonResolver = UseDoHProviders(GoogleProvider)
+		case "Quad9":
+			commonResolver = UseDoHProviders(Quad9Provider)
+		case "OpenNameServer.org":
+			commonResolver = UseDoHProviders(OpenNameServerProvider)
+		default:
+			commonResolver = UseDoHProviders(GoogleProvider, CloudflareProvider, Quad9Provider)
+		}
+	}
+
 	opennicResolver = UseDNSProviders(defaultOpenNICResolverServers...)
 
 	if config.Get().InternalDNSOpenNICUse {
