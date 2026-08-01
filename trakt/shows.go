@@ -338,32 +338,31 @@ func WatchlistShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 		}
 	}
 
-	var watchlist []*WatchlistShow
-	req := &reqapi.Request{
-		API:    reqapi.TraktAPI,
-		URL:    "sync/watchlist/shows",
-		Header: GetAvailableHeader(),
-		Params: napping.Params{
+	watchlist, err := PaginatedRequest[*WatchlistShow](
+		"sync/watchlist/shows",
+		napping.Params{
+			"limit":    strconv.Itoa(100),
 			"extended": "full",
-		}.AsUrlValues(),
-		Result:      &watchlist,
-		Description: "watchlist shows",
-	}
+		},
+		true,
+		isUpdateNeeded,
+		false,
+		cache.TraktShowsWatchlistExpire,
+	)
 
-	if err = req.Do(); err != nil {
-		return shows, err
-	}
+	log.Debugf("%d shows retrieved from Trakt", len(shows))
 
-	showListing := make([]*Shows, 0)
+	shows = make([]*Shows, 0, len(watchlist))
 	for _, show := range watchlist {
 		showItem := Shows{
 			Show: show.Show,
 		}
-		showListing = append(showListing, &showItem)
+		shows = append(shows, &showItem)
 	}
-	shows = showListing
 
-	defer cacheStore.Set(cache.TraktShowsWatchlistKey, &shows, cache.TraktShowsWatchlistExpire)
+	if err == nil {
+		defer cacheStore.Set(cache.TraktShowsWatchlistKey, &shows, cache.TraktShowsWatchlistExpire)
+	}
 	return
 }
 
@@ -392,36 +391,36 @@ func CollectionShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 		}
 	}
 
-	var collection []*CollectionShow
-	req := &reqapi.Request{
-		API:    reqapi.TraktAPI,
-		URL:    "sync/collection/shows",
-		Header: GetAvailableHeader(),
-		Params: napping.Params{
+	collection, err := PaginatedRequest[*CollectionShow](
+		"sync/collection/shows",
+		napping.Params{
+			"limit":    strconv.Itoa(100),
 			"extended": "full",
-		}.AsUrlValues(),
-		Result:      &collection,
-		Description: "collection shows",
-	}
+		},
+		true,
+		isUpdateNeeded,
+		false,
+		cache.TraktShowsCollectionExpire,
+	)
 
-	if err = req.Do(); err != nil {
-		return shows, err
-	}
+	log.Debugf("%d shows retrieved from Trakt", len(shows))
 
 	sort.Slice(collection, func(i, j int) bool {
 		return collection[i].CollectedAt.After(collection[j].CollectedAt)
 	})
 
-	showListing := make([]*Shows, 0, len(collection))
+	shows = make([]*Shows, 0, len(collection))
 	for _, show := range collection {
 		showItem := Shows{
 			Show: show.Show,
 		}
-		showListing = append(showListing, &showItem)
+		shows = append(shows, &showItem)
 	}
 
-	defer cacheStore.Set(cache.TraktShowsCollectionKey, &showListing, cache.TraktShowsCollectionExpire)
-	return showListing, err
+	if err == nil {
+		defer cacheStore.Set(cache.TraktShowsCollectionKey, &shows, cache.TraktShowsCollectionExpire)
+	}
+	return
 }
 
 // PreviousCollectionShows ...
@@ -450,8 +449,8 @@ func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 		url = fmt.Sprintf("/lists/%s/items/shows", listID)
 	}
 
-	cacheStore := cache.NewDBStore()
 	key := fmt.Sprintf(cache.TraktShowsListKey, listID)
+	cacheStore := cache.NewDBStore()
 
 	if !isUpdateNeeded {
 		if err := cacheStore.Get(key, &shows); err == nil {
@@ -459,23 +458,21 @@ func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 		}
 	}
 
-	var list []*ListItem
-	req := &reqapi.Request{
-		API:    reqapi.TraktAPI,
-		URL:    url,
-		Header: GetAvailableHeader(),
-		Params: napping.Params{
+	list, err := PaginatedRequest[*ListItem](
+		url,
+		napping.Params{
+			"limit":    strconv.Itoa(100),
 			"extended": "full",
-		}.AsUrlValues(),
-		Result:      &list,
-		Description: "list item shows",
-	}
+		},
+		true,
+		isUpdateNeeded,
+		false,
+		cache.TraktShowsListExpire,
+	)
 
-	if err = req.Do(); err != nil {
-		return shows, err
-	}
+	log.Debugf("%d shows retrieved from Trakt", len(shows))
 
-	showListing := make([]*Shows, 0)
+	shows = make([]*Shows, 0)
 	for _, show := range list {
 		if show.Show == nil {
 			continue
@@ -483,11 +480,12 @@ func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 		showItem := Shows{
 			Show: show.Show,
 		}
-		showListing = append(showListing, &showItem)
+		shows = append(shows, &showItem)
 	}
-	shows = showListing
 
-	defer cacheStore.Set(key, &shows, cache.TraktShowsListExpire)
+	if err == nil {
+		defer cacheStore.Set(key, &shows, cache.TraktShowsListExpire)
+	}
 	return shows, err
 }
 
@@ -546,17 +544,30 @@ func CalendarShows(endPoint string, page string, cacheExpire time.Duration, isUp
 func WatchedShows(isUpdateNeeded bool) (WatchedShowsType, error) {
 	defer perf.ScopeTimer()()
 
-	var shows []*WatchedShow
-	err := Request(
+	cacheStore := cache.NewDBStore()
+
+	if !isUpdateNeeded {
+		shows := WatchedShowsType{}
+		if err := cacheStore.Get(cache.TraktShowsWatchedKey, &shows); err == nil {
+			return shows, nil
+		}
+	}
+
+	shows, err := PaginatedRequest[*WatchedShow](
 		"sync/watched/shows",
-		napping.Params{"extended": "full"},
+		napping.Params{
+			"limit":    strconv.Itoa(100),
+			"extended": "full,progress",
+		},
 		true,
 		isUpdateNeeded,
+		false,
 		cache.TraktShowsWatchedExpire,
-		&shows,
 	)
 
-	if len(shows) != 0 {
+	log.Debugf("%d shows retrieved from Trakt", len(shows))
+
+	if err == nil {
 		defer cache.
 			NewDBStore().
 			Set(cache.TraktShowsWatchedKey, &shows, cache.TraktShowsWatchedExpire)

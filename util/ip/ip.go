@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/elgatito/elementum/config"
@@ -289,4 +290,18 @@ func GetPossibleGateways(addr net.IP) (ret []net.IP) {
 	}
 
 	return ret
+}
+
+func ParseListenPort(message string) (int, error) {
+	parts := strings.Split(message, ":")
+	if len(parts) < 2 {
+		return 0, fmt.Errorf("invalid listen address in the message: %s", message)
+	}
+
+	port, err := strconv.Atoi(parts[len(parts)-1])
+	if err != nil {
+		return 0, fmt.Errorf("invalid port in the message (%s): %w", message, err)
+	}
+
+	return port, nil
 }

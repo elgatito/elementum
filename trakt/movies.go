@@ -202,36 +202,35 @@ func WatchlistMovies(isUpdateNeeded bool) (movies []*Movies, err error) {
 		}
 	}
 
-	var watchlist []*WatchlistMovie
-	req := &reqapi.Request{
-		API:    reqapi.TraktAPI,
-		URL:    "sync/watchlist/movies",
-		Header: GetAvailableHeader(),
-		Params: napping.Params{
+	watchlist, err := PaginatedRequest[*WatchlistMovie](
+		"sync/watchlist/movies",
+		napping.Params{
+			"limit":    strconv.Itoa(250),
 			"extended": "full",
-		}.AsUrlValues(),
-		Result:      &watchlist,
-		Description: "watchlist movies",
-	}
+		},
+		true,
+		isUpdateNeeded,
+		false,
+		cache.TraktMoviesWatchlistExpire,
+	)
 
-	if err = req.Do(); err != nil {
-		return movies, err
-	}
+	log.Debugf("%d movies retrieved from Trakt", len(watchlist))
 
 	sort.Slice(watchlist, func(i, j int) bool {
 		return watchlist[i].ListedAt.After(watchlist[j].ListedAt)
 	})
 
-	movieListing := make([]*Movies, 0)
+	movies = make([]*Movies, 0, len(watchlist))
 	for _, movie := range watchlist {
 		movieItem := Movies{
 			Movie: movie.Movie,
 		}
-		movieListing = append(movieListing, &movieItem)
+		movies = append(movies, &movieItem)
 	}
-	movies = movieListing
 
-	defer cacheStore.Set(cache.TraktMoviesWatchlistKey, &movies, cache.TraktMoviesWatchlistExpire)
+	if err != nil {
+		defer cacheStore.Set(cache.TraktMoviesWatchlistKey, &movies, cache.TraktMoviesWatchlistExpire)
+	}
 	return
 }
 
@@ -260,36 +259,35 @@ func CollectionMovies(isUpdateNeeded bool) (movies []*Movies, err error) {
 		}
 	}
 
-	var collection []*CollectionMovie
-	req := &reqapi.Request{
-		API:    reqapi.TraktAPI,
-		URL:    "sync/collection/movies",
-		Header: GetAvailableHeader(),
-		Params: napping.Params{
+	collection, err := PaginatedRequest[*CollectionMovie](
+		"sync/collection/movies",
+		napping.Params{
+			"limit":    strconv.Itoa(250),
 			"extended": "full",
-		}.AsUrlValues(),
-		Result:      &collection,
-		Description: "collection movies",
-	}
+		},
+		true,
+		isUpdateNeeded,
+		false,
+		cache.TraktMoviesCollectionExpire,
+	)
 
-	if err = req.Do(); err != nil {
-		return movies, err
-	}
+	log.Debugf("%d movies retrieved from Trakt", len(collection))
 
 	sort.Slice(collection, func(i, j int) bool {
 		return collection[i].CollectedAt.After(collection[j].CollectedAt)
 	})
 
-	movieListing := make([]*Movies, 0)
+	movies = make([]*Movies, 0, len(collection))
 	for _, movie := range collection {
 		movieItem := Movies{
 			Movie: movie.Movie,
 		}
-		movieListing = append(movieListing, &movieItem)
+		movies = append(movies, &movieItem)
 	}
-	movies = movieListing
 
-	defer cacheStore.Set(cache.TraktMoviesCollectionKey, &movies, cache.TraktMoviesCollectionExpire)
+	if err != nil {
+		defer cacheStore.Set(cache.TraktMoviesCollectionKey, &movies, cache.TraktMoviesCollectionExpire)
+	}
 	return movies, err
 }
 
@@ -438,25 +436,25 @@ func ListItemsMovies(user, listID string) (movies []*Movies, err error) {
 		}
 	}
 
-	var list []*ListItem
-	req := &reqapi.Request{
-		API:         reqapi.TraktAPI,
-		URL:         url,
-		Header:      GetAvailableHeader(),
-		Params:      napping.Params{}.AsUrlValues(),
-		Result:      &list,
-		Description: "user list movie items",
-	}
+	list, err := PaginatedRequest[*ListItem](
+		url,
+		napping.Params{
+			"limit":    strconv.Itoa(250),
+			"extended": "full",
+		},
+		true,
+		isUpdateNeeded,
+		false,
+		cache.TraktMoviesListExpire,
+	)
 
-	if err = req.Do(); err != nil {
-		return movies, err
-	}
+	log.Debugf("%d movies retrieved from Trakt", len(list))
 
 	sort.Slice(list, func(i, j int) bool {
 		return list[i].ListedAt.After(list[j].ListedAt)
 	})
 
-	movieListing := make([]*Movies, 0)
+	movies = make([]*Movies, 0)
 	for _, movie := range list {
 		if movie.Movie == nil {
 			continue
@@ -464,11 +462,12 @@ func ListItemsMovies(user, listID string) (movies []*Movies, err error) {
 		movieItem := Movies{
 			Movie: movie.Movie,
 		}
-		movieListing = append(movieListing, &movieItem)
+		movies = append(movies, &movieItem)
 	}
-	movies = movieListing
 
-	defer cacheStore.Set(key, &movies, cache.TraktMoviesListExpire)
+	if err != nil {
+		defer cacheStore.Set(key, &movies, cache.TraktMoviesListExpire)
+	}
 	return movies, err
 }
 
@@ -519,24 +518,35 @@ func CalendarMovies(endPoint string, page string, cacheExpire time.Duration, isU
 func WatchedMovies(isUpdateNeeded bool) (WatchedMoviesType, error) {
 	defer perf.ScopeTimer()()
 
-	var movies []*WatchedMovie
-	err := Request(
+	cacheStore := cache.NewDBStore()
+
+	if !isUpdateNeeded {
+		movies := WatchedMoviesType{}
+		if err := cacheStore.Get(cache.TraktMoviesCollectionKey, &movies); err == nil {
+			return movies, nil
+		}
+	}
+
+	movies, err := PaginatedRequest[*WatchedMovie](
 		"sync/watched/movies",
-		napping.Params{},
+		napping.Params{
+			"limit":    strconv.Itoa(250),
+			"extended": "full",
+		},
 		true,
 		isUpdateNeeded,
+		false,
 		cache.TraktMoviesWatchedExpire,
-		&movies,
 	)
+
+	log.Debugf("%d movies retrieved from Trakt", len(movies))
 
 	sort.Slice(movies, func(i int, j int) bool {
 		return movies[i].LastWatchedAt.Unix() > movies[j].LastWatchedAt.Unix()
 	})
 
-	if len(movies) != 0 {
-		defer cache.
-			NewDBStore().
-			Set(cache.TraktMoviesWatchedKey, &movies, cache.TraktMoviesWatchedExpire)
+	if err == nil {
+		defer cacheStore.Set(cache.TraktMoviesWatchedKey, &movies, cache.TraktMoviesWatchedExpire)
 	}
 
 	return movies, err
@@ -623,7 +633,7 @@ func (movie *Movie) ToListItem() (item *xbmc.ListItem) {
 		}
 	}
 
-	if item != nil && item.Info != nil && item.Info != nil && len(item.Info.Trailer) == 0 {
+	if item != nil && item.Info != nil && len(item.Info.Trailer) == 0 {
 		item.Info.Trailer = util.TrailerURL(movie.Trailer)
 	}
 

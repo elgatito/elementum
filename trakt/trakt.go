@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -38,7 +39,7 @@ var (
 	// Cookies ...
 	Cookies = ""
 	// UserAgent ...
-	UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+	UserAgent = "Elementum/" + ident.GetVersion()
 )
 
 const (
@@ -84,7 +85,7 @@ func getIntFromHeader(headers http.Header, key string) (res int) {
 func GetHeader() http.Header {
 	return http.Header{
 		"Content-type":      []string{"application/json"},
-		"trakt-api-key":     []string{config.TraktReadClientID},
+		"trakt-api-key":     []string{config.TraktAPIClientID},
 		"trakt-api-version": []string{APIVersion},
 		"User-Agent":        []string{UserAgent},
 		"Cookie":            []string{Cookies},
@@ -95,7 +96,7 @@ func GetAuthenticatedHeader() http.Header {
 	return http.Header{
 		"Content-type":      []string{"application/json"},
 		"Authorization":     []string{fmt.Sprintf("Bearer %s", config.Get().TraktToken)},
-		"trakt-api-key":     []string{config.TraktWriteClientID},
+		"trakt-api-key":     []string{config.TraktAPIClientID},
 		"trakt-api-version": []string{APIVersion},
 		"User-Agent":        []string{UserAgent},
 		"Cookie":            []string{Cookies},
@@ -112,17 +113,12 @@ func GetAvailableHeader() http.Header {
 // GetCode ...
 func GetCode() (code *Code, err error) {
 	req := reqapi.Request{
-		API:    reqapi.TraktAPI,
-		Method: "POST",
-		URL:    "oauth/device/code",
-		Header: http.Header{
-			"Content-type": []string{"application/json"},
-			"User-Agent":   []string{UserAgent},
-			"Cookie":       []string{Cookies},
-		},
-		Params: napping.Params{
-			"client_id": config.TraktWriteClientID,
-		}.AsUrlValues(),
+		API:         reqapi.TraktAPI,
+		Method:      "POST",
+		URL:         "oauth/device/code",
+		Header:      GetHeader(),
+		Params:      napping.Params{}.AsUrlValues(),
+		Payload:     bytes.NewBufferString(fmt.Sprintf(`{"client_id": %q}`, config.TraktAPIClientID)),
 		Result:      &code,
 		Description: "oauth device code",
 	}
@@ -143,19 +139,12 @@ func PollToken(code *Code) (token *Token, err error) {
 		select {
 		case <-interval.C:
 			req := reqapi.Request{
-				API:    reqapi.TraktAPI,
-				Method: "POST",
-				URL:    "oauth/device/token",
-				Header: http.Header{
-					"Content-type": []string{"application/json"},
-					"User-Agent":   []string{UserAgent},
-					"Cookie":       []string{Cookies},
-				},
-				Params: napping.Params{
-					"code":          code.DeviceCode,
-					"client_id":     config.TraktWriteClientID,
-					"client_secret": config.TraktWriteClientSecret,
-				}.AsUrlValues(),
+				API:         reqapi.TraktAPI,
+				Method:      "POST",
+				URL:         "oauth/device/token",
+				Header:      GetHeader(),
+				Params:      napping.Params{}.AsUrlValues(),
+				Payload:     bytes.NewBufferString(fmt.Sprintf(`{"code": %q, "client_id": %q, "client_secret": %q}`, code.DeviceCode, config.TraktAPIClientID, config.TraktAPIClientSecret)),
 				Result:      &token,
 				Description: "oauth device token",
 			}
@@ -232,28 +221,22 @@ func RefreshToken() error {
 	var token *Token
 
 	req := reqapi.Request{
-		API:    reqapi.TraktAPI,
-		Method: "POST",
-		URL:    "oauth/token",
-		Header: http.Header{
-			"Content-type": []string{"application/json"},
-			"User-Agent":   []string{UserAgent},
-			"Cookie":       []string{Cookies},
-		},
-		Params: napping.Params{
-			"refresh_token": config.Get().TraktRefreshToken,
-			"client_id":     config.TraktWriteClientID,
-			"client_secret": config.TraktWriteClientSecret,
-			"redirect_uri":  "urn:ietf:wg:oauth:2.0:oob",
-			"grant_type":    "refresh_token",
-		}.AsUrlValues(),
+		API:         reqapi.TraktAPI,
+		Method:      "POST",
+		URL:         "oauth/token",
+		Header:      GetHeader(),
+		Params:      napping.Params{}.AsUrlValues(),
+		Payload:     bytes.NewBufferString(fmt.Sprintf(`{"refresh_token": %q, "client_id": %q, "client_secret": %q, "redirect_uri": "urn:ietf:wg:oauth:2.0:oob", "grant_type": "refresh_token"}`, config.Get().TraktRefreshToken, config.TraktAPIClientID, config.TraktAPIClientSecret)),
 		Result:      &token,
 		Description: "oauth token",
 	}
 
 	err := req.Do()
 	if err != nil || token == nil {
-		notifyMessage := err.Error()
+		notifyMessage := "Token not refreshed for Trakt authorization, please, re-authorize Trakt"
+		if err != nil {
+			notifyMessage = err.Error()
+		}
 		if req.ResponseStatusCode == 400 || req.ResponseStatusCode == 401 {
 			err = fmt.Errorf("Trakt refresh_token is invalid, please, re-authorize Trakt")
 			notifyMessage = "LOCALIZE[30576]"
@@ -285,8 +268,8 @@ func RefreshToken() error {
 func Authorize(fromSettings bool) error {
 	code, err := GetCode()
 	if err != nil || code == nil {
-		log.Error("Could not get authorization code from Trakt.tv: %s", err)
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
+		log.Errorf("Could not get authorization code from Trakt.tv: %s", err)
+		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil && err != nil {
 			xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 		}
 		return err
@@ -385,19 +368,12 @@ func Authorize(fromSettings bool) error {
 // Deauthorize ...
 func Deauthorize(fromSettings bool) error {
 	req := reqapi.Request{
-		API:    reqapi.TraktAPI,
-		Method: "POST",
-		URL:    "oauth/revoke",
-		Header: http.Header{
-			"Content-type": []string{"application/json"},
-			"User-Agent":   []string{UserAgent},
-			"Cookie":       []string{Cookies},
-		},
-		Params: napping.Params{
-			"token":         config.Get().TraktToken,
-			"client_id":     config.TraktWriteClientID,
-			"client_secret": config.TraktWriteClientSecret,
-		}.AsUrlValues(),
+		API:         reqapi.TraktAPI,
+		Method:      "POST",
+		URL:         "oauth/revoke",
+		Header:      GetHeader(),
+		Params:      napping.Params{}.AsUrlValues(),
+		Payload:     bytes.NewBufferString(fmt.Sprintf(`{"token": %q, "client_id": %q, "client_secret": %q}`, config.Get().TraktToken, config.TraktAPIClientID, config.TraktAPIClientSecret)),
 		Result:      nil,
 		Description: "oauth revoke",
 	}
@@ -434,11 +410,91 @@ func Authorized() error {
 	return nil
 }
 
+// PaginatedRequest is a general proxy for collecting all pages requests.
+// ret must be a pointer to a slice (e.g., &[]*WatchedMovie). Results from
+// each page are appended into the slice that ret points to.
+func PaginatedRequest[T any](endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, isCachePages bool, cacheExpiration time.Duration) ([]T, error) {
+	pageCurrent := 1
+	pageTotal := 1
+	pageLimit := 250
+	if params["limit"] != "" {
+		pageLimit, _ = strconv.Atoi(params["limit"])
+	}
+
+	var ret []T
+
+	cacheStore := cache.NewDBStore()
+
+	// Form a cache key for this type of request
+	paramsEncoded, _ := url.QueryUnescape(params.AsUrlValues().Encode())
+	cacheKey := fmt.Sprintf(cache.TraktPaginatedRequestKey, endPoint, paramsEncoded)
+
+	// If we don't need to cache each page separately - try to fetch full list of items instead.
+	if !isCachePages {
+		if !isUpdateNeeded {
+			if err := cacheStore.Get(cacheKey, &ret); err == nil {
+				return ret, nil
+			}
+		}
+	}
+
+	for pageCurrent <= pageTotal {
+		params["page"] = strconv.Itoa(pageCurrent)
+		params["limit"] = strconv.Itoa(pageLimit)
+
+		// Create a new pointer to an empty slice of the same element type
+		var pageResult []T
+		req, err := prepareRequest(endPoint, params, isWithAuth, isUpdateNeeded, isCachePages, cacheExpiration, &pageResult)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := req.Do(); err != nil {
+			return nil, err
+		}
+
+		if pageCurrent == 1 {
+			pagination := getPagination(req.ResponseHeader)
+			if pagination.PageCount > 0 {
+				pageTotal = pagination.PageCount
+			}
+			if pagination.Limit > 0 {
+				pageLimit = pagination.Limit
+			}
+		}
+
+		ret = append(ret, pageResult...)
+
+		pageCurrent++
+	}
+
+	// Cache collected list of items if we don't need to cache each page separately. If we do - each page is cached in the req.Do() call.
+	if !isCachePages {
+		defer cacheStore.Set(cacheKey, &ret, cache.TraktPaginatedRequestExpire)
+	}
+
+	return ret, nil
+}
+
 // Request is a general proxy for making requests
 func Request(endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, cacheExpiration time.Duration, ret interface{}) error {
+	req, err := prepareRequest(endPoint, params, isWithAuth, isUpdateNeeded, true, cacheExpiration, ret)
+	if err != nil {
+		return err
+	}
+
+	if err := req.Do(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// prepareRequest is a helper function to prepare a reqapi.Request with the given parameters.
+func prepareRequest(endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, isCacheEnabled bool, cacheExpiration time.Duration, ret interface{}) (reqapi.Request, error) {
 	if isWithAuth {
 		if err := Authorized(); err != nil {
-			return err
+			return reqapi.Request{}, err
 		}
 	}
 
@@ -454,16 +510,12 @@ func Request(endPoint string, params napping.Params, isWithAuth bool, isUpdateNe
 		Params: params.AsUrlValues(),
 		Result: &ret,
 
-		Cache:            true,
+		Cache:            isCacheEnabled,
 		CacheExpire:      cacheExpiration,
 		CacheForceExpire: isUpdateNeeded,
 	}
 
-	if err := req.Do(); err != nil {
-		return err
-	}
-
-	return nil
+	return req, nil
 }
 
 // SyncAddedItem adds item (movie/show) to watchlist or collection

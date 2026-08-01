@@ -300,7 +300,7 @@ func Reload(s *bittorrent.Service) gin.HandlerFunc {
 		defer perf.ScopeTimer()()
 
 		s.Reconfigure()
-		ctx.String(200, "true")
+		ctx.String(200, "")
 	}
 }
 
@@ -308,7 +308,7 @@ func Restart(shutdown func(code int)) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		defer perf.ScopeTimer()()
 
-		ctx.String(200, "true")
+		ctx.String(200, "")
 		shutdown(exit.ExitCodeRestart)
 	}
 }
@@ -317,7 +317,7 @@ func Shutdown(shutdown func(code int)) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		defer perf.ScopeTimer()()
 
-		ctx.String(200, "true")
+		ctx.String(200, "")
 		go shutdown(exit.ExitCodeSuccess)
 	}
 }

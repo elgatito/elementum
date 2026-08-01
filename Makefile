@@ -13,6 +13,7 @@ endif
 
 include platform_target.mk
 
+IS_CLIENT = no
 IS_SHARED = no
 ifneq (,$(findstring shared, $(TARGET_SHARED)))
     IS_SHARED = yes
@@ -47,7 +48,9 @@ else ifeq ($(TARGET_ARCH), arm64)
 	GOARM =
 endif
 
-ifeq ($(TARGET_OS), windows)
+ifeq ($(MAKECMDGOALS),client)
+	IS_CLIENT = yes
+else ifeq ($(TARGET_OS), windows)
 	ifeq ($(IS_SHARED), no)
 		EXT = .exe
 	else
@@ -112,14 +115,15 @@ GO_BUILD_TAGS =
 GO_LDFLAGS += -s -w -X $(GO_PKG)/util/ident.Version=$(GIT_VERSION)
 GO_EXTRALDFLAGS =
 
-ifeq ($(IS_SHARED), no)
+ifeq ($(IS_CLIENT), yes)
+	BUILD_PATH = build/client
+else ifeq ($(IS_SHARED), no)
 	BUILD_PATH = build/$(TARGET_OS)_$(TARGET_ARCH)
 	BUILD_MODE = -tags binary,go_json
 else
 	BUILD_PATH = build/$(TARGET_OS)_$(TARGET_ARCH)
 	BUILD_MODE = -buildmode=c-shared -tags shared,go_json
 endif
-
 
 ANDROID_PLATFORMS = \
 	android-arm \
@@ -152,7 +156,7 @@ DARWIN_PLATFORMS = \
 	darwin-x64 \
 	darwin-x64-shared
 
-PLATFORMS =	$(ANDROID_PLATFORMS) $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) $(DARWIN_PLATFORMS)
+PLATFORMS = $(ANDROID_PLATFORMS) $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) $(DARWIN_PLATFORMS)
 
 
 .PHONY: $(PLATFORMS)
@@ -162,8 +166,9 @@ all:
 		$(MAKE) $$i; \
 	done
 
-client:
-	mkdir -p $(BUILD_PATH)/client
+client client-shared:
+	mkdir -p $(BUILD_PATH)
+	touch $(BUILD_PATH)/.keep
 
 $(PLATFORMS):
 	$(MAKE) build TARGET_OS=$(firstword $(subst -, ,$@)) TARGET_ARCH=$(word 2, $(subst -, ,$@)) TARGET_SHARED=$(word 3, $(subst -, ,$@))

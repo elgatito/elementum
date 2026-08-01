@@ -320,7 +320,7 @@ func (btp *Player) processMetadata() {
 	defer perf.ScopeTimer()()
 
 	var err error
-	btp.chosenFile, btp.p.FileIndex, err = btp.t.ChooseFile(btp)
+	btp.chosenFile, btp.p.FileIndex, err = btp.t.ChooseFile(btp, btp.xbmcHost)
 	if err != nil {
 		btp.bufferEvents.Broadcast(err)
 		return

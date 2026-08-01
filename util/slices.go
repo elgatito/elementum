@@ -1,6 +1,9 @@
 package util
 
-import "reflect"
+import (
+	"reflect"
+	"sync"
+)
 
 // Distinct ...
 func Distinct(arr interface{}) (reflect.Value, bool) {
@@ -118,4 +121,22 @@ func IntSliceContains(ary []int, q int) bool {
 	}
 
 	return false
+}
+
+func SliceFilter[T any](ss []T, test func(T) bool) (ret []T) {
+	for _, s := range ss {
+		if test(s) {
+			ret = append(ret, s)
+		}
+	}
+	return
+}
+
+func SyncMapLen(m *sync.Map) int {
+	var i int
+	m.Range(func(k, v interface{}) bool {
+		i++
+		return true
+	})
+	return i
 }

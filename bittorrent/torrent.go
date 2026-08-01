@@ -1923,7 +1923,7 @@ func (t *Torrent) SelectDownloadFiles(btp *Player) {
 }
 
 // ChooseFile opens file selector if not provided with Player, otherwise tries to detect what to open.
-func (t *Torrent) ChooseFile(btp *Player) (*File, int, error) {
+func (t *Torrent) ChooseFile(btp *Player, xbmcHost *xbmc.XBMCHost) (*File, int, error) {
 	// Checking if we need to open specific file from torrent file.
 	if btp != nil && btp.p.OriginalIndex >= 0 {
 		for _, f := range t.files {
@@ -2034,10 +2034,9 @@ func (t *Torrent) ChooseFile(btp *Player) (*File, int, error) {
 			items = append(items, choice.DisplayName)
 		}
 
-		var xbmcHost *xbmc.XBMCHost
 		if btp != nil && btp.xbmcHost != nil {
 			xbmcHost = btp.xbmcHost
-		} else {
+		} else if xbmcHost == nil {
 			xbmcHost, _ = xbmc.GetLocalXBMCHost()
 		}
 		if xbmcHost == nil {

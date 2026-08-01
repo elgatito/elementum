@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/gin-gonic/gin"
@@ -19,8 +18,9 @@ import (
 // Download ...
 func Download(s *bittorrent.Service) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		rURL, _ := url.Parse(fmt.Sprintf("%s%s", ip.GetContextHTTPHost(ctx), strings.Replace(ctx.Request.RequestURI, "/download", "/play", 1)+"&background=true"))
-		ctx.Redirect(302, rURL.String())
+		values := ctx.Request.URL.Query()
+		values.Set("background", "true")
+		ctx.Redirect(302, URLForXBMC("/play")+"?"+values.Encode())
 	}
 }
 

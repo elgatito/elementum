@@ -27,7 +27,7 @@ import (
 	"github.com/elgatito/elementum/util"
 )
 
-const USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+const USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
 
 const CONFIG_FILE_NAME = "antizapret_config.gob" // Using gob for caching
 

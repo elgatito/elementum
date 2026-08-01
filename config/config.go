@@ -39,14 +39,10 @@ const (
 	defaultEndBufferSize         = 1 * 1024 * 1024
 	defaultDiskCacheSize         = 12 * 1024 * 1024
 
-	// TraktReadClientID ...
-	TraktReadClientID = "eb8839a79fb2af4ebfb93f993a8a539abd4d9674a7638497bbc662d2a4b22346"
-	// TraktReadClientSecret ...
-	TraktReadClientSecret = "338cfda318c5879c9d7d0888bf1875e303576d4ad7e72a2230addf5db326c791"
-	// TraktWriteClientID ...
-	TraktWriteClientID = "66f7807c55e9fec2d6627846baf8bc667a5e82620b6e037a044034c64e3cb5e2"
-	// TraktWriteClientSecret ...
-	TraktWriteClientSecret = "5d37802b559c17a8dc10daaf96c55b196b1c86a723e6667310556288b3cac7fb"
+	// TraktAPIClientID used make requests to Trakt API (both with and without auth)
+	TraktAPIClientID = "66f7807c55e9fec2d6627846baf8bc667a5e82620b6e037a044034c64e3cb5e2"
+	// TraktAPIClientSecret used to make requests to Trakt API (both with and without auth)
+	TraktAPIClientSecret = "5d37802b559c17a8dc10daaf96c55b196b1c86a723e6667310556288b3cac7fb"
 )
 
 // Configuration ...
@@ -243,10 +239,11 @@ type Configuration struct {
 	CustomProviderTimeout        int
 	ProviderUseLowestReleaseDate bool
 
-	InternalDNSEnabled  bool
-	InternalDNSSkipIPv6 bool
-	InternalDNSOrder    int
-	InternalDNSOpenNic  []string
+	InternalDNSEnabled      bool
+	InternalDNSSkipIPv6     bool
+	InternalDNSServer       string
+	InternalDNSServerCustom string
+	InternalDNSOpenNICUse   bool
 
 	InternalProxyEnabled     bool
 	InternalProxyLogging     bool
@@ -786,8 +783,9 @@ func Reload() (ret *Configuration, err error) {
 		CustomProviderTimeout:        settings.ToInt("custom_provider_timeout"),
 		ProviderUseLowestReleaseDate: settings.ToBool("provider_use_lowest_release_date"),
 
-		InternalDNSEnabled:  settings.ToBool("internal_dns_enabled"),
-		InternalDNSSkipIPv6: settings.ToBool("internal_dns_skip_ipv6"),
+		InternalDNSEnabled:    settings.ToBool("internal_dns_enabled"),
+		InternalDNSSkipIPv6:   settings.ToBool("internal_dns_skip_ipv6"),
+		InternalDNSOpenNICUse: settings.ToBool("internal_dns_opennic_use"),
 
 		InternalProxyEnabled:     settings.ToBool("internal_proxy_enabled"),
 		InternalProxyLogging:     settings.ToBool("internal_proxy_logging"),
@@ -834,8 +832,12 @@ func Reload() (ret *Configuration, err error) {
 		newConfig.OutgoingInterfaces = strings.Join(Args.OutgoingInterfaces, ",")
 	}
 
-	reDNS := regexp.MustCompile(`\s*,\s*`)
-	newConfig.InternalDNSOpenNic = reDNS.Split(settings.ToString("internal_dns_opennic"), -1)
+	// Internal DNS setup
+	newConfig.InternalDNSServer = settings.ToString("internal_dns_server")
+	newConfig.InternalDNSServerCustom = settings.ToString("internal_dns_server_custom")
+	if strings.EqualFold(newConfig.InternalDNSServer, "custom") {
+		newConfig.InternalDNSServer = newConfig.InternalDNSServerCustom
+	}
 
 	updateLoggingLevel(newConfig.LogLevel)
 

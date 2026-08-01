@@ -511,7 +511,7 @@ func AddTorrent(s *bittorrent.Service) gin.HandlerFunc {
 			t.DownloadAllFiles()
 			t.SaveDBFiles()
 		} else {
-			file, _, err := t.ChooseFile(nil)
+			file, _, err := t.ChooseFile(nil, xbmcHost)
 			if err == nil && file != nil {
 				t.DownloadFile(file)
 				t.SaveDBFiles()
@@ -695,7 +695,7 @@ func SelectFileTorrent(s *bittorrent.Service, isPlay bool) gin.HandlerFunc {
 			return
 		}
 
-		file, choice, err := torrent.ChooseFile(nil)
+		file, choice, err := torrent.ChooseFile(nil, xbmcHost)
 		if err == nil && file != nil {
 			if isPlay {
 				url := torrent.GetPlayURL(strconv.Itoa(choice))
