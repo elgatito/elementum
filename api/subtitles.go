@@ -53,8 +53,10 @@ func SubtitlesIndex(s *bittorrent.Service) gin.HandlerFunc {
 		} else {
 			playingFile := xbmcHost.PlayerGetPlayingFile()
 
+			// Check if we are reading a file from Elementum
 			if strings.HasPrefix(playingFile, ip.GetContextHTTPHost(ctx)) {
 				playingFile = strings.Replace(playingFile, ip.GetContextHTTPHost(ctx)+"/files", config.Get().DownloadPath, 1)
+				// not QueryUnescape in order to treat "+" as "+" in file name on FS
 				playingFile, _ = url.PathUnescape(playingFile)
 			}
 
