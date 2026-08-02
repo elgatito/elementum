@@ -23,25 +23,48 @@ func SubtitlesIndex(s *bittorrent.Service) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		q := ctx.Request.URL.Query()
 
+		imdbID := q.Get("imdb_id")
+		season, _ := strconv.Atoi(q.Get("season"))
+		episode, _ := strconv.Atoi(q.Get("episode"))
+		languages := q.Get("languages")
+
 		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 		if xbmcHost == nil {
 			return
 		}
 
-		playingFile := xbmcHost.PlayerGetPlayingFile()
+		var payloads []opensubtitles.SearchPayload
+		var preferredLanguage string
 
-		// Check if we are reading a file from Elementum
-		if strings.HasPrefix(playingFile, ip.GetContextHTTPHost(ctx)) {
-			playingFile = strings.Replace(playingFile, ip.GetContextHTTPHost(ctx)+"/files", config.Get().DownloadPath, 1)
-			// not QueryUnescape in order to treat "+" as "+" in file name on FS
-			playingFile, _ = url.PathUnescape(playingFile)
+		if imdbID != "" {
+			cleanIMDB := strings.TrimPrefix(imdbID, "tt")
+			if cleanIMDB != "" {
+				payload := opensubtitles.SearchPayload{
+					IMDBId:    cleanIMDB,
+					Languages: languages,
+				}
+				if season > 0 && episode > 0 {
+					payload.Season = season
+					payload.Episode = episode
+				}
+				payloads = append(payloads, payload)
+			}
+			preferredLanguage = q.Get("preferredlanguage")
+		} else {
+			playingFile := xbmcHost.PlayerGetPlayingFile()
+
+			if strings.HasPrefix(playingFile, ip.GetContextHTTPHost(ctx)) {
+				playingFile = strings.Replace(playingFile, ip.GetContextHTTPHost(ctx)+"/files", config.Get().DownloadPath, 1)
+				playingFile, _ = url.PathUnescape(playingFile)
+			}
+
+			showID := 0
+			if s.GetActivePlayer() != nil {
+				showID = s.GetActivePlayer().Params().ShowID
+			}
+			payloads, preferredLanguage = opensubtitles.GetPayloads(xbmcHost, q.Get("searchstring"), strings.Split(q.Get("languages"), ","), q.Get("preferredlanguage"), showID, playingFile)
 		}
 
-		showID := 0
-		if s.GetActivePlayer() != nil {
-			showID = s.GetActivePlayer().Params().ShowID
-		}
-		payloads, preferredLanguage := opensubtitles.GetPayloads(xbmcHost, q.Get("searchstring"), strings.Split(q.Get("languages"), ","), q.Get("preferredlanguage"), showID, playingFile)
 		subLog.Infof("Subtitles payload: %#v", payloads)
 
 		results, err := opensubtitles.DoSearch(payloads, preferredLanguage)
