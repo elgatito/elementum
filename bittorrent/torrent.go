@@ -2014,6 +2014,16 @@ func (t *Torrent) ChooseFile(btp *Player, xbmcHost *xbmc.XBMCHost) (*File, int, 
 			return files[choices[btp.p.FileIndex].Index], btp.p.FileIndex, nil
 		}
 
+		// External callers may explicitly disable the manual file picker.
+		// Automatic selection above still has priority and existing behavior
+		// remains unchanged unless this option is requested.
+		if btp != nil && btp.p.SkipFileDialog {
+			if xbmcHost != nil {
+				xbmcHost.Notify("Elementum", "No matching file was found in this torrent.", "")
+			}
+			return nil, -1, fmt.Errorf("automatic file selection failed and file dialog is disabled")
+		}
+
 		searchTitle := ""
 		if btp != nil {
 			if btp.p.AbsoluteNumber > 0 {
