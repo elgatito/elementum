@@ -49,6 +49,7 @@ func Play(s *bittorrent.Service) gin.HandlerFunc {
 		episode := ctx.Query("episode")
 		background := ctx.DefaultQuery("background", "false")
 		fileMatch := ctx.Query("file_match")
+		skipFileDialog := ctx.DefaultQuery("skip_file_dialog", "false")
 		minSize := ctx.DefaultQuery("min_size", "-1")
 		sizeAtStart := ctx.DefaultQuery("size_at_start", "false")
 		position := ctx.Query("position")
@@ -80,6 +81,7 @@ func Play(s *bittorrent.Service) gin.HandlerFunc {
 			OriginalIndex:     originalIndex,
 			FileIndex:         fileIndex,
 			FileMatch:         fileMatch,
+			SkipFileDialog:    skipFileDialog == "true",
 			MinSize:           strToInt64(minSize, -1),
 			SizeAtStart:       sizeAtStart == "true",
 			NextOriginalIndex: nextOriginalIndex,
