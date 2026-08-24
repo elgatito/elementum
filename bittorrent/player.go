@@ -116,6 +116,7 @@ type PlayerParams struct {
 	AbsoluteNumber    int
 	Query             string
 	FileMatch         string
+	SkipFileDialog    bool
 	MinSize           int64
 	SizeAtStart       bool
 	UpNextSent        bool
