@@ -93,6 +93,7 @@ type PlayerParams struct {
 	DoneAudio         bool
 	DoneSubtitles     bool
 	Background        bool
+	UpNextOff         bool
 	KodiPosition      int
 	WatchedProgress   float64
 	WatchedTime       float64
@@ -1290,6 +1291,12 @@ func (btp *Player) SaveStoredResume() {
 
 func (btp *Player) processUpNextPayload() {
 	btp.p.UpNextSent = true
+
+    // Skip sending UpNext notifications if explicitly disabled via URL parameter
+    if btp.p.UpNextOff {
+        log.Infof("UpNext notifications disabled by URL parameter")
+        return
+    }
 
 	var err error
 	var payload upnext.Payload

@@ -52,6 +52,7 @@ func Play(s *bittorrent.Service) gin.HandlerFunc {
 		minSize := ctx.DefaultQuery("min_size", "-1")
 		sizeAtStart := ctx.DefaultQuery("size_at_start", "false")
 		position := ctx.Query("position")
+		upnextOff := ctx.DefaultQuery("upnext_off", "false")
 
 		if uri == "" && resume == "" {
 			return
@@ -94,6 +95,7 @@ func Play(s *bittorrent.Service) gin.HandlerFunc {
 			Episode:           episodeNumber,
 			Query:             query,
 			Background:        background == "true",
+			UpNextOff:         upnextOff == "true",
 		}
 
 		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
