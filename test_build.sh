@@ -86,7 +86,7 @@ export SWIG_LIB=$LOCAL_ENV/share/swig/${SWIG_TAG}/
 if [ "${DEST_ACTION}" == "local" ]
 then
   set -e
-  test go build $GO_FLAGS -ldflags="-w -X github.com/elgatito/elementum/util/ident.Version=${GIT_VERSION}" -tags $TAGS -o /var/tmp/${DEST_NAME} .
+  test go build $GO_FLAGS -x -ldflags="-w -X github.com/elgatito/elementum/util/ident.Version=${GIT_VERSION}" -tags $TAGS -o /var/tmp/${DEST_NAME} .
   shasum -b /var/tmp/${DEST_NAME} | cut -d' ' -f1 >> /var/tmp/${DEST_NAME}
   test chmod +x /var/tmp/elementum*
   mkdir -p $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
