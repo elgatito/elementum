@@ -1,6 +1,6 @@
 module github.com/elgatito/elementum
 
-go 1.26.0
+go 1.27.0
 
 require (
 	github.com/ElementumOrg/go-nat-pmp v0.0.0-20250224152958-33a79384df6a
