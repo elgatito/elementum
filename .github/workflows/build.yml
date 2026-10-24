@@ -150,6 +150,8 @@ jobs:
     name: Trigger plugin.video.elementum build
     runs-on: ubuntu-latest
     needs: bundle
+    # PR runs get no secrets when they come from forks, and same-repo branches are already covered by their push run
+    if: github.event_name == 'push'
     steps:
       - name: Trigger workflow in plugin.video.elementum
         uses: actions/github-script@v9
