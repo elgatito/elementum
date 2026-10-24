@@ -1,4 +1,4 @@
-// +build arm
+//go:build arm
 
 package providers
 

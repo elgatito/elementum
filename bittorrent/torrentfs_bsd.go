@@ -1,4 +1,4 @@
-// +build darwin freebsd dragonfly
+//go:build darwin || freebsd || dragonfly
 
 package bittorrent
 
