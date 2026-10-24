@@ -41,3 +41,7 @@ elementum
 special*
 elementum_library/
 C:\\Users\\*
+
+# Python bytecode
+__pycache__/
+*.py[cod]

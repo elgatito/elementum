@@ -161,12 +161,14 @@ DARWIN_PLATFORMS = \
 PLATFORMS = $(ANDROID_PLATFORMS) $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) $(DARWIN_PLATFORMS)
 
 
-.PHONY: $(PLATFORMS)
+# Run platform builds in parallel (`make JOBS=1 ...` for one at a time). -j is passed to a sub-make
+# rather than set globally, because this Makefile also runs inside the build containers.
+JOBS ?= 4
+
+.PHONY: $(PLATFORMS) all
 
 all:
-	for i in $(PLATFORMS); do \
-		$(MAKE) $$i; \
-	done
+	$(MAKE) -j$(JOBS) --output-sync=target $(PLATFORMS)
 
 client client-shared:
 	mkdir -p $(BUILD_PATH)
