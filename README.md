@@ -3,6 +3,21 @@ Elementum daemon [![Build Status](https://gitlab.com/elgatito/elementum/badges/m
 
 Fork of the great [Pulsar daemon](https://github.com/steeve/pulsar) and [Quasar daemon](https://github.com/scakemyer/quasar)
 
+# Supported platforms
+
+Each platform is built as a binary (`make <platform>`) and a shared library (`make <platform>-shared`):
+
+| Platform | Binary folder | Minimum OS |
+| -------- | ------------- | ---------- |
+| Windows x64 / x86 | `windows_x64`, `windows_x86` | Windows 10 / Windows Server 2016 |
+| Linux x64 / x86 | `linux_x64`, `linux_x86` | glibc 2.28 (Debian 10, Ubuntu 20.04, RHEL 8), kernel 3.2 |
+| Linux arm64 | `linux_arm64` | glibc 2.28, kernel 3.2 |
+| Linux armv7 (hard-float / softfp) | `linux_armv7`, `linux_armv7_softfp` | glibc 2.28, kernel 3.2 |
+| Linux armv6 (Raspberry Pi 1 / Zero) | `linux_armv6` | glibc 2.10, kernel 3.2 |
+| Android arm / arm64 / x86 / x64 | `android_arm`, `android_arm64`, `android_x86`, `android_x64` | Android 5.0 (API 21) |
+| macOS Intel | `darwin_x64` | macOS 13 Ventura |
+| macOS Apple Silicon | `darwin_arm64` | macOS 13 Ventura |
+
 # Easy development environment set up
 
 There is an easy way to prepare local environment for running/compiling Elementum.
@@ -95,9 +110,10 @@ That would be also used when running compilation with `test_build.sh`, but would
     make linux-x64
     ```
 
-    Darwin-x64
+    Darwin-x64 / Darwin-arm64 (Apple Silicon)
     ```
     make darwin-x64
+    make darwin-arm64
     ```
 
     Windows
@@ -105,7 +121,7 @@ That would be also used when running compilation with `test_build.sh`, but would
     make windows-x86
     ```
 
-    All platforms
+    All platforms (4 builds in parallel; use `make JOBS=1` to build one at a time with full live output)
     ```
     make
     ```
