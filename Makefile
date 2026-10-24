@@ -156,7 +156,8 @@ DARWIN_PLATFORMS = \
 	darwin-x64 \
 	darwin-x64-shared
 
-PLATFORMS = $(ANDROID_PLATFORMS) $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) $(DARWIN_PLATFORMS)
+# TODO: re-enable darwin once go.mod points to libtorrent-go with the darwin -lc++ fix
+PLATFORMS = $(ANDROID_PLATFORMS) $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) # $(DARWIN_PLATFORMS)
 
 
 .PHONY: $(PLATFORMS)
