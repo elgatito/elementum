@@ -64,8 +64,8 @@ jobs:
         run: |
           make zip PLATFORM=${{ matrix.platform }}
           asset_path=$(ls build/*.zip)
-          echo "::set-output name=asset_path::${asset_path}"
-          echo "::set-output name=asset_name::$(basename "${asset_path}")"
+          echo "asset_path=${asset_path}" >> "$GITHUB_OUTPUT"
+          echo "asset_name=$(basename "${asset_path}")" >> "$GITHUB_OUTPUT"
 
       - name: Upload ${{ matrix.platform }} zip
         uses: actions/upload-artifact@v7
