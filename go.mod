@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	github.com/ElementumOrg/go-nat-pmp v0.0.0-20250224152958-33a79384df6a
-	github.com/ElementumOrg/libtorrent-go v0.0.0-20260808180116-3ed1a24f1a3b
+	github.com/ElementumOrg/libtorrent-go v0.0.0-20261024172401-9bc4688d6560
 	github.com/RoaringBitmap/roaring v1.9.4
 	github.com/anacrolix/missinggo v1.3.0
 	github.com/anacrolix/missinggo/perf v1.0.0

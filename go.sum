@@ -15,6 +15,8 @@ github.com/ElementumOrg/libtorrent-go v0.0.0-20260731125917-2ddc296cd3e8 h1:NeqD
 github.com/ElementumOrg/libtorrent-go v0.0.0-20260731125917-2ddc296cd3e8/go.mod h1:FGbIwmdIILTj3uMB+un5u7MDB4LrR4d2yZ+/9sT3CZs=
 github.com/ElementumOrg/libtorrent-go v0.0.0-20260808180116-3ed1a24f1a3b h1:B6YD+FQBKbaoI3X02szyz5uSRsMVaUEP6XdtCmySMis=
 github.com/ElementumOrg/libtorrent-go v0.0.0-20260808180116-3ed1a24f1a3b/go.mod h1:FGbIwmdIILTj3uMB+un5u7MDB4LrR4d2yZ+/9sT3CZs=
+github.com/ElementumOrg/libtorrent-go v0.0.0-20261024172401-9bc4688d6560 h1:w393PrYQq50TZrgseVQRPdfpgjLxViz1dJ5h7EgsAAM=
+github.com/ElementumOrg/libtorrent-go v0.0.0-20261024172401-9bc4688d6560/go.mod h1:FGbIwmdIILTj3uMB+un5u7MDB4LrR4d2yZ+/9sT3CZs=
 github.com/OneOfOne/xxhash v1.2.2 h1:KMrpdQIwFcEqXDklaen+P1axHaj9BSKzvpUUfnHldSE=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/RoaringBitmap/roaring v0.4.7/go.mod h1:8khRDP4HmeXns4xIj9oGrKSz7XTQiJx2zgh7AcNke4w=
