@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/xbmc"
 )
@@ -50,6 +52,14 @@ func URLQuery(route string, query ...string) string {
 		v.Add(query[i], query[i+1])
 	}
 	return route + "?" + v.Encode()
+}
+
+// playRedirect redirects to rURL (built with URLQuery), keeping the caller's resolution_token so the plugin can report failed resolution
+func playRedirect(ctx *gin.Context, rURL string) {
+	if token := ctx.Query("resolution_token"); token != "" {
+		rURL += "&" + url.Values{"resolution_token": {token}}.Encode()
+	}
+	ctx.Redirect(302, rURL)
 }
 
 func contextPlayURL(f string, title string, forced bool) string {

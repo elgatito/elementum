@@ -761,7 +761,7 @@ func ShowSeasonLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			if external != "" {
 				xbmcHost.PlayURL(rURL)
 			} else {
-				ctx.Redirect(302, rURL)
+				playRedirect(ctx, rURL)
 			}
 			return
 		}
@@ -779,7 +779,7 @@ func ShowSeasonLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			if external != "" {
 				xbmcHost.PlayURL(rURL)
 			} else {
-				ctx.Redirect(302, rURL)
+				playRedirect(ctx, rURL)
 			}
 			return
 		}
@@ -877,7 +877,7 @@ func ShowSeasonLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			if external != "" {
 				xbmcHost.PlayURL(rURL)
 			} else {
-				ctx.Redirect(302, rURL)
+				playRedirect(ctx, rURL)
 			}
 		}
 	}
@@ -967,7 +967,7 @@ func ShowEpisodeLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			if external != "" {
 				xbmcHost.PlayURL(rURL)
 			} else {
-				ctx.Redirect(302, rURL)
+				playRedirect(ctx, rURL)
 			}
 			return
 		}
@@ -984,7 +984,7 @@ func ShowEpisodeLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			if external != "" {
 				xbmcHost.PlayURL(rURL)
 			} else {
-				ctx.Redirect(302, rURL)
+				playRedirect(ctx, rURL)
 			}
 			return
 		}
@@ -1084,7 +1084,7 @@ func ShowEpisodeLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			if external != "" {
 				xbmcHost.PlayURL(rURL)
 			} else {
-				ctx.Redirect(302, rURL)
+				playRedirect(ctx, rURL)
 			}
 		}
 	}
