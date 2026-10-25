@@ -322,3 +322,16 @@ func TestResolveAddr_Opennic(t *testing.T) {
 		})
 	}
 }
+
+// TestUseDoHProviders_SkipsBrokenProvider tests that a provider whose resolver cannot be created is not used.
+func TestUseDoHProviders_SkipsBrokenProvider(t *testing.T) {
+	defer func(s string) { customDoHServer = s }(customDoHServer)
+	customDoHServer = "https://doh.invalid/dns-query"
+
+	if _, _, err := NewDoHProvider(CustomProvider); err == nil {
+		t.Errorf("expected error for unresolvable DoH server, got nil")
+	}
+	if c := UseDoHProviders(CustomProvider); len(c.providers) != 0 {
+		t.Errorf("expected broken provider to be skipped, got %d providers", len(c.providers))
+	}
+}

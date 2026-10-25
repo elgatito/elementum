@@ -68,13 +68,13 @@ func NewDoHProvider(provider dohprovider) (uri string, p *net.Resolver, err erro
 	case GoogleProvider:
 		uri = "https://dns.google/dns-query{?dns}"
 	case OpenNameServerProvider:
-		uri = "https://ns4.opennameserver.org/dns-query/{?dns}"
+		uri = "https://ns4.opennameserver.org/dns-query{?dns}"
 	case Quad9Provider:
 		uri = "https://dns.quad9.net/dns-query"
 	}
 
 	p, err = godns.NewDoHResolver(uri)
-	return uri, p, nil
+	return uri, p, err
 }
 
 // NewDNSProvider returns a new DNS client, local resolv is default
