@@ -27,6 +27,8 @@ import (
 const (
 	// APIURL ...
 	APIURL = "https://api.trakt.tv"
+	// AuthURL is used for OAuth requests
+	AuthURL = "https://auth.trakt.tv"
 	// APIVersion ...
 	APIVersion = "2"
 
@@ -115,7 +117,7 @@ func GetCode() (code *Code, err error) {
 	req := reqapi.Request{
 		API:         reqapi.TraktAPI,
 		Method:      "POST",
-		URL:         "oauth/device/code",
+		URL:         AuthURL + "/oauth/device/code",
 		Header:      GetHeader(),
 		Params:      napping.Params{}.AsUrlValues(),
 		Payload:     bytes.NewBufferString(fmt.Sprintf(`{"client_id": %q}`, config.TraktAPIClientID)),
@@ -141,7 +143,7 @@ func PollToken(code *Code) (token *Token, err error) {
 			req := reqapi.Request{
 				API:         reqapi.TraktAPI,
 				Method:      "POST",
-				URL:         "oauth/device/token",
+				URL:         AuthURL + "/oauth/device/token",
 				Header:      GetHeader(),
 				Params:      napping.Params{}.AsUrlValues(),
 				Payload:     bytes.NewBufferString(fmt.Sprintf(`{"code": %q, "client_id": %q, "client_secret": %q}`, code.DeviceCode, config.TraktAPIClientID, config.TraktAPIClientSecret)),
@@ -223,7 +225,7 @@ func RefreshToken() error {
 	req := reqapi.Request{
 		API:         reqapi.TraktAPI,
 		Method:      "POST",
-		URL:         "oauth/token",
+		URL:         AuthURL + "/oauth/token",
 		Header:      GetHeader(),
 		Params:      napping.Params{}.AsUrlValues(),
 		Payload:     bytes.NewBufferString(fmt.Sprintf(`{"refresh_token": %q, "client_id": %q, "client_secret": %q, "redirect_uri": "urn:ietf:wg:oauth:2.0:oob", "grant_type": "refresh_token"}`, config.Get().TraktRefreshToken, config.TraktAPIClientID, config.TraktAPIClientSecret)),
@@ -370,7 +372,7 @@ func Deauthorize(fromSettings bool) error {
 	req := reqapi.Request{
 		API:         reqapi.TraktAPI,
 		Method:      "POST",
-		URL:         "oauth/revoke",
+		URL:         AuthURL + "/oauth/revoke",
 		Header:      GetHeader(),
 		Params:      napping.Params{}.AsUrlValues(),
 		Payload:     bytes.NewBufferString(fmt.Sprintf(`{"token": %q, "client_id": %q, "client_secret": %q}`, config.Get().TraktToken, config.TraktAPIClientID, config.TraktAPIClientSecret)),
