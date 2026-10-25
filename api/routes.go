@@ -436,6 +436,10 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 		cmd.GET("/reset_path/:path", ResetCustomPath)
 		cmd.GET("/open_path/:path", OpenCustomPath)
 
+		cmd.GET("/leftovers", Leftovers(s))
+		cmd.GET("/leftovers/delete", LeftoversDelete(s))
+		cmd.GET("/leftovers/files/*path", LeftoversFile)
+
 		cmd.GET("/paste/:type", Pastebin)
 
 		cmd.GET("/select_interface/:type", SelectNetworkInterface)
