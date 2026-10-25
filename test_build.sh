@@ -19,6 +19,18 @@ function check_exit_code() {
     fi
 }
 
+# Windows refuses to overwrite a running binary but allows renaming it, so move old files aside first
+function deploy {
+  for dir in $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM; do
+    mkdir -p $dir
+    for f in "$@"; do
+      mv -f "$dir/$(basename $f)" "$dir/$(basename $f).old" 2>/dev/null || true
+      rm -f "$dir/$(basename $f).old" 2>/dev/null || true
+      test cp -rf "$f" $dir/
+    done
+  done
+}
+
 function manage {
   if [[ "${DEST_MANAGE}" == *"-local"* ]]; then
     DEST_HOST="127.0.0.1"
@@ -89,10 +101,7 @@ then
   test go build $GO_FLAGS -x -ldflags="-w -X github.com/elgatito/elementum/util/ident.Version=${GIT_VERSION}" -tags $TAGS -o /var/tmp/${DEST_NAME} .
   shasum -b /var/tmp/${DEST_NAME} | cut -d' ' -f1 >> /var/tmp/${DEST_NAME}
   test chmod +x /var/tmp/elementum*
-  mkdir -p $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
-  mkdir -p $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
-  test cp -rf /var/tmp/elementum* $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
-  test cp -rf /var/tmp/elementum* $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
+  deploy /var/tmp/elementum*
   chmod +x $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/${DEST_NAME}
   chmod +x $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/${DEST_NAME}
   manage
@@ -102,10 +111,7 @@ then
   set -e
   test go build -ldflags="-w -X github.com/elgatito/elementum/util/ident.Version=${GIT_VERSION}" -tags $TAGS -buildmode=c-shared -o /var/tmp/${DEST_LIBRARY} .
   test chmod +x /var/tmp/elementum*
-  mkdir -p $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
-  mkdir -p $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
-  test cp -rf /var/tmp/elementum* $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
-  test cp -rf /var/tmp/elementum* $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
+  deploy /var/tmp/elementum*
   manage
 elif [ "${DEST_ACTION}" == "sanitize" ]
 then
@@ -113,27 +119,18 @@ then
   set -e
   CGO_ENABLED=1 CGO_LDFLAGS='-fsanitize=leak -fsanitize=address' CGO_CFLAGS='-fsanitize=leak -fsanitize=address' test go build -ldflags="-w -X github.com/elgatito/elementum/util/ident.Version=${GIT_VERSION}" -tags $TAGS -o /var/tmp/elementum github.com/elgatito/elementum
   test chmod +x /var/tmp/elementum*
-  mkdir -p $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
-  mkdir -p $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
-  test cp -rf /var/tmp/elementum* $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
-  test cp -rf /var/tmp/elementum* $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
+  deploy /var/tmp/elementum*
   manage
 elif [ "${DEST_ACTION}" == "docker" ]
 then
   # This will run with docker libtorrent:$DEST_MAKE image
   test make $DEST_MAKE
-  mkdir -p $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
-  mkdir -p $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
-  test cp -rf build/$DEST_PLATFORM/elementum* $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
-  test cp -rf build/$DEST_PLATFORM/elementum* $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
+  deploy build/$DEST_PLATFORM/elementum*
   manage
 elif [ "${DEST_ACTION}" == "docker-library" ]
 then
   # This will run with docker libtorrent:$DEST_MAKE image
   test make ${DEST_MAKE}-shared
-  mkdir -p $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
-  mkdir -p $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
-  test cp -rf build/${DEST_PLATFORM}/elementum.* $DEST_DIR/addons/plugin.video.elementum/resources/bin/$DEST_PLATFORM/
-  test cp -rf build/${DEST_PLATFORM}/elementum.* $DEST_DIR/userdata/addon_data/plugin.video.elementum/bin/$DEST_PLATFORM/
+  deploy build/${DEST_PLATFORM}/elementum.*
   manage
 fi
