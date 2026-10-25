@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/anacrolix/missinggo/perf"
-	"github.com/cespare/xxhash"
+	"github.com/cespare/xxhash/v2"
 	"github.com/karrick/godirwalk"
 
 	"github.com/elgatito/elementum/cache"

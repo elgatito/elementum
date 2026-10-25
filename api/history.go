@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/anacrolix/missinggo/perf"
-	"github.com/asdine/storm"
+	"github.com/asdine/storm/v3"
 	"github.com/gin-gonic/gin"
 
 	"github.com/elgatito/elementum/database"

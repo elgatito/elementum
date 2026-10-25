@@ -16,7 +16,7 @@ import (
 
 	lt "github.com/ElementumOrg/libtorrent-go"
 	"github.com/anacrolix/missinggo/perf"
-	"github.com/cespare/xxhash"
+	"github.com/cespare/xxhash/v2"
 	"github.com/dustin/go-humanize"
 	"github.com/sanity-io/litter"
 

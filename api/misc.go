@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/anacrolix/missinggo/perf"
-	"github.com/asdine/storm/q"
+	"github.com/asdine/storm/v3/q"
 	"github.com/dustin/go-humanize"
 	"github.com/gin-gonic/gin"
 

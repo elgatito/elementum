@@ -10,8 +10,8 @@ import (
 	"sync"
 
 	"github.com/anacrolix/missinggo/perf"
-	"github.com/asdine/storm/q"
-	"github.com/cespare/xxhash"
+	"github.com/asdine/storm/v3/q"
+	"github.com/cespare/xxhash/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/op/go-logging"
 

@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/asdine/storm/q"
+	"github.com/asdine/storm/v3/q"
 	"github.com/gin-gonic/gin"
 	"github.com/op/go-logging"
 

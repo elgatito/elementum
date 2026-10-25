@@ -13,8 +13,8 @@ import (
 
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/anacrolix/sync"
-	"github.com/asdine/storm"
-	"github.com/asdine/storm/q"
+	"github.com/asdine/storm/v3"
+	"github.com/asdine/storm/v3/q"
 	"github.com/op/go-logging"
 
 	"github.com/elgatito/elementum/cache"

@@ -23,7 +23,7 @@ import (
 
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/anacrolix/sync"
-	"github.com/cespare/xxhash"
+	"github.com/cespare/xxhash/v2"
 	"github.com/dustin/go-humanize"
 	"github.com/gin-gonic/gin"
 	natpmp "github.com/jackpal/go-nat-pmp"

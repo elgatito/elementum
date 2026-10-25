@@ -3,7 +3,7 @@ package uid
 import (
 	"fmt"
 
-	"github.com/cespare/xxhash"
+	"github.com/cespare/xxhash/v2"
 )
 
 func NewLibraryContainer() *LibraryContainer {

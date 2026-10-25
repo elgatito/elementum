@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/anacrolix/missinggo/perf"
-	"github.com/cespare/xxhash"
+	"github.com/cespare/xxhash/v2"
 
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
