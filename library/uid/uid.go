@@ -116,11 +116,11 @@ func (m *Movie) IsWatched() bool {
 }
 
 func HasMovies() bool {
-	return l != nil && l.Movies != nil && len(l.Movies) > 0
+	return l != nil && len(l.Movies) > 0
 }
 
 func HasShows() bool {
-	return l != nil && l.Shows != nil && len(l.Shows) > 0
+	return l != nil && len(l.Shows) > 0
 }
 
 // GetUIDsFromKodi returns UIDs object for provided Kodi ID

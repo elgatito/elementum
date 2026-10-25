@@ -32,9 +32,6 @@ const (
 	movieType   = "movie"
 	showType    = "show"
 	episodeType = "episode"
-
-	trueType  = "true"
-	falseType = "false"
 )
 
 const (
@@ -276,8 +273,8 @@ func Init() {
 		}()
 	}
 
-	updateFrequency := util.Max(1, config.Get().UpdateFrequency)
-	traktFrequency := util.Max(1, config.Get().TraktSyncFrequencyMin)
+	updateFrequency := max(1, config.Get().UpdateFrequency)
+	traktFrequency := max(1, config.Get().TraktSyncFrequencyMin)
 
 	updateTicker := time.NewTicker(time.Duration(updateFrequency) * time.Hour)
 	traktSyncTicker := time.NewTicker(time.Duration(traktFrequency) * time.Minute)
@@ -1013,7 +1010,7 @@ func ClearTmdbCache(xbmcHost *xbmc.XBMCHost) {
 // 		mainly copied from api/routes to skip cycle imports
 
 // URLForXBMC ...
-func URLForXBMC(pattern string, args ...interface{}) string {
+func URLForXBMC(pattern string, args ...any) string {
 	u, _ := url.Parse(fmt.Sprintf(pattern, args...))
 	return "plugin://" + config.Get().Info.ID + u.String()
 }

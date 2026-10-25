@@ -1,10 +1,12 @@
 package tmdb
 
 import (
+	"cmp"
 	"fmt"
+	"maps"
 	"math/rand"
 	"runtime"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +20,8 @@ import (
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/reqapi"
 	"github.com/elgatito/elementum/xbmc"
+	"golang.org/x/text/cases"
+	xlanguage "golang.org/x/text/language"
 
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/anacrolix/sync"
@@ -194,7 +198,7 @@ func SearchShows(query string, language string, page int) (Shows, int) {
 		Description: "search show",
 	}
 
-	if err := req.Do(); err != nil || (results.Results != nil && len(results.Results) == 0) {
+	if err := req.Do(); err != nil || (len(results.Results) == 0) {
 		return nil, 0
 	}
 
@@ -229,9 +233,7 @@ func listShows(endpoint string, params napping.Params, page int) (Shows, int) {
 			pageParams := napping.Params{
 				"page": strconv.Itoa(currentPage + 1),
 			}
-			for k, v := range params {
-				pageParams[k] = v
-			}
+			maps.Copy(pageParams, params)
 
 			req := reqapi.Request{
 				API:         reqapi.TMDBAPI,
@@ -416,7 +418,7 @@ func GetTVGenres(language string) []*Genre {
 
 	// That is a special case, when language in on TMDB, but it results empty names.
 	//   example of this: Catalan language.
-	if err = req.Do(); err == nil && genres.Genres != nil && len(genres.Genres) > 0 && genres.Genres[0].Name == "" {
+	if err = req.Do(); err == nil && len(genres.Genres) > 0 && genres.Genres[0].Name == "" {
 		req = reqapi.Request{
 			API: reqapi.TMDBAPI,
 			URL: "/genre/tv/list",
@@ -434,13 +436,13 @@ func GetTVGenres(language string) []*Genre {
 		err = req.Do()
 	}
 
-	if err == nil && genres.Genres != nil && len(genres.Genres) > 0 {
+	if err == nil && len(genres.Genres) > 0 {
 		for _, i := range genres.Genres {
-			i.Name = strings.Title(i.Name)
+			i.Name = cases.Title(xlanguage.Make(language), cases.NoLower).String(i.Name)
 		}
 
-		sort.Slice(genres.Genres, func(i, j int) bool {
-			return genres.Genres[i].Name < genres.Genres[j].Name
+		slices.SortFunc(genres.Genres, func(a, b *Genre) int {
+			return cmp.Compare(a.Name, b.Name)
 		})
 
 	}
@@ -468,13 +470,7 @@ func (show *Show) IsAnime() bool {
 		return false
 	}
 
-	countryIsJP := false
-	for _, country := range show.OriginCountry {
-		if country == "JP" {
-			countryIsJP = true
-			break
-		}
-	}
+	countryIsJP := slices.Contains(show.OriginCountry, "JP")
 	genreIsAnim := false
 	for _, genre := range show.Genres {
 		if genre.ID == 16 {
@@ -636,7 +632,7 @@ func (show *Show) ToListItem() *xbmc.ListItem {
 }
 
 func (show *Show) mpaa() string {
-	if show.ContentRatings == nil || show.ContentRatings.Ratings == nil || len(show.ContentRatings.Ratings) == 0 {
+	if show.ContentRatings == nil || len(show.ContentRatings.Ratings) == 0 {
 		return ""
 	}
 
@@ -661,7 +657,7 @@ func (show *Show) GetName() string {
 	}
 
 	// If we have a title, but we don't have translations - use it
-	if (show.Name != "" && show.Name != show.OriginalName) || show.Translations == nil || show.Translations.Translations == nil || len(show.Translations.Translations) == 0 {
+	if (show.Name != "" && show.Name != show.OriginalName) || show.Translations == nil || len(show.Translations.Translations) == 0 {
 		return show.Name
 	}
 
@@ -693,7 +689,7 @@ func (show *Show) GetName() string {
 }
 
 func (show *Show) overview() string {
-	if show.Overview != "" || show.Translations == nil || show.Translations.Translations == nil || len(show.Translations.Translations) == 0 {
+	if show.Overview != "" || show.Translations == nil || len(show.Translations.Translations) == 0 {
 		return show.Overview
 	}
 
@@ -722,7 +718,7 @@ func (show *Show) overview() string {
 	return show.Overview
 }
 func (show *Show) tagline() string {
-	if show.TagLine != "" || show.Translations == nil || show.Translations.Translations == nil || len(show.Translations.Translations) == 0 {
+	if show.TagLine != "" || show.Translations == nil || len(show.Translations.Translations) == 0 {
 		return show.TagLine
 	}
 
@@ -752,7 +748,7 @@ func (show *Show) tagline() string {
 }
 
 func (show *Show) findTranslation(language string) *Translation {
-	if language == "" || show.Translations == nil || show.Translations.Translations == nil || len(show.Translations.Translations) == 0 {
+	if language == "" || show.Translations == nil || len(show.Translations.Translations) == 0 {
 		return nil
 	}
 
@@ -919,7 +915,7 @@ func (show *Show) EnsureSeason(season int) *Season {
 			continue
 		}
 
-		if s.Episodes != nil && len(s.Episodes) > 0 {
+		if len(s.Episodes) > 0 {
 			return s
 		}
 

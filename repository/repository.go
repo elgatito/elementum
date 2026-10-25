@@ -42,7 +42,7 @@ func CheckBurst(h *xbmc.XBMCHost, skipBurstSearch bool, addonIcon string) {
 		}
 	}
 
-	for timeout := 0; timeout < 10; timeout++ {
+	for range 10 {
 		if h.IsAddonInstalled(repositoryName) {
 			break
 		}
@@ -58,7 +58,7 @@ func CheckBurst(h *xbmc.XBMCHost, skipBurstSearch bool, addonIcon string) {
 		log.Infof("Triggering Kodi to check for script.elementum.burst plugin")
 		h.InstallAddon("script.elementum.burst")
 
-		for timeout := 0; timeout < 30; timeout++ {
+		for range 30 {
 			if h.IsAddonInstalled("script.elementum.burst") {
 				break
 			}
@@ -103,7 +103,7 @@ func CheckRepository(h *xbmc.XBMCHost, skipRepositorySearch bool, profilePath st
 	}
 	log.Info("Elementum repository not installed, installing...")
 	h.InstallAddon(repositoryName)
-	for timeout := 0; timeout < 10; timeout++ {
+	for range 10 {
 		if h.IsAddonInstalled(repositoryName) {
 			break
 		}

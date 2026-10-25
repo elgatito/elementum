@@ -15,7 +15,7 @@ import (
 
 // message contains a snapshot of a value.
 type message struct {
-	v interface{}
+	v any
 	c chan message
 }
 
@@ -58,7 +58,7 @@ func NewLocalBroadcaster() *Broadcaster {
 }
 
 // Write a value to all listening receivers.
-func (b *Broadcaster) Write(v interface{}) {
+func (b *Broadcaster) Write(v any) {
 	c := make(chan message, 1)
 	b.mx.Lock()
 	defer b.mx.Unlock()
@@ -68,7 +68,7 @@ func (b *Broadcaster) Write(v interface{}) {
 }
 
 // Broadcast ...
-func (b *Broadcaster) Broadcast(v interface{}) {
+func (b *Broadcaster) Broadcast(v any) {
 	b.Write(v)
 }
 
@@ -78,14 +78,14 @@ func (b *Broadcaster) Signal() {
 }
 
 // Listen creates a receiver that can read written values.
-func (b *Broadcaster) Listen() (<-chan interface{}, chan<- interface{}) {
+func (b *Broadcaster) Listen() (<-chan any, chan<- any) {
 	b.mx.Lock()
 	defer b.mx.Unlock()
 
 	r := receiver{sync.Mutex{}, b.c}
 
-	vc := make(chan interface{})
-	cc := make(chan interface{})
+	vc := make(chan any)
+	cc := make(chan any)
 
 	go func() {
 		r.mx.Lock()

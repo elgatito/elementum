@@ -3,7 +3,7 @@ package trakt
 import (
 	"fmt"
 	"math/rand"
-	"sort"
+	"slices"
 	"strconv"
 	"time"
 
@@ -405,8 +405,8 @@ func CollectionShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 
 	log.Debugf("%d shows retrieved from Trakt", len(shows))
 
-	sort.Slice(collection, func(i, j int) bool {
-		return collection[i].CollectedAt.After(collection[j].CollectedAt)
+	slices.SortFunc(collection, func(a, b *CollectionShow) int {
+		return b.CollectedAt.Compare(a.CollectedAt)
 	})
 
 	shows = make([]*Shows, 0, len(collection))

@@ -185,7 +185,7 @@ func (h *XBMCHost) SetWindowProperty(key string, value string) {
 }
 
 // Keyboard ...
-func (h *XBMCHost) Keyboard(args ...interface{}) string {
+func (h *XBMCHost) Keyboard(args ...any) string {
 	var retVal string
 	h.executeJSONRPCEx("Keyboard", &retVal, args)
 	return retVal

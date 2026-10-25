@@ -378,10 +378,6 @@ func NewView(contentType string, items ListItems) *View {
 	}
 }
 
-func (li ListItems) Len() int           { return len(li) }
-func (li ListItems) Swap(i, j int)      { li[i], li[j] = li[j], li[i] }
-func (li ListItems) Less(i, j int) bool { return false }
-
 // FileSource represents source for library media files
 type FileSource struct {
 	File  string `json:"file"`

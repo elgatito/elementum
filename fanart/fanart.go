@@ -3,6 +3,7 @@ package fanart
 import (
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 
 	"github.com/elgatito/elementum/cache"
@@ -459,12 +460,7 @@ func likeConvert(likes string) int {
 }
 
 func contains(slice []string, val string) bool {
-	for _, item := range slice {
-		if item == val {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, val)
 }
 
 func disksToImages(disks []*Disk) []*Image {

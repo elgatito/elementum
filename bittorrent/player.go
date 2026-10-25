@@ -2,6 +2,7 @@ package bittorrent
 
 import (
 	"bufio"
+	"cmp"
 	"errors"
 	"fmt"
 	"net/url"
@@ -9,7 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -528,7 +529,7 @@ func (btp *Player) Close() {
 	}
 
 	// Cleanup autoloaded subtitles
-	if btp.subtitlesLoaded != nil && len(btp.subtitlesLoaded) > 0 && config.Get().OSDBAutoLoadDelete {
+	if len(btp.subtitlesLoaded) > 0 && config.Get().OSDBAutoLoadDelete {
 		for _, f := range btp.subtitlesLoaded {
 			if _, err := os.Stat(f); err == nil {
 				log.Infof("Deleting saved subtitles file at %s", f)
@@ -1224,7 +1225,8 @@ func (btp *Player) DownloadSubtitles() {
 	if len(btp.subtitlesLoaded) > 0 {
 		log.Infof("Setting subtitles to Kodi Player: %+v", btp.subtitlesLoaded)
 
-		sort.Sort(sort.Reverse(sort.StringSlice(btp.subtitlesLoaded)))
+		slices.Sort(btp.subtitlesLoaded)
+		slices.Reverse(btp.subtitlesLoaded)
 		btp.xbmcHost.PlayerSetSubtitles(btp.subtitlesLoaded)
 	}
 }
@@ -1509,7 +1511,7 @@ func TrimChoices(choices []*CandidateFile) {
 	// We are trying to see whether all files belong to the same directory.
 	// If yes - we can remove that directory from printed files list
 	sep := string(os.PathSeparator)
-	for _, d := range strings.Split(choices[0].DisplayName, sep) {
+	for d := range strings.SplitSeq(choices[0].DisplayName, sep) {
 		ret := true
 		for _, c := range choices {
 			if !strings.HasPrefix(c.DisplayName, d+sep) {
@@ -1527,8 +1529,8 @@ func TrimChoices(choices []*CandidateFile) {
 		}
 	}
 
-	sort.Slice(choices, func(i, j int) bool {
-		return choices[i].DisplayName < choices[j].DisplayName
+	slices.SortFunc(choices, func(a, b *CandidateFile) int {
+		return cmp.Compare(a.DisplayName, b.DisplayName)
 	})
 
 	if !config.Get().ShowFilesWatched {

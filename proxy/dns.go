@@ -212,7 +212,7 @@ func parseOpenNICResolvers(body string) []string {
 	servers := make([]string, 0)
 	seen := make(map[string]struct{})
 
-	for _, line := range strings.Split(body, "\n") {
+	for line := range strings.SplitSeq(body, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue

@@ -5,6 +5,8 @@ import (
 
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
@@ -44,7 +46,7 @@ func Index(s *bittorrent.Service) gin.HandlerFunc {
 
 		// Adding Settings urls for each search provider found locally.
 		for _, addon := range getProviders(xbmcHost) {
-			name := strings.Title(strings.ReplaceAll(addon.Name, "script.elementum.", ""))
+			name := cases.Title(language.Und, cases.NoLower).String(strings.ReplaceAll(addon.Name, "script.elementum.", ""))
 
 			li = append(li, &xbmc.ListItem{Label: "LOCALIZE[30582];;" + name, Path: URLForXBMC("/settings/%s", addon.ID), Thumbnail: config.AddonResource("img", "settings.png")})
 		}

@@ -31,7 +31,7 @@ type Movie struct {
 	Popularity          float64       `json:"-"`
 	ProductionCompanies []*IDNameLogo `json:"production_companies"`
 	ProductionCountries []*Country    `json:"production_countries"`
-	RawPopularity       interface{}   `json:"popularity"`
+	RawPopularity       any           `json:"popularity"`
 	Runtime             int           `json:"runtime"`
 	SpokenLanguages     []*Language   `json:"spoken_languages"`
 	TagLine             string        `json:"tagline"`
@@ -59,7 +59,7 @@ type Show struct {
 	Popularity          float64       `json:"-"`
 	ProductionCompanies []*IDNameLogo `json:"production_companies"`
 	ProductionCountries []*Country    `json:"production_countries"`
-	RawPopularity       interface{}   `json:"popularity"`
+	RawPopularity       any           `json:"popularity"`
 	SpokenLanguages     []*Language   `json:"spoken_languages"`
 	Status              string        `json:"status"`
 	TagLine             string        `json:"tagline"`
@@ -222,10 +222,10 @@ type Credits struct {
 
 // ExternalIDs ...
 type ExternalIDs struct {
-	IMDBId      string      `json:"imdb_id"`
-	FreeBaseID  string      `json:"freebase_id"`
-	FreeBaseMID string      `json:"freebase_mid"`
-	TVDBID      interface{} `json:"tvdb_id"`
+	IMDBId      string `json:"imdb_id"`
+	FreeBaseID  string `json:"freebase_id"`
+	FreeBaseMID string `json:"freebase_mid"`
+	TVDBID      any    `json:"tvdb_id"`
 }
 
 // ContentRating ...
@@ -327,8 +327,8 @@ type DiscoverFilters struct {
 type APIRequest struct {
 	URL         string
 	Params      url.Values `msg:"-"`
-	Result      interface{}
-	ErrMsg      interface{}
+	Result      any
+	ErrMsg      any
 	Description string
 }
 

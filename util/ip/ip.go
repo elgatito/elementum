@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -90,8 +89,15 @@ func VPNIPs() ([]net.IP, error) {
 	}
 
 	// Make sure 10.x.x.x addresses are prioritized
-	sort.Slice(addrs, func(i, j int) bool {
-		return strings.HasPrefix(addrs[i].String(), "10.")
+	slices.SortStableFunc(addrs, func(a, b net.IP) int {
+		pa, pb := strings.HasPrefix(a.String(), "10."), strings.HasPrefix(b.String(), "10.")
+		switch {
+		case pa == pb:
+			return 0
+		case pa:
+			return -1
+		}
+		return 1
 	})
 
 	// Filter out only VPN IPs

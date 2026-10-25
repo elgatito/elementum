@@ -1,8 +1,9 @@
 package api
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -98,7 +99,7 @@ func MoviesIndex(ctx *gin.Context) {
 	}
 
 	// Adding items from custom menu
-	if MovieMenu.AddItems != nil && len(MovieMenu.AddItems) > 0 {
+	if len(MovieMenu.AddItems) > 0 {
 		index := 1
 		for _, i := range MovieMenu.AddItems {
 			item := &xbmc.ListItem{Label: i.Name, Path: i.Link, Thumbnail: config.AddonResource("img", "movies.png")}
@@ -190,7 +191,7 @@ func MovieLibrary(ctx *gin.Context) {
 	wg := sync.WaitGroup{}
 	index := -1
 	for i := (page - 1) * config.Get().ResultsPerPage; i < movies.Limits.Total && i < page*config.Get().ResultsPerPage; i++ {
-		if movies == nil || movies.Movies == nil || len(movies.Movies) < i {
+		if movies == nil || len(movies.Movies) < i {
 			continue
 		}
 
@@ -243,8 +244,8 @@ func MovieElementumLibrary(ctx *gin.Context) {
 	}
 	wg.Wait()
 
-	for i := len(tmdbMovies) - 1; i >= 0; i-- {
-		if tmdbMovies[i] == nil {
+	for i, tmdbMovie := range slices.Backward(tmdbMovies) {
+		if tmdbMovie == nil {
 			tmdbMovies = append(tmdbMovies[:i], tmdbMovies[i+1:]...)
 		}
 	}
@@ -304,8 +305,8 @@ func MoviesTraktLists(ctx *gin.Context) {
 	lists := trakt.Userlists()
 	lists = append(lists, trakt.Likedlists()...)
 
-	sort.Slice(lists, func(i int, j int) bool {
-		return lists[i].Name < lists[j].Name
+	slices.SortFunc(lists, func(a, b *trakt.List) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	for _, list := range lists {
@@ -456,8 +457,8 @@ func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, que
 	}
 
 	if nameSort {
-		sort.Slice(items, func(i int, j int) bool {
-			return items[i].Label < items[j].Label
+		slices.SortFunc(items, func(a, b *xbmc.ListItem) int {
+			return cmp.Compare(a.Label, b.Label)
 		})
 	}
 

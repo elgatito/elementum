@@ -41,9 +41,8 @@ var AlwaysHTTPMitm goproxy.FuncHttpsHandler = func(host string, ctx *goproxy.Pro
 func CustomTLS(ca *tls.Certificate) func(host string, ctx *goproxy.ProxyCtx) (*tls.Config, error) {
 	return func(host string, ctx *goproxy.ProxyCtx) (*tls.Config, error) {
 		config := &tls.Config{
-			PreferServerCipherSuites: false,
-			Certificates:             []tls.Certificate{*ca},
-			InsecureSkipVerify:       true,
+			Certificates:       []tls.Certificate{*ca},
+			InsecureSkipVerify: true,
 		}
 
 		return config, nil

@@ -1,8 +1,9 @@
 package api
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -927,8 +928,8 @@ func renderTraktShows(ctx *gin.Context, shows []*trakt.Shows, total int, page in
 	}
 	wg.Wait()
 
-	for i := len(items) - 1; i >= 0; i-- {
-		if items[i] == nil {
+	for i, item := range slices.Backward(items) {
+		if item == nil {
 			items = append(items[:i], items[i+1:]...)
 		}
 	}
@@ -1464,8 +1465,8 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 	}
 	wg.Wait()
 
-	for i := len(items) - 1; i >= 0; i-- {
-		if items[i] == nil {
+	for i, item := range slices.Backward(items) {
+		if item == nil {
 			items = append(items[:i], items[i+1:]...)
 		}
 	}
@@ -1670,8 +1671,8 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 	}
 	wg.Wait()
 
-	for i := len(items) - 1; i >= 0; i-- {
-		if items[i] == nil {
+	for i, item := range slices.Backward(items) {
+		if item == nil {
 			items = append(items[:i], items[i+1:]...)
 		}
 	}
@@ -1830,27 +1831,27 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 	}
 	wg.Wait()
 
-	for i := len(items) - 1; i >= 0; i-- {
-		if items[i] == nil {
+	for i, item := range slices.Backward(items) {
+		if item == nil {
 			items = append(items[:i], items[i+1:]...)
 		}
 	}
 
 	if config.Get().TraktProgressSort == trakt.ProgressSortShow {
-		sort.Slice(items, func(i, j int) bool {
-			return items[i].Info.TVShowTitle < items[j].Info.TVShowTitle
+		slices.SortFunc(items, func(a, b *xbmc.ListItem) int {
+			return cmp.Compare(a.Info.TVShowTitle, b.Info.TVShowTitle)
 		})
 	} else if config.Get().TraktProgressSort == trakt.ProgressSortAiredNewer {
-		sort.Slice(items, func(i, j int) bool {
-			id, _ := time.Parse(time.DateOnly, items[i].Info.Aired)
-			jd, _ := time.Parse(time.DateOnly, items[j].Info.Aired)
-			return id.After(jd)
+		slices.SortFunc(items, func(a, b *xbmc.ListItem) int {
+			ad, _ := time.Parse(time.DateOnly, a.Info.Aired)
+			bd, _ := time.Parse(time.DateOnly, b.Info.Aired)
+			return bd.Compare(ad)
 		})
 	} else if config.Get().TraktProgressSort == trakt.ProgressSortAiredOlder {
-		sort.Slice(items, func(i, j int) bool {
-			id, _ := time.Parse(time.DateOnly, items[i].Info.Aired)
-			jd, _ := time.Parse(time.DateOnly, items[j].Info.Aired)
-			return id.Before(jd)
+		slices.SortFunc(items, func(a, b *xbmc.ListItem) int {
+			ad, _ := time.Parse(time.DateOnly, a.Info.Aired)
+			bd, _ := time.Parse(time.DateOnly, b.Info.Aired)
+			return ad.Compare(bd)
 		})
 	}
 
@@ -2026,9 +2027,4 @@ func prepareDateFormat(f string) string {
 	f = strings.Replace(f, "d", "2", -1)
 
 	return f
-}
-
-func nextPage(page string) string {
-	p, _ := strconv.Atoi(page)
-	return strconv.Itoa(p + 1)
 }

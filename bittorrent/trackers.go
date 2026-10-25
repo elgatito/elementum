@@ -11,12 +11,12 @@ import (
 	"math/rand"
 	"net"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/proxy"
-	"github.com/elgatito/elementum/util"
 )
 
 const (
@@ -118,7 +118,7 @@ func NewTracker(trackerURL string) (tracker *Tracker, err error) {
 	return
 }
 
-func (tracker *Tracker) sendRequest(action Action, request interface{}) error {
+func (tracker *Tracker) sendRequest(action Action, request any) error {
 	trackerRequest := TrackerRequest{
 		ConnectionID:  tracker.connectionID,
 		Action:        action,
@@ -200,10 +200,7 @@ func (tracker *Tracker) Scrape(torrents []*TorrentFile) []ScrapeResponseEntry {
 
 	for i := 0; i <= len(infoHashes)/maxScrapedHashes; i++ {
 		idx := i * maxScrapedHashes
-		max := idx + maxScrapedHashes
-		if max > len(infoHashes) {
-			max = len(infoHashes)
-		}
+		max := min(idx+maxScrapedHashes, len(infoHashes))
 		entries = append(entries, tracker.doScrape(infoHashes[idx:max])...)
 	}
 
@@ -235,7 +232,7 @@ func UpdateDefaultTrackers() {
 			scanner := bufio.NewScanner(bytes.NewReader(bodyBytes))
 			for scanner.Scan() {
 				tracker := strings.TrimSpace(scanner.Text())
-				if !util.StringSliceContains(extraTrackers, tracker) {
+				if !slices.Contains(extraTrackers, tracker) {
 					extraTrackers = append(extraTrackers, tracker)
 				}
 			}

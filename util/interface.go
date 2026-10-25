@@ -5,7 +5,7 @@ import (
 )
 
 // StrInterfaceToInt ...
-func StrInterfaceToInt(t interface{}) (i int) {
+func StrInterfaceToInt(t any) (i int) {
 	switch t := t.(type) {
 	case string:
 		if v, err := strconv.Atoi(t); err == nil {

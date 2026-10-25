@@ -26,7 +26,7 @@ type AddonInfoDetails struct {
 }
 
 // GetAddons ...
-func (h *XBMCHost) GetAddons(args ...interface{}) *AddonsList {
+func (h *XBMCHost) GetAddons(args ...any) *AddonsList {
 	addons := AddonsList{}
 	h.executeJSONRPC("Addons.GetAddons", &addons, args)
 	return &addons
@@ -51,16 +51,16 @@ func (h *XBMCHost) SetAddonEnabled(addonID string, enabled bool) (retval string)
 }
 
 // ExecuteAddon ...
-func (h *XBMCHost) ExecuteAddon(addonID string, args ...interface{}) {
+func (h *XBMCHost) ExecuteAddon(addonID string, args ...any) {
 	var retVal string
 	h.executeJSONRPC("Addons.ExecuteAddon", &retVal, Args{addonID, args})
 }
 
 // GetAddonDetails ...
 func (h *XBMCHost) GetAddonDetails(addonID string) AddonInfoDetails {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"addonid": addonID,
-		"properties": []interface{}{
+		"properties": []any{
 			"enabled",
 			"installed",
 		}}

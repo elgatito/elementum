@@ -1,10 +1,11 @@
 package tmdb
 
 import (
+	"cmp"
 	"fmt"
 	"math/rand"
 	"net/url"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/elgatito/elementum/cache"
@@ -66,14 +67,14 @@ func CheckAPIKey() {
 	}
 
 	result := false
-	for index := len(apiKeys) - 1; index >= 0; index-- {
+	for index, apiKey0 := range slices.Backward(apiKeys) {
 		result = tmdbCheck(apiKey)
 		if result {
 			log.Noticef("TMDB API key check passed, using key %.7s ...", apiKey)
 			break
 		} else {
 			log.Warningf("TMDB API key check failed for key %.7s ...", apiKey)
-			if apiKey == apiKeys[index] {
+			if apiKey == apiKey0 {
 				apiKeys = append(apiKeys[:index], apiKeys[index+1:]...)
 			}
 			if len(apiKeys) > 0 {
@@ -239,8 +240,8 @@ func GetCountries(language string) []*Country {
 			}
 		}
 
-		sort.Slice(countries, func(i, j int) bool {
-			return countries[i].EnglishName < countries[j].EnglishName
+		slices.SortFunc(countries, func(a, b *Country) int {
+			return cmp.Compare(a.EnglishName, b.EnglishName)
 		})
 	}
 	return countries
@@ -271,8 +272,8 @@ func GetLanguages(language string) []*Language {
 			}
 		}
 
-		sort.Slice(languages, func(i, j int) bool {
-			return languages[i].Name < languages[j].Name
+		slices.SortFunc(languages, func(a, b *Language) int {
+			return cmp.Compare(a.Name, b.Name)
 		})
 	}
 	return languages

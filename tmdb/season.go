@@ -1,9 +1,10 @@
 package tmdb
 
 import (
+	"cmp"
 	"fmt"
 	"math/rand"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -97,12 +98,18 @@ func (seasons SeasonList) ToListItems(show *Show) []*xbmc.ListItem {
 	specials := make(xbmc.ListItems, 0)
 
 	if config.Get().ShowSeasonsOrder == 0 {
-		sort.Slice(seasons, func(i, j int) bool {
-			return seasons[i] != nil && seasons[j] != nil && seasons[i].Season < seasons[j].Season
+		slices.SortFunc(seasons, func(a, b *Season) int {
+			if a == nil || b == nil {
+				return 0
+			}
+			return cmp.Compare(a.Season, b.Season)
 		})
 	} else {
-		sort.Slice(seasons, func(i, j int) bool {
-			return seasons[i] != nil && seasons[j] != nil && seasons[i].Season > seasons[j].Season
+		slices.SortFunc(seasons, func(a, b *Season) int {
+			if a == nil || b == nil {
+				return 0
+			}
+			return cmp.Compare(b.Season, a.Season)
 		})
 	}
 
@@ -147,12 +154,6 @@ func (seasons SeasonList) ToListItems(show *Show) []*xbmc.ListItem {
 	}
 
 	return append(items, specials...)
-}
-
-func (seasons SeasonList) Len() int      { return len(seasons) }
-func (seasons SeasonList) Swap(i, j int) { seasons[i], seasons[j] = seasons[j], seasons[i] }
-func (seasons SeasonList) Less(i, j int) bool {
-	return seasons[i] != nil && seasons[j] != nil && seasons[i].Season < seasons[j].Season
 }
 
 // SetArt sets artworks for season
@@ -274,7 +275,7 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 }
 
 func (season *Season) GetName(show *Show) string {
-	if season.Name != "" || season.Translations == nil || season.Translations.Translations == nil || len(season.Translations.Translations) == 0 {
+	if season.Name != "" || season.Translations == nil || len(season.Translations.Translations) == 0 {
 		return season.Name
 	}
 
@@ -304,7 +305,7 @@ func (season *Season) GetName(show *Show) string {
 }
 
 func (season *Season) overview(show *Show) string {
-	if season.Overview != "" || season.Translations == nil || season.Translations.Translations == nil || len(season.Translations.Translations) == 0 {
+	if season.Overview != "" || season.Translations == nil || len(season.Translations.Translations) == 0 {
 		return season.Overview
 	}
 
@@ -334,7 +335,7 @@ func (season *Season) overview(show *Show) string {
 }
 
 func (season *Season) findTranslation(language string) *Translation {
-	if language == "" || season.Translations == nil || season.Translations.Translations == nil || len(season.Translations.Translations) == 0 {
+	if language == "" || season.Translations == nil || len(season.Translations.Translations) == 0 {
 		return nil
 	}
 

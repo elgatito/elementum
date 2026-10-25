@@ -15,22 +15,22 @@ type Object struct {
 
 // MovieSearchResults ...
 type MovieSearchResults []struct {
-	Type  string      `json:"type"`
-	Score interface{} `json:"score"`
-	Movie *Movie      `json:"movie"`
+	Type  string `json:"type"`
+	Score any    `json:"score"`
+	Movie *Movie `json:"movie"`
 }
 
 // ShowSearchResults ...
 type ShowSearchResults []struct {
-	Type  string      `json:"type"`
-	Score interface{} `json:"score"`
-	Show  *Show       `json:"show"`
+	Type  string `json:"type"`
+	Score any    `json:"score"`
+	Show  *Show  `json:"show"`
 }
 
 // EpisodeSearchResults ...
 type EpisodeSearchResults []struct {
-	Type    string      `json:"type"`
-	Score   interface{} `json:"score"`
+	Type    string `json:"type"`
+	Score   any    `json:"score"`
 	Episode *Episode
 	Show    *Show
 }

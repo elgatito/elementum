@@ -14,8 +14,8 @@ import (
 )
 
 type providerDebugResponse struct {
-	Payload interface{} `json:"payload"`
-	Results interface{} `json:"results"`
+	Payload any `json:"payload"`
+	Results any `json:"results"`
 }
 
 // ProviderGetMovie ...

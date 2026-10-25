@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/anacrolix/sync"
@@ -24,7 +25,6 @@ import (
 
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/proxy"
-	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -62,19 +62,17 @@ type torrent TorrentFile
 
 // TorrentFileRaw ...
 type TorrentFileRaw struct {
-	Title        string                 `bencode:"title"`
-	Announce     string                 `bencode:"announce"`
-	AnnounceList [][]string             `bencode:"announce-list"`
-	Info         map[string]interface{} `bencode:"info"`
+	Title        string         `bencode:"title"`
+	Announce     string         `bencode:"announce"`
+	AnnounceList [][]string     `bencode:"announce-list"`
+	Info         map[string]any `bencode:"info"`
 }
 
 // HasAnnounce checks AnnounceList for specific tracker
 func (t TorrentFileRaw) HasAnnounce(tracker string) bool {
 	for _, tier := range t.AnnounceList {
-		for _, v := range tier {
-			if v == tracker {
-				return true
-			}
+		if slices.Contains(tier, tracker) {
+			return true
 		}
 	}
 
@@ -335,8 +333,8 @@ func (t *TorrentFile) initialize() {
 func (t *TorrentFile) initializeFromMagnet() {
 	// libtorrent does not support xt groups (like xt.1) so we take 1st group
 	// and use it as xt (Exact Topic) if "normal" xt is absent
-	if strings.Index(t.URI, "xt=") == -1 && strings.Index(t.URI, "xt.1=") != -1 {
-		t.URI = strings.Replace(t.URI, "xt.1=", "xt=", -1)
+	if !strings.Contains(t.URI, "xt=") && strings.Contains(t.URI, "xt.1=") {
+		t.URI = strings.ReplaceAll(t.URI, "xt.1=", "xt=")
 	}
 
 	magnetURI, _ := url.Parse(t.URI)
@@ -361,7 +359,7 @@ func (t *TorrentFile) initializeFromMagnet() {
 	if len(t.Trackers) == 0 {
 		t.Trackers = make([]string, 0)
 		for _, tracker := range vals["tr"] {
-			if !util.StringSliceContains(t.Trackers, tracker) {
+			if !slices.Contains(t.Trackers, tracker) {
 				t.Trackers = append(t.Trackers, strings.Replace(string(tracker), "\\", "", -1))
 			}
 		}
@@ -437,7 +435,7 @@ func (t *TorrentFile) LoadFromBytes(in []byte) error {
 		if torrentFile.AnnounceList != nil {
 			for _, trackers := range torrentFile.AnnounceList {
 				for _, tracker := range trackers {
-					if !util.StringSliceContains(t.Trackers, tracker) {
+					if !slices.Contains(t.Trackers, tracker) {
 						t.Trackers = append(t.Trackers, tracker)
 					}
 				}
@@ -558,7 +556,7 @@ func (t *TorrentFile) Resolve() error {
 // EnrichTrackers ...
 func (t *TorrentFile) EnrichTrackers() {
 	for _, trackerURL := range extraTrackers {
-		if !util.StringSliceContains(t.Trackers, trackerURL) {
+		if !slices.Contains(t.Trackers, trackerURL) {
 			t.Trackers = append(t.Trackers, trackerURL)
 		}
 	}
@@ -690,7 +688,7 @@ func (t *TorrentFile) UpdateTorrentTrackers() error {
 		existing := vals["tr"]
 
 		for _, tracker := range t.Trackers {
-			if !util.StringSliceContains(existing, tracker) {
+			if !slices.Contains(existing, tracker) {
 				t.URI += "&tr=" + tracker
 			}
 		}

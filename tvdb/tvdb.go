@@ -3,10 +3,11 @@ package tvdb
 import (
 	"archive/zip"
 	"bytes"
+	"cmp"
 	"encoding/xml"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strconv"
 	"time"
 
@@ -173,8 +174,14 @@ func getShow(tvdbID int, language string) (*Show, error) {
 	show.Banners = banners.Banners
 	show.Seasons = make([]*Season, 0)
 
-	sort.Sort(sort.Reverse(BannersByRating(banners.Banners)))
-	sort.Sort(BySeasonAndEpisodeNumber(serie.Episodes))
+	slices.SortFunc(banners.Banners, func(a, b *Banner) int {
+		aRating, _ := strconv.ParseFloat(a.Rating, 32)
+		bRating, _ := strconv.ParseFloat(b.Rating, 32)
+		return cmp.Compare(bRating, aRating)
+	})
+	slices.SortFunc(serie.Episodes, func(a, b *Episode) int {
+		return cmp.Or(cmp.Compare(a.SeasonNumber, b.SeasonNumber), cmp.Compare(a.EpisodeNumber, b.EpisodeNumber))
+	})
 
 	if rt, err := strconv.Atoi(show.RuntimeString); err == nil {
 		show.Runtime = rt
@@ -182,9 +189,10 @@ func getShow(tvdbID int, language string) (*Show, error) {
 
 	curSeasonNumber := -1
 	for _, episode := range serie.Episodes {
-		for _ = 0; curSeasonNumber < episode.SeasonNumber; curSeasonNumber++ {
+		// Fill gaps so that Seasons[n] is season n
+		for ; curSeasonNumber < episode.SeasonNumber; curSeasonNumber++ {
 			show.Seasons = append(show.Seasons, &Season{
-				Season:   episode.SeasonNumber,
+				Season:   curSeasonNumber + 1,
 				Episodes: make([]*Episode, 0),
 			})
 		}
@@ -245,27 +253,3 @@ func GetShow(tvdbID int, language string) (*Show, error) {
 	}
 	return show, nil
 }
-
-// BySeasonAndEpisodeNumber ...
-type BySeasonAndEpisodeNumber []*Episode
-
-func (a BySeasonAndEpisodeNumber) Len() int      { return len(a) }
-func (a BySeasonAndEpisodeNumber) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a BySeasonAndEpisodeNumber) Less(i, j int) bool {
-	return (a[i].SeasonNumber*1000)+a[i].EpisodeNumber < (a[j].SeasonNumber*1000)+a[j].EpisodeNumber
-}
-
-// BannersByRating ...
-type BannersByRating []*Banner
-
-func (a BannersByRating) Len() int      { return len(a) }
-func (a BannersByRating) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a BannersByRating) Less(i, j int) bool {
-	iRating, _ := strconv.ParseFloat(a[i].Rating, 32)
-	jRating, _ := strconv.ParseFloat(a[j].Rating, 32)
-	return iRating < jRating
-}
-
-func (s SeasonList) Len() int           { return len(s) }
-func (s SeasonList) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s SeasonList) Less(i, j int) bool { return s[i].Season < s[j].Season }

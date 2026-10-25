@@ -49,7 +49,7 @@ func (h *XBMCHost) VideoLibraryClean() (retVal string) {
 
 // VideoLibraryCleanDirectory initiates Kodi library cleanup for specific removed directory
 func (h *XBMCHost) VideoLibraryCleanDirectory(directory string, content string, showDialogs bool) (retVal string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"showdialogs": showDialogs,
 		"directory":   directory,
 		"content":     content,
@@ -62,7 +62,7 @@ func (h *XBMCHost) VideoLibraryCleanDirectory(directory string, content string, 
 func (h *XBMCHost) VideoLibraryGetMovies() (movies *VideoLibraryMovies, err error) {
 	defer perf.ScopeTimer()()
 
-	list := []interface{}{
+	list := []any{
 		"imdbnumber",
 		"playcount",
 		"file",
@@ -72,7 +72,7 @@ func (h *XBMCHost) VideoLibraryGetMovies() (movies *VideoLibraryMovies, err erro
 	if KodiVersion > 16 {
 		list = append(list, "uniqueid", "year", "lastplayed")
 	}
-	params := map[string]interface{}{"properties": list}
+	params := map[string]any{"properties": list}
 
 	for tries := 1; tries <= 3; tries++ {
 		err = h.executeJSONRPCO("VideoLibrary.GetMovies", &movies, params)
@@ -91,21 +91,21 @@ func (h *XBMCHost) VideoLibraryGetMovies() (movies *VideoLibraryMovies, err erro
 func (h *XBMCHost) VideoLibraryGetElementumMovies() (movies *VideoLibraryMovies, err error) {
 	defer perf.ScopeTimer()()
 
-	list := []interface{}{
+	list := []any{
 		"imdbnumber",
 		"playcount",
 		"file",
 		"dateadded",
 		"resume",
 	}
-	sorts := map[string]interface{}{
+	sorts := map[string]any{
 		"method": "title",
 	}
 
 	if KodiVersion > 16 {
 		list = append(list, "uniqueid", "year", "lastplayed")
 	}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"properties": list,
 		"sort":       sorts,
 	}
@@ -158,7 +158,7 @@ func (h *XBMCHost) VideoLibraryRemoveEpisode(id int) (retVal string) {
 
 // PlayerGetActive ...
 func (h *XBMCHost) PlayerGetActive() int {
-	params := map[string]interface{}{}
+	params := map[string]any{}
 	items := ActivePlayers{}
 	h.executeJSONRPCO("Player.GetActivePlayers", &items, params)
 	for _, v := range items {
@@ -172,7 +172,7 @@ func (h *XBMCHost) PlayerGetActive() int {
 
 // PlayerGetItem ...
 func (h *XBMCHost) PlayerGetItem(playerid int) (item *PlayerItemInfo) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"playerid": playerid,
 	}
 	h.executeJSONRPCO("Player.GetItem", &item, params)
@@ -183,7 +183,7 @@ func (h *XBMCHost) PlayerGetItem(playerid int) (item *PlayerItemInfo) {
 func (h *XBMCHost) VideoLibraryGetShows() (shows *VideoLibraryShows, err error) {
 	defer perf.ScopeTimer()()
 
-	list := []interface{}{
+	list := []any{
 		"imdbnumber",
 		"episode",
 		"dateadded",
@@ -192,7 +192,7 @@ func (h *XBMCHost) VideoLibraryGetShows() (shows *VideoLibraryShows, err error) 
 	if KodiVersion > 16 {
 		list = append(list, "uniqueid", "year", "lastplayed")
 	}
-	params := map[string]interface{}{"properties": list}
+	params := map[string]any{"properties": list}
 
 	for tries := 1; tries <= 3; tries++ {
 		err = h.executeJSONRPCO("VideoLibrary.GetTVShows", &shows, params)
@@ -210,20 +210,20 @@ func (h *XBMCHost) VideoLibraryGetShows() (shows *VideoLibraryShows, err error) 
 func (h *XBMCHost) VideoLibraryGetElementumShows() (shows *VideoLibraryShows, err error) {
 	defer perf.ScopeTimer()()
 
-	list := []interface{}{
+	list := []any{
 		"imdbnumber",
 		"episode",
 		"dateadded",
 		"playcount",
 	}
-	sorts := map[string]interface{}{
+	sorts := map[string]any{
 		"method": "tvshowtitle",
 	}
 
 	if KodiVersion > 16 {
 		list = append(list, "uniqueid", "year", "lastplayed")
 	}
-	params := map[string]interface{}{
+	params := map[string]any{
 		"properties": list,
 		"sort":       sorts,
 	}
@@ -257,7 +257,7 @@ func (h *XBMCHost) VideoLibraryGetElementumShows() (shows *VideoLibraryShows, er
 func (h *XBMCHost) VideoLibraryGetSeasons(tvshowID int) (seasons *VideoLibrarySeasons, err error) {
 	defer perf.ScopeTimer()()
 
-	params := map[string]interface{}{"tvshowid": tvshowID, "properties": []interface{}{
+	params := map[string]any{"tvshowid": tvshowID, "properties": []any{
 		"tvshowid",
 		"season",
 		"episode",
@@ -275,7 +275,7 @@ func (h *XBMCHost) VideoLibraryGetAllSeasons(shows []int) (seasons *VideoLibrary
 	defer perf.ScopeTimer()()
 
 	if KodiVersion > 16 {
-		params := map[string]interface{}{"properties": []interface{}{
+		params := map[string]any{"properties": []any{
 			"tvshowid",
 			"season",
 			"episode",
@@ -309,7 +309,7 @@ func (h *XBMCHost) VideoLibraryGetAllSeasons(shows []int) (seasons *VideoLibrary
 func (h *XBMCHost) VideoLibraryGetEpisodes(tvshowID int) (episodes *VideoLibraryEpisodes, err error) {
 	defer perf.ScopeTimer()()
 
-	list := []interface{}{
+	list := []any{
 		"tvshowid",
 		"uniqueid",
 		"season",
@@ -323,7 +323,7 @@ func (h *XBMCHost) VideoLibraryGetEpisodes(tvshowID int) (episodes *VideoLibrary
 		list = append(list, "lastplayed")
 	}
 
-	params := map[string]interface{}{"tvshowid": tvshowID, "properties": list}
+	params := map[string]any{"tvshowid": tvshowID, "properties": list}
 	err = h.executeJSONRPCO("VideoLibrary.GetEpisodes", &episodes, params)
 	if err != nil {
 		log.Errorf("Error getting episodes: %#v", err)
@@ -351,10 +351,10 @@ func (h *XBMCHost) VideoLibraryGetAllEpisodes(shows []int) (episodes *VideoLibra
 
 // SetMovieWatched ...
 func (h *XBMCHost) SetMovieWatched(movieID int, playcount int, position int, total int) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"movieid":   movieID,
 		"playcount": playcount,
-		"resume": map[string]interface{}{
+		"resume": map[string]any{
 			"position": position,
 			"total":    total,
 		},
@@ -366,10 +366,10 @@ func (h *XBMCHost) SetMovieWatched(movieID int, playcount int, position int, tot
 
 // SetMovieWatchedWithDate ...
 func (h *XBMCHost) SetMovieWatchedWithDate(movieID int, playcount int, position int, total int, dt time.Time) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"movieid":   movieID,
 		"playcount": playcount,
-		"resume": map[string]interface{}{
+		"resume": map[string]any{
 			"position": position,
 			"total":    total,
 		},
@@ -381,9 +381,9 @@ func (h *XBMCHost) SetMovieWatchedWithDate(movieID int, playcount int, position 
 
 // SetMovieProgress ...
 func (h *XBMCHost) SetMovieProgress(movieID int, position int, total int) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"movieid": movieID,
-		"resume": map[string]interface{}{
+		"resume": map[string]any{
 			"position": position,
 			"total":    total,
 		},
@@ -395,9 +395,9 @@ func (h *XBMCHost) SetMovieProgress(movieID int, position int, total int) (ret s
 
 // SetMovieProgressWithDate ...
 func (h *XBMCHost) SetMovieProgressWithDate(movieID int, position int, total int, dt time.Time) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"movieid": movieID,
-		"resume": map[string]interface{}{
+		"resume": map[string]any{
 			"position": position,
 			"total":    total,
 		},
@@ -409,7 +409,7 @@ func (h *XBMCHost) SetMovieProgressWithDate(movieID int, position int, total int
 
 // SetMoviePlaycount ...
 func (h *XBMCHost) SetMoviePlaycount(movieID int, playcount int) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"movieid":    movieID,
 		"playcount":  playcount,
 		"lastplayed": time.Now().Format("2006-01-02 15:04:05"),
@@ -420,7 +420,7 @@ func (h *XBMCHost) SetMoviePlaycount(movieID int, playcount int) (ret string) {
 
 // SetShowWatched ...
 func (h *XBMCHost) SetShowWatched(showID int, playcount int) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"tvshowid":  showID,
 		"playcount": playcount,
 	}
@@ -430,7 +430,7 @@ func (h *XBMCHost) SetShowWatched(showID int, playcount int) (ret string) {
 
 // SetShowWatchedWithDate ...
 func (h *XBMCHost) SetShowWatchedWithDate(showID int, playcount int, dt time.Time) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"tvshowid":   showID,
 		"playcount":  playcount,
 		"lastplayed": dt.Format("2006-01-02 15:04:05"),
@@ -441,10 +441,10 @@ func (h *XBMCHost) SetShowWatchedWithDate(showID int, playcount int, dt time.Tim
 
 // SetEpisodeWatched ...
 func (h *XBMCHost) SetEpisodeWatched(episodeID int, playcount int, position int, total int) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"episodeid": episodeID,
 		"playcount": playcount,
-		"resume": map[string]interface{}{
+		"resume": map[string]any{
 			"position": position,
 			"total":    total,
 		},
@@ -456,10 +456,10 @@ func (h *XBMCHost) SetEpisodeWatched(episodeID int, playcount int, position int,
 
 // SetEpisodeWatchedWithDate ...
 func (h *XBMCHost) SetEpisodeWatchedWithDate(episodeID int, playcount int, position int, total int, dt time.Time) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"episodeid": episodeID,
 		"playcount": playcount,
-		"resume": map[string]interface{}{
+		"resume": map[string]any{
 			"position": position,
 			"total":    total,
 		},
@@ -471,9 +471,9 @@ func (h *XBMCHost) SetEpisodeWatchedWithDate(episodeID int, playcount int, posit
 
 // SetEpisodeProgress ...
 func (h *XBMCHost) SetEpisodeProgress(episodeID int, position int, total int) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"episodeid": episodeID,
-		"resume": map[string]interface{}{
+		"resume": map[string]any{
 			"position": position,
 			"total":    total,
 		},
@@ -485,9 +485,9 @@ func (h *XBMCHost) SetEpisodeProgress(episodeID int, position int, total int) (r
 
 // SetEpisodeProgressWithDate ...
 func (h *XBMCHost) SetEpisodeProgressWithDate(episodeID int, position int, total int, dt time.Time) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"episodeid": episodeID,
-		"resume": map[string]interface{}{
+		"resume": map[string]any{
 			"position": position,
 			"total":    total,
 		},
@@ -499,7 +499,7 @@ func (h *XBMCHost) SetEpisodeProgressWithDate(episodeID int, position int, total
 
 // SetEpisodePlaycount ...
 func (h *XBMCHost) SetEpisodePlaycount(episodeID int, playcount int) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"episodeid":  episodeID,
 		"playcount":  playcount,
 		"lastplayed": time.Now().Format("2006-01-02 15:04:05"),
@@ -510,7 +510,7 @@ func (h *XBMCHost) SetEpisodePlaycount(episodeID int, playcount int) (ret string
 
 // SetSeasonWatched marks season as watched in Kodi library
 func (h *XBMCHost) SetSeasonWatched(seasonID int, playcount int) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"seasonid":  seasonID,
 		"playcount": playcount,
 	}
@@ -520,11 +520,11 @@ func (h *XBMCHost) SetSeasonWatched(seasonID int, playcount int) (ret string) {
 
 // SetFileWatched ...
 func (h *XBMCHost) SetFileWatched(file string, playcount int, position int, total int) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"file":      file,
 		"media":     "video",
 		"playcount": playcount,
-		"resume": map[string]interface{}{
+		"resume": map[string]any{
 			"position": position,
 			"total":    total,
 		},
@@ -538,10 +538,10 @@ func (h *XBMCHost) SetFileWatched(file string, playcount int, position int, tota
 // Note: Setting a valid lastplayed without a playcount will force playcount to 1.
 // since we just set progress, we do not set lastplayed or playcount.
 func (h *XBMCHost) SetFileProgress(file string, position int, total int) (ret string) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"file":  file,
 		"media": "video",
-		"resume": map[string]interface{}{
+		"resume": map[string]any{
 			"position": position,
 			"total":    total,
 		},
@@ -628,7 +628,7 @@ func (h *XBMCHost) ConvertLanguage(language string, format int) string {
 
 // FilesGetSources ...
 func (h *XBMCHost) FilesGetSources() *FileSources {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"media": "video",
 	}
 	items := &FileSources{}
@@ -676,7 +676,7 @@ func (h *XBMCHost) GetLanguageISO639_1() string {
 
 // SettingsGetSettingValue ...
 func (h *XBMCHost) SettingsGetSettingValue(setting string) string {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"setting": setting,
 	}
 	resp := SettingValue{}
@@ -707,8 +707,8 @@ func (h *XBMCHost) WaitForSettingsClosed() {
 func (h *XBMCHost) VideoLibraryHasMovies() (ret bool, err error) {
 	defer perf.ScopeTimer()()
 
-	params := map[string]interface{}{
-		"limits": map[string]interface{}{
+	params := map[string]any{
+		"limits": map[string]any{
 			"start": 0,
 			"end":   1,
 		},
@@ -734,8 +734,8 @@ func (h *XBMCHost) VideoLibraryHasMovies() (ret bool, err error) {
 func (h *XBMCHost) VideoLibraryHasShows() (ret bool, err error) {
 	defer perf.ScopeTimer()()
 
-	params := map[string]interface{}{
-		"limits": map[string]interface{}{
+	params := map[string]any{
+		"limits": map[string]any{
 			"start": 0,
 			"end":   1,
 		},

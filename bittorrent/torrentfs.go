@@ -356,12 +356,10 @@ func (tf *TorrentFSEntry) ReaderPiecesRange() (ret PieceRange) {
 
 // Readahead returns current reader readahead
 func (tf *TorrentFSEntry) Readahead() int64 {
-	ra := tf.readahead
-	if ra < 1 {
+	ra := max(tf.readahead,
 		// Needs to be at least 1, because [x, x) means we don't want
 		// anything.
-		ra = 1
-	}
+		1)
 	pos, _ := tf.Pos()
 	if tf.f.Size > 0 && ra > tf.f.Size-pos {
 		ra = tf.f.Size - pos
@@ -392,8 +390,8 @@ func (tf *TorrentFSEntry) byteRegionPieces(off, size int64) (pr PieceRange) {
 	}
 
 	pl := int64(tf.pieceLength)
-	pr.Begin = util.Max(0, int(off/pl))
-	pr.End = util.Min(tf.numPieces-1, int((off+size-1)/pl))
+	pr.Begin = max(0, int(off/pl))
+	pr.End = min(tf.numPieces-1, int((off+size-1)/pl))
 
 	return
 }

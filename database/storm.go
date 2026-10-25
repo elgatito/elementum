@@ -42,20 +42,18 @@ func InitStormDB(conf *config.Configuration) (*StormDatabase, error) {
 	}
 
 	stormDatabase = &StormDatabase{
-		db: db,
-		Database: Database{
-			isCaching: false,
+		db:        db,
+		isCaching: false,
 
-			quit: make(chan struct{}, 5),
+		quit: make(chan struct{}, 5),
 
-			fileName: stormFileName,
-			filePath: databasePath,
+		fileName: stormFileName,
+		filePath: databasePath,
 
-			backupFileName: backupStormFileName,
-			backupFilePath: backupPath,
+		backupFileName: backupStormFileName,
+		backupFilePath: backupPath,
 
-			compressFilePath: compressPath,
-		},
+		compressFilePath: compressPath,
 	}
 
 	stormDatabase.mu.Lock()

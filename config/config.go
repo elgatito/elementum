@@ -283,7 +283,7 @@ type Addon struct {
 	Enabled bool
 }
 
-type XbmcSettings map[string]interface{}
+type XbmcSettings map[string]any
 
 var (
 	config          = &Configuration{}
@@ -1294,7 +1294,7 @@ func isLibraryReadOnly(xbmcHost *xbmc.XBMCHost) bool {
 	}
 
 	sources := xbmcHost.FilesGetSources()
-	if sources != nil && sources.Sources != nil && len(sources.Sources) > 0 {
+	if sources != nil && len(sources.Sources) > 0 {
 		return false
 	}
 

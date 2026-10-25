@@ -1,8 +1,9 @@
 package providers
 
 import (
+	"cmp"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/tmdb"
-	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/event"
 	"github.com/elgatito/elementum/xbmc"
 )
@@ -262,7 +262,7 @@ func processLinks(xbmcHost *xbmc.XBMCHost, torrentsChan chan *bittorrent.Torrent
 		if existingTorrent, exists := torrentsMap[torrentKey]; exists {
 			// Collect all trackers
 			for _, trackerURL := range torrent.Trackers {
-				if !util.StringSliceContains(existingTorrent.Trackers, trackerURL) {
+				if !slices.Contains(existingTorrent.Trackers, trackerURL) {
 					existingTorrent.Trackers = append(existingTorrent.Trackers, trackerURL)
 				}
 			}
@@ -386,11 +386,13 @@ func processLinks(xbmcHost *xbmc.XBMCHost, torrentsChan chan *bittorrent.Torrent
 	balanced := func(c1, c2 *bittorrent.TorrentFile) bool { return float64(c1.Seeds) > Balanced(c2) }
 
 	if sortMode == SortBySize {
-		sort.Slice(torrents, func(i, j int) bool {
-			return torrents[i].SizeParsed > torrents[j].SizeParsed
+		slices.SortFunc(torrents, func(a, b *bittorrent.TorrentFile) int {
+			return cmp.Compare(b.SizeParsed, a.SizeParsed)
 		})
 	} else if sortMode == SortBySeeders {
-		sort.Sort(sort.Reverse(BySeeds(torrents)))
+		slices.SortFunc(torrents, func(a, b *bittorrent.TorrentFile) int {
+			return cmp.Compare(b.Seeds, a.Seeds)
+		})
 	} else {
 		switch resolutionPreference {
 		case Sort1080p720p480p:

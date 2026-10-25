@@ -1,9 +1,10 @@
 package trakt
 
 import (
+	"cmp"
 	"fmt"
 	"math/rand"
-	"sort"
+	"slices"
 	"strconv"
 	"time"
 
@@ -216,8 +217,8 @@ func WatchlistMovies(isUpdateNeeded bool) (movies []*Movies, err error) {
 
 	log.Debugf("%d movies retrieved from Trakt", len(watchlist))
 
-	sort.Slice(watchlist, func(i, j int) bool {
-		return watchlist[i].ListedAt.After(watchlist[j].ListedAt)
+	slices.SortFunc(watchlist, func(a, b *WatchlistMovie) int {
+		return b.ListedAt.Compare(a.ListedAt)
 	})
 
 	movies = make([]*Movies, 0, len(watchlist))
@@ -273,8 +274,8 @@ func CollectionMovies(isUpdateNeeded bool) (movies []*Movies, err error) {
 
 	log.Debugf("%d movies retrieved from Trakt", len(collection))
 
-	sort.Slice(collection, func(i, j int) bool {
-		return collection[i].CollectedAt.After(collection[j].CollectedAt)
+	slices.SortFunc(collection, func(a, b *CollectionMovie) int {
+		return b.CollectedAt.Compare(a.CollectedAt)
 	})
 
 	movies = make([]*Movies, 0, len(collection))
@@ -321,8 +322,8 @@ func Userlists() (lists []*List) {
 		return lists
 	}
 
-	sort.Slice(lists, func(i int, j int) bool {
-		return lists[i].Name < lists[j].Name
+	slices.SortFunc(lists, func(a, b *List) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	return lists
@@ -362,8 +363,8 @@ func Likedlists() (lists []*List) {
 		lists = append(lists, l.List)
 	}
 
-	sort.Slice(lists, func(i int, j int) bool {
-		return lists[i].Name < lists[j].Name
+	slices.SortFunc(lists, func(a, b *List) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	return lists
@@ -450,8 +451,8 @@ func ListItemsMovies(user, listID string) (movies []*Movies, err error) {
 
 	log.Debugf("%d movies retrieved from Trakt", len(list))
 
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].ListedAt.After(list[j].ListedAt)
+	slices.SortFunc(list, func(a, b *ListItem) int {
+		return b.ListedAt.Compare(a.ListedAt)
 	})
 
 	movies = make([]*Movies, 0)
@@ -541,8 +542,8 @@ func WatchedMovies(isUpdateNeeded bool) (WatchedMoviesType, error) {
 
 	log.Debugf("%d movies retrieved from Trakt", len(movies))
 
-	sort.Slice(movies, func(i int, j int) bool {
-		return movies[i].LastWatchedAt.Unix() > movies[j].LastWatchedAt.Unix()
+	slices.SortFunc(movies, func(a, b *WatchedMovie) int {
+		return b.LastWatchedAt.Compare(a.LastWatchedAt)
 	})
 
 	if err == nil {

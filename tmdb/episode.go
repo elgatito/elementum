@@ -215,7 +215,7 @@ func (episode *Episode) GetSearchTitle(show *Show) string {
 }
 
 func (episode *Episode) GetName(show *Show) string {
-	if episode.Name != "" || episode.Translations == nil || episode.Translations.Translations == nil || len(episode.Translations.Translations) == 0 {
+	if episode.Name != "" || episode.Translations == nil || len(episode.Translations.Translations) == 0 {
 		return episode.Name
 	}
 
@@ -245,7 +245,7 @@ func (episode *Episode) GetName(show *Show) string {
 }
 
 func (episode *Episode) overview(show *Show) string {
-	if episode.Overview != "" || episode.Translations == nil || episode.Translations.Translations == nil || len(episode.Translations.Translations) == 0 {
+	if episode.Overview != "" || episode.Translations == nil || len(episode.Translations.Translations) == 0 {
 		return episode.Overview
 	}
 
@@ -275,7 +275,7 @@ func (episode *Episode) overview(show *Show) string {
 }
 
 func (episode *Episode) findTranslation(language string) *Translation {
-	if language == "" || episode.Translations == nil || episode.Translations.Translations == nil || len(episode.Translations.Translations) == 0 {
+	if language == "" || episode.Translations == nil || len(episode.Translations.Translations) == 0 {
 		return nil
 	}
 

@@ -16,9 +16,9 @@ type FileStore struct {
 }
 
 type fileStoreItem struct {
-	Key     string      `json:"key"`
-	Value   interface{} `json:"value"`
-	Expires time.Time   `json:"expires"`
+	Key     string    `json:"key"`
+	Value   any       `json:"value"`
+	Expires time.Time `json:"expires"`
 }
 
 // NewFileStore ...
@@ -28,7 +28,7 @@ func NewFileStore(path string) *FileStore {
 }
 
 // Set ...
-func (c *FileStore) Set(key string, value interface{}, expires time.Duration) error {
+func (c *FileStore) Set(key string, value any, expires time.Duration) error {
 	filename := path.Join(c.path, key)
 	file, err := os.Create(filename)
 	if err != nil {
@@ -54,7 +54,7 @@ func (c *FileStore) Set(key string, value interface{}, expires time.Duration) er
 }
 
 // Add ...
-func (c *FileStore) Add(key string, value interface{}, expires time.Duration) error {
+func (c *FileStore) Add(key string, value any, expires time.Duration) error {
 	if _, err := os.Stat(path.Join(c.path, key)); os.IsExist(err) {
 		return os.ErrExist
 	}
@@ -62,7 +62,7 @@ func (c *FileStore) Add(key string, value interface{}, expires time.Duration) er
 }
 
 // Replace ...
-func (c *FileStore) Replace(key string, value interface{}, expires time.Duration) error {
+func (c *FileStore) Replace(key string, value any, expires time.Duration) error {
 	if _, err := os.Stat(path.Join(c.path, key)); os.IsNotExist(err) {
 		return os.ErrNotExist
 	}
@@ -70,7 +70,7 @@ func (c *FileStore) Replace(key string, value interface{}, expires time.Duration
 }
 
 // Get ...
-func (c *FileStore) Get(key string, value interface{}) error {
+func (c *FileStore) Get(key string, value any) error {
 	file, err := os.Open(path.Join(c.path, key))
 	if err != nil {
 		return err

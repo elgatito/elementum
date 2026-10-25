@@ -18,15 +18,12 @@ type PieceRange struct {
 // PiecesRange Calculates the pieces this reader wants downloaded, ignoring the cached
 // value at r.pieces.
 func (p *PositionReader) PiecesRange() (ret PieceRange) {
-	ra := p.Readahead
-	if ra < 1 {
+	ra := min(
 		// Needs to be at least 1, because [x, x) means we don't want
 		// anything.
-		ra = 1
-	}
-	if ra > p.FileLength-p.Pos {
-		ra = p.FileLength - p.Pos
-	}
+		max(p.Readahead,
+
+			1), p.FileLength-p.Pos)
 	ret.Begin, ret.End = p.byteRegionPieces(p.torrentOffset(p.Pos), ra)
 	return
 }
@@ -48,9 +45,6 @@ func (p *PositionReader) byteRegionPieces(off, size int64) (begin, end int) {
 		return
 	}
 	begin = int(off / p.PieceLength)
-	end = int((off + size + p.PieceLength - 1) / p.PieceLength)
-	if end > int(p.Pieces) {
-		end = int(p.Pieces)
-	}
+	end = min(int((off+size+p.PieceLength-1)/p.PieceLength), int(p.Pieces))
 	return
 }

@@ -10,7 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -236,9 +236,15 @@ func DoSearch(payloads []SearchPayload, preferredLanguage string) ([]SearchRespo
 	}
 
 	if preferredLanguage != "" {
-		sort.Slice(results, func(i, j int) bool {
-			id := strings.ToLower(results[i].Attributes.Language) == preferredLanguage
-			return id
+		slices.SortStableFunc(results, func(a, b SearchResponseData) int {
+			pa, pb := strings.ToLower(a.Attributes.Language) == preferredLanguage, strings.ToLower(b.Attributes.Language) == preferredLanguage
+			switch {
+			case pa == pb:
+				return 0
+			case pa:
+				return -1
+			}
+			return 1
 		})
 	}
 
@@ -481,10 +487,5 @@ func appendEpisodePayloads(showID int, labels map[string]string, payloads *[]Sea
 }
 
 func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s, e)
 }

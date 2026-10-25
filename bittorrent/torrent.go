@@ -1,6 +1,7 @@
 package bittorrent
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
@@ -9,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -18,7 +19,6 @@ import (
 	lt "github.com/ElementumOrg/libtorrent-go"
 	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/anacrolix/missinggo/perf"
-	"github.com/anacrolix/missinggo/v2/slices"
 	"github.com/anacrolix/sync"
 	"github.com/dustin/go-humanize"
 	"github.com/fatih/color"
@@ -275,7 +275,7 @@ func (t *Torrent) bufferTickerEvent() {
 		for k := range t.BufferPiecesProgress {
 			piecesKeys = append(piecesKeys, k)
 		}
-		sort.Ints(piecesKeys)
+		slices.Sort(piecesKeys)
 
 		for _, k := range piecesKeys {
 			if piecesStatus.Len() > 1 {
@@ -704,7 +704,7 @@ func (t *Torrent) PrioritizePieces() {
 			piecesKeys = append(piecesKeys, k)
 		}
 	}
-	sort.Ints(piecesKeys)
+	slices.Sort(piecesKeys)
 
 	for i, k := range piecesKeys {
 		readerVector.Add(k)
@@ -764,7 +764,7 @@ func (t *Torrent) PrioritizePieces() {
 
 	// Splitting to first set priorities, then deadlines,
 	// so that latest set deadline is the nearest piece number
-	for curPiece := 0; curPiece < numPieces; curPiece++ {
+	for curPiece := range numPieces {
 		if priority := readerPieces[curPiece]; priority > 0 {
 			readerVector.Add(curPiece)
 			piecesPriorities.Add(priority)
@@ -1448,7 +1448,7 @@ func (t *Torrent) MakeFiles() {
 	files := t.ti.Files()
 	t.files = []*File{}
 
-	for i := 0; i < numFiles; i++ {
+	for i := range numFiles {
 		pr := t.GetFilePieces(files, i)
 
 		t.files = append(t.files, &File{
@@ -1641,8 +1641,8 @@ func (t *Torrent) byteRegionPieces(off, size int64) (begin, end int) {
 		return
 	}
 
-	begin = util.Max(0, int(off/t.pieceLength))
-	end = util.Min(t.pieceCount-1, int((off+size-1)/t.pieceLength))
+	begin = max(0, int(off/t.pieceLength))
+	end = min(t.pieceCount-1, int((off+size-1)/t.pieceLength))
 
 	return
 }
@@ -2114,7 +2114,8 @@ func (t *Torrent) TorrentInfo(xbmcHost *xbmc.XBMCHost, w io.Writer, showTrackers
 		filePriorities := th.FilePriorities()
 		defer lt.DeleteStdVectorInt(filePriorities)
 
-		for _, f := range slices.Sort(t.files, byPath).([]*File) {
+		slices.SortFunc(t.files, func(a, b *File) int { return cmp.Compare(a.Path, b.Path) })
+		for _, f := range t.files {
 			if pr := filePriorities.Get(f.Index); pr > 0 {
 				fmt.Fprintf(w, "        %s (%s): %d \n", f.Path, humanize.Bytes(uint64(f.Size)), pr)
 			} else {
@@ -2144,18 +2145,18 @@ func (t *Torrent) TorrentInfo(xbmcHost *xbmc.XBMCHost, w io.Writer, showTrackers
 					tracker.GetMessage()))
 			}
 		})
-		sort.Strings(lines)
+		slices.Sort(lines)
 		fmt.Fprint(w, strings.Join(lines, ""))
 
 		fmt.Fprint(w, "\n")
 		fmt.Fprint(w, "    Invernal Trackers:\n")
 
 		lines = lines[:0]
-		t.trackers.Range(func(t, p interface{}) bool {
+		t.trackers.Range(func(t, p any) bool {
 			lines = append(lines, fmt.Sprintf("        %-60s: %-3d peers\n", t, p))
 			return true
 		})
-		sort.Strings(lines)
+		slices.Sort(lines)
 		fmt.Fprint(w, strings.Join(lines, ""))
 		fmt.Fprint(w, "\n")
 	}
@@ -2305,18 +2306,4 @@ func peerNumToString(num int) string {
 	}
 
 	return strconv.Itoa(num)
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

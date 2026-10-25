@@ -50,15 +50,6 @@ func History(ctx *gin.Context) {
 	ctx.JSON(200, xbmc.NewView("", items))
 }
 
-func torrentHistoryEmpty() bool {
-	count, err := database.GetStormDB().Count(&database.TorrentHistory{})
-	if err != nil {
-		log.Infof("Could not get count for torrent history: %s", err)
-	}
-
-	return err != nil || count == 0
-}
-
 // HistoryRemove ...
 func HistoryRemove(ctx *gin.Context) {
 	defer perf.ScopeTimer()()

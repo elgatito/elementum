@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/elgatito/elementum/xbmc"
@@ -122,13 +123,7 @@ func ToFileName(filename string) string {
 
 // IsSubtitlesExt checks if extension belong to Subtitles type
 func IsSubtitlesExt(ext string) bool {
-	for _, e := range srtExtensions {
-		if ext == e {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(srtExtensions, ext)
 }
 
 // HasSubtitlesExt searches different subtitles extensions in file name
@@ -144,13 +139,7 @@ func HasSubtitlesExt(filename string) bool {
 
 // IsAudioExt checks if extension belong to Audio type
 func IsAudioExt(ext string) bool {
-	for _, e := range audioExtensions {
-		if ext == e {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(audioExtensions, ext)
 }
 
 // HasAudioExt searches different audio extensions in file name

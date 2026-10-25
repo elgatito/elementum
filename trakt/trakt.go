@@ -479,7 +479,7 @@ func PaginatedRequest[T any](endPoint string, params napping.Params, isWithAuth 
 }
 
 // Request is a general proxy for making requests
-func Request(endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, cacheExpiration time.Duration, ret interface{}) error {
+func Request(endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, cacheExpiration time.Duration, ret any) error {
 	req, err := prepareRequest(endPoint, params, isWithAuth, isUpdateNeeded, true, cacheExpiration, ret)
 	if err != nil {
 		return err
@@ -493,7 +493,7 @@ func Request(endPoint string, params napping.Params, isWithAuth bool, isUpdateNe
 }
 
 // prepareRequest is a helper function to prepare a reqapi.Request with the given parameters.
-func prepareRequest(endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, isCacheEnabled bool, cacheExpiration time.Duration, ret interface{}) (reqapi.Request, error) {
+func prepareRequest(endPoint string, params napping.Params, isWithAuth bool, isUpdateNeeded bool, isCacheEnabled bool, cacheExpiration time.Duration, ret any) (reqapi.Request, error) {
 	if isWithAuth {
 		if err := Authorized(); err != nil {
 			return reqapi.Request{}, err
@@ -892,7 +892,7 @@ func GetLastActivities() (ret *UserActivities, err error) {
 
 // DiffWatchedShows ...
 func DiffWatchedShows(current, previous []*WatchedShow) (diff []*WatchedShow) {
-	if current == nil || previous == nil || len(previous) == 0 || len(current) == 0 {
+	if current == nil || len(previous) == 0 || len(current) == 0 {
 		return
 	}
 

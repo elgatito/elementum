@@ -1,9 +1,11 @@
 package tmdb
 
 import (
+	"cmp"
 	"fmt"
+	"maps"
 	"math/rand"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -15,18 +17,13 @@ import (
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/util/reqapi"
 	"github.com/elgatito/elementum/xbmc"
+	"golang.org/x/text/cases"
+	xlanguage "golang.org/x/text/language"
 
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/anacrolix/sync"
 	"github.com/jmcvetta/napping"
 )
-
-// ByPopularity ...
-type ByPopularity Movies
-
-func (a ByPopularity) Len() int           { return len(a) }
-func (a ByPopularity) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByPopularity) Less(i, j int) bool { return a[i].Popularity < a[j].Popularity }
 
 // GetImages ...
 func GetImages(movieID int) *Images {
@@ -138,7 +135,7 @@ func GetMovieGenres(language string) []*Genre {
 
 	// That is a special case, when language in on TMDB, but it results empty names.
 	//   example of this: Catalan language.
-	if err = req.Do(); err == nil && genres.Genres != nil && len(genres.Genres) > 0 && genres.Genres[0].Name == "" {
+	if err = req.Do(); err == nil && len(genres.Genres) > 0 && genres.Genres[0].Name == "" {
 		req = reqapi.Request{
 			API: reqapi.TMDBAPI,
 			URL: "/genre/movie/list",
@@ -156,13 +153,13 @@ func GetMovieGenres(language string) []*Genre {
 		err = req.Do()
 	}
 
-	if err == nil && genres.Genres != nil && len(genres.Genres) > 0 {
+	if err == nil && len(genres.Genres) > 0 {
 		for _, i := range genres.Genres {
-			i.Name = strings.Title(i.Name)
+			i.Name = cases.Title(xlanguage.Make(language), cases.NoLower).String(i.Name)
 		}
 
-		sort.Slice(genres.Genres, func(i, j int) bool {
-			return genres.Genres[i].Name < genres.Genres[j].Name
+		slices.SortFunc(genres.Genres, func(a, b *Genre) int {
+			return cmp.Compare(a.Name, b.Name)
 		})
 	}
 	return genres.Genres
@@ -188,7 +185,7 @@ func SearchMovies(query string, language string, page int) (Movies, int) {
 		Description: "search movie",
 	}
 
-	if err := req.Do(); err != nil || (results.Results != nil && len(results.Results) == 0) {
+	if err := req.Do(); err != nil || (len(results.Results) == 0) {
 		return nil, 0
 	}
 
@@ -264,9 +261,7 @@ func listMovies(endpoint string, params napping.Params, page int) (Movies, int) 
 			pageParams := napping.Params{
 				"page": strconv.Itoa(currentPage + 1),
 			}
-			for k, v := range params {
-				pageParams[k] = v
-			}
+			maps.Copy(pageParams, params)
 
 			req := reqapi.Request{
 				API:         reqapi.TMDBAPI,
@@ -512,13 +507,13 @@ func (movie *Movie) ToListItem() *xbmc.ListItem {
 }
 
 func (movie *Movie) mpaa() string {
-	if movie.ReleaseDates == nil || movie.ReleaseDates.Results == nil || len(movie.ReleaseDates.Results) == 0 {
+	if movie.ReleaseDates == nil || len(movie.ReleaseDates.Results) == 0 {
 		return ""
 	}
 
 	region := config.Get().Region
 	for _, r := range movie.ReleaseDates.Results {
-		if r.ReleaseDates == nil || len(r.ReleaseDates) == 0 || strings.ToUpper(r.Iso3166_1) != region {
+		if len(r.ReleaseDates) == 0 || strings.ToUpper(r.Iso3166_1) != region {
 			continue
 		}
 
@@ -546,7 +541,7 @@ func (movie *Movie) GetTitle() string {
 	}
 
 	// If we have a title, but we don't have translations - use it
-	if (movie.Title != "" && movie.Title != movie.OriginalTitle) || movie.Translations == nil || movie.Translations.Translations == nil || len(movie.Translations.Translations) == 0 {
+	if (movie.Title != "" && movie.Title != movie.OriginalTitle) || movie.Translations == nil || len(movie.Translations.Translations) == 0 {
 		return movie.Title
 	}
 
@@ -578,7 +573,7 @@ func (movie *Movie) GetTitle() string {
 }
 
 func (movie *Movie) overview() string {
-	if movie.Overview != "" || movie.Translations == nil || movie.Translations.Translations == nil || len(movie.Translations.Translations) == 0 {
+	if movie.Overview != "" || movie.Translations == nil || len(movie.Translations.Translations) == 0 {
 		return movie.Overview
 	}
 
@@ -608,7 +603,7 @@ func (movie *Movie) overview() string {
 }
 
 func (movie *Movie) tagline() string {
-	if movie.TagLine != "" || movie.Translations == nil || movie.Translations.Translations == nil || len(movie.Translations.Translations) == 0 {
+	if movie.TagLine != "" || movie.Translations == nil || len(movie.Translations.Translations) == 0 {
 		return movie.TagLine
 	}
 
@@ -638,7 +633,7 @@ func (movie *Movie) tagline() string {
 }
 
 func (movie *Movie) findTranslation(language string) *Translation {
-	if language == "" || movie.Translations == nil || movie.Translations.Translations == nil || len(movie.Translations.Translations) == 0 {
+	if language == "" || movie.Translations == nil || len(movie.Translations.Translations) == 0 {
 		return nil
 	}
 

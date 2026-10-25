@@ -766,11 +766,9 @@ func RefreshTraktHidden(xbmcHost *xbmc.XBMCHost, itemType int, isRefreshNeeded b
 			log.Warningf("TraktSync: Got error from SyncShowsList for Watched Progress: %s", err)
 			return err
 		}
-	} else if itemType == MovieType {
-		// calendar and recommendations for movies are handled on trakt side, and they are the only options
-	} else if itemType == SeasonType {
-		// looks like website does not allow to hide seasons, so we also can ignore them
 	}
+	// Movies: calendar and recommendations are handled on trakt side, and they are the only options.
+	// Seasons: looks like website does not allow to hide seasons, so we also can ignore them.
 
 	return nil
 }

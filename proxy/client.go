@@ -17,7 +17,6 @@ var (
 	dialer = &net.Dialer{
 		Timeout:   15 * time.Second,
 		KeepAlive: 15 * time.Second,
-		DualStack: true,
 	}
 
 	// InternalProxyURL holds parsed internal proxy url

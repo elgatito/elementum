@@ -93,7 +93,7 @@ func (h *XBMCHost) GetSettingBool(id string) bool {
 }
 
 // SetSetting ...
-func (h *XBMCHost) SetSetting(id string, value interface{}) {
+func (h *XBMCHost) SetSetting(id string, value any) {
 	retVal := 0
 	h.executeJSONRPCEx("SetSetting", &retVal, Args{id, value})
 }

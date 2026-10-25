@@ -31,7 +31,7 @@ type LogBackend struct {
 }
 
 // Log ...
-func (h *XBMCHost) Log(args ...interface{}) {
+func (h *XBMCHost) Log(args ...any) {
 	h.executeJSONRPCEx("Log", nil, args)
 }
 

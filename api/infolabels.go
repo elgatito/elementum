@@ -3,7 +3,7 @@ package api
 import (
 	"errors"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -305,7 +305,7 @@ func GetSearchLabels(s *bittorrent.Service, tmdbID string, idx string) (item *xb
 		chosenFileNames = append(chosenFileNames, k)
 	}
 
-	sort.Strings(chosenFileNames)
+	slices.Sort(chosenFileNames)
 	subtitle := strings.Join(chosenFileNames, ", ")
 
 	item = &xbmc.ListItem{

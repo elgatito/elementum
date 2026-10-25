@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"bytes"
 	"errors"
 	"strconv"
 	"time"
@@ -22,23 +21,17 @@ type DBStore struct {
 }
 
 type DBStoreItem struct {
-	Key   string      `json:"key"`
-	Value interface{} `json:"value"`
+	Key   string `json:"key"`
+	Value any    `json:"value"`
 }
 
 var (
-	bufferPool = &sync.Pool{
-		New: func() interface{} {
-			return &bytes.Buffer{}
-		},
-	}
-
 	zipWriters = sync.Pool{
-		New: func() interface{} {
+		New: func() any {
 			return &gzip.Writer{}
 		}}
 	zipReaders = sync.Pool{
-		New: func() interface{} {
+		New: func() any {
 			return &gzip.Reader{}
 		}}
 )
@@ -84,7 +77,7 @@ func (c *DBStore) SetBytes(key string, value []byte, expires time.Duration) (err
 }
 
 // Set ...
-func (c *DBStore) Set(key string, value interface{}, expires time.Duration) (err error) {
+func (c *DBStore) Set(key string, value any, expires time.Duration) (err error) {
 	defer perf.ScopeTimer()()
 
 	if c == nil || c.db == nil || c.db.IsClosed {
@@ -131,17 +124,17 @@ func (c *DBStore) Set(key string, value interface{}, expires time.Duration) (err
 }
 
 // Add ...
-func (c *DBStore) Add(key string, value interface{}, expires time.Duration) error {
+func (c *DBStore) Add(key string, value any, expires time.Duration) error {
 	return c.Set(key, value, expires)
 }
 
 // Replace ...
-func (c *DBStore) Replace(key string, value interface{}, expires time.Duration) error {
+func (c *DBStore) Replace(key string, value any, expires time.Duration) error {
 	return c.Set(key, value, expires)
 }
 
 // Get ...
-func (c *DBStore) Get(key string, value interface{}) (err error) {
+func (c *DBStore) Get(key string, value any) (err error) {
 	defer perf.ScopeTimer()()
 
 	t := trace.Cache{

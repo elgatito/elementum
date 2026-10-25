@@ -13,13 +13,13 @@ import (
 )
 
 // Args ...
-type Args []interface{}
+type Args []any
 
 // Object ...
-type Object map[string]interface{}
+type Object map[string]any
 
 // Results ...
-var Results map[string]chan interface{}
+var Results map[string]chan any
 
 var (
 	XBMCLocalHost *XBMCHost = nil
@@ -202,7 +202,7 @@ func (h XBMCHost) getExJSONConnection() (net.Conn, error) {
 	return net.DialTimeout("tcp", net.JoinHostPort(h.Host, XBMCExJSONRPCPort), time.Second*5)
 }
 
-func (h XBMCHost) executeJSONRPC(method string, retVal interface{}, args Args) error {
+func (h XBMCHost) executeJSONRPC(method string, retVal any, args Args) error {
 	if args == nil {
 		args = Args{}
 	}
@@ -220,7 +220,7 @@ func (h XBMCHost) executeJSONRPC(method string, retVal interface{}, args Args) e
 	return errors.New("No available JSON-RPC connection to Kodi")
 }
 
-func (h XBMCHost) executeJSONRPCO(method string, retVal interface{}, args Object) error {
+func (h XBMCHost) executeJSONRPCO(method string, retVal any, args Object) error {
 	if args == nil {
 		args = Object{}
 	}
@@ -238,7 +238,7 @@ func (h XBMCHost) executeJSONRPCO(method string, retVal interface{}, args Object
 	return errors.New("No available JSON-RPC connection to Kodi")
 }
 
-func (h XBMCHost) executeJSONRPCEx(method string, retVal interface{}, args Args) error {
+func (h XBMCHost) executeJSONRPCEx(method string, retVal any, args Args) error {
 	if args == nil {
 		args = Args{}
 	}

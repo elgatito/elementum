@@ -21,11 +21,6 @@ import (
 	"github.com/op/go-logging"
 )
 
-const (
-	// if >= 80% of episodes have absolute numbers, assume it's because we need it
-	mixAbsoluteNumberPercentage = 0.8
-)
-
 // AddonSearcher ...
 type AddonSearcher struct {
 	MovieSearcher
@@ -76,8 +71,8 @@ func CallbackHandler(ctx *gin.Context) {
 	close(c)
 }
 
-func getSearchers(xbmcHost *xbmc.XBMCHost, callbackHost string) []interface{} {
-	list := make([]interface{}, 0)
+func getSearchers(xbmcHost *xbmc.XBMCHost, callbackHost string) []any {
+	list := make([]any, 0)
 	for _, addon := range xbmcHost.GetAddons("xbmc.python.script", "executable", true).Addons {
 		if strings.HasPrefix(addon.ID, "script.elementum.") {
 			list = append(list, NewAddonSearcher(xbmcHost, callbackHost, addon.ID))
@@ -432,7 +427,7 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, season *tmdb.Se
 	return sObject
 }
 
-func (as *AddonSearcher) call(method string, searchObject interface{}) []*bittorrent.TorrentFile {
+func (as *AddonSearcher) call(method string, searchObject any) []*bittorrent.TorrentFile {
 	torrents := make([]*bittorrent.TorrentFile, 0)
 	cid, c := GetCallback()
 	cbURL := fmt.Sprintf("http://%s/callbacks/%s", as.callbackHost, cid)

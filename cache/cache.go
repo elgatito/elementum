@@ -22,18 +22,16 @@ const (
 
 var (
 	pageCachePrefix = "page"
-	errCacheMiss    = errors.New("cache: key not found")
-	errNotStored    = errors.New("cache: not stored")
 	errNotSupported = errors.New("cache: not supported")
 	log             = logging.MustGetLogger("cache")
 )
 
 // CStore ...
 type CStore interface {
-	Get(key string, value interface{}) error
-	Set(key string, value interface{}, expire time.Duration) error
-	Add(key string, value interface{}, expire time.Duration) error
-	Replace(key string, data interface{}, expire time.Duration) error
+	Get(key string, value any) error
+	Set(key string, value any, expire time.Duration) error
+	Add(key string, value any, expire time.Duration) error
+	Replace(key string, data any, expire time.Duration) error
 	Delete(key string) error
 	Increment(key string, data uint64) (uint64, error)
 	Decrement(key string, data uint64) (uint64, error)

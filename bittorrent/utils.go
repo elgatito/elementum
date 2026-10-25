@@ -8,7 +8,7 @@ import (
 )
 
 // URLForXBMC ...
-func URLForXBMC(pattern string, args ...interface{}) string {
+func URLForXBMC(pattern string, args ...any) string {
 	u, _ := url.Parse(fmt.Sprintf(pattern, args...))
 	return "plugin://" + config.Get().Info.ID + u.String()
 }

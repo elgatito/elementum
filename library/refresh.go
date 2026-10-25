@@ -20,7 +20,6 @@ import (
 	"github.com/elgatito/elementum/library/playcount"
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tmdb"
-	"github.com/elgatito/elementum/trakt"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
 )
@@ -851,43 +850,6 @@ func findTMDBIDs(entityType uid.MediaItemType, source string, id string) int {
 	}
 
 	return 0
-}
-
-func findTraktIDs(entityType int, source int, id string) (ids *trakt.IDs) {
-	switch entityType {
-	case MovieType:
-		var r *trakt.Movie
-		if source == TMDBScraper {
-			r = trakt.GetMovieByTMDB(id)
-		} else if source == TraktScraper {
-			r = trakt.GetMovie(id)
-		}
-		if r != nil && r.IDs != nil {
-			ids = r.IDs
-		}
-	case ShowType:
-		var r *trakt.Show
-		if source == TMDBScraper {
-			r = trakt.GetShowByTMDB(id)
-		} else if source == TraktScraper {
-			r = trakt.GetShow(id)
-		}
-		if r != nil && r.IDs != nil {
-			ids = r.IDs
-		}
-	case EpisodeType:
-		var r *trakt.Episode
-		if source == TMDBScraper {
-			r = trakt.GetEpisodeByTMDB(id)
-		} else if source == TraktScraper {
-			r = trakt.GetEpisodeByID(id)
-		}
-		if r != nil && r.IDs != nil {
-			ids = r.IDs
-		}
-	}
-
-	return
 }
 
 // RefreshLocal checks media directory to save up-to-date strm library

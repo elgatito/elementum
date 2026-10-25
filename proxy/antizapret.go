@@ -46,14 +46,6 @@ func patternReplace(s string, patterns []PatternEntry) string {
 	return s
 }
 
-// restore repeating sequences in domain to get initial name
-func patternRestore(s string, patterns []PatternEntry) string {
-	for _, p := range patterns {
-		s = strings.ReplaceAll(s, p.Key, p.Value)
-	}
-	return s
-}
-
 // variables for unlzp function
 const TABLE_LEN_BITS = 18
 const HASH_MASK = (1 << TABLE_LEN_BITS) - 1
@@ -78,7 +70,7 @@ func unlzp(data []byte, mask []byte, limit int, table []byte, hashValue int) (st
 		maskValue = mask[maskPosition]
 		maskPosition++
 		outputPosition = 0
-		for i := 0; i < 8; i++ {
+		for i := range 8 {
 			var character byte
 			if maskValue&(1<<i) != 0 {
 				character = table[hashValue]
@@ -403,8 +395,8 @@ func loadConfig() (*AntizapretConfig, error) {
 		domainEntry := DomainEntry{TLD: tld, Lengths: []LengthEntry{}}
 
 		// Split by length entries
-		lengthEntries := strings.Split(lengthsContent, ",")
-		for _, lengthEntryStr := range lengthEntries {
+		lengthEntries := strings.SplitSeq(lengthsContent, ",")
+		for lengthEntryStr := range lengthEntries {
 			lengthEntryStr = strings.TrimSpace(lengthEntryStr)
 			if lengthEntryStr == "" {
 				continue

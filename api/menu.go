@@ -13,8 +13,7 @@ var (
 	// TVMenu represents Custom TV menu
 	TVMenu = Menu{Name: "TVMenu"}
 
-	addAction    = 0
-	removeAction = 1
+	addAction = 0
 )
 
 // Menu ...

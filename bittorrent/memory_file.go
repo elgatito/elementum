@@ -146,6 +146,6 @@ func (mf *MemoryFile) IsDir() bool {
 }
 
 // Sys ...
-func (mf *MemoryFile) Sys() interface{} {
+func (mf *MemoryFile) Sys() any {
 	return nil
 }

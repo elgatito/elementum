@@ -15,7 +15,6 @@ import (
 	"regexp"
 	"runtime"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -1269,7 +1268,7 @@ func (s *Service) networkRefresh() {
 }
 
 // Alerts ...
-func (s *Service) Alerts() (<-chan *Alert, chan<- interface{}) {
+func (s *Service) Alerts() (<-chan *Alert, chan<- any) {
 	c, done := s.alertsBroadcaster.Listen()
 	ac := make(chan *Alert)
 	go func() {
@@ -1352,8 +1351,8 @@ func (s *Service) loadTorrentFiles() {
 		return
 	}
 
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].ModTime().Unix() < files[j].ModTime().Unix()
+	slices.SortFunc(files, func(a, b os.FileInfo) int {
+		return a.ModTime().Compare(b.ModTime())
 	})
 
 	for _, torrentFile := range files {
@@ -2304,7 +2303,7 @@ func (s *Service) getNatPort(local net.IP, port int) (int, *natpmp.Client) {
 // deletePortMappings is deleting all existing port mappings from NAT gateways
 func (s *Service) deletePortMappings() {
 	var wg sync.WaitGroup
-	s.mappedPorts.Range(func(key, value interface{}) bool {
+	s.mappedPorts.Range(func(key, value any) bool {
 		wg.Add(1)
 
 		go func(mapping PortMapping) {
@@ -2376,8 +2375,6 @@ func (s *Service) calcInterfacePorts(enableNatScan bool, queryAddrs []net.IP) []
 		listenPorts = append(listenPorts, p)
 	}
 
-	rand.Seed(time.Now().UTC().UnixNano())
-
 	// Transform logical addresses into physical addresses
 	addrs := transformInterfaceAddrs(queryAddrs)
 
@@ -2439,15 +2436,15 @@ func (s *Service) calcInterfacePorts(enableNatScan bool, queryAddrs []net.IP) []
 	wg.Wait()
 
 	// If we have wildcard address, use only it, otherwise we can have issues with some routers
-	if slices.ContainsFunc(ret, func(item string) bool {
+	isWildcard := func(item string) bool {
 		return strings.HasPrefix(item, "0.0.0.0") || strings.HasPrefix(item, "[::]")
-	}) {
-		ret = util.SliceFilter(ret, func(item string) bool {
-			return strings.HasPrefix(item, "0.0.0.0") || strings.HasPrefix(item, "[::]")
-		})
+	}
+	if slices.ContainsFunc(ret, isWildcard) {
+		ret = slices.DeleteFunc(ret, func(item string) bool { return !isWildcard(item) })
 	}
 
-	// Return only unique listen interfaces
+	// Return only unique listen interfaces; Compact only drops adjacent duplicates
+	slices.Sort(ret)
 	return slices.Compact(ret)
 }
 

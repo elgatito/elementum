@@ -42,20 +42,18 @@ func InitCacheDB(conf *config.Configuration) (*BoltDatabase, error) {
 	}
 
 	cacheDatabase = &BoltDatabase{
-		db: db,
-		Database: Database{
-			isCaching: true,
+		db:        db,
+		isCaching: true,
 
-			quit: make(chan struct{}, 5),
+		quit: make(chan struct{}, 5),
 
-			fileName: cacheFileName,
-			filePath: databasePath,
+		fileName: cacheFileName,
+		filePath: databasePath,
 
-			backupFileName: backupCacheFileName,
-			backupFilePath: backupPath,
+		backupFileName: backupCacheFileName,
+		backupFilePath: backupPath,
 
-			compressFilePath: compressPath,
-		},
+		compressFilePath: compressPath,
 	}
 
 	cacheDatabase.mu.Lock()
@@ -469,7 +467,7 @@ func (d *BoltDatabase) GetCachedBool(bucket []byte, key string) (bool, error) {
 }
 
 // GetCachedObject ...
-func (d *BoltDatabase) GetCachedObject(bucket []byte, key string, item interface{}) (err error) {
+func (d *BoltDatabase) GetCachedObject(bucket []byte, key string, item any) (err error) {
 	if d == nil {
 		return nil
 	}
@@ -538,7 +536,7 @@ func (d *BoltDatabase) Get(bucket []byte, key string) (string, error) {
 }
 
 // GetObject ...
-func (d *BoltDatabase) GetObject(bucket []byte, key string, item interface{}) (err error) {
+func (d *BoltDatabase) GetObject(bucket []byte, key string, item any) (err error) {
 	if d == nil {
 		return
 	}
@@ -594,7 +592,7 @@ func (d *BoltDatabase) SetCachedBool(bucket []byte, seconds int, key string, val
 }
 
 // SetCachedObject ...
-func (d *BoltDatabase) SetCachedObject(bucket []byte, seconds int, key string, item interface{}) error {
+func (d *BoltDatabase) SetCachedObject(bucket []byte, seconds int, key string, item any) error {
 	if d == nil {
 		return nil
 	}
@@ -632,7 +630,7 @@ func (d *BoltDatabase) Set(bucket []byte, key string, value string) error {
 }
 
 // SetObject ...
-func (d *BoltDatabase) SetObject(bucket []byte, key string, item interface{}) error {
+func (d *BoltDatabase) SetObject(bucket []byte, key string, item any) error {
 	if d == nil {
 		return nil
 	}
@@ -687,7 +685,7 @@ func (d *BoltDatabase) BatchSetBytes(bucket []byte, objects map[string][]byte) e
 }
 
 // BatchSetObject ...
-func (d *BoltDatabase) BatchSetObject(bucket []byte, objects map[string]interface{}) error {
+func (d *BoltDatabase) BatchSetObject(bucket []byte, objects map[string]any) error {
 	if d == nil {
 		return nil
 	}

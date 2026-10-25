@@ -83,14 +83,6 @@ const (
 	modifyTrackersEveryTime
 )
 
-const (
-	ipToSDefault     = iota
-	ipToSLowDelay    = 1 << iota
-	ipToSReliability = 1 << iota
-	ipToSThroughput  = 1 << iota
-	ipToSLowCost     = 1 << iota
-)
-
 var dhtBootstrapNodes = []string{
 	"router.bittorrent.com:6881",
 	"router.utorrent.com:6881",
@@ -125,10 +117,6 @@ var (
 )
 
 const (
-	ltAlertWaitTime = 1 // 1 second
-)
-
-const (
 	// ProxyTypeNone ...
 	ProxyTypeNone = iota
 	// ProxyTypeSocks4 ...
@@ -149,10 +137,6 @@ const (
 	storedResumeExpiration      = 60 * 60 * 60 * 24
 	storedWatchedFileExpiration = 60 * 60 * 60 * 24
 )
-
-func byPath(l, r *File) bool {
-	return l.Path < r.Path
-}
 
 // AddOptions is setting options for different torrent add procedures
 type AddOptions struct {

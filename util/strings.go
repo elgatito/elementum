@@ -12,7 +12,7 @@ func RandomString(length int) string {
 	alphabetSize := len(alphabet)
 	var sb strings.Builder
 
-	for i := 0; i < length; i++ {
+	for range length {
 		ch := alphabet[rand.Intn(alphabetSize)]
 		sb.WriteRune(ch)
 	}

@@ -1,9 +1,10 @@
 package api
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -67,7 +68,7 @@ func TVIndex(ctx *gin.Context) {
 	}
 
 	// Adding items from custom menu
-	if TVMenu.AddItems != nil && len(TVMenu.AddItems) > 0 {
+	if len(TVMenu.AddItems) > 0 {
 		index := 1
 		for _, i := range TVMenu.AddItems {
 			item := &xbmc.ListItem{Label: i.Name, Path: i.Link, Thumbnail: config.AddonResource("img", "genre_tv.png")}
@@ -162,7 +163,7 @@ func TVLibrary(ctx *gin.Context) {
 	wg := sync.WaitGroup{}
 	index := -1
 	for i := (page - 1) * config.Get().ResultsPerPage; i < shows.Limits.Total && i < page*config.Get().ResultsPerPage; i++ {
-		if shows == nil || shows.Shows == nil || len(shows.Shows) < i {
+		if shows == nil || len(shows.Shows) < i {
 			continue
 		}
 
@@ -216,8 +217,8 @@ func TVElementumLibrary(ctx *gin.Context) {
 	}
 	wg.Wait()
 
-	for i := len(tmdbShows) - 1; i >= 0; i-- {
-		if tmdbShows[i] == nil {
+	for i, tmdbShow := range slices.Backward(tmdbShows) {
+		if tmdbShow == nil {
 			tmdbShows = append(tmdbShows[:i], tmdbShows[i+1:]...)
 		}
 	}
@@ -234,8 +235,8 @@ func TVTraktLists(ctx *gin.Context) {
 	lists := trakt.Userlists()
 	lists = append(lists, trakt.Likedlists()...)
 
-	sort.Slice(lists, func(i int, j int) bool {
-		return lists[i].Name < lists[j].Name
+	slices.SortFunc(lists, func(a, b *trakt.List) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	for _, list := range lists {
@@ -371,8 +372,8 @@ func renderShows(ctx *gin.Context, shows tmdb.Shows, page int, total int, query 
 	}
 
 	if nameSort {
-		sort.Slice(items, func(i int, j int) bool {
-			return items[i].Label < items[j].Label
+		slices.SortFunc(items, func(a, b *xbmc.ListItem) int {
+			return cmp.Compare(a.Label, b.Label)
 		})
 	}
 
@@ -579,9 +580,7 @@ func ShowEpisodes(ctx *gin.Context) {
 			seasonsToShow = append(seasonsToShow, s.Season)
 		}
 
-		sort.Slice(seasonsToShow, func(i, j int) bool {
-			return seasonsToShow[i] < seasonsToShow[j]
-		})
+		slices.Sort(seasonsToShow)
 		if len(seasonsToShow) > 0 && seasonsToShow[0] == 0 {
 			seasonsToShow = append(seasonsToShow[1:], seasonsToShow[0])
 		}

@@ -43,10 +43,10 @@ type ReleaseAsset struct {
 	ContentType        string    `json:"content_type,omitempty"`
 	Size               int       `json:"size,omitempty"`
 	DownloadCount      int       `json:"download_count,omitempty"`
-	CreatedAt          Timestamp `json:"created_at,omitempty"`
-	UpdatedAt          Timestamp `json:"updated_at,omitempty"`
+	CreatedAt          Timestamp `json:"created_at"`
+	UpdatedAt          Timestamp `json:"updated_at"`
 	BrowserDownloadURL string    `json:"browser_download_url,omitempty"`
-	Uploader           User      `json:"uploader,omitempty"`
+	Uploader           User      `json:"uploader"`
 	NodeID             string    `json:"node_id,omitempty"`
 }
 
@@ -69,9 +69,9 @@ type User struct {
 	PublicGists             int       `json:"public_gists,omitempty"`
 	Followers               int       `json:"followers,omitempty"`
 	Following               int       `json:"following,omitempty"`
-	CreatedAt               Timestamp `json:"created_at,omitempty"`
-	UpdatedAt               Timestamp `json:"updated_at,omitempty"`
-	SuspendedAt             Timestamp `json:"suspended_at,omitempty"`
+	CreatedAt               Timestamp `json:"created_at"`
+	UpdatedAt               Timestamp `json:"updated_at"`
+	SuspendedAt             Timestamp `json:"suspended_at"`
 	Type                    string    `json:"type,omitempty"`
 	SiteAdmin               bool      `json:"site_admin,omitempty"`
 	TotalPrivateRepos       int       `json:"total_private_repos,omitempty"`
@@ -106,8 +106,8 @@ type Release struct {
 
 	// The following fields are not used in CreateRelease or EditRelease:
 	ID          int64          `json:"id,omitempty"`
-	CreatedAt   Timestamp      `json:"created_at,omitempty"`
-	PublishedAt Timestamp      `json:"published_at,omitempty"`
+	CreatedAt   Timestamp      `json:"created_at"`
+	PublishedAt Timestamp      `json:"published_at"`
 	URL         string         `json:"url,omitempty"`
 	HTMLURL     string         `json:"html_url,omitempty"`
 	AssetsURL   string         `json:"assets_url,omitempty"`
@@ -115,7 +115,7 @@ type Release struct {
 	UploadURL   string         `json:"upload_url,omitempty"`
 	ZipballURL  string         `json:"zipball_url,omitempty"`
 	TarballURL  string         `json:"tarball_url,omitempty"`
-	Author      User           `json:"author,omitempty"`
+	Author      User           `json:"author"`
 	NodeID      string         `json:"node_id,omitempty"`
 }
 

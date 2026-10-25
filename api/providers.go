@@ -1,8 +1,9 @@
 package api
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/anacrolix/missinggo/perf"
@@ -23,20 +24,6 @@ type Addon struct {
 	Status  int
 }
 
-// ByEnabled ...
-type ByEnabled []Addon
-
-func (a ByEnabled) Len() int           { return len(a) }
-func (a ByEnabled) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByEnabled) Less(i, j int) bool { return a[i].Enabled }
-
-// ByStatus ...
-type ByStatus []Addon
-
-func (a ByStatus) Len() int           { return len(a) }
-func (a ByStatus) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByStatus) Less(i, j int) bool { return a[i].Status < a[j].Status }
-
 func getProviders(xbmcHost *xbmc.XBMCHost) []Addon {
 	defer perf.ScopeTimer()()
 
@@ -52,8 +39,16 @@ func getProviders(xbmcHost *xbmc.XBMCHost) []Addon {
 			})
 		}
 	}
-	sort.Sort(ByStatus(list))
-	sort.Sort(ByEnabled(list))
+	// Enabled first, then by status
+	slices.SortFunc(list, func(a, b Addon) int {
+		if a.Enabled != b.Enabled {
+			if a.Enabled {
+				return -1
+			}
+			return 1
+		}
+		return cmp.Compare(a.Status, b.Status)
+	})
 	return list
 }
 
