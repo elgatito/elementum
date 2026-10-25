@@ -523,7 +523,7 @@ func WatchedMovies(isUpdateNeeded bool) (WatchedMoviesType, error) {
 
 	if !isUpdateNeeded {
 		movies := WatchedMoviesType{}
-		if err := cacheStore.Get(cache.TraktMoviesCollectionKey, &movies); err == nil {
+		if err := cacheStore.Get(cache.TraktMoviesWatchedKey, &movies); err == nil {
 			return movies, nil
 		}
 	}

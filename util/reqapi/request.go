@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"slices"
 	"time"
 
@@ -14,7 +13,6 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/goccy/go-json"
 	"github.com/jmcvetta/napping"
-	"github.com/tinylib/msgp/msgp"
 
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
@@ -131,11 +129,7 @@ func (r *Request) readCache(data []byte) error {
 	r.ApplyCache(c)
 
 	if c.Result != nil {
-		u, ok := r.msgpResult(true).(msgp.Unmarshaler)
-		if !ok {
-			return errors.New("cached result has no msgpack bindings")
-		}
-		_, err = u.UnmarshalMsg(c.Result)
+		_, err = cache.UnmarshalMsg(c.Result, r.Result)
 	} else {
 		err = r.Unmarshal(bytes.NewBuffer(c.Body))
 	}
@@ -319,8 +313,8 @@ func (r *Request) MarshalCache() ([]byte, error) {
 		Header:     r.ResponseHeader,
 	}
 
-	if m, ok := r.msgpResult(false).(msgp.Marshaler); ok && r.ResponseStatusCode != 404 {
-		b, err := m.MarshalMsg(nil)
+	if r.ResponseStatusCode != 404 && cache.HasMsgp(r.Result) {
+		b, err := cache.MarshalMsg(nil, r.Result)
 		if err != nil {
 			return nil, err
 		}
@@ -329,28 +323,6 @@ func (r *Request) MarshalCache() ([]byte, error) {
 		c.Body = r.ResponseBody.Bytes()
 	}
 	return c.MarshalMsg(nil)
-}
-
-var msgpUnmarshalerType = reflect.TypeFor[msgp.Unmarshaler]()
-
-// msgpResult returns Result, or the pointer it points to (for Result: &ptr), if it has generated msgpack bindings.
-// With alloc a nil inner pointer is allocated, otherwise nil is returned for it.
-func (r *Request) msgpResult(alloc bool) any {
-	if _, ok := r.Result.(msgp.Unmarshaler); ok {
-		return r.Result
-	}
-
-	v := reflect.ValueOf(r.Result)
-	if v.Kind() != reflect.Pointer || v.IsNil() || v.Elem().Kind() != reflect.Pointer || !v.Elem().Type().Implements(msgpUnmarshalerType) {
-		return nil
-	}
-	if e := v.Elem(); e.IsNil() {
-		if !alloc {
-			return nil
-		}
-		e.Set(reflect.New(e.Type().Elem()))
-	}
-	return v.Elem().Interface()
 }
 
 func (r *Request) Marshal() ([]byte, error) {

@@ -510,7 +510,7 @@ func prepareRequest(endPoint string, params napping.Params, isWithAuth bool, isU
 		URL:    endPoint,
 		Header: header,
 		Params: params.AsUrlValues(),
-		Result: &ret,
+		Result: ret,
 
 		Cache:            isCacheEnabled,
 		CacheExpire:      cacheExpiration,

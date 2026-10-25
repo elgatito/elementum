@@ -4,6 +4,7 @@ import "time"
 
 //go:generate go tool msgp -o msgp.go -io=false -tests=false
 //msgp:tag json
+//msgp:timezone utc
 
 // Object ...
 type Object struct {

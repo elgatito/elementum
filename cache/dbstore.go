@@ -112,7 +112,12 @@ func (c *DBStore) Set(key string, value any, expires time.Duration) (err error) 
 		}()
 	}
 
-	b, err := msgpack.Marshal(item)
+	var b []byte
+	if HasMsgp(value) {
+		b, err = MarshalMsg([]byte{msgpMarker}, value)
+	} else {
+		b, err = msgpack.Marshal(item)
+	}
 	if err != nil {
 		t.Stage("Unmarshal")
 		return err
@@ -161,6 +166,12 @@ func (c *DBStore) Get(key string, value any) (err error) {
 			err = errors.New("Can't decode into value")
 		}
 	}()
+
+	if len(data) > 0 && data[0] == msgpMarker {
+		_, err = UnmarshalMsg(data[1:], value)
+		t.Stage("Unmarshal")
+		return err
+	}
 
 	item := DBStoreItem{
 		Value: value,

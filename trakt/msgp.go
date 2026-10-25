@@ -400,7 +400,7 @@ func (z *CollectedEpisode) UnmarshalMsg(bts []byte) (o []byte, err error) {
 		}
 		switch msgp.UnsafeString(field) {
 		case "collected_at":
-			z.CollectedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.CollectedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "CollectedAt")
 				return
@@ -517,7 +517,7 @@ func (z *CollectedSeason) UnmarshalMsg(bts []byte) (o []byte, err error) {
 						}
 						switch msgp.UnsafeString(field) {
 						case "collected_at":
-							z.Episodes[za0001].CollectedAt, bts, err = msgp.ReadTimeBytes(bts)
+							z.Episodes[za0001].CollectedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 							if err != nil {
 								err = msgp.WrapError(err, "Episodes", za0001, "CollectedAt")
 								return
@@ -603,7 +603,7 @@ func (z *CollectionMovie) UnmarshalMsg(bts []byte) (o []byte, err error) {
 		}
 		switch msgp.UnsafeString(field) {
 		case "collected_at":
-			z.CollectedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.CollectedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "CollectedAt")
 				return
@@ -717,7 +717,7 @@ func (z *CollectionShow) UnmarshalMsg(bts []byte) (o []byte, err error) {
 		}
 		switch msgp.UnsafeString(field) {
 		case "last_collected_at":
-			z.CollectedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.CollectedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "CollectedAt")
 				return
@@ -820,7 +820,7 @@ func (z *CollectionShow) UnmarshalMsg(bts []byte) (o []byte, err error) {
 										}
 										switch msgp.UnsafeString(field) {
 										case "collected_at":
-											z.Seasons[za0001].Episodes[za0002].CollectedAt, bts, err = msgp.ReadTimeBytes(bts)
+											z.Seasons[za0001].Episodes[za0002].CollectedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 											if err != nil {
 												err = msgp.WrapError(err, "Seasons", za0001, "Episodes", za0002, "CollectedAt")
 												return
@@ -1269,7 +1269,7 @@ func (z *HiddenShow) UnmarshalMsg(bts []byte) (o []byte, err error) {
 		}
 		switch msgp.UnsafeString(field) {
 		case "hidden_at":
-			z.HiddenAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.HiddenAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "HiddenAt")
 				return
@@ -2119,13 +2119,13 @@ func (z *List) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "created_at":
-			z.CreatedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.CreatedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "CreatedAt")
 				return
 			}
 		case "updated_at":
-			z.UpdatedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.UpdatedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "UpdatedAt")
 				return
@@ -2272,7 +2272,7 @@ func (z *ListContainer) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "liked_at":
-			z.LikedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.LikedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "LikedAt")
 				return
@@ -2386,7 +2386,7 @@ func (z *ListItem) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "listed_at":
-			z.ListedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.ListedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "ListedAt")
 				return
@@ -3108,7 +3108,7 @@ func (z *Object) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 			}
 		case "updated_at":
-			z.UpdatedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.UpdatedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "UpdatedAt")
 				return
@@ -3282,7 +3282,7 @@ func (z *PausedEpisode) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "paused_at":
-			z.PausedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.PausedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "PausedAt")
 				return
@@ -3417,7 +3417,7 @@ func (z *PausedMovie) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "paused_at":
-			z.PausedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.PausedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "PausedAt")
 				return
@@ -4842,7 +4842,7 @@ func (z *UserActivities) UnmarshalMsg(bts []byte) (o []byte, err error) {
 		}
 		switch msgp.UnsafeString(field) {
 		case "all":
-			z.All, bts, err = msgp.ReadTimeBytes(bts)
+			z.All, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "All")
 				return
@@ -4863,49 +4863,49 @@ func (z *UserActivities) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 				switch msgp.UnsafeString(field) {
 				case "watched_at":
-					z.Movies.WatchedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Movies.WatchedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Movies", "WatchedAt")
 						return
 					}
 				case "collected_at":
-					z.Movies.CollectedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Movies.CollectedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Movies", "CollectedAt")
 						return
 					}
 				case "rated_at":
-					z.Movies.RatedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Movies.RatedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Movies", "RatedAt")
 						return
 					}
 				case "watchlisted_at":
-					z.Movies.WatchlistedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Movies.WatchlistedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Movies", "WatchlistedAt")
 						return
 					}
 				case "favorited_at":
-					z.Movies.FavoritedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Movies.FavoritedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Movies", "FavoritedAt")
 						return
 					}
 				case "commented_at":
-					z.Movies.CommentedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Movies.CommentedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Movies", "CommentedAt")
 						return
 					}
 				case "paused_at":
-					z.Movies.PausedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Movies.PausedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Movies", "PausedAt")
 						return
 					}
 				case "hidden_at":
-					z.Movies.HiddenAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Movies.HiddenAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Movies", "HiddenAt")
 						return
@@ -4934,37 +4934,37 @@ func (z *UserActivities) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 				switch msgp.UnsafeString(field) {
 				case "watched_at":
-					z.Episodes.WatchedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Episodes.WatchedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Episodes", "WatchedAt")
 						return
 					}
 				case "collected_at":
-					z.Episodes.CollectedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Episodes.CollectedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Episodes", "CollectedAt")
 						return
 					}
 				case "rated_at":
-					z.Episodes.RatedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Episodes.RatedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Episodes", "RatedAt")
 						return
 					}
 				case "watchlisted_at":
-					z.Episodes.WatchlistedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Episodes.WatchlistedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Episodes", "WatchlistedAt")
 						return
 					}
 				case "commented_at":
-					z.Episodes.CommentedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Episodes.CommentedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Episodes", "CommentedAt")
 						return
 					}
 				case "paused_at":
-					z.Episodes.PausedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Episodes.PausedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Episodes", "PausedAt")
 						return
@@ -4993,31 +4993,31 @@ func (z *UserActivities) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 				switch msgp.UnsafeString(field) {
 				case "rated_at":
-					z.Shows.RatedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Shows.RatedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Shows", "RatedAt")
 						return
 					}
 				case "watchlisted_at":
-					z.Shows.WatchlistedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Shows.WatchlistedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Shows", "WatchlistedAt")
 						return
 					}
 				case "favorited_at":
-					z.Shows.FavoritedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Shows.FavoritedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Shows", "FavoritedAt")
 						return
 					}
 				case "commented_at":
-					z.Shows.CommentedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Shows.CommentedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Shows", "CommentedAt")
 						return
 					}
 				case "hidden_at":
-					z.Shows.HiddenAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Shows.HiddenAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Shows", "HiddenAt")
 						return
@@ -5046,25 +5046,25 @@ func (z *UserActivities) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 				switch msgp.UnsafeString(field) {
 				case "rated_at":
-					z.Seasons.RatedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Seasons.RatedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Seasons", "RatedAt")
 						return
 					}
 				case "watchlisted_at":
-					z.Seasons.WatchlistedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Seasons.WatchlistedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Seasons", "WatchlistedAt")
 						return
 					}
 				case "commented_at":
-					z.Seasons.CommentedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Seasons.CommentedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Seasons", "CommentedAt")
 						return
 					}
 				case "hidden_at":
-					z.Seasons.HiddenAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Seasons.HiddenAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Seasons", "HiddenAt")
 						return
@@ -5093,13 +5093,13 @@ func (z *UserActivities) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 				switch msgp.UnsafeString(field) {
 				case "liked_at":
-					z.Comments.LikedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Comments.LikedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Comments", "LikedAt")
 						return
 					}
 				case "blocked_at":
-					z.Comments.BlockedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Comments.BlockedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Comments", "BlockedAt")
 						return
@@ -5128,19 +5128,19 @@ func (z *UserActivities) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 				switch msgp.UnsafeString(field) {
 				case "liked_at":
-					z.Lists.LikedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Lists.LikedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Lists", "LikedAt")
 						return
 					}
 				case "updated_at":
-					z.Lists.UpdatedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Lists.UpdatedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Lists", "UpdatedAt")
 						return
 					}
 				case "commented_at":
-					z.Lists.CommentedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Lists.CommentedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Lists", "CommentedAt")
 						return
@@ -5169,7 +5169,7 @@ func (z *UserActivities) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 				switch msgp.UnsafeString(field) {
 				case "updated_at":
-					z.Watchlist.UpdatedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Watchlist.UpdatedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Watchlist", "UpdatedAt")
 						return
@@ -5198,7 +5198,7 @@ func (z *UserActivities) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 				switch msgp.UnsafeString(field) {
 				case "updated_at":
-					z.Favorites.UpdatedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Favorites.UpdatedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Favorites", "UpdatedAt")
 						return
@@ -5227,31 +5227,31 @@ func (z *UserActivities) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 				switch msgp.UnsafeString(field) {
 				case "settings_at":
-					z.Account.SettingsAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Account.SettingsAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Account", "SettingsAt")
 						return
 					}
 				case "followed_at":
-					z.Account.FollowedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Account.FollowedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Account", "FollowedAt")
 						return
 					}
 				case "following_at":
-					z.Account.FollowingAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Account.FollowingAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Account", "FollowingAt")
 						return
 					}
 				case "pending_at":
-					z.Account.PendingAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Account.PendingAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Account", "PendingAt")
 						return
 					}
 				case "requested_at":
-					z.Account.RequestedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Account.RequestedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Account", "RequestedAt")
 						return
@@ -5280,7 +5280,7 @@ func (z *UserActivities) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 				switch msgp.UnsafeString(field) {
 				case "updated_at":
-					z.SavedFilters.UpdatedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.SavedFilters.UpdatedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "SavedFilters", "UpdatedAt")
 						return
@@ -5309,7 +5309,7 @@ func (z *UserActivities) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				}
 				switch msgp.UnsafeString(field) {
 				case "updated_at":
-					z.Notes.UpdatedAt, bts, err = msgp.ReadTimeBytes(bts)
+					z.Notes.UpdatedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 					if err != nil {
 						err = msgp.WrapError(err, "Notes", "UpdatedAt")
 						return
@@ -5471,7 +5471,7 @@ func (z *WatchedEpisode) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "last_watched_at":
-			z.LastWatchedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.LastWatchedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "LastWatchedAt")
 				return
@@ -5595,7 +5595,7 @@ func (z *WatchedItem) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "WatchedAt":
-			z.WatchedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.WatchedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "WatchedAt")
 				return
@@ -5667,7 +5667,7 @@ func (z *WatchedMovie) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "last_watched_at":
-			z.LastWatchedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.LastWatchedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "LastWatchedAt")
 				return
@@ -5875,7 +5875,7 @@ func (z *WatchedProgressShow) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "last_watched_at":
-			z.LastWatchedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.LastWatchedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "LastWatchedAt")
 				return
@@ -6131,7 +6131,7 @@ func (z *WatchedSeason) UnmarshalMsg(bts []byte) (o []byte, err error) {
 								return
 							}
 						case "last_watched_at":
-							z.Episodes[za0001].LastWatchedAt, bts, err = msgp.ReadTimeBytes(bts)
+							z.Episodes[za0001].LastWatchedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 							if err != nil {
 								err = msgp.WrapError(err, "Episodes", za0001, "LastWatchedAt")
 								return
@@ -6243,7 +6243,7 @@ func (z *WatchedShow) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				return
 			}
 		case "last_watched_at":
-			z.LastWatchedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.LastWatchedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "LastWatchedAt")
 				return
@@ -6644,7 +6644,7 @@ func (z *WatchlistEpisode) UnmarshalMsg(bts []byte) (o []byte, err error) {
 		}
 		switch msgp.UnsafeString(field) {
 		case "listed_at":
-			z.ListedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.ListedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "ListedAt")
 				return
@@ -6761,7 +6761,7 @@ func (z *WatchlistMovie) UnmarshalMsg(bts []byte) (o []byte, err error) {
 		}
 		switch msgp.UnsafeString(field) {
 		case "listed_at":
-			z.ListedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.ListedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "ListedAt")
 				return
@@ -6866,7 +6866,7 @@ func (z *WatchlistSeason) UnmarshalMsg(bts []byte) (o []byte, err error) {
 		}
 		switch msgp.UnsafeString(field) {
 		case "listed_at":
-			z.ListedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.ListedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "ListedAt")
 				return
@@ -6983,7 +6983,7 @@ func (z *WatchlistShow) UnmarshalMsg(bts []byte) (o []byte, err error) {
 		}
 		switch msgp.UnsafeString(field) {
 		case "listed_at":
-			z.ListedAt, bts, err = msgp.ReadTimeBytes(bts)
+			z.ListedAt, bts, err = msgp.ReadTimeUTCBytes(bts)
 			if err != nil {
 				err = msgp.WrapError(err, "ListedAt")
 				return

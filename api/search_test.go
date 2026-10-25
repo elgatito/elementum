@@ -1,13 +1,13 @@
 package api
 
 import (
-	"encoding/json"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/goccy/go-json"
 
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/xbmc"

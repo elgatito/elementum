@@ -65,10 +65,25 @@ func TestCacheMsgpNamedSlice(t *testing.T) {
 	}
 }
 
-func TestCacheJSONFallback(t *testing.T) {
+func TestCacheMsgpUnnamedSlice(t *testing.T) {
 	var shows, cached []*trakt.HiddenShow
-	c := roundtrip(t, &shows, &cached, `[{"type":"show","show":{"title":"Lost","year":2004}}]`, 200)
-	if c.Result != nil || c.Body == nil || len(cached) != 1 || cached[0].Show.Title != "Lost" {
+	c := roundtrip(t, &shows, &cached, `[{"type":"show","show":{"title":"Lost","year":2004}},null]`, 200)
+	if c.Result == nil || c.Body != nil || len(cached) != 2 || cached[0].Show.Title != "Lost" || cached[1] != nil {
+		t.Fatalf("expected msgpack result for unnamed slice, got %+v / %+v", c, cached)
+	}
+
+	// times must come back in UTC, same as from JSON
+	var watched, cachedWatched []*trakt.WatchedMovie
+	roundtrip(t, &watched, &cachedWatched, `[{"plays":3,"last_watched_at":"2024-01-01T23:30:00.000Z"}]`, 200)
+	if !reflect.DeepEqual(watched, cachedWatched) {
+		t.Fatalf("cached watched differs:\n%+v\n%+v", watched[0], cachedWatched[0])
+	}
+}
+
+func TestCacheJSONFallback(t *testing.T) {
+	var items, cached []map[string]any
+	c := roundtrip(t, &items, &cached, `[{"title":"Lost"}]`, 200)
+	if c.Result != nil || c.Body == nil || len(cached) != 1 || cached[0]["title"] != "Lost" {
 		t.Fatalf("expected JSON body fallback, got %+v", c)
 	}
 }
@@ -78,6 +93,17 @@ func TestCacheNotFoundKeepsResultNil(t *testing.T) {
 	c := roundtrip(t, &movie, &cached, `{"status_code":34}`, 404)
 	if c.Result != nil || cached != nil {
 		t.Fatalf("404 should not produce a result, got %+v", cached)
+	}
+}
+
+func TestCacheEntryWithoutFingerprintIsMiss(t *testing.T) {
+	var movie *tmdb.Movie
+	fetched(t, &movie, movieJSON, 200)
+	result, _ := movie.MarshalMsg(nil)
+	old, _ := (&reqapi.CacheEntry{Result: result, StatusCode: 200}).MarshalMsg(nil)
+	var cached *tmdb.Movie
+	if err := reqapi.ReadCache(&reqapi.Request{Result: &cached}, old); err == nil {
+		t.Fatal("cached result without layout fingerprint must be treated as a miss")
 	}
 }
 
