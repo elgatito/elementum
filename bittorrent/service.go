@@ -18,14 +18,15 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
-	natpmp "github.com/ElementumOrg/go-nat-pmp"
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/anacrolix/sync"
 	"github.com/cespare/xxhash"
 	"github.com/dustin/go-humanize"
 	"github.com/gin-gonic/gin"
+	natpmp "github.com/jackpal/go-nat-pmp"
 	"github.com/radovskyb/watcher"
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/zeebo/bencode"
@@ -67,6 +68,7 @@ type Service struct {
 	listenInterfaces   []net.IP
 	outgoingInterfaces []net.IP
 	mappedPorts        sync.Map
+	updatingInterfaces sync.Mutex
 
 	InternalProxy *proxy.CustomProxy
 
@@ -197,6 +199,8 @@ func (s *Service) Reconfigure() {
 
 	s.config = config.Get()
 	s.configure()
+	// configure uses a port without NAT-PMP, so rescan for a mapped one
+	go s.updateInterfaces()
 
 	s.startServices()
 
@@ -207,6 +211,10 @@ func (s *Service) Reconfigure() {
 }
 
 func (s *Service) configure() {
+	// configure replaces session and settings, so it must not overlap with interface updates
+	s.updatingInterfaces.Lock()
+	defer s.updatingInterfaces.Unlock()
+
 	log.Info("Configuring client...")
 
 	proxy.Reload()
@@ -657,6 +665,12 @@ func (s *Service) checkAvailableSpace(xbmcHost *xbmc.XBMCHost, t *Torrent) bool 
 }
 
 func (s *Service) updateInterfaces() {
+	// Listen alerts for the old port keep arriving during a NAT scan, so skip triggers while one is running
+	if !s.updatingInterfaces.TryLock() {
+		return
+	}
+	defer s.updatingInterfaces.Unlock()
+
 	settings := s.PackSettings
 
 	listenInterfaces, outgoingInterfaces, errInterface := s.getInterfaceSettings(true)
@@ -1222,7 +1236,7 @@ func (s *Service) networkRefresh() {
 				go s.updateInterfaces()
 			}
 		case <-portTicker.C:
-			needUpdate := false
+			var needUpdate atomic.Bool
 			var wg sync.WaitGroup
 			s.mappedPorts.Range(func(key, value any) bool {
 				wg.Add(1)
@@ -1232,16 +1246,20 @@ func (s *Service) networkRefresh() {
 						return
 					}
 
-					port := tryNatPort(mapping.Gateway, mapping.Client, mapping.Port)
-					if port == 0 || port != mapping.Port {
-						needUpdate = true
+					port, err := tryNatPort(mapping.Client, mapping.Port)
+					if err != nil {
+						log.Warningf("NAT-PMP refresh of port %d for %s failed: %v", mapping.Port, mapping.Gateway, err)
+						needUpdate.Store(true)
+					} else if port != mapping.Port {
+						log.Warningf("NAT-PMP gateway changed port %d to %d for %s", mapping.Port, port, mapping.Gateway)
+						needUpdate.Store(true)
 					}
 				}(value.(PortMapping))
 				return true
 			})
 			wg.Wait()
 
-			if needUpdate {
+			if needUpdate.Load() {
 				log.Infof("Updating listen interfaces due to port changes in 5s")
 				time.Sleep(5 * time.Second)
 				go s.updateInterfaces()
@@ -2081,6 +2099,7 @@ func (s *Service) watchConfig() {
 				log.Infof("Watcher notify: %v", event)
 				s.configure()
 				s.applyCustomSettings()
+				go s.updateInterfaces()
 			case err := <-w.Error:
 				log.Errorf("Watcher error: %s", err)
 			case <-w.Closed:
@@ -2241,34 +2260,43 @@ func (s *Service) calcInterfaces() ([]net.IP, []net.IP, error) {
 
 func (s *Service) getNatPort(local net.IP, port int) (int, *natpmp.Client) {
 	gateways := ip.GetPossibleGateways(local)
-	log.Debugf("Testing NAT ports for addr %s and gateways %s", local.String(), gateways)
 	var wg sync.WaitGroup
 	wg.Add(len(gateways))
 
+	var mu sync.Mutex
 	var retNat *natpmp.Client
 	var retPort int
+	var retGw net.IP
+	var errs []string
 
 	for _, gw := range gateways {
 		go func(gw net.IP) {
 			defer wg.Done()
 			nat := natpmp.NewClientWithTimeout(gw, 1500*time.Millisecond)
 
-			tryPort := tryNatPort(gw, nat, port)
-			if tryPort > 0 {
-				retNat = nat
-				retPort = tryPort
-				return
+			tryPort, err := tryNatPort(nat, port)
+			if err != nil {
+				// Some gateways do not let us pick the port, ask for any
+				tryPort, err = tryNatPort(nat, 0)
 			}
 
-			tryPort = tryNatPort(gw, nat, 0)
-			if tryPort > 0 {
-				retNat = nat
-				retPort = tryPort
+			mu.Lock()
+			defer mu.Unlock()
+			if err != nil {
+				errs = append(errs, fmt.Sprintf("%s: %v", gw, err))
 				return
 			}
+			retNat, retPort, retGw = nat, tryPort, gw
 		}(gw)
 	}
 	wg.Wait()
+
+	// Most probed gateways are guesses, so per-gateway failures are expected and only summarized
+	if retPort > 0 {
+		log.Infof("NAT-PMP mapped port %d for %s via gateway %s", retPort, local, retGw)
+	} else {
+		log.Debugf("NAT-PMP not available for %s: %s", local, strings.Join(errs, "; "))
+	}
 
 	return retPort, retNat
 }
@@ -2291,50 +2319,48 @@ func (s *Service) deletePortMappings() {
 		return true
 	})
 	wg.Wait()
-	s.mappedPorts = sync.Map{}
+	s.mappedPorts.Clear()
 }
 
 func deleteNatPort(nat *natpmp.Client, port int) {
 	_, err := nat.AddPortMapping("tcp", port, port, 0)
 	if err != nil {
-		log.Errorf("failed to request TCP mapping: %v", err)
+		log.Errorf("failed to delete TCP mapping: %v", err)
 	}
 
 	_, err = nat.AddPortMapping("udp", port, port, 0)
 	if err != nil {
-		log.Errorf("failed to request UDP mapping: %v", err)
+		log.Errorf("failed to delete UDP mapping: %v", err)
 	}
 }
 
-func tryNatPort(gw net.IP, nat *natpmp.Client, port int) int {
-	tcp, err := nat.AddPortMapping("tcp", port, port, int64(time.Duration(60*time.Second)))
+func tryNatPort(nat *natpmp.Client, port int) (int, error) {
+	tcp, err := nat.AddPortMappingWithDuration("tcp", port, port, 60*time.Second)
 	if err != nil {
-		log.Errorf("failed to request TCP mapping: %v", err)
-		return 0
+		return 0, fmt.Errorf("TCP mapping: %w", err)
 	}
-	log.Debugf("Got TCP port (from endpoint %s for port %d) %v -> %v", gw.String(), port, tcp.MappedExternalPort, tcp.InternalPort)
 
-	udp, err := nat.AddPortMapping("udp", port, port, int64(time.Duration(60*time.Second)))
+	udp, err := nat.AddPortMappingWithDuration("udp", port, port, 60*time.Second)
 	if err != nil {
-		log.Errorf("failed to request UDP mapping: %v", err)
-		return 0
+		return 0, fmt.Errorf("UDP mapping: %w", err)
 	}
-	log.Debugf("Got UDP port (from endpoint %s for port %d) %v -> %v", gw.String(), port, udp.MappedExternalPort, udp.InternalPort)
 
+	if tcp.InternalPort != tcp.MappedExternalPort || udp.InternalPort != udp.MappedExternalPort {
+		// Mapping is unusable for us, release it instead of leaving it until lifetime expires
+		deleteNatPort(nat, int(tcp.InternalPort))
+	}
 	if tcp.InternalPort != tcp.MappedExternalPort {
-		log.Debugf("TCP internal (%v) and external (%v) ports do not match", tcp.InternalPort, tcp.MappedExternalPort)
-		return 0
+		return 0, fmt.Errorf("TCP internal (%d) and external (%d) ports do not match", tcp.InternalPort, tcp.MappedExternalPort)
 	}
 	if udp.InternalPort != udp.MappedExternalPort {
-		log.Debugf("UDP internal (%v) and external (%v) port do not match", udp.InternalPort, udp.MappedExternalPort)
-		return 0
+		return 0, fmt.Errorf("UDP internal (%d) and external (%d) ports do not match", udp.InternalPort, udp.MappedExternalPort)
 	}
 
 	if tcp.InternalPort != udp.InternalPort {
 		log.Debugf("WARN: TCP (%v) and UDP (%v) ports do not match, using TCP", tcp.InternalPort, udp.InternalPort)
 	}
 
-	return int(tcp.MappedExternalPort)
+	return int(tcp.MappedExternalPort), nil
 }
 
 // calcInterfacePorts is searching for a proper port to use for each interface and returns an IP:port list
