@@ -41,3 +41,23 @@ func TestGetXBMCHostWithContextCookie(t *testing.T) {
 		}
 	}
 }
+
+func TestXBMCHostIgnoresIPFamily(t *testing.T) {
+	XBMCHosts = []*XBMCHost{}
+	local, _ := AddLocalXBMCHost("127.0.0.1")
+	remote, _ := AddXBMCHost("192.168.1.50")
+
+	for host, want := range map[string]*XBMCHost{
+		"::1":                 local,
+		"127.0.0.1":           local,
+		"::ffff:127.0.0.1":    local,
+		"::ffff:192.168.1.50": remote,
+	} {
+		if got, _ := GetXBMCHost(host); got != want {
+			t.Errorf("%s: got %v, want %v", host, got, want)
+		}
+	}
+	if len(XBMCHosts) != 2 {
+		t.Errorf("got %d hosts, want 2", len(XBMCHosts))
+	}
+}

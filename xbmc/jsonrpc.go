@@ -47,18 +47,39 @@ func Init(externalIP string) {
 
 	XBMCHosts = []*XBMCHost{}
 	for _, host := range []string{
-		"::1",
 		"127.0.0.1",
+		"::1",
 	} {
 		if conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, XBMCJSONRPCPort), time.Second*3); err == nil {
 			XBMCLocalHost = &XBMCHost{host}
 			XBMCHosts = append(XBMCHosts, XBMCLocalHost)
 			conn.Close()
 			log.Debugf("Adding local host %s", host)
+			// Both loopbacks are the same Kodi, keep only the first one that answers
+			break
 		} else {
 			log.Debugf("Could not connect to the host %s: %s", host, err)
 		}
 	}
+}
+
+// sameHost compares hosts regardless of IPv4/IPv6 form: all loopbacks are equal, IPv4-mapped IPv6 equals IPv4
+func sameHost(a, b string) bool {
+	return normalizeHost(a) == normalizeHost(b)
+}
+
+func normalizeHost(host string) string {
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return host
+	}
+	if ip.IsLoopback() {
+		return "127.0.0.1"
+	}
+	if ip4 := ip.To4(); ip4 != nil {
+		return ip4.String()
+	}
+	return ip.String()
 }
 
 func ContainsXBMCHost(host string) bool {
@@ -66,7 +87,7 @@ func ContainsXBMCHost(host string) bool {
 	defer mu.RUnlock()
 
 	for _, h := range XBMCHosts {
-		if h.Host == host {
+		if sameHost(h.Host, host) {
 			return true
 		}
 	}
@@ -93,7 +114,7 @@ func AddXBMCHost(host string) (*XBMCHost, error) {
 	defer mu.Unlock()
 
 	for _, h := range XBMCHosts {
-		if h != nil && h.Host == host {
+		if h != nil && sameHost(h.Host, host) {
 			return h, nil
 		}
 	}
@@ -110,7 +131,7 @@ func RemoveXBMCHost(host string) error {
 
 	index := -1
 	for i, h := range XBMCHosts {
-		if h.Host == host {
+		if sameHost(h.Host, host) {
 			index = i
 			break
 		}
@@ -163,7 +184,7 @@ func GetXBMCHost(host string) (*XBMCHost, error) {
 	}
 
 	for _, h := range XBMCHosts {
-		if h != nil && h.Host == host {
+		if h != nil && sameHost(h.Host, host) {
 			mu.RUnlock()
 			return h, nil
 		}
