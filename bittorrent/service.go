@@ -138,6 +138,9 @@ func NewService() *Service {
 	}()
 	go s.onDownloadProgress()
 
+	s.wg.Add(1)
+	go s.updateStatusLoop()
+
 	return s
 }
 
@@ -619,27 +622,22 @@ func (s *Service) checkAvailableSpace(xbmcHost *xbmc.XBMCHost, t *Torrent) bool 
 		return false
 	}
 
-	torrentInfo := t.th.TorrentFile()
-
-	if torrentInfo == nil || torrentInfo.Swigcptr() == 0 {
+	if t.ti == nil || t.ti.Swigcptr() == 0 {
 		log.Warning("Missing torrent info to check available space.")
 		return false
 	}
 
-	status := t.GetLastStatus(false)
-	if status == nil {
-		return false
-	}
+	status := t.GetStatus()
 
 	totalSize := t.ti.TotalSize()
-	totalDone := status.GetTotalDone()
+	totalDone := status.TotalDone
 	sizeLeft := totalSize - totalDone
 	availableSpace := diskStatus.Free
-	path := status.GetSavePath()
+	path := status.SavePath
 
 	log.Infof("Checking for sufficient space on %s...", path)
 	log.Infof("Total size of download: %s", humanize.Bytes(uint64(totalSize)))
-	log.Infof("All time download: %s", humanize.Bytes(uint64(status.GetAllTimeDownload())))
+	log.Infof("All time download: %s", humanize.Bytes(uint64(status.AllTimeDownload)))
 	log.Infof("Size total done: %s", humanize.Bytes(uint64(totalDone)))
 	log.Infof("Size left to download: %s", humanize.Bytes(uint64(sizeLeft)))
 	log.Infof("Available space: %s", humanize.Bytes(uint64(availableSpace)))
@@ -650,7 +648,7 @@ func (s *Service) checkAvailableSpace(xbmcHost *xbmc.XBMCHost, t *Torrent) bool 
 			xbmcHost.Notify("Elementum", "LOCALIZE[30207]", config.AddonIcon())
 		}
 
-		log.Infof("Pausing torrent %s", status.GetName())
+		log.Infof("Pausing torrent %s", status.Name)
 		t.Pause()
 		return false
 	}
@@ -984,12 +982,12 @@ func (s *Service) RemoveTorrent(xbmcHost *xbmc.XBMCHost, t *Torrent, flags Remov
 func (s *Service) onStateChanged(stateAlert lt.StateChangedAlert) {
 	switch stateAlert.GetState() {
 	case lt.TorrentStatusDownloading:
-		torrentHandle := stateAlert.GetHandle()
-		torrentStatus := torrentHandle.Status(uint(lt.WrappedTorrentHandleQueryName))
-		defer lt.DeleteTorrentStatus(torrentStatus)
+		t := s.getTorrentByHandle(stateAlert.GetHandle())
+		if t == nil {
+			return
+		}
 
-		shaHash := torrentStatus.GetInfoHash().ToString()
-		infoHash := hex.EncodeToString([]byte(shaHash))
+		infoHash := t.InfoHash()
 		if spaceChecked, exists := s.SpaceChecked[infoHash]; exists {
 			if !spaceChecked {
 				if t := s.GetTorrentByHash(infoHash); t != nil {
@@ -1000,6 +998,15 @@ func (s *Service) onStateChanged(stateAlert lt.StateChangedAlert) {
 			}
 		}
 	}
+}
+
+func (s *Service) getTorrentByHandle(th lt.TorrentHandle) *Torrent {
+	for _, t := range s.q.All() {
+		if t.th != nil && th.Equal(t.th) {
+			return t
+		}
+	}
+	return nil
 }
 
 // GetTorrentByHash ...
@@ -1026,16 +1033,13 @@ func (s *Service) onSaveResumeDataWriter() {
 			return
 		case <-saveResumeWait.C:
 			for _, t := range s.q.All() {
-				if t == nil || t.th == nil || t.th.Swigcptr() == 0 || !t.th.IsValid() {
+				if status := t.GetStatus(); !status.HasMetadata || !status.NeedSaveResume {
 					continue
 				}
 
-				status := t.GetLastStatus(false)
-				if status == nil || !status.GetHasMetadata() || !status.GetNeedSaveResume() {
-					continue
-				}
-
-				t.th.SaveResumeData(1)
+				t.withHandle(func(th lt.TorrentHandle) {
+					th.SaveResumeData(1)
+				})
 			}
 		}
 	}
@@ -1067,7 +1071,9 @@ func (s *Service) onSaveResumeDataConsumer() {
 				b := bytes.NewReader(bEncoded)
 				dec := bencode.NewDecoder(b)
 				var torrentFile *TorrentFileRaw
-				if err := dec.Decode(&torrentFile); err != nil {
+				if alert.InfoHash == "" {
+					log.Warningf("Skipping resume data for removed torrent")
+				} else if err := dec.Decode(&torrentFile); err != nil {
 					log.Warningf("Resume data corrupted for %s, %d bytes received and failed to decode with: %s, skipping...", alert.Name, len(bEncoded), err.Error())
 				} else {
 					path := filepath.Join(s.config.TorrentsPath, fmt.Sprintf("%s.fastresume", alert.InfoHash))
@@ -1121,13 +1127,11 @@ func (s *Service) onAlertsConsumer() {
 				switch alertType {
 				case lt.SaveResumeDataAlertAlertType:
 					saveResumeData := lt.SwigcptrSaveResumeDataAlert(alertPtr)
-					torrentHandle := saveResumeData.GetHandle()
-					torrentStatus := torrentHandle.Status(uint(lt.WrappedTorrentHandleQuerySavePath) | uint(lt.WrappedTorrentHandleQueryName))
-					defer lt.DeleteTorrentStatus(torrentStatus)
-
-					name = torrentStatus.GetName()
-					shaHash := torrentStatus.GetInfoHash().ToString()
-					infoHash = hex.EncodeToString([]byte(shaHash))
+					name, infoHash = "", ""
+					if t := s.getTorrentByHandle(saveResumeData.GetHandle()); t != nil {
+						name = t.GetStatus().Name
+						infoHash = t.InfoHash()
+					}
 					entry = saveResumeData.ResumeData()
 				case lt.ExternalIpAlertAlertType:
 					splitMessage := strings.Split(alertMessage, ":")
@@ -1438,44 +1442,24 @@ func (s *Service) onDownloadProgress() {
 			var totalProgress int
 
 			activeTorrents := make([]*activeTorrent, 0)
-			torrentsVector := s.Session.GetTorrents()
-			torrentsVectorSize := int(torrentsVector.Size())
-			defer lt.DeleteStdVectorTorrentHandle(torrentsVector)
 
-			for i := 0; i < torrentsVectorSize; i++ {
-				torrentHandle := torrentsVector.Get(i)
-				if !torrentHandle.IsValid() {
+			for _, t := range s.q.All() {
+				ts := t.GetStatus()
+				if t.Closer.IsSet() || !ts.HasMetadata || s.Session.IsPaused() {
 					continue
 				}
 
-				ts := torrentHandle.Status()
-				defer lt.DeleteTorrentStatus(ts)
+				infoHash := t.InfoHash()
+				isPaused := ts.Paused
+				status := StatusStrings[t.GetSmartState()]
 
-				if !ts.GetHasMetadata() || s.Session.IsPaused() {
-					continue
-				}
-
-				shaHash := ts.GetInfoHash().ToString()
-				infoHash := hex.EncodeToString([]byte(shaHash))
-
-				status := ""
-				isPaused := ts.GetPaused()
-
-				t := s.GetTorrentByHash(infoHash)
-				if t != nil {
-					statusCode := t.GetSmartState()
-					status = StatusStrings[statusCode]
-				} else {
-					continue
-				}
-
-				downloadRate := float64(ts.GetDownloadPayloadRate())
-				uploadRate := float64(ts.GetUploadPayloadRate())
+				downloadRate := float64(ts.DownloadPayloadRate)
+				uploadRate := float64(ts.UploadPayloadRate)
 				totalDownloadRate += downloadRate
 				totalUploadRate += uploadRate
 
-				torrentName := ts.GetName()
-				progress := int(float64(ts.GetProgress()) * 100)
+				torrentName := ts.Name
+				progress := int(ts.Progress * 100)
 
 				if progress < 100 && !isPaused {
 					activeTorrents = append(activeTorrents, &activeTorrent{
@@ -1488,8 +1472,8 @@ func (s *Service) onDownloadProgress() {
 					continue
 				}
 
-				seedingTime := ts.GetSeedingTime()
-				finishedTime := ts.GetFinishedTime()
+				seedingTime := ts.SeedingTime
+				finishedTime := ts.FinishedTime
 				if progress == 100 && seedingTime == 0 {
 					seedingTime = finishedTime
 				}
@@ -1498,8 +1482,10 @@ func (s *Service) onDownloadProgress() {
 					if seedingTime >= s.config.SeedTimeLimit {
 						if !isPaused {
 							log.Warningf("Seeding time limit reached, pausing %s", torrentName)
-							torrentHandle.AutoManaged(false)
-							torrentHandle.Pause(1)
+							t.withHandle(func(th lt.TorrentHandle) {
+								th.AutoManaged(false)
+								th.Pause(1)
+							})
 							isPaused = true
 						}
 						status = StatusStrings[StatusSeeding]
@@ -1507,15 +1493,17 @@ func (s *Service) onDownloadProgress() {
 				}
 				if !t.IsMemoryStorage() && s.config.SeedTimeRatioLimit > 0 && !s.config.SeedForever {
 					timeRatio := 0
-					downloadTime := ts.GetActiveTime() - seedingTime
+					downloadTime := ts.ActiveTime - seedingTime
 					if downloadTime > 1 {
 						timeRatio = seedingTime * 100 / downloadTime
 					}
 					if timeRatio >= s.config.SeedTimeRatioLimit {
 						if !isPaused {
 							log.Warningf("Seeding time ratio reached, pausing %s", torrentName)
-							torrentHandle.AutoManaged(false)
-							torrentHandle.Pause(1)
+							t.withHandle(func(th lt.TorrentHandle) {
+								th.AutoManaged(false)
+								th.Pause(1)
+							})
 							isPaused = true
 						}
 						status = StatusStrings[StatusSeeding]
@@ -1523,15 +1511,17 @@ func (s *Service) onDownloadProgress() {
 				}
 				if !t.IsMemoryStorage() && s.config.ShareRatioLimit > 0 && !s.config.SeedForever {
 					ratio := int64(0)
-					allTimeDownload := ts.GetAllTimeDownload()
+					allTimeDownload := ts.AllTimeDownload
 					if allTimeDownload > 0 {
-						ratio = ts.GetAllTimeUpload() * 100 / allTimeDownload
+						ratio = ts.AllTimeUpload * 100 / allTimeDownload
 					}
 					if ratio >= int64(s.config.ShareRatioLimit) {
 						if !isPaused {
 							log.Warningf("Share ratio reached, pausing %s", torrentName)
-							torrentHandle.AutoManaged(false)
-							torrentHandle.Pause(1)
+							t.withHandle(func(th lt.TorrentHandle) {
+								th.AutoManaged(false)
+								th.Pause(1)
+							})
 						}
 						status = StatusStrings[StatusSeeding]
 					}
@@ -1601,12 +1591,11 @@ func (s *Service) onDownloadProgress() {
 					}
 
 					// Preparing list of files that need to be moved
-					torrentInfo := torrentHandle.TorrentFile()
 					filesToMove := []string{}
 					filesToCleanup := map[string]bool{}
 					for _, fp := range t.files {
 						f := t.GetFileByPath(fp.Path)
-						filesToMove = append(filesToMove, torrentInfo.Files().FilePath(f.Index))
+						filesToMove = append(filesToMove, t.ti.Files().FilePath(f.Index))
 					}
 
 					log.Infof("Moving torrent '%s' to completed folder", t.Name())

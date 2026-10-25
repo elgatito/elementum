@@ -1,7 +1,6 @@
 package bittorrent
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -13,8 +12,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
-	"unsafe"
 
 	lt "github.com/ElementumOrg/libtorrent-go"
 	"github.com/RoaringBitmap/roaring"
@@ -40,9 +39,7 @@ type Torrent struct {
 	files             []*File
 	th                lt.TorrentHandle
 	ti                lt.TorrentInfo
-	lastStatus        lt.TorrentStatus
-	lastStatusTime    time.Time
-	lastProgress      float64
+	status            atomic.Pointer[TorrentStatus]
 	ms                lt.MemoryStorage
 	fastResumeFile    string
 	torrentFile       string
@@ -95,6 +92,7 @@ type Torrent struct {
 	muBuffer  *sync.RWMutex
 	muReaders *sync.Mutex
 	muStatus  *sync.Mutex
+	muHandle  *sync.RWMutex
 
 	pieceLength int64
 	pieceCount  int
@@ -102,10 +100,6 @@ type Torrent struct {
 	gotMetainfo    event.Event
 	Closer         event.Event
 	bufferFinished chan struct{}
-
-	piecesMx          sync.RWMutex
-	pieces            Bitfield
-	piecesLastUpdated time.Time
 
 	bufferTicker     *time.Ticker
 	prioritizeTicker *time.Ticker
@@ -120,11 +114,10 @@ func NewTorrent(service *Service, handle lt.TorrentHandle, info lt.TorrentInfo, 
 	ts := handle.Status()
 	defer lt.DeleteTorrentStatus(ts)
 
-	shaHash := ts.GetInfoHash().ToString()
-	infoHash := hex.EncodeToString([]byte(shaHash))
+	status := newTorrentStatus(ts)
 
 	t := &Torrent{
-		infoHash: infoHash,
+		infoHash: status.InfoHash,
 
 		Service:         service,
 		files:           []*File{},
@@ -148,7 +141,9 @@ func NewTorrent(service *Service, handle lt.TorrentHandle, info lt.TorrentInfo, 
 		muAwaitingPieces: &sync.RWMutex{},
 		muDemandPieces:   &sync.RWMutex{},
 		muStatus:         &sync.Mutex{},
+		muHandle:         &sync.RWMutex{},
 	}
+	t.status.Store(status)
 
 	return t
 }
@@ -156,8 +151,10 @@ func NewTorrent(service *Service, handle lt.TorrentHandle, info lt.TorrentInfo, 
 func (t *Torrent) init() {
 	// Run setters in MemoryStorage
 	if t.IsMemoryStorage() {
-		t.ms = t.th.GetMemoryStorage()
-		t.ms.SetTorrentHandle(t.th)
+		t.withHandle(func(th lt.TorrentHandle) {
+			t.ms = th.GetMemoryStorage()
+			t.ms.SetTorrentHandle(th)
+		})
 
 		if t.MemorySize < t.pieceLength*10 {
 			t.AdjustMemorySize(t.pieceLength * 10)
@@ -171,8 +168,11 @@ func (t *Torrent) GotInfo() <-chan struct{} {
 }
 
 // Storage ...
-func (t *Torrent) Storage() lt.StorageInterface {
-	return t.th.GetStorageImpl()
+func (t *Torrent) Storage() (storage lt.StorageInterface) {
+	t.withHandle(func(th lt.TorrentHandle) {
+		storage = th.GetStorageImpl()
+	})
+	return
 }
 
 // Watch ...
@@ -312,36 +312,25 @@ func (t *Torrent) bufferTickerEvent() {
 
 // GetConnections returns connected and overall number of peers
 func (t *Torrent) GetConnections() (int, int, int, int) {
-	if t.Closer.IsSet() || t.th == nil || t.th.Swigcptr() == 0 {
+	if t.Closer.IsSet() {
 		return 0, 0, 0, 0
 	}
 
-	ts := t.GetLastStatus(false)
-	if ts == nil {
-		return 0, 0, 0, 0
-	}
+	ts := t.GetStatus()
 
-	seeds := ts.GetNumSeeds()
-	seedsTotal := max(ts.GetListSeeds(), ts.GetNumComplete())
+	seeds := ts.NumSeeds
+	seedsTotal := max(ts.ListSeeds, ts.NumComplete)
 
-	peers := ts.GetNumPeers() - ts.GetNumSeeds()
-	peersTotal := max(ts.GetListPeers()-ts.GetListSeeds(), ts.GetNumComplete()+ts.GetNumIncomplete())
+	peers := ts.NumPeers - ts.NumSeeds
+	peersTotal := max(ts.ListPeers-ts.ListSeeds, ts.NumComplete+ts.NumIncomplete)
 
 	return seeds, seedsTotal, peers, peersTotal
 }
 
 // GetSpeeds returns download and upload speeds
 func (t *Torrent) GetSpeeds() (down, up int) {
-	if t.th == nil || t.th.Swigcptr() == 0 {
-		return 0, 0
-	}
-
-	ts := t.GetLastStatus(false)
-	if ts == nil {
-		return 0, 0
-	}
-
-	return ts.GetDownloadPayloadRate(), ts.GetUploadPayloadRate()
+	ts := t.GetStatus()
+	return ts.DownloadPayloadRate, ts.UploadPayloadRate
 }
 
 // GetHumanizedSpeeds returns humanize download and upload speeds
@@ -441,7 +430,9 @@ func (t *Torrent) Buffer(file *File, isStartup bool) {
 		if preBufferSize+postBufferSize > t.MemorySize {
 			t.MemorySize = preBufferSize + postBufferSize + (1 * t.pieceLength)
 			log.Infof("Adjusting memory size to %s, to fit all buffer!", humanize.Bytes(uint64(t.MemorySize)))
-			t.ms.SetMemorySize(t.MemorySize)
+			t.withHandle(func(lt.TorrentHandle) {
+				t.ms.SetMemorySize(t.MemorySize)
+			})
 		}
 	}
 
@@ -486,27 +477,29 @@ func (t *Torrent) Buffer(file *File, isStartup bool) {
 	curPiece := 0
 
 	t.muDemandPieces.Lock()
-	if isStartup {
-		piecesPriorities := t.th.PiecePriorities()
-		defer lt.DeleteStdVectorInt(piecesPriorities)
+	t.withHandle(func(th lt.TorrentHandle) {
+		if isStartup {
+			piecesPriorities := th.PiecePriorities()
+			defer lt.DeleteStdVectorInt(piecesPriorities)
 
-		for curPiece = preBufferStart; curPiece <= preBufferEnd; curPiece++ { // get this part
-			piecesPriorities.Set(curPiece, 7)
+			for curPiece = preBufferStart; curPiece <= preBufferEnd; curPiece++ { // get this part
+				piecesPriorities.Set(curPiece, 7)
+			}
+			for curPiece = postBufferStart; curPiece <= postBufferEnd; curPiece++ { // get this part
+				piecesPriorities.Set(curPiece, 7)
+			}
+			th.PrioritizePieces(piecesPriorities)
+		} else {
+			for curPiece = preBufferStart; curPiece <= preBufferEnd; curPiece++ { // get this part
+				t.demandPieces.AddInt(curPiece)
+				th.PiecePriority(curPiece, 3)
+			}
+			for curPiece = postBufferStart; curPiece <= postBufferEnd; curPiece++ { // get this part
+				t.demandPieces.AddInt(curPiece)
+				th.PiecePriority(curPiece, 3)
+			}
 		}
-		for curPiece = postBufferStart; curPiece <= postBufferEnd; curPiece++ { // get this part
-			piecesPriorities.Set(curPiece, 7)
-		}
-		t.th.PrioritizePieces(piecesPriorities)
-	} else {
-		for curPiece = preBufferStart; curPiece <= preBufferEnd; curPiece++ { // get this part
-			t.demandPieces.AddInt(curPiece)
-			t.th.PiecePriority(curPiece, 3)
-		}
-		for curPiece = postBufferStart; curPiece <= postBufferEnd; curPiece++ { // get this part
-			t.demandPieces.AddInt(curPiece)
-			t.th.PiecePriority(curPiece, 3)
-		}
-	}
+	})
 	t.muDemandPieces.Unlock()
 
 	// Using libtorrent hack to pause and resume the torrent
@@ -515,21 +508,23 @@ func (t *Torrent) Buffer(file *File, isStartup bool) {
 		t.Resume()
 	}
 
-	// Force reannounce for trackers
-	t.th.ForceReannounce()
-	if !config.Get().DisableDHT {
-		t.th.ForceDhtAnnounce()
-	}
+	t.withHandle(func(th lt.TorrentHandle) {
+		// Force reannounce for trackers
+		th.ForceReannounce()
+		if !config.Get().DisableDHT {
+			th.ForceDhtAnnounce()
+		}
 
-	// As long as file storage has many enabled pieces, we make sure buffer pieces are sent immediately
-	if !t.IsMemoryStorage() {
-		for curPiece = preBufferStart; curPiece <= preBufferEnd; curPiece++ { // get this part
-			t.th.SetPieceDeadline(curPiece, 0, 0)
+		// As long as file storage has many enabled pieces, we make sure buffer pieces are sent immediately
+		if !t.IsMemoryStorage() {
+			for curPiece = preBufferStart; curPiece <= preBufferEnd; curPiece++ { // get this part
+				th.SetPieceDeadline(curPiece, 0, 0)
+			}
+			for curPiece = postBufferStart; curPiece <= postBufferEnd; curPiece++ { // get this part
+				th.SetPieceDeadline(curPiece, 0, 0)
+			}
 		}
-		for curPiece = postBufferStart; curPiece <= postBufferEnd; curPiece++ { // get this part
-			t.th.SetPieceDeadline(curPiece, 0, 0)
-		}
-	}
+	})
 }
 
 // AdjustMemorySize ...
@@ -542,7 +537,9 @@ func (t *Torrent) AdjustMemorySize(ms int64) {
 
 	t.MemorySize = ms
 	log.Infof("Adjusting memory size to %s!", humanize.Bytes(uint64(t.MemorySize)))
-	t.ms.SetMemorySize(t.MemorySize)
+	t.withHandle(func(lt.TorrentHandle) {
+		t.ms.SetMemorySize(t.MemorySize)
+	})
 }
 
 func (t *Torrent) getBufferSize(fileOffset int64, off, length int64) (startPiece, endPiece int, offset, size int64) {
@@ -598,7 +595,9 @@ func (t *Torrent) PrioritizePiece(piece int) {
 
 		t.awaitingPieces.AddInt(i)
 
-		t.th.SetPieceDeadline(i, i-piece*100, 0)
+		t.withHandle(func(th lt.TorrentHandle) {
+			th.SetPieceDeadline(i, i-piece*100, 0)
+		})
 	}
 }
 
@@ -608,7 +607,9 @@ func (t *Torrent) ClearDeadlines() {
 	t.awaitingPieces.Clear()
 	t.muAwaitingPieces.Unlock()
 
-	t.th.ClearPieceDeadlines()
+	t.withHandle(func(th lt.TorrentHandle) {
+		th.ClearPieceDeadlines()
+	})
 }
 
 // PrioritizePieces ...
@@ -741,9 +742,11 @@ func (t *Torrent) PrioritizePieces() {
 		return
 	}
 
-	if t.IsMemoryStorage() && t.th != nil && t.ms != nil {
-		t.ms.UpdateReaderPieces(readerVector)
-		t.ms.UpdateReservedPieces(reservedVector)
+	if t.IsMemoryStorage() && t.ms != nil {
+		t.withHandle(func(lt.TorrentHandle) {
+			t.ms.UpdateReaderPieces(readerVector)
+			t.ms.UpdateReservedPieces(reservedVector)
+		})
 	}
 
 	defaultPriority := 0
@@ -789,7 +792,9 @@ func (t *Torrent) PrioritizePieces() {
 	}
 
 	t.lastPrioritization = status
-	t.th.PrioritizePieces(piecesPriorities)
+	t.withHandle(func(th lt.TorrentHandle) {
+		th.PrioritizePieces(piecesPriorities)
+	})
 }
 
 // GetAddedTime ...
@@ -797,17 +802,9 @@ func (t *Torrent) GetAddedTime() time.Time {
 	return t.addedTime
 }
 
-// GetStatus ...
-func (t *Torrent) GetStatus() lt.TorrentStatus {
-	return t.th.Status()
-}
-
 // GetState ...
 func (t *Torrent) GetState() int {
-	st := t.GetStatus()
-	defer lt.DeleteTorrentStatus(st)
-
-	return int(st.GetState())
+	return t.GetStatus().State
 }
 
 // GetSmartState ...
@@ -818,23 +815,20 @@ func (t *Torrent) GetSmartState() int {
 		return StatusQueued
 	}
 
-	torrentStatus := t.GetLastStatus(false)
-	if torrentStatus == nil {
-		return StatusQueued
-	}
+	torrentStatus := t.GetStatus()
 
-	progress := float64(torrentStatus.GetProgress()) * 100
-	state := int(torrentStatus.GetState())
+	progress := torrentStatus.Progress * 100
+	state := torrentStatus.State
 
 	if t.Service.Session.IsPaused() {
 		return StatusPaused
-	} else if torrentStatus.GetPaused() && state != StatusFinished && state != StatusFinding {
+	} else if torrentStatus.Paused && state != StatusFinished && state != StatusFinding {
 		if progress == 100 {
 			return StatusFinished
 		}
 
 		return StatusPaused
-	} else if !torrentStatus.GetPaused() && (state == StatusFinished || progress == 100) {
+	} else if !torrentStatus.Paused && (state == StatusFinished || progress == 100) {
 		if progress < 100 {
 			return StatusDownloading
 		}
@@ -899,14 +893,11 @@ func (t *Torrent) piecesProgress(pieces map[int]float64) {
 	queue := lt.NewStdVectorPartialPieceInfo()
 	defer lt.DeleteStdVectorPartialPieceInfo(queue)
 
-	t.th.GetDownloadQueue(queue)
-
-	st := t.GetLastStatus(false)
-	if st == nil {
+	if !t.withHandle(func(th lt.TorrentHandle) { th.GetDownloadQueue(queue) }) {
 		return
 	}
 
-	blockSize := st.GetBlockSize()
+	blockSize := t.GetStatus().BlockSize
 	queueSize := queue.Size()
 	for i := 0; i < int(queueSize); i++ {
 		ppi := queue.Get(i)
@@ -949,40 +940,41 @@ func (t *Torrent) GetProgress() float64 {
 // Should be taken in mind that for memory storage it's a progress of downloading currently active pieces,
 // not the whole torrent.
 func (t *Torrent) GetRealProgress() float64 {
-	ts := t.GetLastStatus(false)
-	if ts != nil {
-		t.lastProgress = float64(ts.GetProgress()) * 100
-	}
-
-	return t.lastProgress
+	return t.GetStatus().Progress * 100
 }
 
 // DownloadFiles sets priority 1 to list of files
 func (t *Torrent) DownloadFiles(files []*File) {
-	filePriorities := t.th.FilePriorities()
-	for _, f := range files {
-		log.Debugf("Choosing file for download: %s", f.Path)
+	t.withHandle(func(th lt.TorrentHandle) {
+		filePriorities := th.FilePriorities()
+		defer lt.DeleteStdVectorInt(filePriorities)
 
-		f.Selected = true
-		filePriorities.Set(f.Index, 1)
-	}
-	defer lt.DeleteStdVectorInt(filePriorities)
+		for _, f := range files {
+			log.Debugf("Choosing file for download: %s", f.Path)
 
-	t.th.PrioritizeFiles(filePriorities)
+			f.Selected = true
+			filePriorities.Set(f.Index, 1)
+		}
+
+		th.PrioritizeFiles(filePriorities)
+	})
 }
 
 // UndownloadFiles sets priority 0 to list of files
 func (t *Torrent) UndownloadFiles(files []*File) {
-	filePriorities := t.th.FilePriorities()
-	for _, f := range files {
-		log.Debugf("UnChoosing file for download: %s", f.Path)
+	t.withHandle(func(th lt.TorrentHandle) {
+		filePriorities := th.FilePriorities()
+		defer lt.DeleteStdVectorInt(filePriorities)
 
-		f.Selected = false
-		filePriorities.Set(f.Index, 0)
-	}
-	defer lt.DeleteStdVectorInt(filePriorities)
+		for _, f := range files {
+			log.Debugf("UnChoosing file for download: %s", f.Path)
 
-	t.th.PrioritizeFiles(filePriorities)
+			f.Selected = false
+			filePriorities.Set(f.Index, 0)
+		}
+
+		th.PrioritizeFiles(filePriorities)
+	})
 }
 
 // DownloadAllFiles ...
@@ -1043,7 +1035,9 @@ func (t *Torrent) DownloadFileWithPriority(addFile *File, priority int) {
 		}
 
 		log.Debugf("Choosing file for download with priority %d: %s", priority, f.Path)
-		t.th.FilePriority(f.Index, priority)
+		t.withHandle(func(th lt.TorrentHandle) {
+			th.FilePriority(f.Index, priority)
+		})
 
 		// Need to sleep because file_priority is executed async
 		time.Sleep(50 * time.Millisecond)
@@ -1078,7 +1072,9 @@ func (t *Torrent) UnDownloadFile(addFile *File) bool {
 		return true
 	}
 
-	t.th.FilePriority(addFile.Index, 0)
+	t.withHandle(func(th lt.TorrentHandle) {
+		th.FilePriority(addFile.Index, 0)
+	})
 
 	// Need to sleep because file_priority is executed async
 	time.Sleep(50 * time.Millisecond)
@@ -1088,17 +1084,7 @@ func (t *Torrent) UnDownloadFile(addFile *File) bool {
 
 // InfoHash ...
 func (t *Torrent) InfoHash() string {
-	if t.th == nil {
-		return ""
-	}
-
-	ts := t.GetLastStatus(false)
-	if ts == nil {
-		return ""
-	}
-	shaHash := ts.GetInfoHash().ToString()
-
-	return hex.EncodeToString([]byte(shaHash))
+	return t.infoHash
 }
 
 // Name ...
@@ -1182,12 +1168,6 @@ func (t *Torrent) Drop(removeFiles, removeData bool) {
 			defer util.FreeMemoryGC()
 		}
 
-		// TODO: Somehow this drops a double free error, so like it was removed already
-		// if t.lastStatus != nil && t.lastStatus.Swigcptr() != 0 {
-		// 	lt.DeleteTorrentStatus(t.lastStatus)
-		//  t.lastStatus = nil
-		// }
-
 		toRemove := 0
 		if removeData && !t.IsMemoryStorage() {
 			toRemove = 1
@@ -1196,7 +1176,11 @@ func (t *Torrent) Drop(removeFiles, removeData bool) {
 			log.Info("Removing the torrent without deleting files after playing ...")
 		}
 
-		if err := t.Service.Session.RemoveTorrent(t.th, toRemove); err != nil {
+		// Wait for running libtorrent calls, Closer is already set, so no new calls would start
+		t.muHandle.Lock()
+		err := t.Service.Session.RemoveTorrent(t.th, toRemove)
+		t.muHandle.Unlock()
+		if err != nil {
 			log.Errorf("Could not remove torrent: %s", err)
 		}
 
@@ -1254,8 +1238,10 @@ func (t *Torrent) Pause() {
 
 	log.Infof("Pausing torrent: %s", t.InfoHash())
 
-	t.th.AutoManaged(false)
-	t.th.Pause()
+	t.withHandle(func(th lt.TorrentHandle) {
+		th.AutoManaged(false)
+		th.Pause()
+	})
 
 	t.IsPaused = true
 }
@@ -1268,21 +1254,21 @@ func (t *Torrent) Resume() {
 
 	log.Infof("Resuming torrent: %s", t.InfoHash())
 
-	t.th.AutoManaged(true)
-	t.th.Resume()
+	t.withHandle(func(th lt.TorrentHandle) {
+		th.AutoManaged(true)
+		th.Resume()
+	})
 
 	t.IsPaused = false
 }
 
 // ForceRecheck re-checks torrent's data
 func (t *Torrent) ForceRecheck() {
-	if t.Closer.IsSet() || t.th == nil || t.th.Swigcptr() == 0 {
-		return
-	}
-
 	log.Infof("Re-checking torrent: %s", t.InfoHash())
 
-	t.th.ForceRecheck()
+	t.withHandle(func(th lt.TorrentHandle) {
+		th.ForceRecheck()
+	})
 }
 
 // GetDBItem ...
@@ -1443,6 +1429,10 @@ func (t *Torrent) ReadersReadaheadSum() int64 {
 func (t *Torrent) GetMetadata() []byte {
 	defer perf.ScopeTimer()()
 
+	if t.ti == nil || t.ti.Swigcptr() == 0 {
+		return nil
+	}
+
 	torrentFile := lt.NewCreateTorrent(t.ti)
 	defer lt.DeleteCreateTorrent(torrentFile)
 
@@ -1495,47 +1485,11 @@ func (t *Torrent) GetFileByIndex(q int) *File {
 	return nil
 }
 
-func (t *Torrent) updatePieces() error {
-	defer perf.ScopeTimer()()
-
-	t.piecesMx.Lock()
-	defer t.piecesMx.Unlock()
-
-	if time.Now().Before(t.piecesLastUpdated.Add(piecesRefreshDuration)) || t.Closer.IsSet() {
-		return nil
-	}
-
-	// need to keep a reference to the status or else the pieces bitfield
-	// is at risk of being collected
-	t.GetLastStatus(true)
-
-	if t.lastStatus == nil || t.lastStatus.GetState() > lt.TorrentStatusSeeding {
-		return errors.New("Torrent file has invalid state")
-	}
-
-	piecesBits := t.lastStatus.GetPieces()
-	piecesBitsSize := piecesBits.Size() + 1
-	piecesSliceSize := piecesBitsSize / 8
-
-	if piecesBitsSize%8 > 0 {
-		// Add +1 to round up the bitfield
-		piecesSliceSize++
-	}
-
-	data := (*[100000000]byte)(unsafe.Pointer(piecesBits.Bytes()))[:piecesSliceSize]
-	t.pieces = Bitfield(data)
-	t.piecesLastUpdated = time.Now()
-
-	return nil
-}
-
 func (t *Torrent) hasPiece(idx int) bool {
-	if err := t.updatePieces(); err != nil {
-		return false
-	}
-	t.piecesMx.RLock()
-	defer t.piecesMx.RUnlock()
-	return t.pieces.GetBit(idx)
+	t.UpdateStatus(piecesRefreshDuration)
+
+	st := t.GetStatus()
+	return st.State <= int(lt.TorrentStatusSeeding) && st.Pieces.GetBit(idx)
 }
 
 func (t *Torrent) onMetadataReceived() {
@@ -1545,7 +1499,9 @@ func (t *Torrent) onMetadataReceived() {
 
 	defer t.gotMetainfo.Set()
 
-	t.ti = t.th.TorrentFile()
+	t.withHandle(func(th lt.TorrentHandle) {
+		t.ti = th.TorrentFile()
+	})
 
 	t.pieceLength = int64(t.ti.PieceLength())
 	t.pieceCount = int(t.ti.NumPieces())
@@ -1586,20 +1542,7 @@ func (t *Torrent) onMetadataReceived() {
 
 // HasMetadata ...
 func (t *Torrent) HasMetadata() bool {
-	if t.th == nil || t.th.Swigcptr() == 0 {
-		return false
-	}
-
-	if t.gotMetainfo.IsSet() {
-		return true
-	}
-
-	ts := t.GetLastStatus(false)
-	if ts == nil {
-		return false
-	}
-
-	return ts.GetHasMetadata()
+	return t.gotMetainfo.IsSet() || t.GetStatus().HasMetadata
 }
 
 // WaitForMetadata waits for getting torrent information or cancels if torrent is closed
@@ -1645,23 +1588,9 @@ func (t *Torrent) WaitForMetadata(xbmcHost *xbmc.XBMCHost, infoHash string) (err
 	}
 }
 
-// GetHandle ...
-func (t *Torrent) GetHandle() lt.TorrentHandle {
-	return t.th
-}
-
 // GetPaused ...
 func (t *Torrent) GetPaused() bool {
-	if t.th == nil || t.th.Swigcptr() == 0 {
-		return false
-	}
-
-	ts := t.GetLastStatus(false)
-	if ts == nil {
-		return false
-	}
-
-	return ts.GetPaused()
+	return t.GetStatus().Paused
 }
 
 // GetNextEpisodeFile ...
@@ -2128,112 +2057,134 @@ func (t *Torrent) TorrentInfo(xbmcHost *xbmc.XBMCHost, w io.Writer, showTrackers
 
 	defer perf.ScopeTimer()()
 
-	st := t.GetLastStatus(true)
+	t.UpdateStatus(0)
+	st := t.GetStatus()
 
-	if st == nil || st.Swigcptr() == 0 {
-		return
+	// Torrent info is empty until metadata is received
+	var numPieces, pieceLength int
+	var totalSize int64
+	if t.ti != nil && t.ti.Swigcptr() != 0 {
+		numPieces, pieceLength, totalSize = t.ti.NumPieces(), t.ti.PieceLength(), t.ti.TotalSize()
 	}
 
-	fmt.Fprintf(w, "    Name:               %s \n", st.GetName())
+	fmt.Fprintf(w, "    Name:               %s \n", st.Name)
 	fmt.Fprintf(w, "    Title:              %s \n", t.Title())
-	fmt.Fprintf(w, "    Infohash:           %s \n", hex.EncodeToString([]byte(st.GetInfoHash().ToString())))
-	fmt.Fprintf(w, "    Status:             %s \n", xbmcHost.Translate(StatusStrings[st.GetState()]))
-	fmt.Fprintf(w, "    Piece size:         %d \n", t.ti.NumPieces())
-	fmt.Fprintf(w, "    Piece length:       %s \n", humanize.Bytes(uint64(t.ti.PieceLength())))
+	fmt.Fprintf(w, "    Infohash:           %s \n", st.InfoHash)
+	fmt.Fprintf(w, "    Status:             %s \n", xbmcHost.Translate(StatusStrings[st.State]))
+	fmt.Fprintf(w, "    Piece size:         %d \n", numPieces)
+	fmt.Fprintf(w, "    Piece length:       %s \n", humanize.Bytes(uint64(pieceLength)))
 	fmt.Fprint(w, "\n")
 	fmt.Fprint(w, "    Speed:\n")
-	fmt.Fprintf(w, "        Download:   %s/s \n", humanize.Bytes(uint64(st.GetDownloadRate())))
-	fmt.Fprintf(w, "        Upload:     %s/s \n", humanize.Bytes(uint64(st.GetUploadRate())))
+	fmt.Fprintf(w, "        Download:   %s/s \n", humanize.Bytes(uint64(st.DownloadRate)))
+	fmt.Fprintf(w, "        Upload:     %s/s \n", humanize.Bytes(uint64(st.UploadRate)))
 	fmt.Fprint(w, "\n")
 	fmt.Fprint(w, "    Size:\n")
-	fmt.Fprintf(w, "        Total:                  %v \n", humanize.Bytes(uint64(t.ti.TotalSize())))
-	fmt.Fprintf(w, "        Done:                   %v (%.2f%%) \n", humanize.Bytes(uint64(st.GetTotalDone())), 100*(float64(st.GetTotalDone())/float64(t.ti.TotalSize())))
-	fmt.Fprintf(w, "        Selected:               %v (%.2f%%) \n", humanize.Bytes(uint64(t.GetSelectedSize())), 100*(float64(st.GetTotalDone())/float64(t.GetSelectedSize())))
-	fmt.Fprintf(w, "        Wanted:                 %v \n", humanize.Bytes(uint64(st.GetTotalWanted())))
-	fmt.Fprintf(w, "        Wanted done:            %v (%.2f%%) \n", humanize.Bytes(uint64(st.GetTotalWantedDone())), 100*(float64(st.GetTotalWantedDone())/float64(st.GetTotalWanted())))
+	fmt.Fprintf(w, "        Total:                  %v \n", humanize.Bytes(uint64(totalSize)))
+	fmt.Fprintf(w, "        Done:                   %v (%.2f%%) \n", humanize.Bytes(uint64(st.TotalDone)), 100*(float64(st.TotalDone)/float64(totalSize)))
+	fmt.Fprintf(w, "        Selected:               %v (%.2f%%) \n", humanize.Bytes(uint64(t.GetSelectedSize())), 100*(float64(st.TotalDone)/float64(t.GetSelectedSize())))
+	fmt.Fprintf(w, "        Wanted:                 %v \n", humanize.Bytes(uint64(st.TotalWanted)))
+	fmt.Fprintf(w, "        Wanted done:            %v (%.2f%%) \n", humanize.Bytes(uint64(st.TotalWantedDone)), 100*(float64(st.TotalWantedDone)/float64(st.TotalWanted)))
 	fmt.Fprint(w, "\n")
 	fmt.Fprint(w, "    Connections:\n")
-	fmt.Fprintf(w, "        Connections:            %d \n", st.GetNumConnections())
-	fmt.Fprintf(w, "        Connected seeds:        %d \n", st.GetNumSeeds())
-	fmt.Fprintf(w, "        Connected peers:        %d \n", st.GetNumPeers())
-	fmt.Fprintf(w, "        NumComplete:            %d \n", st.GetNumComplete())
-	fmt.Fprintf(w, "        NumIncomplete:          %d \n", st.GetNumIncomplete())
-	fmt.Fprintf(w, "        ListSeeds:              %d \n", st.GetListSeeds())
-	fmt.Fprintf(w, "        ListPeers:              %d \n", st.GetListPeers())
+	fmt.Fprintf(w, "        Connections:            %d \n", st.NumConnections)
+	fmt.Fprintf(w, "        Connected seeds:        %d \n", st.NumSeeds)
+	fmt.Fprintf(w, "        Connected peers:        %d \n", st.NumPeers)
+	fmt.Fprintf(w, "        NumComplete:            %d \n", st.NumComplete)
+	fmt.Fprintf(w, "        NumIncomplete:          %d \n", st.NumIncomplete)
+	fmt.Fprintf(w, "        ListSeeds:              %d \n", st.ListSeeds)
+	fmt.Fprintf(w, "        ListPeers:              %d \n", st.ListPeers)
 
 	fmt.Fprint(w, "    Flags:\n")
-	fmt.Fprintf(w, "        paused: %v \n", st.GetPaused())
-	fmt.Fprintf(w, "        auto_managed: %v \n", st.GetAutoManaged())
-	fmt.Fprintf(w, "        sequential_download: %v \n", st.GetSequentialDownload())
-	fmt.Fprintf(w, "        need_save_resume: %v \n", st.GetNeedSaveResume())
-	fmt.Fprintf(w, "        is_seeding: %v \n", st.GetIsSeeding())
-	fmt.Fprintf(w, "        is_finished: %v \n", st.GetIsFinished())
-	fmt.Fprintf(w, "        has_metadata: %v \n", st.GetHasMetadata())
-	fmt.Fprintf(w, "        has_incoming: %v \n", st.GetHasIncoming())
-	fmt.Fprintf(w, "        moving_storage: %v \n", st.GetMovingStorage())
-	fmt.Fprintf(w, "        announcing_to_trackers: %v \n", st.GetAnnouncingToTrackers())
-	fmt.Fprintf(w, "        announcing_to_lsd: %v \n", st.GetAnnouncingToLsd())
-	fmt.Fprintf(w, "        announcing_to_dht: %v \n", st.GetAnnouncingToDht())
+	fmt.Fprintf(w, "        paused: %v \n", st.Paused)
+	fmt.Fprintf(w, "        auto_managed: %v \n", st.AutoManaged)
+	fmt.Fprintf(w, "        sequential_download: %v \n", st.SequentialDownload)
+	fmt.Fprintf(w, "        need_save_resume: %v \n", st.NeedSaveResume)
+	fmt.Fprintf(w, "        is_seeding: %v \n", st.IsSeeding)
+	fmt.Fprintf(w, "        is_finished: %v \n", st.IsFinished)
+	fmt.Fprintf(w, "        has_metadata: %v \n", st.HasMetadata)
+	fmt.Fprintf(w, "        has_incoming: %v \n", st.HasIncoming)
+	fmt.Fprintf(w, "        moving_storage: %v \n", st.MovingStorage)
+	fmt.Fprintf(w, "        announcing_to_trackers: %v \n", st.AnnouncingToTrackers)
+	fmt.Fprintf(w, "        announcing_to_lsd: %v \n", st.AnnouncingToLsd)
+	fmt.Fprintf(w, "        announcing_to_dht: %v \n", st.AnnouncingToDht)
 	fmt.Fprint(w, "\n")
 
 	fmt.Fprint(w, "    Files (Priority):\n")
-	filePriorities := t.th.FilePriorities()
-	for _, f := range slices.Sort(t.files, byPath).([]*File) {
-		if pr := filePriorities.Get(f.Index); pr > 0 {
-			fmt.Fprintf(w, "        %s (%s): %d \n", f.Path, humanize.Bytes(uint64(f.Size)), pr)
-		} else {
-			fmt.Fprintf(w, "        %s (%s): - \n", f.Path, humanize.Bytes(uint64(f.Size)))
+	t.withHandle(func(th lt.TorrentHandle) {
+		filePriorities := th.FilePriorities()
+		defer lt.DeleteStdVectorInt(filePriorities)
+
+		for _, f := range slices.Sort(t.files, byPath).([]*File) {
+			if pr := filePriorities.Get(f.Index); pr > 0 {
+				fmt.Fprintf(w, "        %s (%s): %d \n", f.Path, humanize.Bytes(uint64(f.Size)), pr)
+			} else {
+				fmt.Fprintf(w, "        %s (%s): - \n", f.Path, humanize.Bytes(uint64(f.Size)))
+			}
 		}
-	}
-	lt.DeleteStdVectorInt(filePriorities)
+	})
 
 	fmt.Fprint(w, "\n")
 
 	if showTrackers {
 		fmt.Fprint(w, "    Libtorrent Trackers:\n")
 
-		trackers := t.th.Trackers()
-		trackersSize := trackers.Size()
-		for i := 0; i < int(trackersSize); i++ {
-			tracker := trackers.Get(i)
-			fmt.Fprintf(w, "        %-60s: %-3s seeds, %-3s peers, updating: %-5v, is_working: %-5v, message: %s\n",
-				tracker.GetUrl(),
-				peerNumToString(tracker.GetScrapeComplete()),
-				peerNumToString(tracker.GetScrapeIncomplete()),
-				tracker.GetUpdating(),
-				tracker.IsWorking(),
-				tracker.GetMessage())
-		}
+		// Lines start with tracker url, so sorting lines sorts trackers by name
+		lines := []string{}
+		t.withHandle(func(th lt.TorrentHandle) {
+			trackers := th.Trackers()
+			trackersSize := trackers.Size()
+			for i := 0; i < int(trackersSize); i++ {
+				tracker := trackers.Get(i)
+				lines = append(lines, fmt.Sprintf("        %-60s: %-3s seeds, %-3s peers, updating: %-5v, is_working: %-5v, message: %s\n",
+					tracker.GetUrl(),
+					peerNumToString(tracker.GetScrapeComplete()),
+					peerNumToString(tracker.GetScrapeIncomplete()),
+					tracker.GetUpdating(),
+					tracker.IsWorking(),
+					tracker.GetMessage()))
+			}
+		})
+		sort.Strings(lines)
+		fmt.Fprint(w, strings.Join(lines, ""))
 
 		fmt.Fprint(w, "\n")
 		fmt.Fprint(w, "    Invernal Trackers:\n")
 
+		lines = lines[:0]
 		t.trackers.Range(func(t, p interface{}) bool {
-			fmt.Fprintf(w, "        %-60s: %-3d peers\n", t, p)
+			lines = append(lines, fmt.Sprintf("        %-60s: %-3d peers\n", t, p))
 			return true
 		})
+		sort.Strings(lines)
+		fmt.Fprint(w, strings.Join(lines, ""))
 		fmt.Fprint(w, "\n")
 	}
 
-	if t.Closer.IsSet() || t.ti == nil || t.ti.Swigcptr() == 0 || t.th == nil || t.th.Swigcptr() == 0 {
+	if t.Closer.IsSet() || t.ti == nil || t.ti.Swigcptr() == 0 {
 		return
 	}
 
 	if showPieces {
-		// TODO: Do we need pieces into?
-		// Emulate piece status get to update pieces states
-		t.hasPiece(0)
+		var priorities []int
+		t.withHandle(func(th lt.TorrentHandle) {
+			piecesPriorities := th.PiecePriorities()
+			defer lt.DeleteStdVectorInt(piecesPriorities)
+
+			for i := 0; i < int(piecesPriorities.Size()); i++ {
+				priorities = append(priorities, piecesPriorities.Get(i))
+			}
+		})
 
 		piecesStatus := bytebufferpool.Get()
 		piecesStatus.Reset()
 		piecesStatus.WriteString("        ")
 		for i := 0; i < t.ti.NumPieces(); i++ {
-			if t.hasPiece(i) {
+			if st.Pieces.GetBit(i) {
 				piecesStatus.WriteString("+")
-			} else if pr := t.th.PiecePriority(i).(int); pr == 0 {
+			} else if i >= len(priorities) || priorities[i] == 0 {
 				piecesStatus.WriteString("-")
 			} else {
-				piecesStatus.WriteString(strconv.Itoa(pr))
+				piecesStatus.WriteString(strconv.Itoa(priorities[i]))
 			}
 
 			if i > 0 && (i+1)%100 == 0 {
@@ -2263,32 +2214,6 @@ func (t *Torrent) AlertFinished() {
 	if xbmcHost, err := xbmc.GetLocalXBMCHost(); xbmcHost != nil && err == nil {
 		xbmcHost.Notify("Elementum", "LOCALIZE[30618];;"+t.Name(), config.AddonIcon())
 	}
-}
-
-// GetLastStatus gets, or initially sets torrenthandle status
-func (t *Torrent) GetLastStatus(isForced bool) lt.TorrentStatus {
-	if t.Closer.IsSet() {
-		return t.lastStatus
-	}
-
-	defer perf.ScopeTimer()()
-
-	t.muStatus.Lock()
-	defer t.muStatus.Unlock()
-
-	if !isForced && t.lastStatus != nil && t.lastStatus.Swigcptr() != 0 && time.Since(t.lastStatusTime) < 1*time.Second {
-		return t.lastStatus
-	}
-
-	if t.lastStatus != nil && t.lastStatus.Swigcptr() != 0 {
-		lt.DeleteTorrentStatus(t.lastStatus)
-		t.lastStatus = nil
-	}
-
-	t.lastStatus = t.GetStatus()
-	t.lastStatusTime = time.Now()
-
-	return t.lastStatus
 }
 
 // UpdateTorrentMetadata updates metadata for specific TMDB id

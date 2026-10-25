@@ -106,7 +106,12 @@ func (tfs *TorrentFS) Open(uname string) (http.File, error) {
 // NewTorrentFSEntry ...
 func NewTorrentFSEntry(file http.File, tfs *TorrentFS, t *Torrent, f *File, name string) (*TorrentFSEntry, error) {
 	if file == nil {
-		file = NewMemoryFile(t, tfs, t.th.GetMemoryStorage(), f, name)
+		t.withHandle(func(th lt.TorrentHandle) {
+			file = NewMemoryFile(t, tfs, th.GetMemoryStorage(), f, name)
+		})
+		if file == nil {
+			return nil, fmt.Errorf("Torrent is closed: %s", name)
+		}
 	}
 
 	tf := &TorrentFSEntry{

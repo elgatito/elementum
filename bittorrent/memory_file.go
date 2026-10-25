@@ -57,12 +57,12 @@ func (mf *MemoryFile) ReadPiece(b []byte, piece int, pieceOffset int) (n int, er
 	mf.opMu.Lock()
 	defer mf.opMu.Unlock()
 
-	// Check if torrent is closed to avoid panics
-	if mf.t.Closer.IsSet() {
+	// Memory storage is freed together with the torrent, so read only while torrent is alive
+	if !mf.t.withHandle(func(lt.TorrentHandle) {
+		n = mf.s.Read(b, len(b), piece, pieceOffset)
+	}) {
 		return
 	}
-
-	n = mf.s.Read(b, len(b), piece, pieceOffset)
 
 	if n == -1 {
 		err = io.ErrShortBuffer

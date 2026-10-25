@@ -350,16 +350,15 @@ func ListTorrentsWeb(s *bittorrent.Service) gin.HandlerFunc {
 		seedTimeLimit := config.Get().SeedTimeLimit
 
 		for _, t := range s.GetTorrents() {
-			th := t.GetHandle()
-			if th == nil || !th.IsValid() || !t.HasMetadata() || t.Closer.IsSet() || s.Closer.IsSet() {
+			if !t.HasMetadata() || t.Closer.IsSet() || s.Closer.IsSet() {
 				continue
 			}
 
-			torrentStatus := t.GetLastStatus(false)
+			torrentStatus := t.GetStatus()
 
-			torrentName := torrentStatus.GetName()
+			torrentName := torrentStatus.Name
 			addedTime := t.GetAddedTime().Unix()
-			progress := float64(torrentStatus.GetProgress()) * 100
+			progress := torrentStatus.Progress * 100
 
 			infoHash := t.InfoHash()
 
@@ -370,19 +369,19 @@ func ListTorrentsWeb(s *bittorrent.Service) gin.HandlerFunc {
 			}
 
 			ratio := float64(0)
-			allTimeDownload := float64(torrentStatus.GetAllTimeDownload())
-			allTimeUpload := float64(torrentStatus.GetAllTimeUpload())
+			allTimeDownload := float64(torrentStatus.AllTimeDownload)
+			allTimeUpload := float64(torrentStatus.AllTimeUpload)
 			if allTimeDownload > 0 {
 				ratio = allTimeUpload / allTimeDownload
 			}
 
 			timeRatio := float64(0)
-			finishedTime := float64(torrentStatus.GetFinishedTime())
-			downloadTime := float64(torrentStatus.GetActiveTime()) - finishedTime
+			finishedTime := float64(torrentStatus.FinishedTime)
+			downloadTime := float64(torrentStatus.ActiveTime) - finishedTime
 			if downloadTime > 1 {
 				timeRatio = finishedTime / downloadTime
 			}
-			seedingTime := time.Duration(torrentStatus.GetSeedingTime()) * time.Second
+			seedingTime := time.Duration(torrentStatus.SeedingTime) * time.Second
 			if progress == 100 && seedingTime == 0 {
 				seedingTime = time.Duration(finishedTime) * time.Second
 			}
@@ -390,8 +389,8 @@ func ListTorrentsWeb(s *bittorrent.Service) gin.HandlerFunc {
 			sizeBytes := t.GetSelectedSize()
 			size := humanize.Bytes(uint64(sizeBytes))
 
-			downloadRate := float64(torrentStatus.GetDownloadPayloadRate()) / 1024
-			uploadRate := float64(torrentStatus.GetUploadPayloadRate()) / 1024
+			downloadRate := float64(torrentStatus.DownloadPayloadRate) / 1024
+			uploadRate := float64(torrentStatus.UploadPayloadRate) / 1024
 
 			seeders, seedersTotal, peers, peersTotal := t.GetConnections()
 

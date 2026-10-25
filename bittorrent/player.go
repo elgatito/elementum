@@ -389,23 +389,27 @@ func (btp *Player) processMetadata() {
 	if btp.t.IsRarArchive {
 		// Just disable sequential download for RAR archives
 		log.Info("Disabling sequential download")
-		btp.t.th.SetSequentialDownload(false)
+		btp.t.withHandle(func(th lt.TorrentHandle) {
+			th.SetSequentialDownload(false)
+		})
 		return
 	}
 
 	// For non-memory storage prioritize current files
 	if !btp.t.IsMemoryStorage() {
-		filePriorities := btp.t.th.FilePriorities()
-		defer lt.DeleteStdVectorInt(filePriorities)
+		btp.t.withHandle(func(th lt.TorrentHandle) {
+			filePriorities := th.FilePriorities()
+			defer lt.DeleteStdVectorInt(filePriorities)
 
-		if btp.chosenFile != nil {
-			filePriorities.Set(btp.chosenFile.Index, 4)
-		}
-		if btp.subtitlesFile != nil {
-			filePriorities.Set(btp.subtitlesFile.Index, 4)
-		}
+			if btp.chosenFile != nil {
+				filePriorities.Set(btp.chosenFile.Index, 4)
+			}
+			if btp.subtitlesFile != nil {
+				filePriorities.Set(btp.subtitlesFile.Index, 4)
+			}
 
-		btp.t.th.PrioritizeFiles(filePriorities)
+			th.PrioritizeFiles(filePriorities)
+		})
 		btp.t.SaveDBFiles()
 	}
 
@@ -416,10 +420,10 @@ func (btp *Player) processMetadata() {
 	}
 }
 
-func (btp *Player) statusStrings(progress float64, status lt.TorrentStatus) (string, string, string) {
+func (btp *Player) statusStrings(progress float64, status *TorrentStatus) (string, string, string) {
 	defer perf.ScopeTimer()()
 
-	if status == nil || status.Swigcptr() == 0 || btp.t.Closer.IsSet() {
+	if status == nil || btp.t.Closer.IsSet() {
 		return "", "", ""
 	}
 	if progress < 0 {
@@ -460,8 +464,8 @@ func (btp *Player) statusStrings(progress float64, status lt.TorrentStatus) (str
 
 	seeds, seedsTotal, peers, peersTotal := btp.t.GetConnections()
 	line2 := fmt.Sprintf("D:%.0fkB/s U:%.0fkB/s S:%d/%d P:%d/%d",
-		float64(status.GetDownloadPayloadRate())/1024,
-		float64(status.GetUploadPayloadRate())/1024,
+		float64(status.DownloadPayloadRate)/1024,
+		float64(status.UploadPayloadRate)/1024,
 		seeds, seedsTotal, peers, peersTotal,
 	)
 	line3 := btp.t.Name()
@@ -602,14 +606,9 @@ func (btp *Player) updateBufferDialog() (bool, error) {
 	defer perf.ScopeTimer()()
 
 	// Handle "Checking" state for resumed downloads
-	state := btp.t.GetLastStatus(false)
-	if state == nil {
-		return false, nil
-	}
-
-	if state.GetState() == StatusChecking || btp.t.IsRarArchive {
+	if btp.t.GetState() == StatusChecking || btp.t.IsRarArchive {
 		progress := btp.t.GetBufferProgress()
-		line1, line2, line3 := btp.statusStrings(progress, btp.t.GetLastStatus(false))
+		line1, line2, line3 := btp.statusStrings(progress, btp.t.GetStatus())
 		if btp.dialogProgress != nil {
 			btp.dialogProgress.Update(int(progress), line1, line2, line3)
 		}
@@ -676,7 +675,7 @@ func (btp *Player) updateBufferDialog() (bool, error) {
 			return true, nil
 		}
 	} else {
-		line1, line2, line3 := btp.statusStrings(btp.t.BufferProgress, btp.t.GetLastStatus(false))
+		line1, line2, line3 := btp.statusStrings(btp.t.BufferProgress, btp.t.GetStatus())
 		if btp.dialogProgress != nil {
 			btp.dialogProgress.Update(int(btp.t.BufferProgress), line1, line2, line3)
 		}
@@ -797,7 +796,7 @@ playbackLoop:
 		} else if btp.xbmcHost == nil || btp.xbmcHost.PlayerIsPaused() {
 			if btp.overlayStatusEnabled && btp.p.Playing {
 				progress := btp.t.GetProgress()
-				line1, line2, line3 := btp.statusStrings(progress, btp.t.GetLastStatus(false))
+				line1, line2, line3 := btp.statusStrings(progress, btp.t.GetStatus())
 				btp.overlayStatus.Update(int(progress), line1, line2, line3)
 				if !overlayStatusActive {
 					btp.overlayStatus.Show()
@@ -865,7 +864,7 @@ func (btp *Player) isReadyForNextFile() bool {
 		btp.t.muAwaitingPieces.RLock()
 		defer btp.t.muAwaitingPieces.RUnlock()
 
-		return ra > 0 && sum > 0 && ra > sum+btp.next.bufferSize && btp.t.awaitingPieces.IsEmpty() && btp.t.lastProgress > 90
+		return ra > 0 && sum > 0 && ra > sum+btp.next.bufferSize && btp.t.awaitingPieces.IsEmpty() && btp.t.GetRealProgress() > 90
 	}
 
 	return btp.IsWatched()
