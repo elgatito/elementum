@@ -597,7 +597,7 @@ func renderTraktMovies(ctx *gin.Context, movies []*trakt.Movies, total int, page
 		path := ctx.Request.URL.Path
 		nextpage := &xbmc.ListItem{
 			Label:      "LOCALIZE[30415];;" + strconv.Itoa(page+1),
-			Path:       URLForXBMC(fmt.Sprintf("%s?page=%d", path, page+1)),
+			Path:       URLForXBMC("%s", fmt.Sprintf("%s?page=%d", path, page+1)),
 			Thumbnail:  config.AddonResource("img", "nextpage.png"),
 			Properties: &xbmc.ListItemProperties{SpecialSort: "bottom"},
 		}
@@ -937,7 +937,7 @@ func renderTraktShows(ctx *gin.Context, shows []*trakt.Shows, total int, page in
 		path := ctx.Request.URL.Path
 		nextpage := &xbmc.ListItem{
 			Label:      "LOCALIZE[30415];;" + strconv.Itoa(page+1),
-			Path:       URLForXBMC(fmt.Sprintf("%s?page=%d", path, page+1)),
+			Path:       URLForXBMC("%s", fmt.Sprintf("%s?page=%d", path, page+1)),
 			Thumbnail:  config.AddonResource("img", "nextpage.png"),
 			Properties: &xbmc.ListItemProperties{SpecialSort: "bottom"},
 		}
@@ -1474,7 +1474,7 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 		path := ctx.Request.URL.Path
 		nextpage := &xbmc.ListItem{
 			Label:      "LOCALIZE[30415];;" + strconv.Itoa(page+1),
-			Path:       URLForXBMC(fmt.Sprintf("%s?page=%d", path, page+1)),
+			Path:       URLForXBMC("%s", fmt.Sprintf("%s?page=%d", path, page+1)),
 			Thumbnail:  config.AddonResource("img", "nextpage.png"),
 			Properties: &xbmc.ListItemProperties{SpecialSort: "bottom"},
 		}
@@ -1680,7 +1680,7 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 		path := ctx.Request.URL.Path
 		nextpage := &xbmc.ListItem{
 			Label:      "LOCALIZE[30415];;" + strconv.Itoa(page+1),
-			Path:       URLForXBMC(fmt.Sprintf("%s?page=%d", path, page+1)),
+			Path:       URLForXBMC("%s", fmt.Sprintf("%s?page=%d", path, page+1)),
 			Thumbnail:  config.AddonResource("img", "nextpage.png"),
 			Properties: &xbmc.ListItemProperties{SpecialSort: "bottom"},
 		}

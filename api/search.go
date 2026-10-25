@@ -2,8 +2,12 @@ package api
 
 import (
 	"fmt"
+	"net"
+	"net/http"
+	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/asdine/storm/q"
@@ -16,6 +20,7 @@ import (
 	"github.com/elgatito/elementum/database"
 	"github.com/elgatito/elementum/providers"
 	"github.com/elgatito/elementum/util"
+	"github.com/elgatito/elementum/util/ip"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -37,6 +42,7 @@ func Search(s *bittorrent.Service) gin.HandlerFunc {
 		silent := ctx.DefaultQuery("silent", "")
 		index := ctx.DefaultQuery("index", "")
 		historyType := ""
+		listMode := wantsLinksList(ctx)
 
 		runAction := "/play"
 		if action == "download" {
@@ -53,9 +59,9 @@ func Search(s *bittorrent.Service) gin.HandlerFunc {
 
 		fakeTmdbID := strconv.Itoa(int(xxhash.Sum64String(query)))
 		existingTorrent := s.HasTorrentByQuery(query)
-		if existingTorrent != nil && (silent != "" || config.Get().SilentStreamStart || existingTorrent.IsPlaying || (existingTorrent.IsNextFile && config.Get().SmartEpisodeChoose) || xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30608];;[B]%s[/B]", existingTorrent.Title()))) {
+		if existingTorrent != nil && !listMode && (silent != "" || config.Get().SilentStreamStart || existingTorrent.IsPlaying || (existingTorrent.IsNextFile && config.Get().SmartEpisodeChoose) || xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30608];;[B]%s[/B]", existingTorrent.Title()))) {
 			xbmcHost.PlayURLWithTimeout(URLQuery(
-				URLForXBMC(runAction),
+				URLForXBMC("%s", runAction),
 				"resume", existingTorrent.InfoHash(),
 				"query", query,
 				"tmdb", fakeTmdbID,
@@ -64,9 +70,9 @@ func Search(s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 
-		if torrent := InTorrentsMap(xbmcHost, fakeTmdbID); torrent != nil {
+		if torrent := InTorrentsMap(xbmcHost, fakeTmdbID); torrent != nil && !listMode {
 			xbmcHost.PlayURLWithTimeout(URLQuery(
-				URLForXBMC(runAction), "uri", torrent.URI,
+				URLForXBMC("%s", runAction), "uri", torrent.URI,
 				"query", query,
 				"tmdb", fakeTmdbID,
 				"index", index,
@@ -78,9 +84,18 @@ func Search(s *bittorrent.Service) gin.HandlerFunc {
 		var err error
 
 		if torrents, err = GetCachedTorrents(fakeTmdbID); err != nil || len(torrents) == 0 {
-			torrents = searchLinks(xbmcHost, ctx.Request.Host, query)
+			torrents = searchLinks(xbmcHost, callbackHost(ctx, xbmcHost), query)
 
 			SetCachedTorrents(fakeTmdbID, torrents)
+		}
+
+		if listMode {
+			renderLinks(ctx, torrents, URLForXBMC("%s", runAction),
+				"query", query,
+				"tmdb", fakeTmdbID,
+				"index", index,
+				"type", "search")
+			return
 		}
 
 		if len(torrents) == 0 {
@@ -140,7 +155,7 @@ func Search(s *bittorrent.Service) gin.HandlerFunc {
 			AddToTorrentsMap(fakeTmdbID, torrents[choice])
 
 			xbmcHost.PlayURLWithTimeout(URLQuery(
-				URLForXBMC(runAction),
+				URLForXBMC("%s", runAction),
 				"uri", torrents[choice].URI,
 				"query", query,
 				"tmdb", fakeTmdbID,
@@ -149,6 +164,93 @@ func Search(s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 	}
+}
+
+// callbackHost returns daemon address, that Kodi uses to send provider results back.
+// Kodi requests came to the address it can reach, but Web UI could be opened by an address, that chosen Kodi can't reach.
+func callbackHost(ctx *gin.Context, xbmcHost *xbmc.XBMCHost) string {
+	if ctx.GetHeader("User-Agent") == "plugin.video.elementum" || xbmcHost == nil {
+		return ctx.Request.Host
+	}
+
+	host := config.Args.ServerExternalIP
+	if host == "" {
+		localIP, err := ip.LocalIPFor(xbmcHost.Host)
+		if err != nil {
+			return ctx.Request.Host
+		}
+		host = localIP.String()
+	}
+	return net.JoinHostPort(host, strconv.Itoa(config.Args.LocalPort))
+}
+
+// wantsLinksList reports whether the caller wants found links in the response instead of a selection dialog in Kodi:
+// direct HTTP clients (web UI, remote API) or plugin:// callers that pass "list=1".
+func wantsLinksList(ctx *gin.Context) bool {
+	return ctx.GetHeader("User-Agent") != "plugin.video.elementum" || ctx.Query("list") != ""
+}
+
+// renderLinks responds with torrents as playable items, each pointing to route with "uri" and query added.
+func renderLinks(ctx *gin.Context, torrents []*bittorrent.TorrentFile, route string, query ...string) {
+	items := make(xbmc.ListItems, 0, len(torrents))
+	for _, t := range torrents {
+		info := []string{fmt.Sprintf("%d / %d", t.Seeds, t.Peers)}
+		if t.Resolution > 0 {
+			info = append(info, bittorrent.Resolutions[t.Resolution])
+		}
+		if t.Size != "" {
+			info = append(info, t.Size)
+		}
+
+		items = append(items, &xbmc.ListItem{
+			Label: t.Name,
+			// Provider name, may be colored with Kodi formatting, like "[COLOR FFFFDE00]RuTor[/COLOR]"
+			Label2:     t.Provider,
+			Icon:       providerIcon(ctx, t.Icon),
+			Path:       URLQuery(route, append([]string{"uri", t.URI}, query...)...),
+			IsPlayable: true,
+			Info: &xbmc.ListItemInfo{
+				Title:   t.Name,
+				TagLine: strings.Join(info, " - "),
+				Code:    t.InfoHash,
+			},
+		})
+	}
+
+	ctx.JSON(200, xbmc.NewView("", items))
+}
+
+// providerIcons keeps icon paths, that were sent to Web UI, by their IDs
+var providerIcons sync.Map
+
+// providerIcon returns provider's icon for the caller. Icon is a file path on Kodi side:
+// Kodi can read it itself, but browser can't, so it gets URL of ProviderIcon instead.
+func providerIcon(ctx *gin.Context, path string) string {
+	if path == "" || ctx.GetHeader("User-Agent") == "plugin.video.elementum" {
+		return path
+	}
+
+	id := strconv.FormatUint(xxhash.Sum64String(path), 16)
+	providerIcons.Store(id, path)
+	return "/providericon/" + id
+}
+
+// ProviderIcon serves provider icon to Web UI. Only paths, given by providers, can be served.
+func ProviderIcon(ctx *gin.Context) {
+	path, ok := providerIcons.Load(ctx.Param("id"))
+	if !ok {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+
+	// Kodi on another machine has a path, that is not available here
+	file := config.WindowsToWSLPath(path.(string))
+	if _, err := os.Stat(file); err != nil {
+		ctx.Status(http.StatusNotFound)
+		return
+	}
+	ctx.Header("Cache-Control", "max-age=86400")
+	ctx.File(file)
 }
 
 func searchLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, query string) []*bittorrent.TorrentFile {
@@ -207,7 +309,7 @@ func searchHistoryList(ctx *gin.Context, historyType string) {
 	items := make(xbmc.ListItems, 0, len(historyList)+1)
 	items = append(items, &xbmc.ListItem{
 		Label:     "LOCALIZE[30323]",
-		Path:      URLQuery(URLForXBMC(urlPrefix+"/search"), "keyboard", "1"),
+		Path:      URLQuery(URLForXBMC("%s", urlPrefix+"/search"), "keyboard", "1"),
 		Thumbnail: config.AddonResource("img", "search.png"),
 		Icon:      config.AddonResource("img", "search.png"),
 	})
@@ -288,5 +390,5 @@ func searchHistoryGetXbmcURL(historyType string, query string) string {
 		urlPrefix = "/" + historyType
 	}
 
-	return URLQuery(URLForXBMC(urlPrefix+"/search"), "q", query)
+	return URLQuery(URLForXBMC("%s", urlPrefix+"/search"), "q", query)
 }

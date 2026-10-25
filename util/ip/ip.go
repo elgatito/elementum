@@ -171,6 +171,18 @@ func LocalIP(xbmcHost *xbmc.XBMCHost) (net.IP, error) {
 	return net.IPv4(127, 0, 0, 1), errors.New("cannot find local IP address")
 }
 
+// LocalIPFor returns local IP, that is used to reach given host
+func LocalIPFor(host string) (net.IP, error) {
+	// Dialing UDP sends nothing, it only resolves the route
+	conn, err := net.Dial("udp", net.JoinHostPort(host, "9"))
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	return conn.LocalAddr().(*net.UDPAddr).IP, nil
+}
+
 func GetLocalHost() string {
 	if config.Args.LocalHost != "" {
 		return config.Args.LocalHost

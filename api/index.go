@@ -46,7 +46,7 @@ func Index(s *bittorrent.Service) gin.HandlerFunc {
 		for _, addon := range getProviders(xbmcHost) {
 			name := strings.Title(strings.ReplaceAll(addon.Name, "script.elementum.", ""))
 
-			li = append(li, &xbmc.ListItem{Label: "LOCALIZE[30582];;" + name, Path: URLForXBMC("/settings/" + addon.ID), Thumbnail: config.AddonResource("img", "settings.png")})
+			li = append(li, &xbmc.ListItem{Label: "LOCALIZE[30582];;" + name, Path: URLForXBMC("/settings/%s", addon.ID), Thumbnail: config.AddonResource("img", "settings.png")})
 		}
 
 		ctx.JSON(200, xbmc.NewView("", li))

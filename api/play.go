@@ -103,6 +103,14 @@ func Play(s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 
+		// Requested outside of Kodi (e.g. web UI), so ask Kodi to open the same URL and play it
+		if ctx.Query("external") != "" {
+			values := ctx.Request.URL.Query()
+			values.Del("external")
+			xbmcHost.PlayURL(URLForXBMC("/play") + "?" + values.Encode())
+			return
+		}
+
 		player := bittorrent.NewPlayer(s, params, xbmcHost)
 		log.Infof("Playing item: %s", litter.Sdump(params))
 

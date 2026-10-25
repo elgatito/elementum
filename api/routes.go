@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"path/filepath"
 	"reflect"
 	"time"
@@ -101,6 +100,8 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 	r.GET("/donate", Donate)
 	r.GET("/settings/:addon", Settings)
 	r.GET("/status", Status(s))
+	r.GET("/kodis", KodiHosts)
+	r.GET("/providericon/:id", ProviderIcon)
 
 	r.Any("/info", s.ClientInfo)
 	r.Any("/info/*ident", s.ClientInfo)
@@ -131,12 +132,10 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 
 	// Make sure to load static files if they exist locally
 	if util.PathExists(filepath.Join(config.Get().Info.Path, "resources", "web")) {
-		r.LoadHTMLGlob(filepath.Join(config.Get().Info.Path, "resources", "web", "*.html"))
 		web := r.Group("/web")
 		{
-			web.GET("/", func(c *gin.Context) {
-				c.HTML(http.StatusOK, "index.html", nil)
-			})
+			// Read on each request, so updated Web UI is served without daemon restart
+			web.StaticFile("/", filepath.Join(config.Get().Info.Path, "resources", "web", "index.html"))
 			web.Static("/static", filepath.Join(config.Get().Info.Path, "resources", "web", "static"))
 			web.StaticFile("/favicon.ico", filepath.Join(config.Get().Info.Path, "resources", "web", "favicon.ico"))
 		}

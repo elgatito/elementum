@@ -33,6 +33,9 @@ var (
 
 	BehindNAT = false
 
+	// KodiCookie is a cookie (or query parameter), set by Web UI, with the connected Kodi host to use for its requests
+	KodiCookie = "kodi"
+
 	mu sync.RWMutex
 )
 
@@ -68,6 +71,14 @@ func ContainsXBMCHost(host string) bool {
 		}
 	}
 	return false
+}
+
+// GetXBMCHosts returns a copy of connected Kodi hosts list
+func GetXBMCHosts() []*XBMCHost {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	return append([]*XBMCHost{}, XBMCHosts...)
 }
 
 func AddLocalXBMCHost(host string) (*XBMCHost, error) {
@@ -129,6 +140,14 @@ func GetXBMCHostWithContext(ctx *gin.Context) (*XBMCHost, error) {
 	// so we communicate with any existing Kodi connection.
 	// Same if we are behind NAT - in this case ClientIP is NAT gateway IP, so we should not use it.
 	if ctx.GetHeader("User-Agent") != "plugin.video.elementum" || BehindNAT {
+		// Web UI can choose any of already connected Kodi hosts, for a single request or with a cookie
+		host := ctx.Query(KodiCookie)
+		if host == "" {
+			host, _ = ctx.Cookie(KodiCookie)
+		}
+		if host != "" && ContainsXBMCHost(host) {
+			return GetXBMCHost(host)
+		}
 		return GetLocalXBMCHost()
 	}
 

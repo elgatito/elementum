@@ -286,7 +286,7 @@ func TopTraktLists(ctx *gin.Context) {
 		path := ctx.Request.URL.Path
 		nextpage := &xbmc.ListItem{
 			Label:      "LOCALIZE[30415];;" + strconv.Itoa(page+1),
-			Path:       URLForXBMC(fmt.Sprintf("%s?page=%d", path, page+1)),
+			Path:       URLForXBMC("%s", fmt.Sprintf("%s?page=%d", path, page+1)),
 			Thumbnail:  config.AddonResource("img", "nextpage.png"),
 			Properties: &xbmc.ListItemProperties{SpecialSort: "bottom"},
 		}
@@ -442,9 +442,9 @@ func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, que
 
 	if page >= 0 && hasNextPage > 0 {
 		path := ctx.Request.URL.Path
-		nextPath := URLForXBMC(fmt.Sprintf("%s?page=%d", path, page+1))
+		nextPath := URLForXBMC("%s", fmt.Sprintf("%s?page=%d", path, page+1))
 		if query != "" {
-			nextPath = URLForXBMC(fmt.Sprintf("%s?q=%s&page=%d", path, query, page+1))
+			nextPath = URLForXBMC("%s", fmt.Sprintf("%s?q=%s&page=%d", path, query, page+1))
 		}
 		next := &xbmc.ListItem{
 			Label:      "LOCALIZE[30415];;" + strconv.Itoa(page+1),
@@ -594,6 +594,7 @@ func MovieLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		external := ctx.Query("external")
 		doresume := ctx.DefaultQuery("doresume", "true")
 		isCustom := len(ctx.Query("custom")) != 0
+		listMode := action != "play" && wantsLinksList(ctx)
 
 		runAction := "/play"
 		if action == "download" {
@@ -611,8 +612,8 @@ func MovieLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		}
 
 		existingTorrent := s.HasTorrentByID(movie.ID)
-		if existingTorrent != nil && (config.Get().SilentStreamStart || existingTorrent.IsPlaying || xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30608];;[B]%s[/B]", existingTorrent.Title()))) {
-			rURL := URLQuery(URLForXBMC(runAction),
+		if existingTorrent != nil && !listMode && (config.Get().SilentStreamStart || existingTorrent.IsPlaying || xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30608];;[B]%s[/B]", existingTorrent.Title()))) {
+			rURL := URLQuery(URLForXBMC("%s", runAction),
 				"doresume", doresume,
 				"resume", existingTorrent.InfoHash(),
 				"tmdb", tmdbID,
@@ -625,8 +626,8 @@ func MovieLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 
-		if torrent := InTorrentsMap(xbmcHost, tmdbID); torrent != nil {
-			rURL := URLQuery(URLForXBMC(runAction),
+		if torrent := InTorrentsMap(xbmcHost, tmdbID); torrent != nil && !listMode {
+			rURL := URLQuery(URLForXBMC("%s", runAction),
 				"doresume", doresume,
 				"uri", torrent.URI,
 				"tmdb", tmdbID,
@@ -644,14 +645,22 @@ func MovieLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 
 		if torrents, err = GetCachedTorrents(tmdbID); err != nil || len(torrents) == 0 {
 			if !isCustom {
-				torrents = movieLinks(xbmcHost, ctx.Request.Host, tmdbID)
+				torrents = movieLinks(xbmcHost, callbackHost(ctx, xbmcHost), tmdbID)
 			} else {
 				if query := xbmcHost.Keyboard(movie.GetTitle(), "LOCALIZE[30209]"); len(query) != 0 {
-					torrents = searchLinks(xbmcHost, ctx.Request.Host, query)
+					torrents = searchLinks(xbmcHost, callbackHost(ctx, xbmcHost), query)
 				}
 			}
 
 			SetCachedTorrents(tmdbID, torrents)
+		}
+
+		if listMode {
+			renderLinks(ctx, torrents, URLForXBMC("%s", runAction),
+				"doresume", doresume,
+				"tmdb", tmdbID,
+				"type", "movie")
+			return
 		}
 
 		if len(torrents) == 0 {
@@ -710,7 +719,7 @@ func MovieLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		if choice >= 0 {
 			AddToTorrentsMap(tmdbID, torrents[choice])
 
-			rURL := URLQuery(URLForXBMC(runAction),
+			rURL := URLQuery(URLForXBMC("%s", runAction),
 				"uri", torrents[choice].URI,
 				"doresume", doresume,
 				"tmdb", tmdbID,
