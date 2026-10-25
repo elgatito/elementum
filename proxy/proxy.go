@@ -135,6 +135,9 @@ func StartProxy() *CustomProxy {
 
 	Proxy.Verbose = false
 	Proxy.KeepDestinationHeaders = true
+	Proxy.AllowHTTP2 = true
+	// Tr has a custom TLSClientConfig/DialContext, so net/http won't try h2 upstream unless forced.
+	Proxy.Tr.ForceAttemptHTTP2 = true
 
 	Proxy.Tr.Proxy = nil
 	if config.Get().ProxyUseHTTP {
