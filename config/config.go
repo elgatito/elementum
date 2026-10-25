@@ -439,19 +439,19 @@ func Reload() (ret *Configuration, err error) {
 		log.Infof("Setting custom addon path to: %s", Args.AddonPath)
 		configBundle.Info.Path = Args.AddonPath
 	} else {
-		configBundle.Info.Path = windowsToWSLPath(configBundle.Info.Path)
+		configBundle.Info.Path = WindowsToWSLPath(configBundle.Info.Path)
 	}
 	if Args.ProfilePath != "" {
 		log.Infof("Setting custom profile path to: %s", Args.ProfilePath)
 		configBundle.Info.Profile = Args.ProfilePath
 	} else {
-		configBundle.Info.Profile = windowsToWSLPath(configBundle.Info.Profile)
+		configBundle.Info.Profile = WindowsToWSLPath(configBundle.Info.Profile)
 	}
 	if Args.TempPath != "" {
 		log.Infof("Setting custom temp path to: %s", Args.TempPath)
 		configBundle.Info.TempPath = Args.TempPath
 	} else {
-		configBundle.Info.TempPath = windowsToWSLPath(configBundle.Info.TempPath)
+		configBundle.Info.TempPath = WindowsToWSLPath(configBundle.Info.TempPath)
 	}
 
 	if Args.ExportConfig != "" {
@@ -516,10 +516,10 @@ func Reload() (ret *Configuration, err error) {
 		}
 	}
 
-	downloadPath := windowsToWSLPath(TranslatePath(xbmcHost, settings.ToString("download_path")))
-	torrentsPath := windowsToWSLPath(TranslatePath(xbmcHost, settings.ToString("torrents_path")))
+	downloadPath := WindowsToWSLPath(TranslatePath(xbmcHost, settings.ToString("download_path")))
+	torrentsPath := WindowsToWSLPath(TranslatePath(xbmcHost, settings.ToString("torrents_path")))
 	libraryKodiPath := TranslatePath(xbmcHost, settings.ToString("library_path"))
-	libraryPath := windowsToWSLPath(libraryKodiPath)
+	libraryPath := WindowsToWSLPath(libraryKodiPath)
 	// Kodi still needs Windows path to scan the library, so map it back unless user defined own substitution
 	if _, exists := LibrarySubstitutions[libraryKodiPath]; !exists && libraryPath != libraryKodiPath && Args.LibraryPath == "" {
 		LibrarySubstitutions[libraryKodiPath] = libraryPath
@@ -819,8 +819,8 @@ func Reload() (ret *Configuration, err error) {
 		AntizapretPacUrl:  settings.ToString("antizapret_pac_url"),
 
 		CompletedMove:       settings.ToBool("completed_move"),
-		CompletedMoviesPath: windowsToWSLPath(settings.ToString("completed_movies_path")),
-		CompletedShowsPath:  windowsToWSLPath(settings.ToString("completed_shows_path")),
+		CompletedMoviesPath: WindowsToWSLPath(settings.ToString("completed_movies_path")),
+		CompletedShowsPath:  WindowsToWSLPath(settings.ToString("completed_shows_path")),
 
 		LocalOnlyClient: settings.ToBool("local_only_client"),
 		LogLevel:        settings.ToInt("log_level"),
@@ -1306,9 +1306,9 @@ func isLibraryReadOnly(xbmcHost *xbmc.XBMCHost) bool {
 	return hasMovies || hasShows
 }
 
-// windowsToWSLPath converts Windows path, like "C:\Kodi\", to WSL mount path "/mnt/c/Kodi/",
+// WindowsToWSLPath converts Windows path, like "C:\Kodi\", to WSL mount path "/mnt/c/Kodi/",
 // for running Elementum in WSL with Kodi on Windows. Returns path unchanged if it is not available.
-func windowsToWSLPath(path string) string {
+func WindowsToWSLPath(path string) string {
 	if runtime.GOOS != "linux" || len(path) < 3 || path[1] != ':' || (path[2] != '\\' && path[2] != '/') {
 		return path
 	}
