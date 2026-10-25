@@ -64,6 +64,8 @@ func Play(s *bittorrent.Service) gin.HandlerFunc {
 			resumePlayback = bittorrent.ResumeYes
 		} else if doresume == "false" {
 			resumePlayback = bittorrent.ResumeNo
+		} else if doresume == "never" {
+			resumePlayback = bittorrent.ResumeNever
 		}
 
 		fileIndex := strToInt(index, -1)

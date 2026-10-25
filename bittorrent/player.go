@@ -56,6 +56,8 @@ const (
 	ResumeYes
 	// ResumeNo ...
 	ResumeNo
+	// ResumeNever is set by external add-ons (doresume=never) to skip the resume dialog and start from the beginning
+	ResumeNever
 )
 
 // Player ...
@@ -348,9 +350,11 @@ func (btp *Player) processMetadata() {
 		resume = btp.p.Resume
 	}
 
-	// Respect doresume=false and manual position from external add-ons
-	if btp.p.ResumePlayback == ResumeNo {
+	// Respect doresume=never and manual position from external add-ons.
+	// doresume=false is not trusted: Kodi passes resume:false on every plain play click, so we still ask.
+	if btp.p.ResumePlayback == ResumeNever {
 		log.Infof("Resume dialog suppressed via URL parameter for: %s", btp.fileName)
+		btp.p.ResumePlayback = ResumeNo
 	} else if btp.p.KodiPosition > 0 {
 		btp.p.ResumePlayback = ResumeYes
 		log.Infof("Forcing playback position to %d seconds for: %s", btp.p.KodiPosition, btp.fileName)
