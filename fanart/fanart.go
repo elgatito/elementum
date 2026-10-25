@@ -14,6 +14,9 @@ import (
 	"github.com/jmcvetta/napping"
 )
 
+//go:generate go tool msgp -o msgp.go -io=false -tests=false
+//msgp:tag json
+
 const (
 	// ClientID ...
 	ClientID = "decb307ca800170b833c3061863974f3"

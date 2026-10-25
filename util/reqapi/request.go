@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"slices"
 	"time"
 
@@ -13,12 +14,17 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/goccy/go-json"
 	"github.com/jmcvetta/napping"
+	"github.com/tinylib/msgp/msgp"
 
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/trace"
 )
+
+//go:generate go tool msgp -o msgp.go -io=false -tests=false
+//msgp:tag json
+//msgp:ignore Request
 
 type Request struct {
 	trace.Tracer
@@ -55,10 +61,12 @@ type Request struct {
 }
 
 type CacheEntry struct {
-	Header     http.Header `json:"header"`
-	Body       []byte      `json:"body"`
-	Status     string      `json:"status"`
-	StatusCode int         `json:"statuscode"`
+	Header map[string][]string `json:"header"`
+	Body   []byte              `json:"body"`
+	// Result is msgpack-encoded Result, stored instead of Body when Result type has generated bindings
+	Result     []byte `json:"result"`
+	Status     string `json:"status"`
+	StatusCode int    `json:"statuscode"`
 }
 
 func (r *Request) Prepare() (err error) {
@@ -110,26 +118,33 @@ func (r *Request) CacheRead() error {
 		return err
 	}
 
-	if c, err := r.UnmarshalCache(bytes.NewBuffer(data)); err == nil && c != nil {
-		r.Stage("CacheReadUnmarshalCache")
-		r.ApplyCache(c)
+	return r.readCache(data)
+}
 
-		if err = r.Unmarshal(bytes.NewBuffer(c.Body)); err != nil {
-			r.Stage("CacheReadUnmarshal")
-			return err
+// readCache applies cached entry, any error means entry is unusable and request should be made
+func (r *Request) readCache(data []byte) error {
+	c, err := r.UnmarshalCache(bytes.NewBuffer(data))
+	r.Stage("CacheReadUnmarshalCache")
+	if err != nil {
+		return err
+	}
+	r.ApplyCache(c)
+
+	if c.Result != nil {
+		u, ok := r.msgpResult(true).(msgp.Unmarshaler)
+		if !ok {
+			return errors.New("cached result has no msgpack bindings")
 		}
+		_, err = u.UnmarshalMsg(c.Result)
+	} else {
+		err = r.Unmarshal(bytes.NewBuffer(c.Body))
 	}
 	r.Stage("CacheReadUnmarshal")
 
 	return err
 }
 
-func (r *Request) CacheWrite() error {
-	data, err := r.MarshalCache()
-	r.Stage("CacheWriteMarshal")
-	if err != nil {
-		return err
-	}
+func (r *Request) CacheWrite(data []byte) (err error) {
 	cacheExpire := r.CacheExpire
 	if cacheExpire == 0 {
 		cacheExpire = cache.CacheExpireMedium
@@ -148,8 +163,14 @@ func (r *Request) Do() (err error) {
 	defer func() {
 		// We should also cache 404 requests to avoid making them again, at least for cache period
 		if r.Cache && r.cachePending && (err == nil || err == util.ErrNotFound) {
+			// Marshal before returning, as caller can modify Result after Do()
+			data, errMarshal := r.MarshalCache()
+			r.Stage("CacheWriteMarshal")
 			go func() {
-				err = r.CacheWrite()
+				err = errMarshal
+				if err == nil {
+					err = r.CacheWrite(data)
+				}
 				r.Error(err)
 				r.Stage("CacheWrite")
 				r.Unlock()
@@ -272,8 +293,8 @@ func (r *Request) Do() (err error) {
 }
 
 func (r *Request) UnmarshalCache(b *bytes.Buffer) (*CacheEntry, error) {
-	var c *CacheEntry
-	if err := json.Unmarshal(b.Bytes(), &c); err != nil {
+	c := &CacheEntry{}
+	if _, err := c.UnmarshalMsg(b.Bytes()); err != nil {
 		return nil, err
 	}
 
@@ -296,9 +317,40 @@ func (r *Request) MarshalCache() ([]byte, error) {
 		Status:     r.ResponseStatus,
 		StatusCode: r.ResponseStatusCode,
 		Header:     r.ResponseHeader,
-		Body:       r.ResponseBody.Bytes(),
 	}
-	return json.Marshal(&c)
+
+	if m, ok := r.msgpResult(false).(msgp.Marshaler); ok && r.ResponseStatusCode != 404 {
+		b, err := m.MarshalMsg(nil)
+		if err != nil {
+			return nil, err
+		}
+		c.Result = b
+	} else if r.ResponseBody != nil {
+		c.Body = r.ResponseBody.Bytes()
+	}
+	return c.MarshalMsg(nil)
+}
+
+var msgpUnmarshalerType = reflect.TypeFor[msgp.Unmarshaler]()
+
+// msgpResult returns Result, or the pointer it points to (for Result: &ptr), if it has generated msgpack bindings.
+// With alloc a nil inner pointer is allocated, otherwise nil is returned for it.
+func (r *Request) msgpResult(alloc bool) any {
+	if _, ok := r.Result.(msgp.Unmarshaler); ok {
+		return r.Result
+	}
+
+	v := reflect.ValueOf(r.Result)
+	if v.Kind() != reflect.Pointer || v.IsNil() || v.Elem().Kind() != reflect.Pointer || !v.Elem().Type().Implements(msgpUnmarshalerType) {
+		return nil
+	}
+	if e := v.Elem(); e.IsNil() {
+		if !alloc {
+			return nil
+		}
+		e.Set(reflect.New(e.Type().Elem()))
+	}
+	return v.Elem().Interface()
 }
 
 func (r *Request) Marshal() ([]byte, error) {

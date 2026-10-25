@@ -6,6 +6,10 @@ import (
 	"github.com/elgatito/elementum/fanart"
 )
 
+//go:generate go tool msgp -o msgp.go -io=false -tests=false
+//msgp:tag json
+//msgp:ignore APIRequest
+
 // Movies ...
 type Movies []*Movie
 

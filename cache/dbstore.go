@@ -9,7 +9,7 @@ import (
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/anacrolix/sync"
 	"github.com/klauspost/compress/gzip"
-	msgpack "github.com/vmihailenco/msgpack/v4"
+	msgpack "github.com/vmihailenco/msgpack/v5"
 
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/database"

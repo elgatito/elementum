@@ -2,6 +2,9 @@ package trakt
 
 import "time"
 
+//go:generate go tool msgp -o msgp.go -io=false -tests=false
+//msgp:tag json
+
 // Object ...
 type Object struct {
 	Title     string    `json:"title"`

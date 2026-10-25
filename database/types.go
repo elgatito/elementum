@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/anacrolix/sync"
-	"github.com/asdine/storm"
+	"github.com/asdine/storm/v3"
 	"github.com/op/go-logging"
 	bolt "go.etcd.io/bbolt"
 )

@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/anacrolix/missinggo/perf"
-	"github.com/asdine/storm"
-	"github.com/asdine/storm/q"
+	"github.com/asdine/storm/v3"
+	"github.com/asdine/storm/v3/q"
 
 	bolt "go.etcd.io/bbolt"
 
