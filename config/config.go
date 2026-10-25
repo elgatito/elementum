@@ -978,9 +978,9 @@ func AddonIcon() string {
 	return Get().Info.Icon
 }
 
-// AddonResource ...
+// AddonResource returns a special:// path, so each Kodi client resolves it in its own install, not the daemon machine's path
 func AddonResource(args ...string) string {
-	return filepath.Join(Get().Info.Path, "resources", filepath.Join(args...))
+	return "special://home/addons/" + Get().Info.ID + "/resources/" + strings.Join(args, "/")
 }
 
 // TranslatePath ...
