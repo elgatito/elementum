@@ -32,10 +32,41 @@ jobs:
             exit 1
           fi
 
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Get Go environment
+        run: |
+          mkdir -p ~/.cache/go-build
+          mkdir -p ~/.cache/go-cache
+          mkdir -p ~/.cache/go-modcache
+          echo "GOPATH=$(readlink -f ~/.cache/go-build)" >> $GITHUB_ENV
+          echo "GOCACHE=$(readlink -f ~/.cache/go-cache)" >> $GITHUB_ENV
+          echo "GOMODCACHE=$(readlink -f ~/.cache/go-modcache)" >> $GITHUB_ENV
+
+      - name: Set up cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ${{ env.GOPATH }}
+            ${{ env.GOCACHE }}
+            ${{ env.GOMODCACHE }}
+          key: elementum-${{ runner.os }}-test-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            elementum-${{ runner.os }}-test-go-
+
+      - name: Run tests
+        run: make test
+
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: lint
+    needs: test
     strategy:
       # Let every platform finish (and keep its log) even if another one fails
       fail-fast: false
