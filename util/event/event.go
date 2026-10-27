@@ -26,7 +26,11 @@ func (me *Event) LockedChan(lock sync.Locker) <-chan struct{} {
 }
 
 // C Returns a chan that is closed when the event is true.
+// Locked: goroutines started together race here and could each get their own chan, so Set() would close only one of them.
 func (me *Event) C() <-chan struct{} {
+	me.mu.Lock()
+	defer me.mu.Unlock()
+
 	if me.ch == nil {
 		me.ch = make(chan struct{})
 	}
@@ -36,6 +40,9 @@ func (me *Event) C() <-chan struct{} {
 // Clear ...
 // TODO: Merge into Set.
 func (me *Event) Clear() {
+	me.mu.Lock()
+	defer me.mu.Unlock()
+
 	if me.closed {
 		me.ch = nil
 		me.closed = false
@@ -44,12 +51,12 @@ func (me *Event) Clear() {
 
 // Set the event to true/on.
 func (me *Event) Set() (first bool) {
-	if me.closed {
-		return false
-	}
 	me.mu.Lock()
 	defer me.mu.Unlock()
 
+	if me.closed {
+		return false
+	}
 	if me.ch == nil {
 		me.ch = make(chan struct{})
 	}
