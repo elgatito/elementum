@@ -372,6 +372,12 @@ func RecentEpisodes(params DiscoverFilters, language string, page int) (Shows, i
 	return listShows("discover/tv", p, page)
 }
 
+// DiscoverShows runs /discover/tv with caller-built filters and sorting
+func DiscoverShows(params napping.Params, language string, page int) (Shows, int) {
+	params["language"] = language
+	return listShows("discover/tv", params, page)
+}
+
 // TopRatedShows ...
 func TopRatedShows(genre string, language string, page int) (Shows, int) {
 	return listShows("tv/top_rated", napping.Params{"language": language}, page)

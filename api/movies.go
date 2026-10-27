@@ -64,6 +64,7 @@ func MoviesIndex(ctx *gin.Context) {
 
 	items := xbmc.ListItems{
 		{Label: "LOCALIZE[30209]", Path: URLForXBMC("/movies/search"), Thumbnail: config.AddonResource("img", "search.png")},
+		{Label: "LOCALIZE[30765]", Path: URLForXBMC("/movies/advanced"), Thumbnail: config.AddonResource("img", "search.png")},
 		{Label: "Trakt > LOCALIZE[30263]", Path: URLForXBMC("/movies/trakt/lists/"), Thumbnail: config.AddonResource("img", "trakt.png"), TraktAuth: true},
 		{Label: "Trakt > LOCALIZE[30254]", Path: URLForXBMC("/movies/trakt/watchlist"), Thumbnail: config.AddonResource("img", "trakt.png"), ContextMenu: [][]string{{"LOCALIZE[30252]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/movie/list/add/watchlist"))}}, TraktAuth: true},
 		{Label: "Trakt > LOCALIZE[30257]", Path: URLForXBMC("/movies/trakt/collection"), Thumbnail: config.AddonResource("img", "trakt.png"), ContextMenu: [][]string{{"LOCALIZE[30252]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/movie/list/add/collection"))}}, TraktAuth: true},
@@ -210,7 +211,7 @@ func MovieLibrary(ctx *gin.Context) {
 	}
 	wg.Wait()
 
-	renderMovies(ctx, tmdbMovies, page, movies.Limits.Total, "", false)
+	renderMovies(ctx, tmdbMovies, page, movies.Limits.Total, false)
 }
 
 // MovieElementumLibrary ...
@@ -250,7 +251,7 @@ func MovieElementumLibrary(ctx *gin.Context) {
 		}
 	}
 
-	renderMovies(ctx, tmdbMovies, -1, len(tmdbMovies), "", true)
+	renderMovies(ctx, tmdbMovies, -1, len(tmdbMovies), true)
 }
 
 // TopTraktLists ...
@@ -346,7 +347,7 @@ func CalendarMovies(ctx *gin.Context) {
 	ctx.JSON(200, xbmc.NewView("menus_movies", filterListItems(items)))
 }
 
-func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, query string, nameSort bool) {
+func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, nameSort bool) {
 	defer perf.ScopeTimer()()
 
 	hasNextPage := 0
@@ -442,11 +443,9 @@ func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, que
 	wg.Wait()
 
 	if page >= 0 && hasNextPage > 0 {
-		path := ctx.Request.URL.Path
-		nextPath := URLForXBMC("%s", fmt.Sprintf("%s?page=%d", path, page+1))
-		if query != "" {
-			nextPath = URLForXBMC("%s", fmt.Sprintf("%s?q=%s&page=%d", path, query, page+1))
-		}
+		query := ctx.Request.URL.Query()
+		query.Set("page", strconv.Itoa(page+1))
+		nextPath := URLForXBMC("%s", ctx.Request.URL.Path+"?"+query.Encode())
 		next := &xbmc.ListItem{
 			Label:      "LOCALIZE[30415];;" + strconv.Itoa(page+1),
 			Path:       nextPath,
@@ -491,7 +490,7 @@ func PopularMovies(ctx *gin.Context) {
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	movies, total := tmdb.PopularMovies(p, config.Get().Language, page)
-	renderMovies(ctx, movies, page, total, "", false)
+	renderMovies(ctx, movies, page, total, false)
 }
 
 // RecentMovies ...
@@ -508,7 +507,7 @@ func RecentMovies(ctx *gin.Context) {
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	movies, total := tmdb.RecentMovies(p, config.Get().Language, page)
-	renderMovies(ctx, movies, page, total, "", false)
+	renderMovies(ctx, movies, page, total, false)
 }
 
 // TopRatedMovies ...
@@ -521,7 +520,7 @@ func TopRatedMovies(ctx *gin.Context) {
 	}
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	movies, total := tmdb.TopRatedMovies(genre, config.Get().Language, page)
-	renderMovies(ctx, movies, page, total, "", false)
+	renderMovies(ctx, movies, page, total, false)
 }
 
 // IMDBTop250 ...
@@ -530,7 +529,7 @@ func IMDBTop250(ctx *gin.Context) {
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	movies, total := tmdb.GetIMDBList("522effe419c2955e9922fcf3", config.Get().Language, page)
-	renderMovies(ctx, movies, page, total, "", false)
+	renderMovies(ctx, movies, page, total, false)
 }
 
 // MoviesMostVoted ...
@@ -539,7 +538,7 @@ func MoviesMostVoted(ctx *gin.Context) {
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	movies, total := tmdb.MostVotedMovies("", config.Get().Language, page)
-	renderMovies(ctx, movies, page, total, "", false)
+	renderMovies(ctx, movies, page, total, false)
 }
 
 // SearchMovies ...
@@ -560,7 +559,7 @@ func SearchMovies(ctx *gin.Context) {
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	movies, total := tmdb.SearchMovies(query, config.Get().Language, page)
-	renderMovies(ctx, movies, page, total, query, false)
+	renderMovies(ctx, movies, page, total, false)
 }
 
 func movieLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, tmdbID string) []*bittorrent.TorrentFile {

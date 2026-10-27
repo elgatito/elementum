@@ -166,6 +166,9 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 	{
 		movies.GET("/", MoviesIndex)
 		movies.GET("/search", SearchMovies)
+		movies.GET("/advanced", AdvancedSearch("movies"))
+		movies.GET("/advanced/edit/:field", AdvancedSearchEdit("movies"))
+		movies.GET("/advanced/results", AdvancedSearchResults("movies"))
 		movies.GET("/popular", PopularMovies)
 		movies.GET("/popular/genre/:genre", PopularMovies)
 		movies.GET("/popular/language/:language", PopularMovies)
@@ -241,6 +244,9 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 	{
 		shows.GET("/", TVIndex)
 		shows.GET("/search", SearchShows)
+		shows.GET("/advanced", AdvancedSearch("shows"))
+		shows.GET("/advanced/edit/:field", AdvancedSearchEdit("shows"))
+		shows.GET("/advanced/results", AdvancedSearchResults("shows"))
 		shows.GET("/popular", PopularShows)
 		shows.GET("/popular/genre/:genre", PopularShows)
 		shows.GET("/popular/language/:language", PopularShows)

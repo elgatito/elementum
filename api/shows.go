@@ -33,6 +33,7 @@ func TVIndex(ctx *gin.Context) {
 
 	items := xbmc.ListItems{
 		{Label: "LOCALIZE[30209]", Path: URLForXBMC("/shows/search"), Thumbnail: config.AddonResource("img", "search.png")},
+		{Label: "LOCALIZE[30765]", Path: URLForXBMC("/shows/advanced"), Thumbnail: config.AddonResource("img", "search.png")},
 
 		{Label: "Trakt > LOCALIZE[30360]", Path: URLForXBMC("/shows/trakt/progress"), Thumbnail: config.AddonResource("img", "trakt.png"), TraktAuth: true},
 		{Label: "Trakt > LOCALIZE[30263]", Path: URLForXBMC("/shows/trakt/lists/"), Thumbnail: config.AddonResource("img", "trakt.png"), TraktAuth: true},
@@ -183,7 +184,7 @@ func TVLibrary(ctx *gin.Context) {
 	}
 	wg.Wait()
 
-	renderShows(ctx, tmdbShows, page, shows.Limits.Total, "", false)
+	renderShows(ctx, tmdbShows, page, shows.Limits.Total, false)
 }
 
 // TVElementumLibrary ...
@@ -223,7 +224,7 @@ func TVElementumLibrary(ctx *gin.Context) {
 		}
 	}
 
-	renderShows(ctx, tmdbShows, -1, len(tmdbShows), "", true)
+	renderShows(ctx, tmdbShows, -1, len(tmdbShows), true)
 }
 
 // TVTraktLists ...
@@ -279,7 +280,7 @@ func CalendarShows(ctx *gin.Context) {
 	ctx.JSON(200, xbmc.NewView("menus_tvshows", filterListItems(items)))
 }
 
-func renderShows(ctx *gin.Context, shows tmdb.Shows, page int, total int, query string, nameSort bool) {
+func renderShows(ctx *gin.Context, shows tmdb.Shows, page int, total int, nameSort bool) {
 	hasNextPage := 0
 	if page > 0 {
 		if page*config.Get().ResultsPerPage < total {
@@ -357,11 +358,9 @@ func renderShows(ctx *gin.Context, shows tmdb.Shows, page int, total int, query 
 	wg.Wait()
 
 	if page >= 0 && hasNextPage > 0 {
-		path := ctx.Request.URL.Path
-		nextPath := URLForXBMC("%s", fmt.Sprintf("%s?page=%d", path, page+1))
-		if query != "" {
-			nextPath = URLForXBMC("%s", fmt.Sprintf("%s?q=%s&page=%d", path, query, page+1))
-		}
+		query := ctx.Request.URL.Query()
+		query.Set("page", strconv.Itoa(page+1))
+		nextPath := URLForXBMC("%s", ctx.Request.URL.Path+"?"+query.Encode())
 		next := &xbmc.ListItem{
 			Label:      "LOCALIZE[30415];;" + strconv.Itoa(page+1),
 			Path:       nextPath,
@@ -394,7 +393,7 @@ func PopularShows(ctx *gin.Context) {
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	shows, total := tmdb.PopularShows(p, config.Get().Language, page)
-	renderShows(ctx, shows, page, total, "", false)
+	renderShows(ctx, shows, page, total, false)
 }
 
 // RecentShows ...
@@ -411,7 +410,7 @@ func RecentShows(ctx *gin.Context) {
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	shows, total := tmdb.RecentShows(p, config.Get().Language, page)
-	renderShows(ctx, shows, page, total, "", false)
+	renderShows(ctx, shows, page, total, false)
 }
 
 // RecentEpisodes ...
@@ -428,7 +427,7 @@ func RecentEpisodes(ctx *gin.Context) {
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	shows, total := tmdb.RecentEpisodes(p, config.Get().Language, page)
-	renderShows(ctx, shows, page, total, "", false)
+	renderShows(ctx, shows, page, total, false)
 }
 
 // TopRatedShows ...
@@ -437,7 +436,7 @@ func TopRatedShows(ctx *gin.Context) {
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	shows, total := tmdb.TopRatedShows("", config.Get().Language, page)
-	renderShows(ctx, shows, page, total, "", false)
+	renderShows(ctx, shows, page, total, false)
 }
 
 // TVMostVoted ...
@@ -446,7 +445,7 @@ func TVMostVoted(ctx *gin.Context) {
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	shows, total := tmdb.MostVotedShows("", config.Get().Language, page)
-	renderShows(ctx, shows, page, total, "", false)
+	renderShows(ctx, shows, page, total, false)
 }
 
 // SearchShows ...
@@ -467,7 +466,7 @@ func SearchShows(ctx *gin.Context) {
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	shows, total := tmdb.SearchShows(query, config.Get().Language, page)
-	renderShows(ctx, shows, page, total, query, false)
+	renderShows(ctx, shows, page, total, false)
 }
 
 // ShowSeasons ...

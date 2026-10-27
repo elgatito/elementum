@@ -265,6 +265,31 @@ func GetCountries(language string) []*Country {
 	return countries
 }
 
+// SearchPeople returns people matching the name, most popular first
+func SearchPeople(query string, language string) []*IDName {
+	var results struct {
+		Results []*IDName `json:"results"`
+	}
+
+	req := reqapi.Request{
+		API: reqapi.TMDBAPI,
+		URL: "/search/person",
+		Params: napping.Params{
+			"api_key":       apiKey,
+			"query":         query,
+			"language":      language,
+			"include_adult": "false",
+		}.AsUrlValues(),
+		Result:      &results,
+		Description: "search person",
+	}
+
+	if err := req.Do(); err != nil {
+		return nil
+	}
+	return results.Results
+}
+
 // GetLanguages ...
 func GetLanguages(language string) []*Language {
 	languages := []*Language{}

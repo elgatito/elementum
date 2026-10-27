@@ -66,6 +66,7 @@ type ListItem struct {
 	Icon        string               `json:"icon"`
 	Thumbnail   string               `json:"thumbnail"`
 	IsPlayable  bool                 `json:"is_playable"`
+	IsAction    bool                 `json:"is_action,omitempty"` // run as plugin call, not opened as folder
 	Path        string               `json:"path"`
 	Info        *ListItemInfo        `json:"info,omitempty"`
 	Properties  *ListItemProperties  `json:"properties,omitempty"`

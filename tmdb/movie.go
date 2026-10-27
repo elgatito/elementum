@@ -368,6 +368,12 @@ func RecentMovies(params DiscoverFilters, language string, page int) (Movies, in
 	return listMovies("discover/movie", p, page)
 }
 
+// DiscoverMovies runs /discover/movie with caller-built filters and sorting
+func DiscoverMovies(params napping.Params, language string, page int) (Movies, int) {
+	params["language"] = language
+	return listMovies("discover/movie", params, page)
+}
+
 // TopRatedMovies ...
 func TopRatedMovies(genre string, language string, page int) (Movies, int) {
 	return listMovies("movie/top_rated", napping.Params{"language": language}, page)

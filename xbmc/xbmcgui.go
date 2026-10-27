@@ -269,6 +269,13 @@ func (h *XBMCHost) ListDialogWithOptions(autoclose, preselect int, title string,
 	return retVal
 }
 
+// DialogMultiSelect returns selected indexes, or nil if the dialog was canceled
+func (h *XBMCHost) DialogMultiSelect(title string, items []string, preselect []int) []int {
+	var retVal []int
+	h.executeJSONRPCEx("Dialog_MultiSelect", &retVal, Args{title, items, preselect})
+	return retVal
+}
+
 // ListDialogLarge ...
 func (h *XBMCHost) ListDialogLarge(title string, subject string, items ...string) int {
 	retVal := -1
