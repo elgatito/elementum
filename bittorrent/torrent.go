@@ -1483,6 +1483,26 @@ func (t *Torrent) hasPiece(idx int) bool {
 	return st.State <= int(lt.TorrentStatusSeeding) && st.Pieces.GetBit(idx)
 }
 
+// hasFile reports whether all pieces of the file are downloaded
+func (t *Torrent) hasFile(f *File) bool {
+	if f == nil {
+		return false
+	}
+
+	t.UpdateStatus(piecesRefreshDuration)
+
+	st := t.GetStatus()
+	if st.State > int(lt.TorrentStatusSeeding) {
+		return false
+	}
+	for i := f.PieceStart; i <= f.PieceEnd; i++ {
+		if !st.Pieces.GetBit(i) {
+			return false
+		}
+	}
+	return true
+}
+
 func (t *Torrent) onMetadataReceived() {
 	if t.Service.Closer.IsSet() || t.Closer.IsSet() {
 		return
@@ -1797,6 +1817,8 @@ func (t *Torrent) SelectDownloadFiles(btp *Player) {
 		return
 	}
 
+	var toDownload []*File
+
 	if strategy == DownloadFileSeason {
 		if btp == nil || btp.p.Season <= 0 {
 			return
@@ -1832,19 +1854,41 @@ func (t *Torrent) SelectDownloadFiles(btp *Player) {
 
 				index, found := MatchEpisodeFilename(season.Season, episode.EpisodeNumber, show.CountRealSeasons() == 1, btp.p.Season, show, episode, tvdbShow, choices)
 				if index >= 0 && found == 1 {
-					t.DownloadFile(files[choices[index].Index])
+					toDownload = append(toDownload, files[choices[index].Index])
 				}
 			}
 		}
-
-		t.SaveDBFiles()
 	} else if strategy == DownloadFileAll {
-		for _, f := range files {
-			t.DownloadFile(f)
-		}
-
-		t.SaveDBFiles()
+		toDownload = files
 	}
+
+	if len(toDownload) == 0 {
+		return
+	}
+
+	// Check in advance, so playback is not broken by running out of space on extra files later
+	var extraSize int64
+	for _, f := range toDownload {
+		if !f.Selected {
+			extraSize += f.Size
+		}
+	}
+	sizeLeft, availableSpace, err := t.Service.getSpaceStatus(t)
+	if err != nil {
+		log.Warningf("Not selecting more files for download: %s", err)
+		return
+	} else if availableSpace < sizeLeft+extraSize {
+		log.Errorf("Not selecting more files for download, unsufficient free space on %s. Has %d, needs %d.", config.Get().DownloadPath, availableSpace, sizeLeft+extraSize)
+		if btp != nil && btp.xbmcHost != nil {
+			btp.xbmcHost.Notify("Elementum", "LOCALIZE[30207]", config.AddonIcon())
+		}
+		return
+	}
+
+	for _, f := range toDownload {
+		t.DownloadFile(f)
+	}
+	t.SaveDBFiles()
 }
 
 // ChooseFile opens file selector if not provided with Player, otherwise tries to detect what to open.

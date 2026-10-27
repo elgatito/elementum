@@ -734,44 +734,52 @@ func (s *Service) checkAvailableSpace(xbmcHost *xbmc.XBMCHost, t *Torrent) bool 
 		return true
 	}
 
-	diskStatus, err := diskusage.DiskUsage(config.Get().DownloadPath)
+	sizeLeft, availableSpace, err := s.getSpaceStatus(t)
 	if err != nil {
-		log.Warningf("Unable to retrieve the free space for %s, continuing anyway...", config.Get().DownloadPath)
+		log.Warning(err)
 		return false
 	}
-
-	var totalSize int64
-	if !t.withHandle(func(lt.TorrentHandle) { totalSize = t.ti.TotalSize() }) {
-		log.Warning("Missing torrent info to check available space.")
-		return false
-	}
-
-	status := t.GetStatus()
-
-	totalDone := status.TotalDone
-	sizeLeft := totalSize - totalDone
-	availableSpace := diskStatus.Free
-	path := status.SavePath
-
-	log.Infof("Checking for sufficient space on %s...", path)
-	log.Infof("Total size of download: %s", humanize.Bytes(uint64(totalSize)))
-	log.Infof("All time download: %s", humanize.Bytes(uint64(status.AllTimeDownload)))
-	log.Infof("Size total done: %s", humanize.Bytes(uint64(totalDone)))
-	log.Infof("Size left to download: %s", humanize.Bytes(uint64(sizeLeft)))
-	log.Infof("Available space: %s", humanize.Bytes(uint64(availableSpace)))
 
 	if availableSpace < sizeLeft {
-		log.Errorf("Unsufficient free space on %s. Has %d, needs %d.", path, diskStatus.Free, sizeLeft)
+		log.Errorf("Unsufficient free space on %s. Has %d, needs %d.", config.Get().DownloadPath, availableSpace, sizeLeft)
 		if xbmcHost != nil {
 			xbmcHost.Notify("Elementum", "LOCALIZE[30207]", config.AddonIcon())
 		}
 
-		log.Infof("Pausing torrent %s", status.Name)
+		log.Infof("Pausing torrent %s", t.Name())
 		t.Pause()
 		return false
 	}
 
 	return true
+}
+
+// getSpaceStatus returns bytes left to download for selected files and free space on download path
+func (s *Service) getSpaceStatus(t *Torrent) (sizeLeft, availableSpace int64, err error) {
+	diskStatus, err := diskusage.DiskUsage(config.Get().DownloadPath)
+	if err != nil {
+		return 0, 0, fmt.Errorf("Unable to retrieve the free space for %s: %w", config.Get().DownloadPath, err)
+	}
+
+	// Fresh status, so file priorities set right before are counted
+	t.UpdateStatus(0)
+	status := t.GetStatus()
+	if !status.HasMetadata {
+		return 0, 0, errors.New("Missing torrent info to check available space")
+	}
+
+	// Wanted covers only pieces of selected files, not the whole torrent
+	sizeLeft = status.TotalWanted - status.TotalWantedDone
+	availableSpace = diskStatus.Free
+
+	log.Infof("Checking for sufficient space on %s...", status.SavePath)
+	log.Infof("Total size of selected files: %s", humanize.Bytes(uint64(status.TotalWanted)))
+	log.Infof("All time download: %s", humanize.Bytes(uint64(status.AllTimeDownload)))
+	log.Infof("Size of selected files done: %s", humanize.Bytes(uint64(status.TotalWantedDone)))
+	log.Infof("Size left to download: %s", humanize.Bytes(uint64(sizeLeft)))
+	log.Infof("Available space: %s", humanize.Bytes(uint64(availableSpace)))
+
+	return sizeLeft, availableSpace, nil
 }
 
 func (s *Service) updateInterfaces() {

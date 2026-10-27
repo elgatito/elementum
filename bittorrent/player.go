@@ -257,8 +257,6 @@ func (btp *Player) Buffer() error {
 		}
 	}
 
-	go btp.processMetadata()
-
 	if btp.p.Background {
 		log.Info("Skipping buffering for background download")
 		btp.t.IsBuffering.Store(false)
@@ -271,14 +269,19 @@ func (btp *Player) Buffer() error {
 	buffered, done := btp.bufferEvents.Listen()
 	defer close(done)
 
-	// Seeding means every piece is on disk, so buffering finishes instantly and the dialog would only flash.
-	// Finished is not enough: the chosen file may be one that was never selected for download.
-	isComplete := !btp.t.IsMemoryStorage() && btp.t.GetState() == StatusSeeding
-	if isComplete {
-		log.Info("Torrent is complete, skipping buffer dialog")
+	// Metadata is already there, so the file is chosen before deciding whether the buffer dialog is needed
+	if err := btp.processMetadata(); err != nil {
+		return err
 	}
 
-	if !btp.t.IsBufferingFinished.Load() && btp.xbmcHost != nil && !isComplete {
+	// A file fully on disk is buffered instantly, the dialog would only flash.
+	// RAR archives still need the dialog for the unpacking progress.
+	isDownloaded := !btp.t.IsMemoryStorage() && !btp.t.IsRarArchive.Load() && btp.t.hasFile(btp.chosenFile)
+	if isDownloaded {
+		log.Info("Chosen file is already downloaded, skipping buffer dialog")
+	}
+
+	if !btp.t.IsBufferingFinished.Load() && btp.xbmcHost != nil && !isDownloaded {
 		btp.dialogProgress = btp.xbmcHost.NewDialogProgress("Elementum", "", "", "")
 		if btp.dialogProgress != nil {
 			defer btp.dialogProgress.Close()
@@ -328,14 +331,13 @@ func (btp *Player) waitCheckAvailableSpace() {
 	}
 }
 
-func (btp *Player) processMetadata() {
+func (btp *Player) processMetadata() error {
 	defer perf.ScopeTimer()()
 
 	var err error
 	btp.chosenFile, btp.p.FileIndex, err = btp.t.ChooseFile(btp, btp.xbmcHost)
 	if err != nil {
-		btp.bufferEvents.Broadcast(err)
-		return
+		return err
 	}
 
 	btp.p.ResumeToken = strconv.FormatUint(xxhash.Sum64String(btp.t.InfoHash()+btp.chosenFile.Path), 10)
@@ -405,7 +407,7 @@ func (btp *Player) processMetadata() {
 		btp.t.withHandle(func(th lt.TorrentHandle) {
 			th.SetSequentialDownload(false)
 		})
-		return
+		return nil
 	}
 
 	// For non-memory storage prioritize current files
@@ -431,6 +433,8 @@ func (btp *Player) processMetadata() {
 	if !btp.p.Background {
 		go btp.t.Buffer(btp.chosenFile, btp.p.ResumeHash == "")
 	}
+
+	return nil
 }
 
 func (btp *Player) statusStrings(progress float64, status *TorrentStatus) (string, string, string) {
