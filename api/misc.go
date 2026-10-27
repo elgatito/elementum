@@ -138,7 +138,7 @@ func Status(s *bittorrent.Service) gin.HandlerFunc {
 			ip,
 			port,
 			proxy.ProxyPort,
-			s.PackSettings.GetStr("listen_interfaces"),
+			s.GetSettingStr("listen_interfaces"),
 
 			webAddress,
 			infoAddress,

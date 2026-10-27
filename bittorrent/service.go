@@ -63,6 +63,10 @@ type Service struct {
 	Session       lt.SessionHandle
 	SessionGlobal lt.Session
 	PackSettings  lt.SettingsPack
+	// muSession blocks session deletion while calls are running, use withSession()
+	muSession sync.RWMutex
+	// muSettings serializes PackSettings changes, settings_pack is not thread-safe, use applySettings()
+	muSettings sync.Mutex
 
 	listenInterfaces   []net.IP
 	outgoingInterfaces []net.IP
@@ -175,6 +179,12 @@ func (s *Service) CloseSession() {
 		log.Infof("Closed session in %s", time.Since(now))
 	}()
 
+	// Wait for running session calls and refuse new ones
+	s.muSession.Lock()
+	session := s.SessionGlobal
+	s.Session, s.SessionGlobal = nil, nil
+	s.muSession.Unlock()
+
 	// Deleting the session frees all torrents, so wait for running handle calls and block new ones
 	for _, t := range s.q.All() {
 		t.Closer.Set()
@@ -183,13 +193,83 @@ func (s *Service) CloseSession() {
 	}
 
 	log.Info("Closing Session")
-	if s.SessionGlobal != nil {
-		s.SessionGlobal.Abort()
+	if session != nil {
+		session.Abort()
 
-		if err := lt.DeleteSession(s.SessionGlobal); err != nil {
+		if err := lt.DeleteSession(session); err != nil {
 			log.Errorf("Could not delete libtorrent session: %s", err)
 		}
 	}
+}
+
+// withSession runs f with the session handle only while the session is alive.
+// f must not call withSession again: a nested RLock deadlocks once CloseSession() is waiting.
+func (s *Service) withSession(f func(session lt.SessionHandle)) (ok bool) {
+	s.muSession.RLock()
+	defer s.muSession.RUnlock()
+
+	if s.Session == nil || s.Session.Swigcptr() == 0 {
+		return false
+	}
+
+	// libtorrent exceptions are turned into Go panics by SWIG
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("Recovered libtorrent session call: %v", r)
+			ok = false
+		}
+	}()
+
+	f(s.Session)
+	return true
+}
+
+// applySettings changes shared settings pack with f and applies it to the session
+func (s *Service) applySettings(f func(settings lt.SettingsPack)) {
+	s.muSettings.Lock()
+	defer s.muSettings.Unlock()
+
+	if s.PackSettings == nil {
+		return
+	}
+
+	f(s.PackSettings)
+	s.withSession(func(session lt.SessionHandle) {
+		session.ApplySettings(s.PackSettings)
+	})
+}
+
+// GetSettingStr returns a string setting from the shared settings pack
+func (s *Service) GetSettingStr(name string) (ret string) {
+	s.muSettings.Lock()
+	defer s.muSettings.Unlock()
+
+	if s.PackSettings != nil {
+		ret = s.PackSettings.GetStr(name)
+	}
+	return
+}
+
+// IsPaused returns whether the whole session is paused
+func (s *Service) IsPaused() (paused bool) {
+	s.withSession(func(session lt.SessionHandle) {
+		paused = session.IsPaused()
+	})
+	return
+}
+
+// Pause pauses the whole session
+func (s *Service) Pause() {
+	s.withSession(func(session lt.SessionHandle) {
+		session.Pause()
+	})
+}
+
+// Resume resumes the whole session
+func (s *Service) Resume() {
+	s.withSession(func(session lt.SessionHandle) {
+		session.Resume()
+	})
 }
 
 // Reconfigure fired every time addon configuration has changed
@@ -234,7 +314,8 @@ func (s *Service) configure() {
 		}
 	}
 
-	settings := lt.NewSettingsPack()
+	// Start from defaults, so settings removed from config are reset on reload
+	settings := lt.DefaultSettings()
 
 	log.Info("Applying session settings...")
 
@@ -492,6 +573,7 @@ func (s *Service) configure() {
 	listenInterfaces, outgoingInterfaces, errInterface := s.getInterfaceSettings(false)
 	if errInterface != nil {
 		log.Errorf("Could not create configure libtorrent session due to wrong interfaces configuration: %s", errInterface)
+		lt.DeleteSettingsPack(settings)
 		return
 	}
 
@@ -511,21 +593,9 @@ func (s *Service) configure() {
 		lt.HighPerformanceSeed(settings)
 	}
 
-	var err error
-	s.PackSettings = settings
-	s.SessionGlobal, err = lt.NewSession(s.PackSettings, int(lt.WrappedSessionHandleAddDefaultPlugins))
-	if err != nil {
-		log.Errorf("Could not create libtorrent session: %s", err)
+	if !s.setSessionSettings(settings) {
 		return
 	}
-
-	s.Session, err = s.SessionGlobal.GetHandle()
-	if err != nil {
-		log.Errorf("Could not create libtorrent session handle: %s", err)
-		return
-	}
-
-	// s.Session.GetHandle().ApplySettings(s.PackSettings)
 
 	if !s.config.LimitAfterBuffering {
 		s.RestoreLimits()
@@ -534,39 +604,75 @@ func (s *Service) configure() {
 	s.applyCustomSettings()
 }
 
+// setSessionSettings replaces settings pack and creates the session on first call.
+// On reload settings are applied to the existing session, a new one would orphan active torrents.
+func (s *Service) setSessionSettings(settings lt.SettingsPack) bool {
+	s.muSettings.Lock()
+	defer s.muSettings.Unlock()
+	s.muSession.Lock()
+	defer s.muSession.Unlock()
+
+	// Config watcher can fire after CloseSession(), do not create a new session then
+	if s.Closer.IsSet() {
+		lt.DeleteSettingsPack(settings)
+		return false
+	}
+
+	if old := s.PackSettings; old != nil {
+		defer lt.DeleteSettingsPack(old)
+	}
+	s.PackSettings = settings
+
+	if s.SessionGlobal != nil {
+		s.Session.ApplySettings(settings)
+		return true
+	}
+
+	var err error
+	s.SessionGlobal, err = lt.NewSession(settings, int(lt.WrappedSessionHandleAddDefaultPlugins))
+	if err != nil {
+		log.Errorf("Could not create libtorrent session: %s", err)
+		return false
+	}
+
+	s.Session, err = s.SessionGlobal.GetHandle()
+	if err != nil {
+		log.Errorf("Could not create libtorrent session handle: %s", err)
+		return false
+	}
+
+	return true
+}
+
 func (s *Service) startServices() {
-	if s.PackSettings == nil {
-		return
-	}
+	s.applySettings(func(settings lt.SettingsPack) {
+		if s.config.DisableTCP {
+			log.Info("Disabling TCP...")
+			settings.SetBool("enable_outgoing_tcp", false)
+			settings.SetBool("enable_incoming_tcp", false)
+		}
+		if s.config.DisableUTP {
+			log.Info("Disabling UTP...")
+			settings.SetBool("enable_outgoing_utp", false)
+			settings.SetBool("enable_incoming_utp", false)
+		}
 
-	if s.config.DisableTCP {
-		log.Info("Disabling TCP...")
-		s.PackSettings.SetBool("enable_outgoing_tcp", false)
-		s.PackSettings.SetBool("enable_incoming_tcp", false)
-	}
-	if s.config.DisableUTP {
-		log.Info("Disabling UTP...")
-		s.PackSettings.SetBool("enable_outgoing_utp", false)
-		s.PackSettings.SetBool("enable_incoming_utp", false)
-	}
+		if !s.config.DisableLSD {
+			log.Info("Starting LSD...")
+			settings.SetBool("enable_lsd", true)
+		}
 
-	if !s.config.DisableLSD {
-		log.Info("Starting LSD...")
-		s.PackSettings.SetBool("enable_lsd", true)
-	}
+		if !s.config.DisableDHT {
+			log.Info("Starting DHT...")
+			settings.SetStr("dht_bootstrap_nodes", strings.Join(dhtBootstrapNodes, ","))
+			settings.SetBool("enable_dht", true)
+		}
 
-	if !s.config.DisableDHT {
-		log.Info("Starting DHT...")
-		s.PackSettings.SetStr("dht_bootstrap_nodes", strings.Join(dhtBootstrapNodes, ","))
-		s.PackSettings.SetBool("enable_dht", true)
-	}
-
-	if !s.config.DisableUPNP {
-		log.Info("Starting UPNP...")
-		s.PackSettings.SetBool("enable_upnp", true)
-	}
-
-	s.Session.ApplySettings(s.PackSettings)
+		if !s.config.DisableUPNP {
+			log.Info("Starting UPNP...")
+			settings.SetBool("enable_upnp", true)
+		}
+	})
 }
 
 func (s *Service) stopServices() {
@@ -600,27 +706,25 @@ func (s *Service) stopServices() {
 		}()
 	}
 
-	if s.PackSettings != nil && s.Session != nil {
+	// Gracefully clean all the port mappings
+	s.deletePortMappings()
+
+	s.applySettings(func(settings lt.SettingsPack) {
 		if !s.config.DisableLSD {
 			log.Info("Stopping LSD...")
-			s.PackSettings.SetBool("enable_lsd", false)
+			settings.SetBool("enable_lsd", false)
 		}
 
 		if !s.config.DisableDHT {
 			log.Info("Stopping DHT...")
-			s.PackSettings.SetBool("enable_dht", false)
+			settings.SetBool("enable_dht", false)
 		}
 
 		if !s.config.DisableUPNP {
 			log.Info("Stopping UPNP...")
-			s.PackSettings.SetBool("enable_upnp", false)
+			settings.SetBool("enable_upnp", false)
 		}
-
-		// Gracefully clean all the port mappings
-		s.deletePortMappings()
-
-		s.Session.ApplySettings(s.PackSettings)
-	}
+	})
 }
 
 // CheckAvailableSpace ...
@@ -677,28 +781,34 @@ func (s *Service) updateInterfaces() {
 	}
 	defer s.updatingInterfaces.Unlock()
 
-	settings := s.PackSettings
-
 	listenInterfaces, outgoingInterfaces, errInterface := s.getInterfaceSettings(true)
 	if errInterface != nil {
 		log.Errorf("Could not create configure libtorrent session due to wrong interfaces configuration: %s", errInterface)
 		return
 	}
 
-	settings.SetStr("listen_interfaces", strings.Join(listenInterfaces, ","))
-	log.Infof("Libtorrent listen_interfaces set to: %s", strings.Join(listenInterfaces, ","))
+	s.applySettings(func(settings lt.SettingsPack) {
+		settings.SetStr("listen_interfaces", strings.Join(listenInterfaces, ","))
+		log.Infof("Libtorrent listen_interfaces set to: %s", strings.Join(listenInterfaces, ","))
 
-	if len(outgoingInterfaces) > 0 {
-		settings.SetStr("outgoing_interfaces", strings.Join(outgoingInterfaces, ","))
-		log.Infof("Libtorrent outgoing_interfaces set to: %s", strings.Join(outgoingInterfaces, ","))
-	}
-
-	s.Session.ApplySettings(settings)
+		if len(outgoingInterfaces) > 0 {
+			settings.SetStr("outgoing_interfaces", strings.Join(outgoingInterfaces, ","))
+			log.Infof("Libtorrent outgoing_interfaces set to: %s", strings.Join(outgoingInterfaces, ","))
+		}
+	})
 }
 
 // AddTorrent ...
-func (s *Service) AddTorrent(xbmcHost *xbmc.XBMCHost, options AddOptions) (*Torrent, error) {
+func (s *Service) AddTorrent(xbmcHost *xbmc.XBMCHost, options AddOptions) (_ *Torrent, retErr error) {
 	defer perf.ScopeTimer()()
+
+	// libtorrent exceptions are turned into Go panics by SWIG, new handle is used directly below
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("Recovered libtorrent call while adding torrent: %v", r)
+			retErr = fmt.Errorf("Could not add torrent: %v", r)
+		}
+	}()
 
 	// To make sure no spaces coming from Web UI
 	options.URI = strings.TrimSpace(options.URI)
@@ -837,7 +947,11 @@ func (s *Service) AddTorrent(xbmcHost *xbmc.XBMCHost, options AddOptions) (*Torr
 	}
 
 	// Call torrent creation
-	th, err = s.Session.AddTorrent(torrentParams, errorCode)
+	if !s.withSession(func(session lt.SessionHandle) {
+		th, err = session.AddTorrent(torrentParams, errorCode)
+	}) {
+		return nil, errors.New("Session is closed")
+	}
 	if err != nil {
 		return nil, err
 	} else if errorCode.Failed() || !th.IsValid() {
@@ -1367,7 +1481,7 @@ func (s *Service) loadTorrentFiles() {
 	})
 
 	for _, torrentFile := range files {
-		if s.Closer.IsSet() || s.Session == nil || s.Session.Swigcptr() == 0 {
+		if s.Closer.IsSet() {
 			return
 		}
 		if !strings.HasSuffix(torrentFile.Name(), ".torrent") {
@@ -1441,8 +1555,8 @@ func (s *Service) onDownloadProgress() {
 	rotateTicker := time.NewTicker(5 * time.Second)
 	defer rotateTicker.Stop()
 
-	pathChecked := make(map[string]bool)
-	warnedMissing := make(map[string]bool)
+	// Written from move goroutines, so they must be safe for concurrent use
+	var pathChecked, warnedMissing sync.Map
 
 	xbmcHost, _ := xbmc.GetLocalXBMCHost()
 
@@ -1461,7 +1575,7 @@ func (s *Service) onDownloadProgress() {
 			// 	continue
 			// }
 
-			if s.Closer.IsSet() || s.Session == nil || s.Session.Swigcptr() == 0 {
+			if s.Closer.IsSet() {
 				return
 			}
 
@@ -1473,7 +1587,7 @@ func (s *Service) onDownloadProgress() {
 
 			for _, t := range s.q.All() {
 				ts := t.GetStatus()
-				if t.Closer.IsSet() || !ts.HasMetadata || s.Session.IsPaused() {
+				if t.Closer.IsSet() || !ts.HasMetadata || s.IsPaused() {
 					continue
 				}
 
@@ -1555,38 +1669,33 @@ func (s *Service) onDownloadProgress() {
 					}
 				}
 
-				if t.IsMarkedToMove {
-					t.IsMarkedToMove = false
+				if t.IsMarkedToMove.CompareAndSwap(true, false) {
 					status = StatusStrings[StatusSeeding]
 				}
 
 				//
 				// Handle moving completed downloads
 				//
-				if t.IsMemoryStorage() || !s.config.CompletedMove || status != StatusStrings[StatusSeeding] || s.anyPlayerIsPlaying() || t.IsMoveInProgress {
+				if t.IsMemoryStorage() || !s.config.CompletedMove || status != StatusStrings[StatusSeeding] || s.anyPlayerIsPlaying() || t.IsMoveInProgress.Load() {
 					continue
 				}
 				if xbmcHost != nil && xbmcHost.PlayerIsPlaying() {
 					continue
 				}
 
-				if _, exists := warnedMissing[infoHash]; exists {
+				if _, exists := warnedMissing.Load(infoHash); exists {
 					continue
 				}
 
 				go func(t *Torrent) error {
-					if t.IsMoveInProgress {
+					if !t.IsMoveInProgress.CompareAndSwap(false, true) {
 						return nil
 					}
-
-					defer func() {
-						t.IsMoveInProgress = false
-					}()
-					t.IsMoveInProgress = true
+					defer t.IsMoveInProgress.Store(false)
 
 					item := database.GetStorm().GetBTItem(infoHash)
 					if item == nil {
-						warnedMissing[infoHash] = true
+						warnedMissing.Store(infoHash, true)
 						return fmt.Errorf("Torrent not found with infohash: %s", infoHash)
 					}
 
@@ -1598,23 +1707,23 @@ func (s *Service) onDownloadProgress() {
 					log.Warning(torrentName, "finished seeding, moving files...")
 
 					// Check paths are valid and writable, and only once
-					if _, exists := pathChecked[item.Type]; !exists {
+					if _, exists := pathChecked.Load(item.Type); !exists {
 						if item.Type == "movie" {
 							if err := util.IsWritablePath(s.config.CompletedMoviesPath); err != nil {
-								warnedMissing[infoHash] = true
-								pathChecked[item.Type] = true
+								warnedMissing.Store(infoHash, true)
+								pathChecked.Store(item.Type, true)
 								log.Error(err)
 								return err
 							}
-							pathChecked[item.Type] = true
+							pathChecked.Store(item.Type, true)
 						} else {
 							if err := util.IsWritablePath(s.config.CompletedShowsPath); err != nil {
-								warnedMissing[infoHash] = true
-								pathChecked[item.Type] = true
+								warnedMissing.Store(infoHash, true)
+								pathChecked.Store(item.Type, true)
 								log.Error(err)
 								return err
 							}
-							pathChecked[item.Type] = true
+							pathChecked.Store(item.Type, true)
 						}
 					}
 
@@ -1761,18 +1870,16 @@ func (s *Service) onDownloadProgress() {
 
 // SetDownloadLimit ...
 func (s *Service) SetDownloadLimit(i int) {
-	settings := s.PackSettings
-	settings.SetInt("download_rate_limit", i)
-
-	s.Session.ApplySettings(settings)
+	s.applySettings(func(settings lt.SettingsPack) {
+		settings.SetInt("download_rate_limit", i)
+	})
 }
 
 // SetUploadLimit ...
 func (s *Service) SetUploadLimit(i int) {
-	settings := s.PackSettings
-
-	settings.SetInt("upload_rate_limit", i)
-	s.Session.ApplySettings(settings)
+	s.applySettings(func(settings lt.SettingsPack) {
+		settings.SetInt("upload_rate_limit", i)
+	})
 }
 
 // RestoreLimits ...
@@ -1889,7 +1996,7 @@ func (s *Service) DetachPlayer(p *Player) {
 		return
 	}
 
-	p.t.PlayerAttached--
+	p.t.PlayerAttached.Add(-1)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -2140,27 +2247,26 @@ func (s *Service) applyCustomSettings() {
 		return
 	}
 
-	settings := s.PackSettings
+	customSettings := s.readCustomSettings()
+	s.applySettings(func(settings lt.SettingsPack) {
+		for k, v := range customSettings {
+			if v == "true" {
+				settings.SetBool(k, true)
+				log.Infof("Applying bool setting: %s=true", k)
+				continue
+			} else if v == "false" {
+				settings.SetBool(k, false)
+				log.Infof("Applying bool setting: %s=false", k)
+				continue
+			} else if in, err := strconv.Atoi(v); err == nil {
+				settings.SetInt(k, in)
+				log.Infof("Applying int setting: %s=%d", k, in)
+				continue
+			}
 
-	for k, v := range s.readCustomSettings() {
-		if v == "true" {
-			settings.SetBool(k, true)
-			log.Infof("Applying bool setting: %s=true", k)
-			continue
-		} else if v == "false" {
-			settings.SetBool(k, false)
-			log.Infof("Applying bool setting: %s=false", k)
-			continue
-		} else if in, err := strconv.Atoi(v); err == nil {
-			settings.SetInt(k, in)
-			log.Infof("Applying int setting: %s=%d", k, in)
-			continue
+			log.Errorf("Cannot parse config settings for: %s=%s", k, v)
 		}
-
-		log.Errorf("Cannot parse config settings for: %s=%s", k, v)
-	}
-
-	s.Session.ApplySettings(settings)
+	})
 }
 
 func (s *Service) readCustomSettings() map[string]string {
@@ -2201,7 +2307,7 @@ func (s *Service) StopNextFiles() {
 	xbmcHost, _ := xbmc.GetLocalXBMCHost()
 
 	for _, t := range s.q.All() {
-		if t.IsNextFile && t.PlayerAttached <= 0 {
+		if t.IsNextFile.Load() && t.PlayerAttached.Load() <= 0 {
 			log.Infof("Stopping torrent '%s' as a not-needed next episode", t.Name())
 
 			t.stopNextTimer()

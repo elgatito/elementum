@@ -177,15 +177,15 @@ func (btp *Player) GetTorrent() *Torrent {
 func (btp *Player) SetTorrent(t *Torrent) {
 	// Increase player counter only if this is a different torrent or it was not yet set.
 	if btp.t == nil || btp.t != t {
-		t.PlayerAttached++
+		t.PlayerAttached.Add(1)
 	}
 
 	btp.t = t
 
-	btp.t.IsBuffering = false
-	btp.t.IsBufferingFinished = false
-	btp.t.IsNextFile = false
-	btp.t.HasNextFile = false
+	btp.t.IsBuffering.Store(false)
+	btp.t.IsBufferingFinished.Store(false)
+	btp.t.IsNextFile.Store(false)
+	btp.t.HasNextFile.Store(false)
 
 	btp.t.stopNextTimer()
 }
@@ -236,7 +236,7 @@ func (btp *Player) PlayURL() string {
 	if btp.chosenFile != nil {
 		path = btp.chosenFile.Path
 	}
-	if btp.t.IsRarArchive {
+	if btp.t.IsRarArchive.Load() {
 		extractedPath := filepath.Join(filepath.Dir(path), "extracted", btp.extracted)
 		return util.EncodeFileURL(extractedPath)
 	}
@@ -261,17 +261,17 @@ func (btp *Player) Buffer() error {
 
 	if btp.p.Background {
 		log.Info("Skipping buffering for background download")
-		btp.t.IsBuffering = false
-		btp.t.IsBufferingFinished = true
-		btp.t.IsNeedFinishNotification = true
+		btp.t.IsBuffering.Store(false)
+		btp.t.IsBufferingFinished.Store(true)
+		btp.t.IsNeedFinishNotification.Store(true)
 	} else {
-		btp.t.IsBuffering = true
+		btp.t.IsBuffering.Store(true)
 	}
 
 	buffered, done := btp.bufferEvents.Listen()
 	defer close(done)
 
-	if !btp.t.IsBufferingFinished && btp.xbmcHost != nil {
+	if !btp.t.IsBufferingFinished.Load() && btp.xbmcHost != nil {
 		btp.dialogProgress = btp.xbmcHost.NewDialogProgress("Elementum", "", "", "")
 		if btp.dialogProgress != nil {
 			defer btp.dialogProgress.Close()
@@ -392,7 +392,7 @@ func (btp *Player) processMetadata() {
 	go database.GetStorm().AddTorrentHistory(btp.t.InfoHash(), btp.t.Title(), meta)
 	go database.GetStorm().AddTorrentLink(strconv.Itoa(btp.p.TMDBId), btp.t.InfoHash(), meta, true)
 
-	if btp.t.IsRarArchive {
+	if btp.t.IsRarArchive.Load() {
 		// Just disable sequential download for RAR archives
 		log.Info("Disabling sequential download")
 		btp.t.withHandle(func(th lt.TorrentHandle) {
@@ -441,7 +441,7 @@ func (btp *Player) statusStrings(progress float64, status *TorrentStatus) (strin
 	line1 := fmt.Sprintf("%s (%.2f%%)", statusName, progress)
 
 	// Adding buffer size to progress window
-	if btp.t.IsBuffering {
+	if btp.t.IsBuffering.Load() {
 		query := btp.t.BufferLength
 		done := int64(float64(progress/100) * float64(query))
 
@@ -454,7 +454,7 @@ func (btp *Player) statusStrings(progress float64, status *TorrentStatus) (strin
 	// File size
 	var totalSize int64
 	if btp.t.gotMetainfo.IsSet() {
-		if btp.fileSize > 0 && !btp.t.IsRarArchive {
+		if btp.fileSize > 0 && !btp.t.IsRarArchive.Load() {
 			totalSize = btp.fileSize
 		} else {
 			totalSize = btp.t.totalSize
@@ -463,7 +463,7 @@ func (btp *Player) statusStrings(progress float64, status *TorrentStatus) (strin
 	}
 
 	// Bitrate
-	if btp.t.IsPlaying && btp.p.VideoDuration > 0 {
+	if btp.t.IsPlaying.Load() && btp.p.VideoDuration > 0 {
 		bps := uint64(totalSize) / uint64(btp.p.VideoDuration)
 		line1 += fmt.Sprintf(" - LOCALIZE[30640] ~ %s (%.2f MBit)", humanize.Bytes(bps), float64(bps*8)/1000000)
 	}
@@ -475,7 +475,7 @@ func (btp *Player) statusStrings(progress float64, status *TorrentStatus) (strin
 		seeds, seedsTotal, peers, peersTotal,
 	)
 	line3 := btp.t.Name()
-	if btp.fileName != "" && !btp.t.IsRarArchive {
+	if btp.fileName != "" && !btp.t.IsRarArchive.Load() {
 		line3 = btp.fileName
 	}
 	return line1, line2, line3
@@ -548,14 +548,14 @@ func (btp *Player) Close() {
 		go btp.s.PlayerStop()
 	}()
 
-	if btp.t.HasNextFile && btp.IsWatched() {
+	if btp.t.HasNextFile.Load() && btp.IsWatched() {
 		log.Infof("Leaving torrent '%s' awaiting for next file playback", btp.t.Name())
 		btp.t.startNextTimer()
 		return
 	}
 
 	// Remove torrent only if this torrent is not needed for background download or other players are using it.
-	if !btp.p.Background && btp.t.PlayerAttached <= 1 {
+	if !btp.p.Background && btp.t.PlayerAttached.Load() <= 1 {
 		// If there is no chosen file - we stop the torrent and remove everything
 		btp.s.RemoveTorrent(btp.xbmcHost, btp.t, RemoveOptions{ForceDelete: btp.notEnoughSpace, IsWatched: btp.IsWatched()})
 	}
@@ -604,7 +604,7 @@ func (btp *Player) updateBufferDialog() (bool, error) {
 		return false, nil
 	}
 
-	if (btp.dialogProgress == nil || btp.dialogProgress.IsCanceled()) && !btp.t.IsBufferingFinished {
+	if (btp.dialogProgress == nil || btp.dialogProgress.IsCanceled()) && !btp.t.IsBufferingFinished.Load() {
 		log.Debugf("Dialog not yet available")
 		return false, nil
 	}
@@ -612,14 +612,14 @@ func (btp *Player) updateBufferDialog() (bool, error) {
 	defer perf.ScopeTimer()()
 
 	// Handle "Checking" state for resumed downloads
-	if btp.t.GetState() == StatusChecking || btp.t.IsRarArchive {
+	if btp.t.GetState() == StatusChecking || btp.t.IsRarArchive.Load() {
 		progress := btp.t.GetBufferProgress()
 		line1, line2, line3 := btp.statusStrings(progress, btp.t.GetStatus())
 		if btp.dialogProgress != nil {
 			btp.dialogProgress.Update(int(progress), line1, line2, line3)
 		}
 
-		if btp.t.IsRarArchive && progress >= 100 {
+		if btp.t.IsRarArchive.Load() && progress >= 100 {
 			if btp.chosenFile == nil {
 				btp.setRateLimiting(true)
 				btp.bufferEvents.Signal()
@@ -685,7 +685,7 @@ func (btp *Player) updateBufferDialog() (bool, error) {
 		if btp.dialogProgress != nil {
 			btp.dialogProgress.Update(int(btp.t.BufferProgress), line1, line2, line3)
 		}
-		if !btp.t.IsBuffering && btp.t.HasMetadata() && btp.t.GetState() != StatusChecking {
+		if !btp.t.IsBuffering.Load() && btp.t.HasMetadata() && btp.t.GetState() != StatusChecking {
 			btp.bufferEvents.Signal()
 			btp.setRateLimiting(true)
 			return true, nil
@@ -778,12 +778,12 @@ playbackWaitLoop:
 		btp.p.TraktScrobbled = true
 	}
 
-	btp.t.IsPlaying = true
+	btp.t.IsPlaying.Store(true)
 
 playbackLoop:
 	for {
 		if btp.p.Background || btp.xbmcHost == nil || !btp.xbmcHost.PlayerIsPlaying() {
-			btp.t.IsPlaying = false
+			btp.t.IsPlaying.Store(false)
 			break playbackLoop
 		}
 		<-oneSecond.C
@@ -1028,23 +1028,23 @@ func (btp *Player) GetIdent() {
 
 func (btp *Player) setRateLimiting(enable bool) {
 	if btp.s.config.LimitAfterBuffering {
-		settings := btp.s.PackSettings
-		if enable {
-			if btp.s.config.DownloadRateLimit > 0 {
-				log.Infof("Buffer filled, rate limiting download to %s", humanize.Bytes(uint64(btp.s.config.DownloadRateLimit)))
-				settings.SetInt("download_rate_limit", btp.s.config.UploadRateLimit)
+		btp.s.applySettings(func(settings lt.SettingsPack) {
+			if enable {
+				if btp.s.config.DownloadRateLimit > 0 {
+					log.Infof("Buffer filled, rate limiting download to %s", humanize.Bytes(uint64(btp.s.config.DownloadRateLimit)))
+					settings.SetInt("download_rate_limit", btp.s.config.DownloadRateLimit)
+				}
+				if btp.s.config.UploadRateLimit > 0 {
+					// If we have an upload rate, use the nicer bittyrant choker
+					log.Infof("Buffer filled, rate limiting upload to %s", humanize.Bytes(uint64(btp.s.config.UploadRateLimit)))
+					settings.SetInt("upload_rate_limit", btp.s.config.UploadRateLimit)
+				}
+			} else {
+				log.Info("Resetting rate limiting")
+				settings.SetInt("download_rate_limit", 0)
+				settings.SetInt("upload_rate_limit", 0)
 			}
-			if btp.s.config.UploadRateLimit > 0 {
-				// If we have an upload rate, use the nicer bittyrant choker
-				log.Infof("Buffer filled, rate limiting upload to %s", humanize.Bytes(uint64(btp.s.config.UploadRateLimit)))
-				settings.SetInt("upload_rate_limit", btp.s.config.UploadRateLimit)
-			}
-		} else {
-			log.Info("Resetting rate limiting")
-			settings.SetInt("download_rate_limit", 0)
-			settings.SetInt("upload_rate_limit", 0)
-		}
-		btp.s.Session.ApplySettings(settings)
+		})
 	}
 }
 
@@ -1077,7 +1077,7 @@ func (btp *Player) consumeAlerts() {
 }
 
 func (btp *Player) startNextFile() {
-	if (btp.p.ShowID == 0 && btp.p.Query == "") || !btp.t.HasNextFile || !btp.next.done || btp.next.f == nil || btp.t.IsBuffering || btp.next.started {
+	if (btp.p.ShowID == 0 && btp.p.Query == "") || !btp.t.HasNextFile.Load() || !btp.next.done || btp.next.f == nil || btp.t.IsBuffering.Load() || btp.next.started {
 		return
 	}
 
@@ -1131,11 +1131,11 @@ func (btp *Player) findNextFile() {
 	}
 
 	if btp.next.f == nil {
-		btp.t.HasNextFile = false
+		btp.t.HasNextFile.Store(false)
 		return
 	}
 
-	btp.t.HasNextFile = true
+	btp.t.HasNextFile.Store(true)
 
 	startBufferSize := btp.s.GetBufferSize()
 	_, _, _, preBufferSize := btp.t.getBufferSize(btp.next.f.Offset, 0, startBufferSize)

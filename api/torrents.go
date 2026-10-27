@@ -262,7 +262,7 @@ func ListTorrents(s *bittorrent.Service) gin.HandlerFunc {
 			torrentAction := []string{"LOCALIZE[30231]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/pause/%s", t.InfoHash()))}
 			sessionAction := []string{"LOCALIZE[30233]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/pause"))}
 
-			if s.Session.IsPaused() {
+			if s.IsPaused() {
 				sessionAction = []string{"LOCALIZE[30234]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/resume"))}
 			} else if t.GetPaused() {
 				torrentAction = []string{"LOCALIZE[30235]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/resume/%s", t.InfoHash()))}
@@ -433,7 +433,7 @@ func PauseSession(s *bittorrent.Service) gin.HandlerFunc {
 
 		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 
-		s.Session.Pause()
+		s.Pause()
 
 		xbmcHost.Refresh()
 		ctx.String(200, "")
@@ -447,7 +447,7 @@ func ResumeSession(s *bittorrent.Service) gin.HandlerFunc {
 
 		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 
-		s.Session.Resume()
+		s.Resume()
 
 		xbmcHost.Refresh()
 		ctx.String(200, "")
@@ -562,7 +562,7 @@ func MoveTorrent(s *bittorrent.Service) gin.HandlerFunc {
 		}
 
 		torrentsLog.Infof("Marking %s to be moved...", torrent.Name())
-		torrent.IsMarkedToMove = true
+		torrent.IsMarkedToMove.Store(true)
 
 		xbmcHost.Refresh()
 		ctx.String(200, "")

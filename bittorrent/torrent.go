@@ -73,18 +73,18 @@ type Torrent struct {
 	BufferPiecesProgress   map[int]float64
 	MemorySize             int64
 
-	IsMoveInProgress         bool
-	IsMarkedToMove           bool
-	IsPlaying                bool
-	IsPaused                 bool
-	IsBuffering              bool
-	IsBufferingFinished      bool
-	IsSeeding                bool
-	IsRarArchive             bool
-	IsNextFile               bool
-	IsNeedFinishNotification bool
-	HasNextFile              bool
-	PlayerAttached           int
+	IsMoveInProgress         atomic.Bool
+	IsMarkedToMove           atomic.Bool
+	IsPlaying                atomic.Bool
+	IsPaused                 atomic.Bool
+	IsBuffering              atomic.Bool
+	IsBufferingFinished      atomic.Bool
+	IsSeeding                atomic.Bool
+	IsRarArchive             atomic.Bool
+	IsNextFile               atomic.Bool
+	IsNeedFinishNotification atomic.Bool
+	HasNextFile              atomic.Bool
+	PlayerAttached           atomic.Int32
 
 	DBItem *database.BTItem
 
@@ -221,13 +221,12 @@ func (t *Torrent) Watch() {
 			go t.PrioritizePieces()
 
 		case <-t.nextTimer.C:
-			if t.IsNextFile {
-				t.IsNextFile = false
+			if t.IsNextFile.CompareAndSwap(true, false) {
 				go t.Service.RemoveTorrent(nil, t, RemoveOptions{})
 			}
 
 		case <-updateMetadataTicker.C:
-			if t.IsPlaying && !t.IsSeeding {
+			if t.IsPlaying.Load() && !t.IsSeeding.Load() {
 				go t.UpdateTorrentMetadata()
 			}
 		}
@@ -235,7 +234,7 @@ func (t *Torrent) Watch() {
 }
 
 func (t *Torrent) startNextTimer() {
-	t.IsNextFile = true
+	t.IsNextFile.Store(true)
 
 	t.nextTimer.Reset(15 * time.Minute)
 	t.muDemandPieces.Lock()
@@ -244,7 +243,7 @@ func (t *Torrent) startNextTimer() {
 }
 
 func (t *Torrent) stopNextTimer() {
-	t.IsNextFile = false
+	t.IsNextFile.Store(false)
 
 	if t.nextTimer != nil {
 		t.nextTimer.Stop()
@@ -262,7 +261,7 @@ func (t *Torrent) bufferTickerEvent() {
 
 	defer perf.ScopeTimer()()
 
-	if t.IsBuffering && len(t.BufferPiecesProgress) > 0 {
+	if t.IsBuffering.Load() && len(t.BufferPiecesProgress) > 0 {
 		// Making sure current progress is not less then previous
 		thisProgress := t.GetBufferProgress()
 
@@ -298,7 +297,7 @@ func (t *Torrent) bufferTickerEvent() {
 		if t.BufferProgress >= 100 {
 			t.bufferFinished <- struct{}{}
 		} else {
-			t.IsBufferingFinished = false
+			t.IsBufferingFinished.Store(false)
 			if t.BufferProgressPrevious > t.BufferProgress {
 				t.BufferProgress = t.BufferProgressPrevious
 			} else {
@@ -339,11 +338,11 @@ func (t *Torrent) GetHumanizedSpeeds() (down, up string) {
 
 func (t *Torrent) bufferFinishedEvent() {
 	t.muBuffer.Lock()
-	log.Infof("Buffer finished: %#v, %#v", t.IsBuffering, t.BufferPiecesProgress)
+	log.Infof("Buffer finished: %#v, %#v", t.IsBuffering.Load(), t.BufferPiecesProgress)
 
 	t.BufferPiecesProgress = map[int]float64{}
-	t.IsBuffering = false
-	t.IsBufferingFinished = true
+	t.IsBuffering.Store(false)
+	t.IsBufferingFinished.Store(true)
 
 	t.muBuffer.Unlock()
 
@@ -435,8 +434,8 @@ func (t *Torrent) Buffer(file *File, isStartup bool) {
 	}
 
 	t.muBuffer.Lock()
-	t.IsBuffering = true
-	t.IsBufferingFinished = false
+	t.IsBuffering.Store(true)
+	t.IsBufferingFinished.Store(false)
 	t.BufferProgress = 0
 	t.BufferProgressPrevious = 0
 	t.BufferLength = preBufferSize + postBufferSize
@@ -580,7 +579,7 @@ func (t *Torrent) PrioritizePiece(piece int) {
 	t.muAwaitingPieces.Lock()
 	defer t.muAwaitingPieces.Unlock()
 
-	if t.IsBuffering || t.th == nil || t.Closer.IsSet() || t.awaitingPieces.ContainsInt(piece) {
+	if t.IsBuffering.Load() || t.th == nil || t.Closer.IsSet() || t.awaitingPieces.ContainsInt(piece) {
 		return
 	}
 
@@ -615,7 +614,7 @@ func (t *Torrent) PrioritizePieces() {
 	t.muDemandPieces.RLock()
 	defer t.muDemandPieces.RUnlock()
 
-	if (t.IsBuffering && t.demandPieces.IsEmpty()) || t.IsSeeding || (!t.IsPlaying && !t.IsNextFile) || t.th == nil || t.Closer.IsSet() {
+	if (t.IsBuffering.Load() && t.demandPieces.IsEmpty()) || t.IsSeeding.Load() || (!t.IsPlaying.Load() && !t.IsNextFile.Load()) || t.th == nil || t.Closer.IsSet() {
 		return
 	}
 
@@ -818,7 +817,7 @@ func (t *Torrent) GetSmartState() int {
 	progress := torrentStatus.Progress * 100
 	state := torrentStatus.State
 
-	if t.Service.Session.IsPaused() {
+	if t.Service.IsPaused() {
 		return StatusPaused
 	} else if torrentStatus.Paused && state != StatusFinished && state != StatusFinding {
 		if progress == 100 {
@@ -830,10 +829,10 @@ func (t *Torrent) GetSmartState() int {
 		if progress < 100 {
 			return StatusDownloading
 		}
-	} else if state != StatusQueued && t.IsBuffering {
+	} else if state != StatusQueued && t.IsBuffering.Load() {
 		return StatusBuffering
 	}
-	if t.IsBuffering {
+	if t.IsBuffering.Load() {
 		return StatusBuffering
 	}
 
@@ -1167,7 +1166,10 @@ func (t *Torrent) Drop(removeFiles, removeData bool) {
 
 		// Wait for running libtorrent calls, Closer is already set, so no new calls would start
 		t.muHandle.Lock()
-		err := t.Service.Session.RemoveTorrent(t.th, toRemove)
+		var err error
+		t.Service.withSession(func(session lt.SessionHandle) {
+			err = session.RemoveTorrent(t.th, toRemove)
+		})
 		t.muHandle.Unlock()
 		if err != nil {
 			log.Errorf("Could not remove torrent: %s", err)
@@ -1232,7 +1234,7 @@ func (t *Torrent) Pause() {
 		th.Pause()
 	})
 
-	t.IsPaused = true
+	t.IsPaused.Store(true)
 }
 
 // Resume ...
@@ -1248,7 +1250,7 @@ func (t *Torrent) Resume() {
 		th.Resume()
 	})
 
-	t.IsPaused = false
+	t.IsPaused.Store(false)
 }
 
 // ForceRecheck re-checks torrent's data
@@ -1718,7 +1720,7 @@ func (t *Torrent) GetCandidateFiles(btp *Player) ([]*CandidateFile, int, error) 
 		}
 
 		if reRar.MatchString(fileName) && size > 10*1024*1024 {
-			t.IsRarArchive = true
+			t.IsRarArchive.Store(true)
 			if btp == nil || btp.xbmcHost == nil {
 				return nil, -1, errors.New("RAR archive detected and download was cancelled")
 			}
@@ -2210,11 +2212,9 @@ func (t *Torrent) IsMemoryStorage() bool {
 
 // AlertFinished sends notification to user that this torrent is successfully downloaded
 func (t *Torrent) AlertFinished() {
-	if !t.IsNeedFinishNotification || t.IsMemoryStorage() || t.GetProgress() < 100 {
+	if t.IsMemoryStorage() || t.GetProgress() < 100 || !t.IsNeedFinishNotification.CompareAndSwap(true, false) {
 		return
 	}
-
-	t.IsNeedFinishNotification = false
 
 	if xbmcHost, err := xbmc.GetLocalXBMCHost(); xbmcHost != nil && err == nil {
 		xbmcHost.Notify("Elementum", "LOCALIZE[30618];;"+t.Name(), config.AddonIcon())
@@ -2293,8 +2293,8 @@ func (t *Torrent) GetOldTorrent() (*TorrentFile, error) {
 
 // ResetBuffering resets all fields related to buffering
 func (t *Torrent) ResetBuffering() {
-	t.IsBuffering = false
-	t.IsBufferingFinished = false
+	t.IsBuffering.Store(false)
+	t.IsBufferingFinished.Store(false)
 	t.BufferLength = 0
 	t.BufferProgress = 0
 	t.BufferProgressPrevious = 0

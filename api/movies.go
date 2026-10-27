@@ -613,7 +613,7 @@ func MovieLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		}
 
 		existingTorrent := s.HasTorrentByID(movie.ID)
-		if existingTorrent != nil && !listMode && (config.Get().SilentStreamStart || existingTorrent.IsPlaying || xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30608];;[B]%s[/B]", existingTorrent.Title()))) {
+		if existingTorrent != nil && !listMode && (config.Get().SilentStreamStart || existingTorrent.IsPlaying.Load() || xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30608];;[B]%s[/B]", existingTorrent.Title()))) {
 			rURL := URLQuery(URLForXBMC("%s", runAction),
 				"doresume", doresume,
 				"resume", existingTorrent.InfoHash(),
