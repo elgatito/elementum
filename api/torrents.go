@@ -242,13 +242,14 @@ func ListTorrents(s *bittorrent.Service) gin.HandlerFunc {
 
 		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 
-		items := make(xbmc.ListItems, 0, len(s.GetTorrents()))
-		if len(s.GetTorrents()) == 0 {
+		torrents := s.GetTorrents()
+		items := make(xbmc.ListItems, 0, len(torrents))
+		if len(torrents) == 0 {
 			ctx.JSON(200, xbmc.NewView("", items))
 			return
 		}
 
-		for _, t := range s.GetTorrents() {
+		for _, t := range torrents {
 			if t == nil || t.Closer.IsSet() || s.Closer.IsSet() {
 				continue
 			}
@@ -341,15 +342,16 @@ func ListTorrentsWeb(s *bittorrent.Service) gin.HandlerFunc {
 
 		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 
-		items := make([]*TorrentsWeb, 0, len(s.GetTorrents()))
-		if len(s.GetTorrents()) == 0 {
+		torrents := s.GetTorrents()
+		items := make([]*TorrentsWeb, 0, len(torrents))
+		if len(torrents) == 0 {
 			ctx.JSON(200, items)
 			return
 		}
 
 		seedTimeLimit := config.Get().SeedTimeLimit
 
-		for _, t := range s.GetTorrents() {
+		for _, t := range torrents {
 			if !t.HasMetadata() || t.Closer.IsSet() || s.Closer.IsSet() {
 				continue
 			}

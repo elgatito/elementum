@@ -1,7 +1,6 @@
 package bittorrent
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -120,9 +119,9 @@ func NewTorrentFSEntry(file http.File, tfs *TorrentFS, t *Torrent, f *File, name
 		t:    t,
 		f:    f,
 
-		totalLength: t.ti.TotalSize(),
-		pieceLength: t.ti.PieceLength(),
-		numPieces:   t.ti.NumPieces(),
+		totalLength: t.totalSize,
+		pieceLength: int(t.pieceLength),
+		numPieces:   t.pieceCount,
 		storageType: t.DownloadStorage,
 		id:          time.Now().UTC().UnixNano(),
 
@@ -159,8 +158,7 @@ func (tf *TorrentFSEntry) consumeAlerts() {
 
 			switch alert.Type {
 			case lt.TorrentRemovedAlertAlertType:
-				removedAlert := lt.SwigcptrTorrentAlert(alert.Pointer)
-				if tf.t.Closer.IsSet() || hex.EncodeToString([]byte(removedAlert.GetHandle().InfoHash().ToString())) == tf.t.infoHash {
+				if tf.t.Closer.IsSet() || alert.InfoHash == tf.t.infoHash {
 					tf.removed.Set()
 					return
 				}

@@ -453,11 +453,11 @@ func (btp *Player) statusStrings(progress float64, status *TorrentStatus) (strin
 
 	// File size
 	var totalSize int64
-	if btp.t.ti != nil && btp.t.ti.Swigcptr() != 0 {
+	if btp.t.gotMetainfo.IsSet() {
 		if btp.fileSize > 0 && !btp.t.IsRarArchive {
 			totalSize = btp.fileSize
 		} else {
-			totalSize = btp.t.ti.TotalSize()
+			totalSize = btp.t.totalSize
 		}
 		line1 += " - " + humanize.Bytes(uint64(totalSize))
 	}
@@ -1068,19 +1068,11 @@ func (btp *Player) consumeAlerts() {
 
 			switch alert.Type {
 			case lt.StateChangedAlertAlertType:
-				stateAlert := lt.SwigcptrStateChangedAlert(alert.Pointer)
-				if btp.t != nil && btp.t.th != nil && btp.t.th.Swigcptr() != 0 && stateAlert.GetHandle().Equal(btp.t.th) {
-					btp.onStateChanged(stateAlert)
+				if btp.t != nil && alert.InfoHash == btp.t.InfoHash() && alert.State == int(lt.TorrentStatusDownloading) {
+					btp.isDownloading = true
 				}
 			}
 		}
-	}
-}
-
-func (btp *Player) onStateChanged(stateAlert lt.StateChangedAlert) {
-	switch stateAlert.GetState() {
-	case lt.TorrentStatusDownloading:
-		btp.isDownloading = true
 	}
 }
 

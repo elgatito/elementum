@@ -175,6 +175,13 @@ func (s *Service) CloseSession() {
 		log.Infof("Closed session in %s", time.Since(now))
 	}()
 
+	// Deleting the session frees all torrents, so wait for running handle calls and block new ones
+	for _, t := range s.q.All() {
+		t.Closer.Set()
+		t.muHandle.Lock()
+		t.muHandle.Unlock()
+	}
+
 	log.Info("Closing Session")
 	if s.SessionGlobal != nil {
 		s.SessionGlobal.Abort()
@@ -629,14 +636,14 @@ func (s *Service) checkAvailableSpace(xbmcHost *xbmc.XBMCHost, t *Torrent) bool 
 		return false
 	}
 
-	if t.ti == nil || t.ti.Swigcptr() == 0 {
+	var totalSize int64
+	if !t.withHandle(func(lt.TorrentHandle) { totalSize = t.ti.TotalSize() }) {
 		log.Warning("Missing torrent info to check available space.")
 		return false
 	}
 
 	status := t.GetStatus()
 
-	totalSize := t.ti.TotalSize()
 	totalDone := status.TotalDone
 	sizeLeft := totalSize - totalDone
 	availableSpace := diskStatus.Free
@@ -916,10 +923,10 @@ func (s *Service) AddTorrent(xbmcHost *xbmc.XBMCHost, options AddOptions) (*Torr
 
 // RemoveTorrent ...
 func (s *Service) RemoveTorrent(xbmcHost *xbmc.XBMCHost, t *Torrent, flags RemoveOptions) bool {
-	log.Infof("Removing torrent: %s", t.Name())
 	if t == nil {
 		return false
 	}
+	log.Infof("Removing torrent: %s", t.Name())
 
 	t = s.q.FindByHash(t.InfoHash())
 	if t == nil {
@@ -992,10 +999,10 @@ func (s *Service) RemoveTorrent(xbmcHost *xbmc.XBMCHost, t *Torrent, flags Remov
 	return true
 }
 
-func (s *Service) onStateChanged(stateAlert lt.StateChangedAlert) {
-	switch stateAlert.GetState() {
-	case lt.TorrentStatusDownloading:
-		t := s.getTorrentByHandle(stateAlert.GetHandle())
+func (s *Service) onStateChanged(alert *Alert) {
+	switch alert.State {
+	case int(lt.TorrentStatusDownloading):
+		t := s.GetTorrentByHash(alert.InfoHash)
 		if t == nil {
 			return
 		}
@@ -1076,8 +1083,7 @@ func (s *Service) onSaveResumeDataConsumer() {
 			}
 			switch alert.Type {
 			case lt.StateChangedAlertAlertType:
-				stateAlert := lt.SwigcptrStateChangedAlert(alert.Pointer)
-				s.onStateChanged(stateAlert)
+				s.onStateChanged(alert)
 
 			case lt.SaveResumeDataAlertAlertType:
 				bEncoded := []byte(lt.Bencode(alert.Entry))
@@ -1120,13 +1126,8 @@ func (s *Service) onAlertsConsumer() {
 				return
 			}
 
-			var alerts lt.StdVectorAlerts
-			alerts = s.Session.PopAlerts()
-			defer lt.DeleteStdVectorAlerts(alerts)
+			alerts := s.Session.PopAlerts()
 			queueSize := alerts.Size()
-			var name string
-			var infoHash string
-			var entry lt.Entry
 			for i := 0; i < int(queueSize); i++ {
 				ltAlert := alerts.Get(i)
 				alertType := ltAlert.Type()
@@ -1137,15 +1138,24 @@ func (s *Service) onAlertsConsumer() {
 					continue
 				}
 
+				var name, infoHash string
+				var entry lt.Entry
+				var state int
 				switch alertType {
 				case lt.SaveResumeDataAlertAlertType:
 					saveResumeData := lt.SwigcptrSaveResumeDataAlert(alertPtr)
-					name, infoHash = "", ""
 					if t := s.getTorrentByHandle(saveResumeData.GetHandle()); t != nil {
 						name = t.GetStatus().Name
 						infoHash = t.InfoHash()
 					}
 					entry = saveResumeData.ResumeData()
+				case lt.StateChangedAlertAlertType:
+					stateAlert := lt.SwigcptrStateChangedAlert(alertPtr)
+					infoHash = hex.EncodeToString([]byte(stateAlert.GetHandle().InfoHash().ToString()))
+					state = int(stateAlert.GetState())
+				case lt.TorrentRemovedAlertAlertType:
+					// Handle is already invalid here, info hash is kept in the alert
+					infoHash = hex.EncodeToString([]byte(lt.SwigcptrTorrentRemovedAlert(alertPtr).GetInfoHash().ToString()))
 				case lt.ExternalIpAlertAlertType:
 					splitMessage := strings.Split(alertMessage, ":")
 					splitIP := strings.Split(splitMessage[len(splitMessage)-1], ".")
@@ -1185,13 +1195,14 @@ func (s *Service) onAlertsConsumer() {
 					Category: ltAlert.Category(),
 					What:     ltAlert.What(),
 					Message:  alertMessage,
-					Pointer:  alertPtr,
 					Name:     name,
 					Entry:    entry,
 					InfoHash: infoHash,
+					State:    state,
 				}
 				s.alertsBroadcaster.Broadcast(alert)
 			}
+			lt.DeleteStdVectorAlerts(alerts)
 		}
 	}
 }
@@ -1610,9 +1621,13 @@ func (s *Service) onDownloadProgress() {
 					// Preparing list of files that need to be moved
 					filesToMove := []string{}
 					filesToCleanup := map[string]bool{}
-					for _, fp := range t.files {
-						f := t.GetFileByPath(fp.Path)
-						filesToMove = append(filesToMove, t.ti.Files().FilePath(f.Index))
+					if !t.withHandle(func(lt.TorrentHandle) {
+						for _, fp := range t.files {
+							f := t.GetFileByPath(fp.Path)
+							filesToMove = append(filesToMove, t.ti.Files().FilePath(f.Index))
+						}
+					}) {
+						return errors.New("Torrent is closed")
 					}
 
 					log.Infof("Moving torrent '%s' to completed folder", t.Name())

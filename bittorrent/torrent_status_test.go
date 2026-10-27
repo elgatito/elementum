@@ -14,6 +14,10 @@ func TestWithHandleRefusesWithoutLiveHandle(t *testing.T) {
 		t.Fatal("expected false for missing handle")
 	}
 
+	if tor.GetMetadata() != nil {
+		t.Fatal("expected no metadata without handle")
+	}
+
 	tor.Closer.Set()
 	if tor.withHandle(func(lt.TorrentHandle) { t.Fatal("called on closed torrent") }) {
 		t.Fatal("expected false for closed torrent")

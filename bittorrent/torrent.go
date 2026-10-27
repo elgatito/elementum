@@ -51,7 +51,6 @@ type Torrent struct {
 	DownloadStorage   int
 
 	title              string
-	name               string
 	infoHash           string
 	readers            map[int64]*TorrentFSEntry
 	reservedPieces     []int
@@ -95,8 +94,10 @@ type Torrent struct {
 	muStatus  *sync.Mutex
 	muHandle  *sync.RWMutex
 
+	// Copied from torrent info on metadata, t.ti may only be used inside withHandle()
 	pieceLength int64
 	pieceCount  int
+	totalSize   int64
 
 	gotMetainfo    event.Event
 	Closer         event.Event
@@ -455,7 +456,7 @@ func (t *Torrent) Buffer(file *File, isStartup bool) {
 	t.muBuffer.Unlock()
 
 	log.Infof("Setting buffer for file: %s (%s / %s). Desired: %s. Pieces: %#v-%#v + %#v-%#v, PieceLength: %s, Pre: %s, Post: %s, WithOffset: %#v / %#v (%#v)",
-		file.Path, humanize.Bytes(uint64(file.Size)), humanize.Bytes(uint64(t.ti.TotalSize())),
+		file.Path, humanize.Bytes(uint64(file.Size)), humanize.Bytes(uint64(t.totalSize)),
 		humanize.Bytes(uint64(t.Service.GetBufferSize())),
 		preBufferStart, preBufferEnd, postBufferStart, postBufferEnd,
 		humanize.Bytes(uint64(t.pieceLength)), humanize.Bytes(uint64(preBufferSize)), humanize.Bytes(uint64(postBufferSize)),
@@ -563,8 +564,8 @@ func (t *Torrent) getBufferSize(fileOffset int64, off, length int64) (startPiece
 	size = int64(endPiece-startPiece+1) * t.pieceLength
 
 	// Calculated offset is more than we have in torrent, so correcting the size
-	if !t.Closer.IsSet() && t.ti.TotalSize() != 0 && offset+size >= t.ti.TotalSize() {
-		size = t.ti.TotalSize() - offset
+	if t.totalSize != 0 && offset+size >= t.totalSize {
+		size = t.totalSize - offset
 	}
 
 	offset -= fileOffset
@@ -626,7 +627,7 @@ func (t *Torrent) PrioritizePieces() {
 
 	t.muReaders.Lock()
 
-	numPieces := t.ti.NumPieces()
+	numPieces := t.pieceCount
 
 	priorities := [][]int{
 		{},
@@ -1086,16 +1087,7 @@ func (t *Torrent) InfoHash() string {
 
 // Name ...
 func (t *Torrent) Name() string {
-	if t.name != "" || t.Closer.IsSet() {
-		return t.name
-	}
-
-	if t.ti.Swigcptr() == 0 {
-		return ""
-	}
-
-	t.name = t.ti.Name()
-	return t.name
+	return t.GetStatus().Name
 }
 
 // Title returns name of a torrent, or, if present, how it looked in plugin that found it.
@@ -1138,11 +1130,11 @@ func (t *Torrent) GetSelectedSize() int64 {
 
 // Length ...
 func (t *Torrent) Length() int64 {
-	if t.Closer.IsSet() || t.th == nil || t.ti == nil || t.ti.Swigcptr() == 0 || !t.gotMetainfo.IsSet() {
+	if t.Closer.IsSet() || !t.gotMetainfo.IsSet() {
 		return 0
 	}
 
-	return t.ti.TotalSize()
+	return t.totalSize
 }
 
 // Drop ...
@@ -1426,20 +1418,20 @@ func (t *Torrent) ReadersReadaheadSum() int64 {
 func (t *Torrent) GetMetadata() []byte {
 	defer perf.ScopeTimer()()
 
-	if t.ti == nil || t.ti.Swigcptr() == 0 {
-		return nil
-	}
+	var res []byte
+	t.withHandle(func(lt.TorrentHandle) {
+		torrentFile := lt.NewCreateTorrent(t.ti)
+		defer lt.DeleteCreateTorrent(torrentFile)
 
-	torrentFile := lt.NewCreateTorrent(t.ti)
-	defer lt.DeleteCreateTorrent(torrentFile)
+		torrentContent := torrentFile.Generate()
+		defer lt.DeleteEntry(torrentContent)
 
-	torrentContent := torrentFile.Generate()
-	defer lt.DeleteEntry(torrentContent)
-
-	return []byte(lt.Bencode(torrentContent))
+		res = []byte(lt.Bencode(torrentContent))
+	})
+	return res
 }
 
-// MakeFiles ...
+// MakeFiles must be called inside withHandle()
 func (t *Torrent) MakeFiles() {
 	numFiles := t.ti.NumFiles()
 	files := t.ti.Files()
@@ -1496,14 +1488,19 @@ func (t *Torrent) onMetadataReceived() {
 
 	defer t.gotMetainfo.Set()
 
-	t.withHandle(func(th lt.TorrentHandle) {
+	if !t.withHandle(func(th lt.TorrentHandle) {
 		t.ti = th.TorrentFile()
-	})
 
-	t.pieceLength = int64(t.ti.PieceLength())
-	t.pieceCount = int(t.ti.NumPieces())
+		t.pieceLength = int64(t.ti.PieceLength())
+		t.pieceCount = int(t.ti.NumPieces())
+		t.totalSize = t.ti.TotalSize()
 
-	t.MakeFiles()
+		t.MakeFiles()
+	}) {
+		return
+	}
+	// Name comes from status, refresh it to have the name from metadata
+	t.UpdateStatus(0)
 
 	// Reset fastResumeFile
 	infoHash := t.InfoHash()
@@ -2070,8 +2067,8 @@ func (t *Torrent) TorrentInfo(xbmcHost *xbmc.XBMCHost, w io.Writer, showTrackers
 	// Torrent info is empty until metadata is received
 	var numPieces, pieceLength int
 	var totalSize int64
-	if t.ti != nil && t.ti.Swigcptr() != 0 {
-		numPieces, pieceLength, totalSize = t.ti.NumPieces(), t.ti.PieceLength(), t.ti.TotalSize()
+	if t.gotMetainfo.IsSet() {
+		numPieces, pieceLength, totalSize = t.pieceCount, int(t.pieceLength), t.totalSize
 	}
 
 	fmt.Fprintf(w, "    Name:               %s \n", st.Name)
@@ -2168,7 +2165,7 @@ func (t *Torrent) TorrentInfo(xbmcHost *xbmc.XBMCHost, w io.Writer, showTrackers
 		fmt.Fprint(w, "\n")
 	}
 
-	if t.Closer.IsSet() || t.ti == nil || t.ti.Swigcptr() == 0 {
+	if t.Closer.IsSet() {
 		return
 	}
 
@@ -2186,7 +2183,7 @@ func (t *Torrent) TorrentInfo(xbmcHost *xbmc.XBMCHost, w io.Writer, showTrackers
 		piecesStatus := bytebufferpool.Get()
 		piecesStatus.Reset()
 		piecesStatus.WriteString("        ")
-		for i := 0; i < t.ti.NumPieces(); i++ {
+		for i := 0; i < t.pieceCount; i++ {
 			if st.Pieces.GetBit(i) {
 				piecesStatus.WriteString("+")
 			} else if i >= len(priorities) || priorities[i] == 0 {
