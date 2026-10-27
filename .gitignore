@@ -45,3 +45,6 @@ C:\\Users\\*
 # Python bytecode
 __pycache__/
 *.py[cod]
+
+# Documentation
+docs/
