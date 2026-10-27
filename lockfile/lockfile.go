@@ -4,11 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 
 	acl "github.com/hectane/go-acl"
+	"github.com/shirou/gopsutil/v4/process"
 )
 
 var (
@@ -60,7 +62,8 @@ func (lf *LockFile) Lock() (int, error) {
 			return pid, err
 		}
 
-		if running && pid != ownPID { // e.g. Flatpak assigns same PID to elementum every run
+		// e.g. Flatpak assigns same PID to elementum every run
+		if running && pid != ownPID && isSameExecutable(pid) {
 			return pid, ErrLocked
 		}
 	}
@@ -94,4 +97,22 @@ func getPid(file string) (int, error) {
 		return 0, err
 	}
 	return strconv.Atoi(strings.TrimSpace(string(pid)))
+}
+
+// isSameExecutable reports whether pid runs our binary, a stale lockfile PID can belong to Kodi, its thread or any other process (#1207)
+func isSameExecutable(pid int) bool {
+	own, err := os.Executable()
+	if err != nil {
+		return false
+	}
+	p, err := process.NewProcess(int32(pid))
+	if err != nil {
+		return false
+	}
+	exe, err := p.Exe()
+	if err != nil {
+		return false
+	}
+	// Linux marks a replaced binary of a running process as "(deleted)"
+	return filepath.Base(strings.TrimSuffix(exe, " (deleted)")) == filepath.Base(own)
 }
