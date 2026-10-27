@@ -271,7 +271,14 @@ func (btp *Player) Buffer() error {
 	buffered, done := btp.bufferEvents.Listen()
 	defer close(done)
 
-	if !btp.t.IsBufferingFinished.Load() && btp.xbmcHost != nil {
+	// Seeding means every piece is on disk, so buffering finishes instantly and the dialog would only flash.
+	// Finished is not enough: the chosen file may be one that was never selected for download.
+	isComplete := !btp.t.IsMemoryStorage() && btp.t.GetState() == StatusSeeding
+	if isComplete {
+		log.Info("Torrent is complete, skipping buffer dialog")
+	}
+
+	if !btp.t.IsBufferingFinished.Load() && btp.xbmcHost != nil && !isComplete {
 		btp.dialogProgress = btp.xbmcHost.NewDialogProgress("Elementum", "", "", "")
 		if btp.dialogProgress != nil {
 			defer btp.dialogProgress.Close()
