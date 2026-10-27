@@ -1,6 +1,7 @@
 package library
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -660,7 +661,7 @@ func writeShowNFO(s *tmdb.Show, p string) error {
 	<uniqueid type="tmdb" default="true">%v</uniqueid>
 	<uniqueid type="imdb" default="false">%v</uniqueid>
 	<uniqueid type="tvdb" default="false">%v</uniqueid>
-</tvshow>
+%s</tvshow>
 https://www.themoviedb.org/tv/%v
 `
 
@@ -668,20 +669,40 @@ https://www.themoviedb.org/tv/%v
 		s.ExternalIDs = &tmdb.ExternalIDs{}
 	}
 
+	tvdbID := ""
+	if id := util.StrInterfaceToInt(s.ExternalIDs.TVDBID); id > 0 {
+		tvdbID = strconv.Itoa(id)
+	}
+
+	// Mixed NFO tags override scraped ones, and Kodi 18 scrapers can't read a JSON episodeguide.
+	episodeGuide := ""
+	if xbmc.KodiVersion >= 19 {
+		ids := map[string]string{"tmdb": strconv.Itoa(s.ID)}
+		if s.ExternalIDs.IMDBId != "" {
+			ids["imdb"] = s.ExternalIDs.IMDBId
+		}
+		if tvdbID != "" {
+			ids["tvdb"] = tvdbID
+		}
+		guide, _ := json.Marshal(ids)
+		episodeGuide = fmt.Sprintf("\t<episodeguide>%s</episodeguide>\n", guide)
+	}
+
 	out = fmt.Sprintf(out,
 		s.ID,
 		s.ID,
 		s.ID,
 		s.ExternalIDs.IMDBId,
-		s.ExternalIDs.TVDBID,
+		tvdbID,
+		episodeGuide,
 		s.ID,
 	)
 
 	if s.ExternalIDs.IMDBId != "" {
 		out += fmt.Sprintf("https://www.imdb.com/title/%v/\n", s.ExternalIDs.IMDBId)
 	}
-	if s.ExternalIDs.TVDBID != "" {
-		out += fmt.Sprintf("https://www.thetvdb.com/?tab=series&id=%v&lid=7\n", s.ExternalIDs.TVDBID)
+	if tvdbID != "" {
+		out += fmt.Sprintf("https://www.thetvdb.com/?tab=series&id=%v&lid=7\n", tvdbID)
 	}
 
 	if err := os.WriteFile(p, []byte(out), 0644); err != nil {
