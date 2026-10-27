@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"maps"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -287,7 +288,6 @@ func GetSearchLabels(s *bittorrent.Service, tmdbID string, idx string) (item *xb
 
 	// Collecting downloaded file names into string to show in a subtitle
 	chosenFiles := map[string]bool{}
-	chosenFileNames := []string{}
 
 	if idxNum, errNum := strconv.Atoi(idx); errNum == nil && idxNum >= 0 {
 		if f := torrent.GetCandidateFileForIndex(idxNum); f != nil {
@@ -301,11 +301,7 @@ func GetSearchLabels(s *bittorrent.Service, tmdbID string, idx string) (item *xb
 		}
 	}
 
-	for k := range chosenFiles {
-		chosenFileNames = append(chosenFileNames, k)
-	}
-
-	slices.Sort(chosenFileNames)
+	chosenFileNames := slices.Sorted(maps.Keys(chosenFiles))
 	subtitle := strings.Join(chosenFileNames, ", ")
 
 	item = &xbmc.ListItem{

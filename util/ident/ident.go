@@ -29,9 +29,7 @@ func GetVersion() string {
 // GetCleanVersion returns version, provided to compiler, but without possible commit information
 func GetCleanVersion() string {
 	v := GetVersion()
-	if strings.Contains(v, "-") {
-		return strings.Split(v, "-")[0]
-	}
+	v, _, _ = strings.Cut(v, "-")
 	return v
 }
 

@@ -8,19 +8,25 @@ import (
 // Library searchers
 //
 
+// findFirst returns the first non-nil item matching match, or an error if none matches.
+func findFirst[T any](items []*T, match func(*T) bool) (*T, error) {
+	for _, item := range items {
+		if item != nil && match(item) {
+			return item, nil
+		}
+	}
+
+	return nil, errors.New("Not found")
+}
+
 // GetLibraryMovie finds Movie from library
 func GetLibraryMovie(kodiID int) *Movie {
 	mu := l.GetMutex(MoviesMutex)
 	mu.RLock()
 	defer mu.RUnlock()
 
-	for _, m := range l.Movies {
-		if m.UIDs.Kodi == kodiID {
-			return m
-		}
-	}
-
-	return nil
+	movie, _ := findFirst(l.Movies, func(m *Movie) bool { return m.UIDs.Kodi == kodiID })
+	return movie
 }
 
 // GetLibraryShow finds Show from library
@@ -29,14 +35,8 @@ func GetLibraryShow(kodiID int) *Show {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	// query := strconv.Itoa(kodiID)
-	for _, s := range l.Shows {
-		if s.UIDs.Kodi == kodiID {
-			return s
-		}
-	}
-
-	return nil
+	show, _ := findFirst(l.Shows, func(s *Show) bool { return s.UIDs.Kodi == kodiID })
+	return show
 }
 
 // GetLibrarySeason finds Show/Season from library
@@ -79,13 +79,7 @@ func GetMovieByTMDB(id int) (*Movie, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	for _, m := range l.Movies {
-		if m != nil && m.UIDs.TMDB == id {
-			return m, nil
-		}
-	}
-
-	return nil, errors.New("Not found")
+	return findFirst(l.Movies, func(m *Movie) bool { return m.UIDs.TMDB == id })
 }
 
 // GetMovieByIMDB ...
@@ -94,13 +88,7 @@ func GetMovieByIMDB(id string) (*Movie, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	for _, m := range l.Movies {
-		if m != nil && m.UIDs.IMDB == id {
-			return m, nil
-		}
-	}
-
-	return nil, errors.New("Not found")
+	return findFirst(l.Movies, func(m *Movie) bool { return m.UIDs.IMDB == id })
 }
 
 // GetShowByTMDB ...
@@ -109,46 +97,22 @@ func GetShowByTMDB(id int) (*Show, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	for _, s := range l.Shows {
-		if s != nil && s.UIDs.TMDB == id {
-			return s, nil
-		}
-	}
-
-	return nil, errors.New("Not found")
+	return findFirst(l.Shows, func(s *Show) bool { return s.UIDs.TMDB == id })
 }
 
 // FindShowByKodi ...
 func FindShowByKodi(id int) (*Show, error) {
-	for _, s := range l.Shows {
-		if s != nil && s.UIDs.Kodi == id {
-			return s, nil
-		}
-	}
-
-	return nil, errors.New("Not found")
+	return findFirst(l.Shows, func(s *Show) bool { return s.UIDs.Kodi == id })
 }
 
 // FindShowByTMDB ...
 func FindShowByTMDB(id int) (*Show, error) {
-	for _, s := range l.Shows {
-		if s != nil && s.UIDs.TMDB == id {
-			return s, nil
-		}
-	}
-
-	return nil, errors.New("Not found")
+	return findFirst(l.Shows, func(s *Show) bool { return s.UIDs.TMDB == id })
 }
 
 // FindShowByIMDB ...
 func FindShowByIMDB(id string) (*Show, error) {
-	for _, s := range l.Shows {
-		if s != nil && s.UIDs.IMDB == id {
-			return s, nil
-		}
-	}
-
-	return nil, errors.New("Not found")
+	return findFirst(l.Shows, func(s *Show) bool { return s.UIDs.IMDB == id })
 }
 
 // GetShowByIMDB ...
@@ -157,13 +121,7 @@ func GetShowByIMDB(id string) (*Show, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	for _, s := range l.Shows {
-		if s != nil && s.UIDs.IMDB == id {
-			return s, nil
-		}
-	}
-
-	return nil, errors.New("Not found")
+	return findFirst(l.Shows, func(s *Show) bool { return s.UIDs.IMDB == id })
 }
 
 // GetEpisode ...

@@ -2,7 +2,7 @@ package trakt
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 	"time"
@@ -367,12 +367,8 @@ func WatchlistShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 }
 
 // PreviousWatchlistShows ...
-func PreviousWatchlistShows() (shows []*Shows, err error) {
-	err = cache.
-		NewDBStore().
-		Get(cache.TraktShowsWatchlistKey, &shows)
-
-	return shows, err
+func PreviousWatchlistShows() ([]*Shows, error) {
+	return previousCached[*Shows](cache.TraktShowsWatchlistKey)
 }
 
 // CollectionShows ...
@@ -424,12 +420,8 @@ func CollectionShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 }
 
 // PreviousCollectionShows ...
-func PreviousCollectionShows() (shows []*Shows, err error) {
-	err = cache.
-		NewDBStore().
-		Get(cache.TraktShowsCollectionKey, &shows)
-
-	return shows, err
+func PreviousCollectionShows() ([]*Shows, error) {
+	return previousCached[*Shows](cache.TraktShowsCollectionKey)
 }
 
 // ListItemsShows ...
@@ -490,12 +482,8 @@ func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 }
 
 // PreviousListItemsShows ...
-func PreviousListItemsShows(listID string) (shows []*Shows, err error) {
-	cacheStore := cache.NewDBStore()
-	key := fmt.Sprintf(cache.TraktShowsListKey, listID)
-	err = cacheStore.Get(key, &shows)
-
-	return
+func PreviousListItemsShows(listID string) ([]*Shows, error) {
+	return previousCached[*Shows](fmt.Sprintf(cache.TraktShowsListKey, listID))
 }
 
 // CalendarShows ...
@@ -577,12 +565,8 @@ func WatchedShows(isUpdateNeeded bool) (WatchedShowsType, error) {
 }
 
 // PreviousWatchedShows ...
-func PreviousWatchedShows() (shows []*WatchedShow, err error) {
-	err = cache.
-		NewDBStore().
-		Get(cache.TraktShowsWatchedKey, &shows)
-
-	return
+func PreviousWatchedShows() ([]*WatchedShow, error) {
+	return previousCached[*WatchedShow](cache.TraktShowsWatchedKey)
 }
 
 // PausedShows ...

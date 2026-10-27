@@ -2,23 +2,19 @@ package util
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 )
 
 func RandomString(length int) string {
-	var alphabet []rune = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
-
-	alphabetSize := len(alphabet)
+	alphabet := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 	var sb strings.Builder
 
 	for range length {
-		ch := alphabet[rand.Intn(alphabetSize)]
-		sb.WriteRune(ch)
+		sb.WriteRune(alphabet[rand.IntN(len(alphabet))])
 	}
 
-	s := sb.String()
-	return s
+	return sb.String()
 }
 
 // ApplyColor applies a color to a text to use in Kodi skin

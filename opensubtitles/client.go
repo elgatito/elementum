@@ -282,7 +282,7 @@ func DoDownload(id string) (*os.File, string, string, error) {
 	if config.Get().DownloadPath == "." {
 		subtitlesPath = filepath.Join(config.Get().TemporaryPath, "Subtitles")
 	}
-	if _, errStat := os.Stat(subtitlesPath); os.IsNotExist(errStat) {
+	if _, errStat := os.Stat(subtitlesPath); errors.Is(errStat, os.ErrNotExist) {
 		if errMk := os.Mkdir(subtitlesPath, 0755); errMk != nil {
 			return nil, "", "", fmt.Errorf("Unable to create Subtitles folder")
 		}
@@ -396,7 +396,7 @@ func appendLocalFilePayloads(playingFile string, payloads *[]SearchPayload) erro
 	if h, err := HashFile(file); err == nil {
 		hashPayload.Hash = h
 	}
-	hashPayload.Query = strings.Replace(filepath.Base(playingFile), filepath.Ext(playingFile), "", -1)
+	hashPayload.Query = strings.ReplaceAll(filepath.Base(playingFile), filepath.Ext(playingFile), "")
 	if hashPayload.Query != "" {
 		*payloads = append(*payloads, hashPayload)
 		return nil
@@ -412,7 +412,7 @@ func appendRemoteFilePayloads(playingFile string, payloads *[]SearchPayload) err
 	}
 
 	f := path.Base(u.Path)
-	q := strings.Replace(filepath.Base(f), filepath.Ext(f), "", -1)
+	q := strings.ReplaceAll(filepath.Base(f), filepath.Ext(f), "")
 
 	if q != "" {
 		*payloads = append(*payloads, SearchPayload{Query: q})

@@ -2018,13 +2018,13 @@ func getCalendarsDateFormat() string {
 
 func prepareDateFormat(f string) string {
 	f = strings.ToLower(f)
-	f = strings.Replace(f, "yyyy", "2006", -1)
-	f = strings.Replace(f, "yy", "06", -1)
-	f = strings.Replace(f, "y", "6", -1)
-	f = strings.Replace(f, "mm", "01", -1)
-	f = strings.Replace(f, "m", "1", -1)
-	f = strings.Replace(f, "dd", "02", -1)
-	f = strings.Replace(f, "d", "2", -1)
+	f = strings.ReplaceAll(f, "yyyy", "2006")
+	f = strings.ReplaceAll(f, "yy", "06")
+	f = strings.ReplaceAll(f, "y", "6")
+	f = strings.ReplaceAll(f, "mm", "01")
+	f = strings.ReplaceAll(f, "m", "1")
+	f = strings.ReplaceAll(f, "dd", "02")
+	f = strings.ReplaceAll(f, "d", "2")
 
 	return f
 }

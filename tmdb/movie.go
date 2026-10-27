@@ -4,7 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"maps"
-	"math/rand"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 	"strings"
@@ -99,17 +99,7 @@ func GetMovieByID(movieID string, language string) *Movie {
 func GetMovies(tmdbIds []int, language string) Movies {
 	defer perf.ScopeTimer()()
 
-	var wg sync.WaitGroup
-	movies := make(Movies, len(tmdbIds))
-	wg.Add(len(tmdbIds))
-	for i, tmdbID := range tmdbIds {
-		go func(i int, tmdbId int) {
-			defer wg.Done()
-			movies[i] = GetMovie(tmdbId, language)
-		}(i, tmdbID)
-	}
-	wg.Wait()
-	return movies
+	return getMany(tmdbIds, func(tmdbID int) *Movie { return GetMovie(tmdbID, language) })
 }
 
 // GetMovieGenres ...

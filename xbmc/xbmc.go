@@ -647,8 +647,8 @@ func (h *XBMCHost) GetLanguage(format int, withRegion bool) string {
 // GetRegion ...
 func (h *XBMCHost) GetRegion() string {
 	region := h.GetLanguage(Iso639_1, true)
-	if strings.Contains(region, "-") {
-		region = region[strings.Index(region, "-")+1:]
+	if _, after, ok := strings.Cut(region, "-"); ok {
+		region = after
 	}
 
 	if region == "" {

@@ -53,7 +53,7 @@ func (b Bitfield) GetBit(idx int) bool {
 func (b Bitfield) String() string {
 	out := bytes.Buffer{}
 	out.Grow(len(b) * 8)
-	for i := 0; i < len(b)*8; i++ {
+	for i := range len(b) * 8 {
 		if b.GetBit(i) {
 			out.WriteRune('1')
 		} else {

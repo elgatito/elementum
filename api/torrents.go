@@ -755,7 +755,7 @@ func saveTorrentFile(file multipart.File, header *multipart.FileHeader) (string,
 	path := filepath.Join(config.Get().TorrentsPath, filepath.Base(header.Filename))
 	log.Debugf("Saving incoming torrent file to: %s", path)
 
-	if _, err = os.Stat(path); err != nil && !os.IsNotExist(err) {
+	if _, err = os.Stat(path); err == nil {
 		err = os.Remove(path)
 		if err != nil {
 			return "", fmt.Errorf("Could not remove the file: %s", err)

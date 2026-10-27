@@ -2,7 +2,7 @@ package tvdb
 
 import (
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 	"time"
 
@@ -38,7 +38,7 @@ func (seasons SeasonList) ToListItems(show *Show) []*xbmc.ListItem {
 		}
 		item := season.ToListItem(show)
 		if len(fanarts) > 0 {
-			item.Art.FanArt = fanarts[rand.Intn(len(fanarts))]
+			item.Art.FanArt = fanarts[rand.IntN(len(fanarts))]
 		}
 		items = append(items, item)
 	}
@@ -71,7 +71,7 @@ func (episodes EpisodeList) ToListItems(show *Show) []*xbmc.ListItem {
 		}
 		item := episode.ToListItem(show)
 		if len(fanarts) > 0 {
-			item.Art.FanArt = fanarts[rand.Intn(len(fanarts))]
+			item.Art.FanArt = fanarts[rand.IntN(len(fanarts))]
 		}
 		items = append(items, item)
 	}
@@ -109,7 +109,7 @@ func (season *Season) ToListItem(show *Show) *xbmc.ListItem {
 		}
 	}
 
-	item.Info.Genre = []string{strings.Replace(strings.Trim(show.Genre, "|"), "|", " / ", -1)}
+	item.Info.Genre = []string{strings.ReplaceAll(strings.Trim(show.Genre, "|"), "|", " / ")}
 
 	return item
 }

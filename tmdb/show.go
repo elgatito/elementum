@@ -4,7 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"maps"
-	"math/rand"
+	"math/rand/v2"
 	"runtime"
 	"slices"
 	"strconv"
@@ -168,17 +168,7 @@ func GetShow(showID int, language string) (show *Show) {
 func GetShows(showIds []int, language string) Shows {
 	defer perf.ScopeTimer()()
 
-	var wg sync.WaitGroup
-	shows := make(Shows, len(showIds))
-	wg.Add(len(showIds))
-	for i, showID := range showIds {
-		go func(i int, showId int) {
-			defer wg.Done()
-			shows[i] = GetShow(showId, language)
-		}(i, showID)
-	}
-	wg.Wait()
-	return shows
+	return getMany(showIds, func(showID int) *Show { return GetShow(showID, language) })
 }
 
 // SearchShows ...

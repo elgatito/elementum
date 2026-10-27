@@ -195,7 +195,7 @@ func getCacheFilePath() string {
 	CACHE_DIR = config.Get().Info.Profile
 
 	// Ensure cache directory exists
-	if _, err := os.Stat(CACHE_DIR); os.IsNotExist(err) {
+	if _, err := os.Stat(CACHE_DIR); errors.Is(err, os.ErrNotExist) {
 		err := os.MkdirAll(CACHE_DIR, 0755)
 		if err != nil {
 			error_message := fmt.Sprintf("Error creating cache directory %q: %v", CACHE_DIR, err)
@@ -244,7 +244,7 @@ func loadConfigFromFile(filePath string) (*AntizapretConfig, error) {
 func saveConfigToFile(filePath string, cfg *AntizapretConfig) error {
 	// Ensure directory exists before saving
 	dir := filepath.Dir(filePath)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
+	if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("failed to create cache directory '%s': %w", dir, err)
 		}

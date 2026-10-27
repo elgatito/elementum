@@ -46,7 +46,7 @@ func (lf *LockFile) Lock() (int, error) {
 	file.Close()
 
 	if err != nil { // If we get an error we handle it
-		if !os.IsNotExist(err) { // File not found errors mean the file is unlocked, so we only fail with err if it's not a file not found error.
+		if !errors.Is(err, os.ErrNotExist) { // File not found errors mean the file is unlocked, so we only fail with err if it's not a file not found error.
 			return 0, err
 		}
 	} else { // We read the file successfully, so we check the PID inside it.

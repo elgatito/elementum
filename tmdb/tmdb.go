@@ -3,7 +3,7 @@ package tmdb
 import (
 	"cmp"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"net/url"
 	"slices"
 	"strings"
@@ -15,6 +15,7 @@ import (
 	"github.com/elgatito/elementum/util/reqapi"
 	"github.com/elgatito/elementum/xbmc"
 
+	"github.com/anacrolix/sync"
 	"github.com/jmcvetta/napping"
 	"github.com/op/go-logging"
 )
@@ -34,7 +35,7 @@ var (
 		"ae4bd1b6fce2a5648671bfc171d15ba4",
 		"29a551a65eef108dd01b46e27eb0554a",
 	}
-	apiKey = apiKeys[rand.Intn(len(apiKeys))]
+	apiKey = apiKeys[rand.IntN(len(apiKeys))]
 
 	WarmingUp = event.Event{}
 
@@ -78,7 +79,7 @@ func CheckAPIKey() {
 				apiKeys = append(apiKeys[:index], apiKeys[index+1:]...)
 			}
 			if len(apiKeys) > 0 {
-				apiKey = apiKeys[rand.Intn(len(apiKeys))]
+				apiKey = apiKeys[rand.IntN(len(apiKeys))]
 			} else {
 				result = false
 				break
@@ -191,6 +192,23 @@ func ImageURL(uri string, size ImageQualityIdentifier) (imageURL string) {
 
 // 	return entities
 // }
+
+// getMany fetches items for ids concurrently, keeping their order.
+func getMany[T any](ids []int, fetch func(int) *T) []*T {
+	items := make([]*T, len(ids))
+	var wg sync.WaitGroup
+	wg.Add(len(ids))
+
+	for i, id := range ids {
+		go func() {
+			defer wg.Done()
+			items[i] = fetch(id)
+		}()
+	}
+
+	wg.Wait()
+	return items
+}
 
 // Find ...
 func Find(externalID string, externalSource string) *FindResult {

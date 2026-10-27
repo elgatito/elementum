@@ -3,7 +3,7 @@ package tmdb
 import (
 	"cmp"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 	"strings"

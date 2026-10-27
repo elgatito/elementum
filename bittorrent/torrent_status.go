@@ -113,7 +113,8 @@ func newTorrentStatus(ts lt.TorrentStatus) *TorrentStatus {
 	// Copy pieces out of libtorrent memory, it is freed together with the status object.
 	piecesBits := ts.GetPieces()
 	if size := piecesBits.Size(); size > 0 && piecesBits.Bytes() != 0 {
-		st.Pieces = Bitfield(bytes.Clone(unsafe.Slice((*byte)(unsafe.Pointer(piecesBits.Bytes())), (size+7)/8)))
+		// piecesBits.Bytes() is a raw pointer into libtorrent's C++ bitset, valid until the status object is freed.
+		st.Pieces = Bitfield(bytes.Clone(unsafe.Slice((*byte)(unsafe.Pointer(piecesBits.Bytes())), (size+7)/8))) //nolint:govet // pointer comes from libtorrent, cloned immediately
 	}
 
 	return st

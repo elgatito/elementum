@@ -1,6 +1,7 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -90,7 +91,7 @@ func CopyFile(src, dst string, followSymlinks bool) error {
 	}
 
 	dstStat, err := os.Stat(dst)
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	} else if err == nil {
 		if specialfile(dstStat) {
@@ -187,7 +188,7 @@ func Copy(src, dst string, followSymlinks bool) (string, error) {
 		dst = filepath.Join(dst, filepath.Base(src))
 	}
 
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return dst, err
 	}
 
@@ -217,7 +218,7 @@ func Move(src, dst string) (string, error) {
 		dst = filepath.Join(dst, filepath.Base(src))
 	}
 
-	if err != nil && !os.IsNotExist(err) {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return dst, err
 	}
 
@@ -311,7 +312,7 @@ func CopyTree(src, dst string, options *CopyTreeOptions) error {
 	}
 
 	_, err = os.Open(dst)
-	if !os.IsNotExist(err) {
+	if !errors.Is(err, os.ErrNotExist) {
 		return &AlreadyExistsError{dst}
 	}
 
@@ -354,7 +355,7 @@ func CopyTree(src, dst string, options *CopyTreeOptions) error {
 			} else {
 				// ignore dangling symlink if flag is on
 				_, err = os.Stat(linkTo)
-				if os.IsNotExist(err) && options.IgnoreDanglingSymlinks {
+				if errors.Is(err, os.ErrNotExist) && options.IgnoreDanglingSymlinks {
 					continue
 				}
 				_, err = options.CopyFunction(srcPath, dstPath, false)

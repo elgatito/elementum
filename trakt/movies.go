@@ -3,7 +3,7 @@ package trakt
 import (
 	"cmp"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 	"time"
@@ -179,12 +179,8 @@ func TopMovies(topCategory string, page string) (movies []*Movies, total int, er
 }
 
 // PreviousWatchlistMovies ...
-func PreviousWatchlistMovies() (movies []*Movies, err error) {
-	err = cache.
-		NewDBStore().
-		Get(cache.TraktMoviesWatchlistKey, &movies)
-
-	return movies, err
+func PreviousWatchlistMovies() ([]*Movies, error) {
+	return previousCached[*Movies](cache.TraktMoviesWatchlistKey)
 }
 
 // WatchlistMovies ...
@@ -236,12 +232,8 @@ func WatchlistMovies(isUpdateNeeded bool) (movies []*Movies, err error) {
 }
 
 // PreviousCollectionMovies ...
-func PreviousCollectionMovies() (movies []*Movies, err error) {
-	err = cache.
-		NewDBStore().
-		Get(cache.TraktMoviesCollectionKey, &movies)
-
-	return movies, err
+func PreviousCollectionMovies() ([]*Movies, error) {
+	return previousCached[*Movies](cache.TraktMoviesCollectionKey)
 }
 
 // CollectionMovies ...
@@ -403,12 +395,8 @@ func TopLists(page string) (lists []*ListContainer, hasNext bool) {
 }
 
 // PreviousListItemsMovies ...
-func PreviousListItemsMovies(listID string) (movies []*Movies, err error) {
-	cacheStore := cache.NewDBStore()
-	key := fmt.Sprintf(cache.TraktMoviesListKey, listID)
-	err = cacheStore.Get(key, &movies)
-
-	return
+func PreviousListItemsMovies(listID string) ([]*Movies, error) {
+	return previousCached[*Movies](fmt.Sprintf(cache.TraktMoviesListKey, listID))
 }
 
 // ListItemsMovies ...
@@ -554,12 +542,8 @@ func WatchedMovies(isUpdateNeeded bool) (WatchedMoviesType, error) {
 }
 
 // PreviousWatchedMovies ...
-func PreviousWatchedMovies() (movies []*WatchedMovie, err error) {
-	err = cache.
-		NewDBStore().
-		Get(cache.TraktMoviesWatchedKey, &movies)
-
-	return
+func PreviousWatchedMovies() ([]*WatchedMovie, error) {
+	return previousCached[*WatchedMovie](cache.TraktMoviesWatchedKey)
 }
 
 // PausedMovies ...

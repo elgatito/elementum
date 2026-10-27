@@ -106,7 +106,7 @@ func CompressBoltDB(conf *config.Configuration, databasePath, compressPath strin
 
 	// Ensure source file exists.
 	fi, err := os.Stat(databasePath)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	} else if err != nil {
 		return err

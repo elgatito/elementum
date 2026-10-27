@@ -360,7 +360,7 @@ func (t *TorrentFile) initializeFromMagnet() {
 		t.Trackers = make([]string, 0)
 		for _, tracker := range vals["tr"] {
 			if !slices.Contains(t.Trackers, tracker) {
-				t.Trackers = append(t.Trackers, strings.Replace(string(tracker), "\\", "", -1))
+				t.Trackers = append(t.Trackers, strings.ReplaceAll(string(tracker), "\\", ""))
 			}
 		}
 	}
@@ -650,15 +650,15 @@ func (t *TorrentFile) beautifySize() {
 	t.Size = strings.ToUpper(t.Size)
 
 	// Cyrillic-specific translation
-	t.Size = strings.Replace(t.Size, "КБ", "KB", -1)
-	t.Size = strings.Replace(t.Size, "МБ", "MB", -1)
-	t.Size = strings.Replace(t.Size, "ГБ", "GB", -1)
-	t.Size = strings.Replace(t.Size, "ТБ", "TB", -1)
-	t.Size = strings.Replace(t.Size, "MO", "MB", -1)
-	t.Size = strings.Replace(t.Size, "GO", "GB", -1)
+	t.Size = strings.ReplaceAll(t.Size, "КБ", "KB")
+	t.Size = strings.ReplaceAll(t.Size, "МБ", "MB")
+	t.Size = strings.ReplaceAll(t.Size, "ГБ", "GB")
+	t.Size = strings.ReplaceAll(t.Size, "ТБ", "TB")
+	t.Size = strings.ReplaceAll(t.Size, "MO", "MB")
+	t.Size = strings.ReplaceAll(t.Size, "GO", "GB")
 
 	// Replacing "," with "."
-	t.Size = strings.Replace(t.Size, ",", ".", -1)
+	t.Size = strings.ReplaceAll(t.Size, ",", ".")
 
 	// Adding whitespace after number
 	t.Size = sizeMatcher.ReplaceAllString(t.Size, "$1 ")

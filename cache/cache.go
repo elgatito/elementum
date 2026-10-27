@@ -58,7 +58,7 @@ func cacheKey(prefix string, u string) string {
 	u = strings.Trim(u, "/")
 	dotted := []string{"/", "=", "?", "&"}
 	for _, dottedChar := range dotted {
-		u = strings.Replace(u, dottedChar, ".", -1)
+		u = strings.ReplaceAll(u, dottedChar, ".")
 	}
 	return prefix + "." + util.ToFileName(u)
 }

@@ -1035,6 +1035,13 @@ func DiffMovies(previous, current []*Movies) []*Movies {
 	return ret
 }
 
+// previousCached reads a cached slice of T stored under key.
+func previousCached[T any](key string) ([]T, error) {
+	var items []T
+	err := cache.NewDBStore().Get(key, &items)
+	return items, err
+}
+
 // NotifyLocked ...
 func NotifyLocked() {
 	cacheStore := cache.NewDBStore()

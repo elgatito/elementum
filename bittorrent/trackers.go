@@ -8,7 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
+	"math"
+	"math/rand/v2"
 	"net"
 	"net/url"
 	"slices"
@@ -122,7 +123,7 @@ func (tracker *Tracker) sendRequest(action Action, request any) error {
 	trackerRequest := TrackerRequest{
 		ConnectionID:  tracker.connectionID,
 		Action:        action,
-		TransactionID: rand.Int31(),
+		TransactionID: rand.Int32N(math.MaxInt32),
 	}
 	binary.Write(tracker.writer, binary.BigEndian, trackerRequest)
 	if request != nil {

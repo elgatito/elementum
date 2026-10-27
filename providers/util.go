@@ -26,8 +26,8 @@ func RemoveTrailingApostrophes(str string) string {
 // RomanizeHepburn ...
 // as per http://en.wikipedia.org/wiki/Hepburn_romanization#Variations
 func RomanizeHepburn(str string) string {
-	str = strings.Replace(str, "ō", "o", -1)
-	str = strings.Replace(str, "ū", "u", -1)
+	str = strings.ReplaceAll(str, "ō", "o")
+	str = strings.ReplaceAll(str, "ū", "u")
 	return str
 }
 

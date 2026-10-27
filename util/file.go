@@ -116,7 +116,7 @@ var srtExtensions = []string{
 func ToFileName(filename string) string {
 	reserved := []string{"<", ">", ":", "\"", "/", "\\", "", "", "?", "*", "%", "+"}
 	for _, reservedchar := range reserved {
-		filename = strings.Replace(filename, reservedchar, "", -1)
+		filename = strings.ReplaceAll(filename, reservedchar, "")
 	}
 	return filename
 }
@@ -156,7 +156,7 @@ func HasAudioExt(filename string) bool {
 // FileExists check for file existence in a simple way
 func FileExists(name string) bool {
 	if _, err := os.Stat(name); err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			return false
 		}
 	}
@@ -173,7 +173,7 @@ func FileWithoutExtension(name string) string {
 
 // PathExists returns whether path exists in OS
 func PathExists(path string) bool {
-	if _, err := os.Stat(path); os.IsNotExist(err) {
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 		return false
 	}
 

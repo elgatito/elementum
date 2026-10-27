@@ -55,7 +55,7 @@ func (c *FileStore) Set(key string, value any, expires time.Duration) error {
 
 // Add ...
 func (c *FileStore) Add(key string, value any, expires time.Duration) error {
-	if _, err := os.Stat(path.Join(c.path, key)); os.IsExist(err) {
+	if _, err := os.Stat(path.Join(c.path, key)); err == nil {
 		return os.ErrExist
 	}
 	return c.Set(key, value, expires)
@@ -63,7 +63,7 @@ func (c *FileStore) Add(key string, value any, expires time.Duration) error {
 
 // Replace ...
 func (c *FileStore) Replace(key string, value any, expires time.Duration) error {
-	if _, err := os.Stat(path.Join(c.path, key)); os.IsNotExist(err) {
+	if _, err := os.Stat(path.Join(c.path, key)); errors.Is(err, os.ErrNotExist) {
 		return os.ErrNotExist
 	}
 	return c.Set(key, value, expires)

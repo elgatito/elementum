@@ -1,12 +1,16 @@
+version: "2"
+
 linters:
   enable:
     - bodyclose
-    - deadcode
   disable:
-    - ineffassign
     - errcheck
-  fast: true
-
-run:
-  skip-dirs:
-    - internal/(cache|renameio|robustio)
+    - ineffassign
+  settings:
+    staticcheck:
+      # v2 merged stylecheck and quickfix into staticcheck; keep the SA/S
+      # checks the project ran with before the upgrade.
+      checks:
+        - all
+        - -ST*
+        - -QF*

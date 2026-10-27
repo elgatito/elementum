@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net/url"
 	"os"
@@ -271,11 +272,7 @@ func (t *Torrent) bufferTickerEvent() {
 		defer bytebufferpool.Put(piecesStatus)
 
 		piecesStatus.WriteString("[")
-		piecesKeys := []int{}
-		for k := range t.BufferPiecesProgress {
-			piecesKeys = append(piecesKeys, k)
-		}
-		slices.Sort(piecesKeys)
+		piecesKeys := slices.Sorted(maps.Keys(t.BufferPiecesProgress))
 
 		for _, k := range piecesKeys {
 			if piecesStatus.Len() > 1 {

@@ -8,7 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"os"
 	"path/filepath"
@@ -221,7 +221,7 @@ func (s *Service) configure() {
 		s.InternalProxy = proxy.StartProxy()
 	}
 
-	if _, err := os.Stat(s.config.TorrentsPath); os.IsNotExist(err) {
+	if _, err := os.Stat(s.config.TorrentsPath); errors.Is(err, os.ErrNotExist) {
 		if err := os.Mkdir(s.config.TorrentsPath, 0755); err != nil {
 			log.Error("Unable to create Torrents folder")
 		}
@@ -735,7 +735,7 @@ func (s *Service) AddTorrent(xbmcHost *xbmc.XBMCHost, options AddOptions) (*Torr
 
 	if strings.HasPrefix(options.URI, "magnet:") {
 		// Remove all spaces in magnet
-		options.URI = strings.Replace(options.URI, " ", "", -1)
+		options.URI = strings.ReplaceAll(options.URI, " ", "")
 
 		lt.ParseMagnetUri(options.URI, torrentParams, errorCode)
 		if errorCode.Failed() {
@@ -2164,7 +2164,7 @@ func (s *Service) readCustomSettings() map[string]string {
 	for scan.Scan() {
 		l := scan.Text()
 
-		l = strings.Replace(l, " ", "", -1)
+		l = strings.ReplaceAll(l, " ", "")
 		if strings.HasPrefix(l, "#") {
 			continue
 		}
@@ -2389,7 +2389,7 @@ func (s *Service) calcInterfacePorts(enableNatScan bool, queryAddrs []net.IP) []
 			defer wg.Done()
 
 			// Get random port from a range
-			port := listenPorts[rand.Intn(len(listenPorts))]
+			port := listenPorts[rand.IntN(len(listenPorts))]
 			mapping := PortMapping{}
 
 			// Use NAT-PMP to get available port to use from gateway
@@ -2471,7 +2471,7 @@ func transformInterfaceAddrs(addrs []net.IP) map[string]net.IP {
 }
 
 func parseInterfaces(input string) ([]net.IP, error) {
-	interfaces := strings.Split(strings.Replace(strings.TrimSpace(input), " ", "", -1), ",")
+	interfaces := strings.Split(strings.ReplaceAll(strings.TrimSpace(input), " ", ""), ",")
 	ret := []net.IP{}
 
 	// Prepare listen_interfaces

@@ -340,9 +340,11 @@ func (r *Request) ApplyResponse(resp *napping.Response) {
 		return
 	}
 
+	// napping reads and closes the response body in its session.
+	httpResp := resp.HttpResponse() //nolint:bodyclose // closed by napping
 	r.ResponseStatusCode = resp.Status()
-	r.ResponseStatus = resp.HttpResponse().Status
-	r.ResponseHeader = resp.HttpResponse().Header
+	r.ResponseStatus = httpResp.Status
+	r.ResponseHeader = httpResp.Header
 	r.ResponseBody = resp.ResponseBody
 	r.Size(uint64(resp.ResponseBody.Len()))
 }

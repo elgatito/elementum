@@ -433,7 +433,7 @@ func checkMoviesPath() error {
 	}
 
 	moviesLibraryPath := MoviesLibraryPath()
-	if _, err := os.Stat(moviesLibraryPath); os.IsNotExist(err) {
+	if _, err := os.Stat(moviesLibraryPath); errors.Is(err, os.ErrNotExist) {
 		if err := os.Mkdir(moviesLibraryPath, 0755); err != nil {
 			log.Error(err)
 			return err
@@ -448,7 +448,7 @@ func checkShowsPath() error {
 	}
 
 	showsLibraryPath := ShowsLibraryPath()
-	if _, err := os.Stat(showsLibraryPath); os.IsNotExist(err) {
+	if _, err := os.Stat(showsLibraryPath); errors.Is(err, os.ErrNotExist) {
 		if err := os.Mkdir(showsLibraryPath, 0755); err != nil {
 			log.Error(err)
 			return err
@@ -484,7 +484,7 @@ func writeMovieStrm(tmdbID string, force bool) (*tmdb.Movie, error) {
 		return nil, errors.New("Can't find movie path")
 	}
 
-	if _, err := os.Stat(moviePath); os.IsNotExist(err) {
+	if _, err := os.Stat(moviePath); errors.Is(err, os.ErrNotExist) {
 		if err := os.Mkdir(moviePath, 0755); err != nil {
 			log.Error(err)
 			return movie, err
@@ -571,7 +571,7 @@ func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
 		return nil, errors.New("Can't find show path")
 	}
 
-	if _, err := os.Stat(showPath); os.IsNotExist(err) {
+	if _, err := os.Stat(showPath); errors.Is(err, os.ErrNotExist) {
 		if err := os.Mkdir(showPath, 0755); err != nil {
 			log.Error(err)
 			return show, err
@@ -582,7 +582,7 @@ func writeShowStrm(showID int, adding, force bool) (*tmdb.Show, error) {
 
 	if config.Get().LibraryNFOShows {
 		nfoPath := filepath.Join(showPath, "tvshow.nfo")
-		if _, err := os.Stat(nfoPath); os.IsNotExist(err) || force {
+		if _, err := os.Stat(nfoPath); errors.Is(err, os.ErrNotExist) || force {
 			writeShowNFO(show, nfoPath)
 		}
 	}
@@ -1490,7 +1490,7 @@ func GetMovieLibraryPath(movie *tmdb.Movie) (moviePath, movieStrm string) {
 	if moviePath == "" {
 		moviePath = filepath.Join(MoviesLibraryPath(), movieStrm)
 	} else {
-		movieStrm = filepath.Base(strings.Replace(moviePath, "\\", "/", -1))
+		movieStrm = filepath.Base(strings.ReplaceAll(moviePath, "\\", "/"))
 	}
 
 	return
@@ -1527,7 +1527,7 @@ func GetShowLibraryPath(show *tmdb.Show) (showPath, showStrm string) {
 	if showPath == "" {
 		showPath = filepath.Join(ShowsLibraryPath(), showStrm)
 	} else {
-		showStrm = filepath.Base(strings.Replace(showPath, "\\", "/", -1))
+		showStrm = filepath.Base(strings.ReplaceAll(showPath, "\\", "/"))
 	}
 
 	return
