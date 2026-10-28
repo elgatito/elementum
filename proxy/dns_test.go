@@ -69,6 +69,28 @@ func TestIsOpennicDomain(t *testing.T) {
 	}
 }
 
+func TestShouldUseOpenNIC(t *testing.T) {
+	tests := []struct {
+		name          string
+		zone          string
+		useForRegular bool
+		expected      bool
+	}{
+		{name: "opennic zone", zone: "bbs", expected: true},
+		{name: "regular zone", zone: "com", expected: false},
+		{name: "regular zone with option", zone: "com", useForRegular: true, expected: true},
+		{name: "opennic zone with option", zone: "bbs", useForRegular: true, expected: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if result := shouldUseOpenNIC(tt.zone, tt.useForRegular); result != tt.expected {
+				t.Errorf("shouldUseOpenNIC(%q, %v) = %v, want %v", tt.zone, tt.useForRegular, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestIPs(t *testing.T) {
 	tests := []struct {
 		name     string

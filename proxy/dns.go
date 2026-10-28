@@ -115,12 +115,13 @@ func reloadDNS() {
 }
 
 // Each request is going through this workflow:
-// Check cache -> Query Opennic (if address belongs to Opennic domains) -> Query DoH providers -> Save cache
+// Check cache -> Query Opennic (for Opennic domains, or regular ones when enabled) -> Query DoH providers -> Save cache
 func resolveAddr(ctx context.Context, addr string) (ret []string, err error) {
 	defer perf.ScopeTimer()()
 
 	// Resolve Opennic address
-	if isOpennicDomain(getZone(addr)) {
+	useForRegular := config.Get().InternalDNSOpenNICUse && config.Get().InternalDNSOpenNICRegular
+	if shouldUseOpenNIC(getZone(addr), useForRegular) {
 		if ips := resolveOpennicAddr(ctx, addr); len(ips) > 0 {
 			if ips = filterResolvedIPs(ips, addr); len(ips) > 0 {
 				ret = ips
@@ -150,6 +151,10 @@ func getZone(addr string) string {
 
 func isOpennicDomain(zone string) bool {
 	return slices.Contains(opennicZones, zone)
+}
+
+func shouldUseOpenNIC(zone string, useForRegular bool) bool {
+	return useForRegular || isOpennicDomain(zone)
 }
 
 func resolveOpennicAddr(ctx context.Context, host string) (ips []string) {

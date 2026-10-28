@@ -240,11 +240,12 @@ type Configuration struct {
 	CustomProviderTimeout        int
 	ProviderUseLowestReleaseDate bool
 
-	InternalDNSEnabled      bool
-	InternalDNSSkipIPv6     bool
-	InternalDNSServer       string
-	InternalDNSServerCustom string
-	InternalDNSOpenNICUse   bool
+	InternalDNSEnabled        bool
+	InternalDNSSkipIPv6       bool
+	InternalDNSServer         string
+	InternalDNSServerCustom   string
+	InternalDNSOpenNICUse     bool
+	InternalDNSOpenNICRegular bool
 
 	InternalProxyEnabled     bool
 	InternalProxyAppRequests bool
@@ -803,9 +804,10 @@ func Reload() (ret *Configuration, err error) {
 		CustomProviderTimeout:        settings.ToInt("custom_provider_timeout"),
 		ProviderUseLowestReleaseDate: settings.ToBool("provider_use_lowest_release_date"),
 
-		InternalDNSEnabled:    settings.ToBool("internal_dns_enabled"),
-		InternalDNSSkipIPv6:   settings.ToBool("internal_dns_skip_ipv6"),
-		InternalDNSOpenNICUse: settings.ToBool("internal_dns_opennic_use"),
+		InternalDNSEnabled:        settings.ToBool("internal_dns_enabled"),
+		InternalDNSSkipIPv6:       settings.ToBool("internal_dns_skip_ipv6"),
+		InternalDNSOpenNICUse:     settings.ToBool("internal_dns_opennic_use"),
+		InternalDNSOpenNICRegular: settings.ToBool("internal_dns_opennic_regular"),
 
 		InternalProxyEnabled:     settings.ToBool("internal_proxy_enabled"),
 		InternalProxyAppRequests: internalProxyAppRequests,
