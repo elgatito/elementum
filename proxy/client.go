@@ -39,7 +39,8 @@ var (
 	}
 )
 
-// Reload ...
+// Reload applies proxy configuration: DNS resolvers, the direct client
+// upstream proxy and the internal proxy server lifecycle.
 func Reload() {
 	reloadDNS()
 
@@ -57,11 +58,17 @@ func Reload() {
 			log.Debugf("Setting up proxy for direct client to use Antizapret proxy dynamically.")
 		}
 	}
+
+	if config.Get().InternalProxyEnabled {
+		StartProxy()
+	} else {
+		StopProxy()
+	}
 }
 
 // GetClient ...
 func GetClient() *http.Client {
-	if !config.Get().InternalProxyEnabled {
+	if !config.Get().InternalProxyEnabled || !config.Get().InternalProxyAppRequests {
 		return directClient
 	}
 

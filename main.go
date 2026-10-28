@@ -29,6 +29,7 @@ import (
 	"github.com/elgatito/elementum/exit"
 	"github.com/elgatito/elementum/library"
 	"github.com/elgatito/elementum/lockfile"
+	"github.com/elgatito/elementum/proxy"
 	"github.com/elgatito/elementum/repository"
 	"github.com/elgatito/elementum/trakt"
 	"github.com/elgatito/elementum/util"
@@ -216,6 +217,7 @@ func main() {
 		s.Closer.Set()
 
 		log.Infof("Shutting down with code %d ...", code)
+		proxy.StopProxy()
 		library.CloseLibrary()
 		s.Close(true)
 

@@ -1,6 +1,6 @@
 module github.com/elgatito/elementum
 
-go 1.27.0
+go 1.27.2
 
 require (
 	github.com/ElementumOrg/libtorrent-go v0.0.0-20261024172401-9bc4688d6560
@@ -27,6 +27,8 @@ require (
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58
 	github.com/radovskyb/watcher v1.0.7
 	github.com/sanity-io/litter v1.5.8
+	github.com/saucesteals/mimic v1.1.0-beta.4
+	github.com/saucesteals/tlsx v0.1.1
 	github.com/shirou/gopsutil/v4 v4.26.9
 	github.com/spf13/cast v1.10.0
 	github.com/tinylib/msgp v1.6.5
@@ -47,6 +49,7 @@ require (
 	github.com/anacrolix/log v0.17.0 // indirect
 	github.com/anacrolix/missinggo v1.3.0 // indirect
 	github.com/anacrolix/missinggo/v2 v2.11.0 // indirect
+	github.com/andybalholm/brotli v1.2.2 // indirect
 	github.com/bits-and-blooms/bitset v1.26.0 // indirect
 	github.com/bradfitz/iter v0.0.0-20191230175014-e8f45d346db8 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect

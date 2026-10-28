@@ -247,6 +247,7 @@ type Configuration struct {
 	InternalDNSOpenNICUse   bool
 
 	InternalProxyEnabled     bool
+	InternalProxyAppRequests bool
 	InternalProxyLogging     bool
 	InternalProxyLoggingBody bool
 
@@ -608,6 +609,12 @@ func Reload() (ret *Configuration, err error) {
 		log.Infof("Elementum is running in server mode")
 	}
 
+	// Enabled by default, also for older addons that do not have this setting yet.
+	internalProxyAppRequests := true
+	if _, ok := settings["internal_proxy_app_requests"]; ok {
+		internalProxyAppRequests = settings.ToBool("internal_proxy_app_requests")
+	}
+
 	newConfig := Configuration{
 		DownloadPath:                downloadPath,
 		LibraryPath:                 libraryPath,
@@ -801,6 +808,7 @@ func Reload() (ret *Configuration, err error) {
 		InternalDNSOpenNICUse: settings.ToBool("internal_dns_opennic_use"),
 
 		InternalProxyEnabled:     settings.ToBool("internal_proxy_enabled"),
+		InternalProxyAppRequests: internalProxyAppRequests,
 		InternalProxyLogging:     settings.ToBool("internal_proxy_logging"),
 		InternalProxyLoggingBody: settings.ToBool("internal_proxy_logging_body"),
 

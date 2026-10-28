@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"cmp"
-	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -72,8 +71,6 @@ type Service struct {
 	outgoingInterfaces []net.IP
 	mappedPorts        sync.Map
 	updatingInterfaces sync.Mutex
-
-	InternalProxy *proxy.CustomProxy
 
 	Players      map[string]*Player
 	SpaceChecked map[string]bool
@@ -304,9 +301,6 @@ func (s *Service) configure() {
 	log.Info("Configuring client...")
 
 	proxy.Reload()
-	if s.config.InternalProxyEnabled {
-		s.InternalProxy = proxy.StartProxy()
-	}
 
 	if _, err := os.Stat(s.config.TorrentsPath); errors.Is(err, os.ErrNotExist) {
 		if err := os.Mkdir(s.config.TorrentsPath, 0755); err != nil {
@@ -676,12 +670,6 @@ func (s *Service) startServices() {
 }
 
 func (s *Service) stopServices() {
-	if s.InternalProxy != nil && !s.InternalProxy.IsErrored && s.InternalProxy.Server != nil {
-		log.Infof("Stopping internal proxy")
-		s.InternalProxy.Server.Shutdown(context.Background())
-		s.InternalProxy = nil
-	}
-
 	// TODO: cleanup these messages after windows hang is fixed
 	// Don't need to execute RPC calls when Kodi is closing
 	if s.dialogProgressBG != nil {
