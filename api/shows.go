@@ -610,6 +610,16 @@ func ShowEpisodes(ctx *gin.Context) {
 					continue
 				}
 
+				// Kodi's own season view label format ("%E. %T"); "all" mixes seasons, so keep the SxEE label there
+				if seasonParam != "all" && item.Info.Episode > 0 {
+					format := "%02d. %s"
+					if seasonNumber == 0 {
+						format = "S%02d. %s"
+					}
+					item.Label = fmt.Sprintf(format, item.Info.Episode, item.Info.OriginalTitle)
+					item.Info.Title = item.Label
+				}
+
 				thisURL := URLForXBMC("/show/%d/season/%d/episode/%d/",
 					show.ID,
 					seasonNumber,
