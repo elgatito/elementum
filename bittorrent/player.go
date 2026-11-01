@@ -742,6 +742,32 @@ func (btp *Player) updateWatchTimes() {
 	}
 }
 
+// isPlayingOwnFile reports whether Kodi plays this player's file, not just anything:
+// on playlist next Kodi switches items without a stop, so the old player must notice the switch itself.
+func (btp *Player) isPlayingOwnFile() bool {
+	if !btp.xbmcHost.PlayerIsPlaying() {
+		return false
+	}
+	playing := btp.xbmcHost.PlayerGetPlayingFile()
+	if playing == "" {
+		// Unknown answer (RPC error), keep relying on IsPlaying only
+		return true
+	}
+	return isFileURL(playing, btp.PlayURL())
+}
+
+// isFileURL reports whether Kodi's playing URL points to the given encoded /files/ path.
+func isFileURL(playing, filePath string) bool {
+	return strings.HasSuffix(unescapePath(playing), "/files/"+unescapePath(filePath))
+}
+
+func unescapePath(s string) string {
+	if u, err := url.PathUnescape(s); err == nil {
+		return u
+	}
+	return s
+}
+
 func (btp *Player) playerLoop() {
 	defer btp.Close()
 
@@ -764,7 +790,7 @@ func (btp *Player) playerLoop() {
 
 playbackWaitLoop:
 	for {
-		if btp.p.Background || btp.xbmcHost == nil || btp.xbmcHost.PlayerIsPlaying() {
+		if btp.p.Background || btp.xbmcHost == nil || btp.isPlayingOwnFile() {
 			break playbackWaitLoop
 		}
 		select {
@@ -793,7 +819,7 @@ playbackWaitLoop:
 
 playbackLoop:
 	for {
-		if btp.p.Background || btp.xbmcHost == nil || !btp.xbmcHost.PlayerIsPlaying() {
+		if btp.p.Background || btp.xbmcHost == nil || !btp.isPlayingOwnFile() {
 			btp.t.IsPlaying.Store(false)
 			break playbackLoop
 		}
