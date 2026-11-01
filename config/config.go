@@ -44,7 +44,22 @@ const (
 	TraktAPIClientID = "66f7807c55e9fec2d6627846baf8bc667a5e82620b6e037a044034c64e3cb5e2"
 	// TraktAPIClientSecret used to make requests to Trakt API (both with and without auth)
 	TraktAPIClientSecret = "5d37802b559c17a8dc10daaf96c55b196b1c86a723e6667310556288b3cac7fb"
+	// SimklAPIClientID is a public AUTH V2 client id, device flow needs no secret
+	SimklAPIClientID = "a45eaeb959fbd964b3a5dc97292882242e111c5c02d19c93fdde931aaaa3813b"
+	// MDBListAPIClientID is a public device code client id, device flow needs no secret
+	MDBListAPIClientID = "noNZ1RiQ799r5f7TdCBGEUDCjvzgMg6iX6Qhb4qr"
 )
+
+// TrackerProviders maps tracker_provider enum index to tracker id; new trackers are appended, never inserted.
+var TrackerProviders = []string{"none", "trakt", "simkl", "mdblist"}
+
+// TrackerCredentials holds OAuth credentials of a tracker, stored in <id>_token, <id>_refresh_token, <id>_token_expiry, <id>_username settings.
+type TrackerCredentials struct {
+	Token        string
+	RefreshToken string
+	TokenExpiry  int64
+	Username     string
+}
 
 // Configuration ...
 type Configuration struct {
@@ -163,6 +178,10 @@ type Configuration struct {
 	RemoveOriginalTrackers   bool
 	ModifyTrackersStrategy   int
 	Scrobble                 bool
+
+	TrackerProvider    string
+	TrackerCredentials map[string]*TrackerCredentials
+	MDBListAPIKey      string
 
 	TraktAuthorized                bool
 	TraktUsername                  string
@@ -730,6 +749,10 @@ func Reload() (ret *Configuration, err error) {
 		SessionSave:                 settings.ToInt("session_save"),
 		Scrobble:                    settings.ToBool("trakt_scrobble"),
 
+		TrackerProvider:    trackerProvider(&settings),
+		TrackerCredentials: map[string]*TrackerCredentials{},
+		MDBListAPIKey:      settings.ToString("mdblist_api_key"),
+
 		TraktUsername:                  settings.ToString("trakt_username"),
 		TraktToken:                     settings.ToString("trakt_token"),
 		TraktRefreshToken:              settings.ToString("trakt_refresh_token"),
@@ -900,6 +923,15 @@ func Reload() (ret *Configuration, err error) {
 					newConfig.MemorySize = maxMemorySize
 				}
 			}
+		}
+	}
+
+	for _, id := range []string{"simkl", "mdblist"} {
+		newConfig.TrackerCredentials[id] = &TrackerCredentials{
+			Token:        settings.ToString(id + "_token"),
+			RefreshToken: settings.ToString(id + "_refresh_token"),
+			TokenExpiry:  settings.ToInt64(id + "_token_expiry"),
+			Username:     settings.ToString(id + "_username"),
 		}
 	}
 
@@ -1079,6 +1111,17 @@ func updateLoggingLevel(level int) {
 		logging.SetLevel(logging.DEBUG, "")
 	}
 
+}
+
+// trackerProvider falls back to Trakt when the add-on has no tracker_provider setting yet, to keep existing Trakt users working.
+func trackerProvider(settings *XbmcSettings) string {
+	if _, ok := (*settings)["tracker_provider"]; !ok {
+		return "trakt"
+	}
+	if i := settings.ToInt("tracker_provider"); i >= 0 && i < len(TrackerProviders) {
+		return TrackerProviders[i]
+	}
+	return "none"
 }
 
 func (s *XbmcSettings) ToString(key string) (ret string) {

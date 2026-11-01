@@ -23,6 +23,7 @@ import (
 	"github.com/elgatito/elementum/database"
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tmdb"
+	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/trakt"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/event"
@@ -268,7 +269,7 @@ func Init() {
 			case <-closing:
 				return
 			default:
-				PlanTraktUpdate()
+				PlanTrackerUpdate()
 				PlanKodiShowsUpdate()
 			}
 		}()
@@ -297,8 +298,8 @@ func Init() {
 				continue
 			} else if l.Pending.IsKodi {
 				go RefreshKodi()
-			} else if l.Pending.IsTrakt {
-				go RefreshTrakt()
+			} else if l.Pending.IsTracker {
+				go RefreshTracker()
 			} else if l.Pending.IsMovies {
 				go RefreshMovies()
 			} else if l.Pending.IsShows {
@@ -315,7 +316,7 @@ func Init() {
 				PlanKodiShowsUpdate()
 			}
 		case <-traktSyncTicker.C:
-			PlanTraktUpdate()
+			PlanTrackerUpdate()
 		case <-markedForRemovalTicker.C:
 			var items []database.BTItem
 			database.GetStormDB().Select(q.Eq("State", database.StateDeleted)).Find(&items)
@@ -1053,68 +1054,73 @@ func URLQuery(route string, query ...string) string {
 // Movie internals
 //
 
-// SyncMoviesList updates trakt movie collections in cache
+// trackerContainers maps a list id to its library containers for movies and shows.
+var trackerContainers = map[string][2]uid.ContainerType{
+	"watchlist":  {uid.WatchlistedMoviesContainer, uid.WatchlistedShowsContainer},
+	"collection": {uid.CollectedMoviesContainer, uid.CollectedShowsContainer},
+	"":           {uid.UserlistedMoviesContainer, uid.UserlistedShowsContainer},
+}
+
+// fetchTrackerList reads one list of the active tracker with the label and container it syncs into.
+func fetchTrackerList(listID string, t tracker.MediaType, isUpdateNeeded bool) (previous, current []*tracker.Item, label string, addEnabled bool, container uid.ContainerType, err error) {
+	p := tracker.Active()
+	if p == nil {
+		return nil, nil, "", false, 0, tracker.ErrNotAuthorized
+	}
+
+	kind, containers := tracker.KindList, trackerContainers[""]
+	label, addEnabled = "LOCALIZE[30263]", config.Get().TraktSyncUserlists
+	switch listID {
+	case "watchlist":
+		kind, containers = tracker.KindWatchlist, trackerContainers[listID]
+		label, addEnabled = "LOCALIZE[30254]", config.Get().TraktSyncWatchlist
+	case "collection":
+		kind, containers = tracker.KindCollection, trackerContainers[listID]
+		label, addEnabled = "LOCALIZE[30257]", config.Get().TraktSyncCollections
+	}
+
+	container = containers[1]
+	if t == tracker.MovieType {
+		container = containers[0]
+	}
+
+	previous, current, err = tracker.FetchList(p, kind, listID, t, isUpdateNeeded)
+	return
+}
+
+// SyncMoviesList syncs a movie list of the active tracker into the library
 func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err error) {
 	started := time.Now()
 	defer func() {
-		log.Debugf("Trakt sync movies %s finished in %s", listID, time.Since(started))
+		log.Debugf("Tracker sync movies %s finished in %s", listID, time.Since(started))
 	}()
 
-	var addEnabled bool
-	var removeEnabled bool
+	var addedMovies []*tracker.Item
+	var removedMovies []*tracker.Item
 
-	var label string
-	var addedMovies []*trakt.Movies
-	var removedMovies []*trakt.Movies
-	var previous []*trakt.Movies
-	var current []*trakt.Movies
-
-	switch listID {
-	case "watchlist":
-		previous, _ = trakt.PreviousWatchlistMovies()
-		current, _ = trakt.WatchlistMovies(isUpdateNeeded)
-
-		label = "LOCALIZE[30254]"
-
-		addEnabled = config.Get().TraktSyncWatchlist
-		removeEnabled = config.Get().TraktSyncRemovedMoviesBack
-
-		MoviesToUIDLocked(uid.WatchlistedMoviesContainer, current)
-	case "collection":
-		previous, _ = trakt.PreviousCollectionMovies()
-		current, _ = trakt.CollectionMovies(isUpdateNeeded)
-
-		label = "LOCALIZE[30257]"
-
-		addEnabled = config.Get().TraktSyncCollections
-		removeEnabled = config.Get().TraktSyncRemovedMoviesBack
-
-		MoviesToUIDLocked(uid.CollectedMoviesContainer, current)
-	default:
-		previous, _ = trakt.PreviousListItemsMovies(listID)
-		current, _ = trakt.ListItemsMovies(config.Get().TraktUsername, listID)
-
-		label = "LOCALIZE[30263]"
-
-		addEnabled = config.Get().TraktSyncUserlists
-		removeEnabled = config.Get().TraktSyncRemovedMoviesBack
-
-		MoviesToUIDLocked(uid.UserlistedMoviesContainer, current)
+	previous, current, label, addEnabled, container, err := fetchTrackerList(listID, tracker.MovieType, isUpdateNeeded)
+	if err == tracker.ErrUnsupported {
+		return nil
+	} else if err != nil {
+		// Never diff against a failed fetch, it would remove everything from the library
+		return err
 	}
+	removeEnabled := config.Get().TraktSyncRemovedMoviesBack
+	ItemsToUIDLocked(container, current)
 
 	if err = checkMoviesPath(); err != nil || config.Get().LibraryReadOnly {
 		return
 	}
 
 	// For first run we will try to write all movies, not only the delta
-	if !IsTraktInitialized {
+	if !IsTrackerInitialized {
 		addedMovies = current
 	} else {
-		addedMovies = DiffTraktMovies(previous, current, IsTraktInitialized)
-		removedMovies = DiffTraktMovies(current, previous, IsTraktInitialized)
+		addedMovies = DiffTrackerItems(previous, current, IsTrackerInitialized)
+		removedMovies = DiffTrackerItems(current, previous, IsTrackerInitialized)
 	}
 
-	// Syncing movies added to Trakt source
+	// Syncing movies added to tracker source
 	if addEnabled && len(addedMovies) > 0 {
 		if err = SyncMoviesListAdded(addedMovies, updating, isUpdateNeeded, label, listID); err != nil {
 			log.Warningf("Could not sync added movies: %s", err)
@@ -1133,28 +1139,28 @@ func SyncMoviesList(listID string, updating bool, isUpdateNeeded bool) (err erro
 }
 
 // SyncMoviesListAdded updates added movies
-func SyncMoviesListAdded(movies []*trakt.Movies, updating, isUpdateNeeded bool, label, listID string) (err error) {
+func SyncMoviesListAdded(movies []*tracker.Item, updating, isUpdateNeeded bool, label, listID string) (err error) {
 	var movieIDs []int
 	for _, movie := range movies {
-		if movie == nil || movie.Movie == nil || movie.Movie.IDs == nil {
+		if movie == nil {
 			continue
 		}
 
-		title := movie.Movie.Title
+		title := movie.Title
 		// Try to resolve TMDB id through IMDB id, if provided
-		if movie.Movie.IDs.TMDB == 0 && len(movie.Movie.IDs.IMDB) > 0 {
-			r := tmdb.Find(movie.Movie.IDs.IMDB, "imdb_id")
+		if movie.IDs.TMDB == 0 && len(movie.IDs.IMDB) > 0 {
+			r := tmdb.Find(movie.IDs.IMDB, "imdb_id")
 			if r != nil && len(r.MovieResults) > 0 {
-				movie.Movie.IDs.TMDB = r.MovieResults[0].ID
+				movie.IDs.TMDB = r.MovieResults[0].ID
 			}
 		}
 
-		if movie.Movie.IDs.TMDB == 0 {
+		if movie.IDs.TMDB == 0 {
 			log.Warningf("Missing TMDB ID for %s", title)
 			continue
 		}
 
-		tmdbID := strconv.Itoa(movie.Movie.IDs.TMDB)
+		tmdbID := strconv.Itoa(movie.IDs.TMDB)
 
 		if uid.IsDuplicateMovie(tmdbID) {
 			continue
@@ -1164,7 +1170,7 @@ func SyncMoviesListAdded(movies []*trakt.Movies, updating, isUpdateNeeded bool, 
 			continue
 		}
 
-		movieIDs = append(movieIDs, movie.Movie.IDs.TMDB)
+		movieIDs = append(movieIDs, movie.IDs.TMDB)
 	}
 
 	if err := updateBatchDBItem(movieIDs, StateActive, MovieType, 0); err != nil {
@@ -1188,68 +1194,39 @@ func SyncMoviesListAdded(movies []*trakt.Movies, updating, isUpdateNeeded bool, 
 // Shows internals
 //
 
-// SyncShowsList updates trakt collections in cache
+// SyncShowsList syncs a show list of the active tracker into the library
 func SyncShowsList(listID string, updating bool, isUpdateNeeded bool) (err error) {
 	started := time.Now()
 	defer func() {
-		log.Debugf("Trakt sync shows %s finished in %s", listID, time.Since(started))
+		log.Debugf("Tracker sync shows %s finished in %s", listID, time.Since(started))
 	}()
 
-	var addEnabled bool
-	var removeEnabled bool
+	var addedShows []*tracker.Item
+	var removedShows []*tracker.Item
 
-	var label string
-	var addedShows []*trakt.Shows
-	var removedShows []*trakt.Shows
-	var previous []*trakt.Shows
-	var current []*trakt.Shows
-
-	switch listID {
-	case "watchlist":
-		previous, _ = trakt.PreviousWatchlistShows()
-		current, _ = trakt.WatchlistShows(isUpdateNeeded)
-
-		label = "LOCALIZE[30254]"
-
-		addEnabled = config.Get().TraktSyncWatchlist
-		removeEnabled = config.Get().TraktSyncRemovedShowsBack
-
-		ShowsToUIDLocked(uid.WatchlistedShowsContainer, current)
-	case "collection":
-		previous, _ = trakt.PreviousCollectionShows()
-		current, _ = trakt.CollectionShows(isUpdateNeeded)
-
-		label = "LOCALIZE[30257]"
-
-		addEnabled = config.Get().TraktSyncCollections
-		removeEnabled = config.Get().TraktSyncRemovedShowsBack
-
-		ShowsToUIDLocked(uid.CollectedShowsContainer, current)
-	default:
-		previous, _ = trakt.PreviousListItemsShows(listID)
-		current, _ = trakt.ListItemsShows(config.Get().TraktUsername, listID)
-
-		label = "LOCALIZE[30263]"
-
-		addEnabled = config.Get().TraktSyncUserlists
-		removeEnabled = config.Get().TraktSyncRemovedShowsBack
-
-		ShowsToUIDLocked(uid.UserlistedShowsContainer, current)
+	previous, current, label, addEnabled, container, err := fetchTrackerList(listID, tracker.ShowType, isUpdateNeeded)
+	if err == tracker.ErrUnsupported {
+		return nil
+	} else if err != nil {
+		// Never diff against a failed fetch, it would remove everything from the library
+		return err
 	}
+	removeEnabled := config.Get().TraktSyncRemovedShowsBack
+	ItemsToUIDLocked(container, current)
 
 	if err = checkShowsPath(); err != nil || config.Get().LibraryReadOnly {
 		return err
 	}
 
 	// For first run we will try to write all shows, not only the delta
-	if !IsTraktInitialized {
+	if !IsTrackerInitialized {
 		addedShows = current
 	} else {
-		addedShows = DiffTraktShows(previous, current, IsTraktInitialized)
-		removedShows = DiffTraktShows(current, previous, IsTraktInitialized)
+		addedShows = DiffTrackerItems(previous, current, IsTrackerInitialized)
+		removedShows = DiffTrackerItems(current, previous, IsTrackerInitialized)
 	}
 
-	// Syncing shows added to Trakt source
+	// Syncing shows added to tracker source
 	if addEnabled && len(addedShows) > 0 {
 		if err = SyncShowsListAdded(addedShows, updating, isUpdateNeeded, label, listID); err != nil {
 			log.Warningf("Could not sync added shows: %s", err)
@@ -1257,7 +1234,7 @@ func SyncShowsList(listID string, updating bool, isUpdateNeeded bool) (err error
 	}
 
 	// Sync back removed Shows, meaning removing them from Kodi library.
-	// Ignoring watchlist items, because Trakt is automatically removing whole show from Watchlist if any episode is watched.
+	// Ignoring watchlist items, because trackers remove whole show from Watchlist once any episode is watched.
 	if removeEnabled && len(removedShows) > 0 && listID != "watchlist" {
 		if err := syncShowsRemovedBack(removedShows); err != nil {
 			log.Warningf("Could not sync back removed shows: %s", err)
@@ -1269,9 +1246,9 @@ func SyncShowsList(listID string, updating bool, isUpdateNeeded bool) (err error
 }
 
 // SyncShowsListAdded updates added shows
-func SyncShowsListAdded(shows []*trakt.Shows, updating, isUpdateNeeded bool, label, listID string) (err error) {
+func SyncShowsListAdded(shows []*tracker.Item, updating, isUpdateNeeded bool, label, listID string) (err error) {
 	cacheStore := cache.NewDBStore()
-	showsLastUpdates := map[int]time.Time{}
+	showsLastUpdates := map[string]time.Time{}
 
 	// Keep tracking of processed shows to avoid re-writing and checking all of them again.
 	cacheStore.Get(cache.LibraryShowsLastUpdatesKey, &showsLastUpdates)
@@ -1281,65 +1258,58 @@ func SyncShowsListAdded(shows []*trakt.Shows, updating, isUpdateNeeded bool, lab
 
 	var showIDs []int
 	for _, show := range shows {
-		if show == nil || show.Show == nil || show.Show.IDs == nil {
+		if show == nil {
 			continue
 		}
 
-		title := show.Show.Title
+		title := show.Title
 		// Try to resolve TMDB id through IMDB id, if provided
-		if show.Show.IDs.TMDB == 0 {
-			if len(show.Show.IDs.IMDB) > 0 {
-				r := tmdb.Find(show.Show.IDs.IMDB, "imdb_id")
+		if show.IDs.TMDB == 0 {
+			if len(show.IDs.IMDB) > 0 {
+				r := tmdb.Find(show.IDs.IMDB, "imdb_id")
 				if r != nil && len(r.TVResults) > 0 {
-					show.Show.IDs.TMDB = r.TVResults[0].ID
+					show.IDs.TMDB = r.TVResults[0].ID
 				}
 			}
-			if show.Show.IDs.TMDB == 0 && show.Show.IDs.TVDB != 0 {
-				r := tmdb.Find(strconv.Itoa(show.Show.IDs.TVDB), "tvdb_id")
+			if show.IDs.TMDB == 0 && show.IDs.TVDB != 0 {
+				r := tmdb.Find(strconv.Itoa(show.IDs.TVDB), "tvdb_id")
 				if r != nil && len(r.TVResults) > 0 {
-					show.Show.IDs.TMDB = r.TVResults[0].ID
+					show.IDs.TMDB = r.TVResults[0].ID
 				}
 			}
 		}
 
-		if show.Show.IDs.TMDB == 0 {
+		if show.IDs.TMDB == 0 {
 			log.Warningf("Missing TMDB ID for %s", title)
 			continue
 		}
 
-		tmdbID := strconv.Itoa(show.Show.IDs.TMDB)
-		if t, ok := showsLastUpdates[show.Show.IDs.Trakt]; ok && uid.IsDuplicateShow(tmdbID) && t.After(show.Show.UpdatedAt) {
+		tmdbID := strconv.Itoa(show.IDs.TMDB)
+		if t, ok := showsLastUpdates[show.Key()]; ok && uid.IsDuplicateShow(tmdbID) && t.After(show.UpdatedAt) {
 			continue
 		}
-		showsLastUpdates[show.Show.IDs.Trakt] = show.Show.UpdatedAt
+		showsLastUpdates[show.Key()] = show.UpdatedAt
 
 		if !updating && !isUpdateNeeded && uid.IsDuplicateShow(tmdbID) {
 			continue
 		}
 
-		if _, err := writeShowStrm(show.Show.IDs.TMDB, false, false); err != nil {
+		if _, err := writeShowStrm(show.IDs.TMDB, false, false); err != nil {
 			continue
 		}
 
-		showIDs = append(showIDs, show.Show.IDs.TMDB)
+		showIDs = append(showIDs, show.IDs.TMDB)
 	}
 
 	// Cleanup unused map items
-	found := false
-	for k := range showsLastUpdates {
-		found = false
-		for _, s := range shows {
-			if s == nil || s.Show == nil || s.Show.IDs == nil {
-				continue
-			}
-
-			if s.Show.IDs.Trakt == k {
-				found = true
-				break
-			}
+	listed := make(map[string]struct{}, len(shows))
+	for _, s := range shows {
+		if s != nil {
+			listed[s.Key()] = struct{}{}
 		}
-
-		if !found {
+	}
+	for k := range showsLastUpdates {
+		if _, ok := listed[k]; !ok {
 			delete(showsLastUpdates, k)
 		}
 	}
@@ -1361,59 +1331,28 @@ func SyncShowsListAdded(shows []*trakt.Shows, updating, isUpdateNeeded bool, lab
 	return nil
 }
 
-// DiffTraktMovies ...
-func DiffTraktMovies(previous, current []*trakt.Movies, isInitialized bool) []*trakt.Movies {
-	ret := make([]*trakt.Movies, 0, len(current))
-	found := false
-	for _, ce := range current {
-		if ce == nil || ce.Movie == nil || ce.Movie.IDs == nil {
-			continue
-		}
-
-		found = false
-		for _, pr := range previous {
-			if pr == nil || pr.Movie == nil || pr.Movie.IDs == nil {
-				continue
-			}
-
-			if pr.Movie.IDs.Trakt == ce.Movie.IDs.Trakt {
-				found = true
-				break
-			}
-		}
-
-		// If Trakt is not yet initialized - we can leave shows that are not yet in the library
-		if !found || (!isInitialized && !uid.IsDuplicateMovieByInt(ce.Movie.IDs.TMDB)) {
-			ret = append(ret, ce)
+// DiffTrackerItems returns items of current missing in previous.
+// Before the first sync it also returns items that are not in the library yet.
+func DiffTrackerItems(previous, current []*tracker.Item, isInitialized bool) []*tracker.Item {
+	known := make(map[string]struct{}, len(previous))
+	for _, pr := range previous {
+		if pr != nil {
+			known[pr.Key()] = struct{}{}
 		}
 	}
 
-	return ret
-}
-
-// DiffTraktShows ...
-func DiffTraktShows(previous, current []*trakt.Shows, isInitialized bool) []*trakt.Shows {
-	ret := make([]*trakt.Shows, 0, len(current))
-	found := false
+	ret := make([]*tracker.Item, 0, len(current))
 	for _, ce := range current {
-		if ce == nil || ce.Show == nil || ce.Show.IDs == nil {
+		if ce == nil {
 			continue
 		}
 
-		found = false
-		for _, pr := range previous {
-			if pr == nil || pr.Show == nil || pr.Show.IDs == nil {
-				continue
-			}
-
-			if pr.Show.IDs.Trakt == ce.Show.IDs.Trakt {
-				found = true
-				break
-			}
+		_, found := known[ce.Key()]
+		inLibrary := uid.IsDuplicateMovieByInt(ce.IDs.TMDB)
+		if ce.Type != tracker.MovieType {
+			inLibrary = uid.IsDuplicateShowByInt(ce.IDs.TMDB)
 		}
-
-		// If Trakt is not yet initialized - we can leave shows that are not yet in the library
-		if !found || (!isInitialized && !uid.IsDuplicateShowByInt(ce.Show.IDs.TMDB)) {
+		if !found || (!isInitialized && !inLibrary) {
 			ret = append(ret, ce)
 		}
 	}

@@ -11,7 +11,7 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/library"
 	"github.com/elgatito/elementum/library/uid"
-	"github.com/elgatito/elementum/trakt"
+	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
 )
@@ -69,8 +69,8 @@ func AddMovie(ctx *gin.Context) {
 			return
 		}
 	}
-	if config.Get().TraktToken != "" && config.Get().TraktSyncAddedMovies {
-		go trakt.SyncAddedItem("movies", tmdbID, config.Get().TraktSyncAddedMoviesLocation)
+	if config.Get().TraktSyncAddedMovies {
+		go tracker.AddTo(tracker.Location(config.Get().TraktSyncAddedMoviesLocation), config.Get().TraktSyncAddedMoviesList, trackerItem(tracker.MovieType, tmdbID))
 	}
 
 	label := "LOCALIZE[30277]"
@@ -127,8 +127,8 @@ func RemoveMovie(ctx *gin.Context) {
 	if err != nil {
 		ctx.String(200, err.Error())
 	}
-	if config.Get().TraktToken != "" && config.Get().TraktSyncRemovedMovies {
-		go trakt.SyncRemovedItem("movies", tmdbStr, config.Get().TraktSyncRemovedMoviesLocation)
+	if config.Get().TraktSyncRemovedMovies {
+		go tracker.RemoveFrom(tracker.Location(config.Get().TraktSyncRemovedMoviesLocation), config.Get().TraktSyncRemovedMoviesList, trackerItem(tracker.MovieType, tmdbStr))
 	}
 
 	if ctx != nil {
@@ -180,8 +180,8 @@ func AddShow(ctx *gin.Context) {
 			return
 		}
 	}
-	if config.Get().TraktToken != "" && config.Get().TraktSyncAddedShows {
-		go trakt.SyncAddedItem("shows", tmdbID, config.Get().TraktSyncAddedShowsLocation)
+	if config.Get().TraktSyncAddedShows {
+		go tracker.AddTo(tracker.Location(config.Get().TraktSyncAddedShowsLocation), config.Get().TraktSyncAddedShowsList, trackerItem(tracker.ShowType, tmdbID))
 	}
 
 	label := "LOCALIZE[30277]"
@@ -234,8 +234,8 @@ func RemoveShow(ctx *gin.Context) {
 	if err != nil {
 		ctx.String(200, err.Error())
 	}
-	if config.Get().TraktToken != "" && config.Get().TraktSyncRemovedShows {
-		go trakt.SyncRemovedItem("shows", tmdbID, config.Get().TraktSyncRemovedShowsLocation)
+	if config.Get().TraktSyncRemovedShows {
+		go tracker.RemoveFrom(tracker.Location(config.Get().TraktSyncRemovedShowsLocation), config.Get().TraktSyncRemovedShowsList, trackerItem(tracker.ShowType, tmdbID))
 	}
 
 	if ctx != nil {
@@ -269,8 +269,8 @@ func UpdateLibrary(ctx *gin.Context) {
 	}
 }
 
-// UpdateTrakt ...
-func UpdateTrakt(ctx *gin.Context) {
+// UpdateTracker runs a full sync with the active tracker
+func UpdateTracker(ctx *gin.Context) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 	if xbmcHost == nil {
 		return
@@ -279,8 +279,7 @@ func UpdateTrakt(ctx *gin.Context) {
 	xbmcHost.Notify("Elementum", "LOCALIZE[30358]", config.AddonIcon())
 	ctx.String(200, "")
 	go func() {
-		library.IsTraktInitialized = false
-		library.RefreshTrakt()
+		library.ResyncTracker()
 		if config.Get().LibraryUpdate == 0 || (config.Get().LibraryUpdate == 1 && xbmcHost.DialogConfirmFocused("Elementum", "LOCALIZE[30288]")) {
 			libraryHost(xbmcHost).VideoLibraryScan()
 		}

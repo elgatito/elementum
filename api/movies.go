@@ -65,9 +65,9 @@ func MoviesIndex(ctx *gin.Context) {
 	items := xbmc.ListItems{
 		{Label: "LOCALIZE[30209]", Path: URLForXBMC("/movies/search"), Thumbnail: config.AddonResource("img", "search.png")},
 		{Label: "LOCALIZE[30765]", Path: URLForXBMC("/movies/advanced"), Thumbnail: config.AddonResource("img", "search.png")},
-		{Label: "Trakt > LOCALIZE[30263]", Path: URLForXBMC("/movies/trakt/lists/"), Thumbnail: config.AddonResource("img", "trakt.png"), TraktAuth: true},
-		{Label: "Trakt > LOCALIZE[30254]", Path: URLForXBMC("/movies/trakt/watchlist"), Thumbnail: config.AddonResource("img", "trakt.png"), ContextMenu: [][]string{{"LOCALIZE[30252]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/movie/list/add/watchlist"))}}, TraktAuth: true},
-		{Label: "Trakt > LOCALIZE[30257]", Path: URLForXBMC("/movies/trakt/collection"), Thumbnail: config.AddonResource("img", "trakt.png"), ContextMenu: [][]string{{"LOCALIZE[30252]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/movie/list/add/collection"))}}, TraktAuth: true},
+	}
+	items = append(items, trackerMenuItems(movieType)...)
+	items = append(items, xbmc.ListItems{
 		{Label: "Trakt > LOCALIZE[30290]", Path: URLForXBMC("/movies/trakt/calendars/"), Thumbnail: config.AddonResource("img", "most_anticipated.png"), TraktAuth: true},
 		{Label: "Trakt > LOCALIZE[30423]", Path: URLForXBMC("/movies/trakt/recommendations"), Thumbnail: config.AddonResource("img", "movies.png"), TraktAuth: true},
 		{Label: "Trakt > LOCALIZE[30422]", Path: URLForXBMC("/movies/trakt/toplists"), Thumbnail: config.AddonResource("img", "most_collected.png")},
@@ -92,7 +92,7 @@ func MoviesIndex(ctx *gin.Context) {
 
 		{Label: "LOCALIZE[30517]", Path: URLForXBMC("/movies/library"), Thumbnail: config.AddonResource("img", "movies.png")},
 		{Label: "LOCALIZE[30687]", Path: URLForXBMC("/movies/elementum_library"), Thumbnail: config.AddonResource("img", "movies.png")},
-	}
+	}...)
 	for _, item := range items {
 		item.ContextMenu = append([][]string{
 			{"LOCALIZE[30142]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/menus_movies"))},
@@ -427,6 +427,7 @@ func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, nam
 				collectionAction,
 				{"LOCALIZE[30034]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/movies"))},
 			}
+			item.ContextMenu = trackerContextMenu(item.ContextMenu)
 			item.ContextMenu = append(libraryActions, item.ContextMenu...)
 
 			if config.Get().Platform.Kodi < 17 {

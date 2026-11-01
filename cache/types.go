@@ -13,6 +13,8 @@ const (
 	TMDBKey          = "com.tmdb."
 	TVDBKey          = "com.tvdb."
 	TraktKey         = "com.trakt."
+	SimklKey         = "com.simkl."
+	MDBListKey       = "com.mdblist."
 	LibraryKey       = "library."
 	FanartKey        = "fanart."
 	OpensubtitlesKey = "osdb."

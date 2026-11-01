@@ -58,7 +58,7 @@ func RefreshKodi() error {
 // Refresh is updating library from Kodi
 func Refresh() error {
 	l := uid.Get()
-	if l.Running.IsTrakt || !config.Get().LibraryEnabled {
+	if l.Running.IsTracker || !config.Get().LibraryEnabled {
 		return nil
 	}
 
@@ -559,7 +559,7 @@ func RefreshUIDs() error {
 // RefreshUIDsRunner completes RefreshUIDs target
 func RefreshUIDsRunner(force bool) error {
 	l := uid.Get()
-	if !force && (l.Running.IsTrakt || l.Running.IsKodi) {
+	if !force && (l.Running.IsTracker || l.Running.IsKodi) {
 		return nil
 	}
 
@@ -1004,9 +1004,9 @@ func PlanKodiUpdate() {
 	uid.Get().Pending.IsKodi = true
 }
 
-// PlanTraktUpdate ...
-func PlanTraktUpdate() {
-	uid.Get().Pending.IsTrakt = true
+// PlanTrackerUpdate ...
+func PlanTrackerUpdate() {
+	uid.Get().Pending.IsTracker = true
 }
 
 // PlanMoviesUpdate ...

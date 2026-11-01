@@ -29,8 +29,11 @@ import (
 	"github.com/elgatito/elementum/exit"
 	"github.com/elgatito/elementum/library"
 	"github.com/elgatito/elementum/lockfile"
+	"github.com/elgatito/elementum/mdblist"
 	"github.com/elgatito/elementum/proxy"
 	"github.com/elgatito/elementum/repository"
+	"github.com/elgatito/elementum/simkl"
+	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/trakt"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/ident"
@@ -336,8 +339,12 @@ func main() {
 		xbmcHost.ResetRPC()
 	}()
 
+	tracker.Register(trakt.NewProvider())
+	tracker.Register(simkl.NewProvider())
+	tracker.Register(mdblist.NewProvider())
+
 	go library.Init()
-	go trakt.TokenRefreshHandler()
+	go tracker.TokenRefreshHandler()
 	go db.MaintenanceRefreshHandler()
 	go cacheDB.MaintenanceRefreshHandler()
 	go util.FreeMemoryGC()

@@ -36,9 +36,9 @@ func TVIndex(ctx *gin.Context) {
 		{Label: "LOCALIZE[30765]", Path: URLForXBMC("/shows/advanced"), Thumbnail: config.AddonResource("img", "search.png")},
 
 		{Label: "Trakt > LOCALIZE[30360]", Path: URLForXBMC("/shows/trakt/progress"), Thumbnail: config.AddonResource("img", "trakt.png"), TraktAuth: true},
-		{Label: "Trakt > LOCALIZE[30263]", Path: URLForXBMC("/shows/trakt/lists/"), Thumbnail: config.AddonResource("img", "trakt.png"), TraktAuth: true},
-		{Label: "Trakt > LOCALIZE[30254]", Path: URLForXBMC("/shows/trakt/watchlist"), Thumbnail: config.AddonResource("img", "trakt.png"), ContextMenu: [][]string{{"LOCALIZE[30252]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/show/list/add/watchlist"))}}, TraktAuth: true},
-		{Label: "Trakt > LOCALIZE[30257]", Path: URLForXBMC("/shows/trakt/collection"), Thumbnail: config.AddonResource("img", "trakt.png"), ContextMenu: [][]string{{"LOCALIZE[30252]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/show/list/add/collection"))}}, TraktAuth: true},
+	}
+	items = append(items, trackerMenuItems(showType)...)
+	items = append(items, xbmc.ListItems{
 		{Label: "Trakt > LOCALIZE[30290]", Path: URLForXBMC("/shows/trakt/calendars/"), Thumbnail: config.AddonResource("img", "most_anticipated.png"), TraktAuth: true},
 		{Label: "Trakt > LOCALIZE[30423]", Path: URLForXBMC("/shows/trakt/recommendations"), Thumbnail: config.AddonResource("img", "tv.png"), TraktAuth: true},
 		{Label: "Trakt > LOCALIZE[30246]", Path: URLForXBMC("/shows/trakt/trending"), Thumbnail: config.AddonResource("img", "trending.png")},
@@ -61,7 +61,7 @@ func TVIndex(ctx *gin.Context) {
 
 		{Label: "LOCALIZE[30517]", Path: URLForXBMC("/shows/library"), Thumbnail: config.AddonResource("img", "genre_tv.png")},
 		{Label: "LOCALIZE[30687]", Path: URLForXBMC("/shows/elementum_library"), Thumbnail: config.AddonResource("img", "genre_tv.png")},
-	}
+	}...)
 	for _, item := range items {
 		item.ContextMenu = append([][]string{
 			{"LOCALIZE[30143]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/menus_tvshows"))},
@@ -344,6 +344,7 @@ func renderShows(ctx *gin.Context, shows tmdb.Shows, page int, total int, nameSo
 				collectionAction,
 				{"LOCALIZE[30035]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/tvshows"))},
 			}
+			item.ContextMenu = trackerContextMenu(item.ContextMenu)
 			item.ContextMenu = append(libraryActions, item.ContextMenu...)
 
 			if config.Get().Platform.Kodi < 17 {

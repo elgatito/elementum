@@ -10,6 +10,8 @@ type APIIdent string
 const (
 	TMDBIdent          APIIdent = cache.TMDBKey
 	TraktIdent         APIIdent = cache.TraktKey
+	SimklIdent         APIIdent = cache.SimklKey
+	MDBListIdent       APIIdent = cache.MDBListKey
 	FanArtIdent        APIIdent = cache.FanartKey
 	OpenSubtitlesIdent APIIdent = cache.OpensubtitlesKey
 )

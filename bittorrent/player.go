@@ -28,7 +28,7 @@ import (
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/opensubtitles"
 	"github.com/elgatito/elementum/tmdb"
-	"github.com/elgatito/elementum/trakt"
+	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/tvdb"
 	"github.com/elgatito/elementum/upnext"
 	"github.com/elgatito/elementum/util"
@@ -156,7 +156,7 @@ func NewPlayer(bts *Service, params PlayerParams, xbmcHost *xbmc.XBMCHost) *Play
 		xbmcHost: xbmcHost,
 
 		overlayStatusEnabled: config.Get().EnableOverlayStatus,
-		scrobble:             config.Get().Scrobble && params.TMDBId > 0 && config.Get().TraktToken != "",
+		scrobble:             config.Get().Scrobble && params.TMDBId > 0 && tracker.Active() != nil,
 		hasChosenFile:        false,
 		fileSize:             0,
 		fileName:             "",
@@ -811,7 +811,7 @@ playbackWaitLoop:
 
 	log.Infof("Got playback: %fs / %fs", btp.p.WatchedTime, btp.p.VideoDuration)
 	if btp.scrobble {
-		trakt.Scrobble("start", btp.p.ContentType, btp.p.TMDBId, btp.p.WatchedTime, btp.p.VideoDuration)
+		btp.scrobbleTracker(tracker.ScrobbleStart)
 		btp.p.TraktScrobbled = true
 	}
 
@@ -834,7 +834,7 @@ playbackLoop:
 		if btp.p.Seeked {
 			btp.p.Seeked = false
 			if btp.scrobble {
-				go trakt.Scrobble("start", btp.p.ContentType, btp.p.TMDBId, btp.p.WatchedTime, btp.p.VideoDuration)
+				go btp.scrobbleTracker(tracker.ScrobbleStart)
 			}
 		} else if btp.xbmcHost == nil || btp.xbmcHost.PlayerIsPaused() {
 			if btp.overlayStatusEnabled && btp.p.Playing {
@@ -850,7 +850,7 @@ playbackLoop:
 			if playing {
 				playing = false
 				if btp.scrobble {
-					go trakt.Scrobble("pause", btp.p.ContentType, btp.p.TMDBId, btp.p.WatchedTime, btp.p.VideoDuration)
+					go btp.scrobbleTracker(tracker.ScrobblePause)
 				}
 			}
 		} else {
@@ -861,7 +861,7 @@ playbackLoop:
 			if !playing {
 				playing = true
 				if btp.scrobble {
-					go trakt.Scrobble("start", btp.p.ContentType, btp.p.TMDBId, btp.p.WatchedTime, btp.p.VideoDuration)
+					go btp.scrobbleTracker(tracker.ScrobbleStart)
 				}
 			}
 		}
@@ -879,9 +879,9 @@ playbackLoop:
 		btp.UpdateWatched()
 		if btp.scrobble {
 			if btp.IsWatched() {
-				trakt.Scrobble("stop", btp.p.ContentType, btp.p.TMDBId, btp.p.WatchedTime, btp.p.VideoDuration)
+				btp.scrobbleTracker(tracker.ScrobbleStop)
 			} else {
-				trakt.Scrobble("pause", btp.p.ContentType, btp.p.TMDBId, btp.p.WatchedTime, btp.p.VideoDuration)
+				btp.scrobbleTracker(tracker.ScrobblePause)
 			}
 		}
 
@@ -932,34 +932,30 @@ func (btp *Player) UpdateWatched() {
 	SetWatchedFile(btp.chosenFile.Path, btp.chosenFile.Size, btp.IsWatched())
 
 	if btp.IsWatched() {
-		var watched *trakt.WatchedItem
+		var watched *tracker.WatchedItem
 
 		// TODO: Make use of Playcount, possibly increment when Watched, use old value if in progress
 		if btp.p.ContentType == movieType {
-			watched = &trakt.WatchedItem{
-				MediaType: btp.p.ContentType,
-				Movie:     btp.p.TMDBId,
-				Watched:   true,
-			}
+			watched = &tracker.WatchedItem{Item: tracker.Item{Type: tracker.MovieType, IDs: tracker.IDs{TMDB: btp.p.TMDBId}}}
 			if btp.p.KodiID != 0 && btp.xbmcHost != nil {
 				btp.xbmcHost.SetMovieWatched(btp.p.KodiID, 1, 0, 0)
 			}
 		} else if btp.p.ContentType == episodeType {
-			watched = &trakt.WatchedItem{
-				MediaType: btp.p.ContentType,
-				Show:      btp.p.ShowID,
-				Season:    btp.p.Season,
-				Episode:   btp.p.Episode,
-				Watched:   true,
-			}
+			watched = &tracker.WatchedItem{Item: tracker.Item{
+				Type:        tracker.EpisodeType,
+				IDs:         tracker.IDs{TMDB: btp.p.ShowID},
+				Season:      btp.p.Season,
+				Episode:     btp.p.Episode,
+				EpisodeTMDB: btp.p.TMDBId,
+			}}
 			if btp.p.KodiID != 0 && btp.xbmcHost != nil {
 				btp.xbmcHost.SetEpisodeWatched(btp.p.KodiID, 1, 0, 0)
 			}
 		}
 
-		if config.Get().TraktToken != "" && watched != nil && !btp.p.TraktScrobbled {
-			log.Debugf("Setting Trakt watched for: %#v", watched)
-			go trakt.SetWatched(watched)
+		if watched != nil && !btp.p.TraktScrobbled {
+			log.Debugf("Setting tracker watched for: %#v", watched)
+			go tracker.SetWatched([]*tracker.WatchedItem{watched}, true)
 		}
 	} else if btp.p.WatchedTime > 180 {
 		if btp.p.Resume != nil {
@@ -1648,4 +1644,20 @@ func removeTrailingMinus(in string) string {
 
 func (btp *Player) GetXBMCHost() *xbmc.XBMCHost {
 	return btp.xbmcHost
+}
+
+// scrobbleTracker reports playback progress of the current item to the active tracker.
+func (btp *Player) scrobbleTracker(action tracker.ScrobbleAction) {
+	if btp.p.VideoDuration < 1 {
+		return
+	}
+
+	item := &tracker.Item{Type: tracker.MovieType, IDs: tracker.IDs{TMDB: btp.p.TMDBId}}
+	if btp.p.ContentType == episodeType {
+		item = &tracker.Item{Type: tracker.EpisodeType, IDs: tracker.IDs{TMDB: btp.p.ShowID}, Season: btp.p.Season, Episode: btp.p.Episode, EpisodeTMDB: btp.p.TMDBId}
+	} else if btp.p.ContentType != movieType {
+		return
+	}
+
+	tracker.Scrobble(action, item, btp.p.WatchedTime/btp.p.VideoDuration*100)
 }

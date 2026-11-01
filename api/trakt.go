@@ -18,13 +18,14 @@ import (
 	"github.com/elgatito/elementum/library"
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tmdb"
+	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/trakt"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
 )
 
 func inMoviesWatchlist(tmdbID int) bool {
-	if !config.Get().TraktAuthorized || !config.Get().TraktSyncEnabled {
+	if tracker.Active() == nil || !config.Get().TraktSyncEnabled {
 		return false
 	}
 
@@ -42,7 +43,7 @@ func inMoviesWatchlist(tmdbID int) bool {
 }
 
 func inShowsWatchlist(tmdbID int) bool {
-	if !config.Get().TraktAuthorized || !config.Get().TraktSyncEnabled {
+	if tracker.Active() == nil || !config.Get().TraktSyncEnabled {
 		return false
 	}
 
@@ -60,7 +61,7 @@ func inShowsWatchlist(tmdbID int) bool {
 }
 
 func inMoviesCollection(tmdbID int) bool {
-	if !config.Get().TraktAuthorized || !config.Get().TraktSyncEnabled {
+	if tracker.Active() == nil || !config.Get().TraktSyncEnabled {
 		return false
 	}
 
@@ -78,7 +79,7 @@ func inMoviesCollection(tmdbID int) bool {
 }
 
 func inShowsCollection(tmdbID int) bool {
-	if !config.Get().TraktAuthorized || !config.Get().TraktSyncEnabled {
+	if tracker.Active() == nil || !config.Get().TraktSyncEnabled {
 		return false
 	}
 
@@ -99,36 +100,33 @@ func inShowsCollection(tmdbID int) bool {
 // Authorization
 //
 
-// AuthorizeTrakt ...
-func AuthorizeTrakt(ctx *gin.Context) {
-	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
-	if xbmcHost == nil {
-		return
-	}
-
-	err := trakt.Authorize(true)
-	if err == nil {
-		ctx.String(200, "")
-	} else {
-		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-		ctx.String(200, "")
-	}
+// AuthorizeTracker starts authorization on the tracker selected in settings
+func AuthorizeTracker(ctx *gin.Context) {
+	trackerAuthAction(ctx, tracker.Provider.Authorize)
 }
 
-// DeauthorizeTrakt ...
-func DeauthorizeTrakt(ctx *gin.Context) {
+// DeauthorizeTracker removes authorization of the tracker selected in settings
+func DeauthorizeTracker(ctx *gin.Context) {
+	trackerAuthAction(ctx, tracker.Provider.Deauthorize)
+}
+
+func trackerAuthAction(ctx *gin.Context, action func(tracker.Provider) error) {
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
 	if xbmcHost == nil {
 		return
 	}
 
-	err := trakt.Deauthorize(true)
-	if err == nil {
-		ctx.String(200, "")
-	} else {
-		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-		ctx.String(200, "")
+	// Settings actions name their tracker, as the daemon may not have reloaded a just changed selection yet
+	p := tracker.Get(ctx.Query("tracker"))
+	if p == nil {
+		p = settingsTracker(xbmcHost)
 	}
+	if p == nil {
+		xbmcHost.Notify("Elementum", "LOCALIZE[30795]", config.AddonIcon())
+	} else if err := action(p); err != nil {
+		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
+	}
+	ctx.String(200, "")
 }
 
 //
@@ -273,199 +271,46 @@ func UserlistShows(ctx *gin.Context) {
 // Main lists actions
 //
 
-// AddMovieToWatchlist ...
-func AddMovieToWatchlist(ctx *gin.Context) {
-	defer perf.ScopeTimer()()
+// TrackerListAction adds an item to, or removes it from, the watchlist or collection of the active tracker.
+func TrackerListAction(media string, loc tracker.Location, add bool) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		defer perf.ScopeTimer()()
 
-	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
-	if xbmcHost == nil {
-		return
-	}
-
-	tmdbID := ctx.Params.ByName("tmdbId")
-	req, err := trakt.AddToWatchlist("movies", tmdbID)
-	if err != nil {
-		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-	} else if req.ResponseStatusCode != 201 {
-		xbmcHost.Notify("Elementum", fmt.Sprintf("Failed with %d status code", req.ResponseStatusCode), config.AddonIcon())
-	} else {
-		xbmcHost.Notify("Elementum", "Movie added to watchlist", config.AddonIcon())
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.watchlist.movies"))
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.movies.watchlist"))
-		if ctx != nil {
-			ctx.Abort()
+		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+		if xbmcHost == nil {
+			return
 		}
-		library.ClearPageCache(xbmcHost)
-	}
-}
 
-// RemoveMovieFromWatchlist ...
-func RemoveMovieFromWatchlist(ctx *gin.Context) {
-	defer perf.ScopeTimer()()
-
-	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
-	if xbmcHost == nil {
-		return
-	}
-
-	tmdbID := ctx.Params.ByName("tmdbId")
-	_, err := trakt.RemoveFromWatchlist("movies", tmdbID)
-	if err != nil {
-		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-	} else {
-		xbmcHost.Notify("Elementum", "Movie removed from watchlist", config.AddonIcon())
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.watchlist.movies"))
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.movies.watchlist"))
-		if ctx != nil {
-			ctx.Abort()
+		t, param, noun := tracker.MovieType, "tmdbId", "Movie"
+		if media == showType {
+			t, param, noun = tracker.ShowType, "showId", "Show"
 		}
-		library.ClearPageCache(xbmcHost)
-	}
-}
-
-// AddShowToWatchlist ...
-func AddShowToWatchlist(ctx *gin.Context) {
-	defer perf.ScopeTimer()()
-
-	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
-	if xbmcHost == nil {
-		return
-	}
-
-	tmdbID := ctx.Params.ByName("showId")
-	req, err := trakt.AddToWatchlist("shows", tmdbID)
-	if err != nil {
-		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-	} else if req.ResponseStatusCode != 201 {
-		xbmcHost.Notify("Elementum", fmt.Sprintf("Failed %d", req.ResponseStatusCode), config.AddonIcon())
-	} else {
-		xbmcHost.Notify("Elementum", "Show added to watchlist", config.AddonIcon())
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.watchlist.shows"))
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.shows.watchlist"))
-		if ctx != nil {
-			ctx.Abort()
+		list := "watchlist"
+		if loc == tracker.LocationCollection {
+			list = "collection"
 		}
-		library.ClearPageCache(xbmcHost)
-	}
-}
+		items := []*tracker.Item{trackerItem(t, ctx.Params.ByName(param))}
 
-// RemoveShowFromWatchlist ...
-func RemoveShowFromWatchlist(ctx *gin.Context) {
-	defer perf.ScopeTimer()()
-
-	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
-	if xbmcHost == nil {
-		return
-	}
-
-	tmdbID := ctx.Params.ByName("showId")
-	_, err := trakt.RemoveFromWatchlist("shows", tmdbID)
-	if err != nil {
-		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-	} else {
-		xbmcHost.Notify("Elementum", "Show removed from watchlist", config.AddonIcon())
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.watchlist.shows"))
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.shows.watchlist"))
-		if ctx != nil {
-			ctx.Abort()
+		var err error
+		if p := tracker.Active(); p == nil {
+			err = tracker.ErrNotAuthorized
+		} else if add {
+			err = p.Add(loc, "", items)
+		} else {
+			err = p.Remove(loc, "", items)
 		}
-		library.ClearPageCache(xbmcHost)
-	}
-}
-
-// AddMovieToCollection ...
-func AddMovieToCollection(ctx *gin.Context) {
-	defer perf.ScopeTimer()()
-
-	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
-	if xbmcHost == nil {
-		return
-	}
-
-	tmdbID := ctx.Params.ByName("tmdbId")
-	req, err := trakt.AddToCollection("movies", tmdbID)
-	if err != nil {
-		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-	} else if req.ResponseStatusCode != 201 {
-		xbmcHost.Notify("Elementum", fmt.Sprintf("Failed with %d status code", req.ResponseStatusCode), config.AddonIcon())
-	} else {
-		xbmcHost.Notify("Elementum", "Movie added to collection", config.AddonIcon())
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.collection.movies"))
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.movies.collection"))
-		if ctx != nil {
-			ctx.Abort()
+		if err != nil {
+			xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
+			return
 		}
-		library.ClearPageCache(xbmcHost)
-	}
-}
 
-// RemoveMovieFromCollection ...
-func RemoveMovieFromCollection(ctx *gin.Context) {
-	defer perf.ScopeTimer()()
-
-	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
-	if xbmcHost == nil {
-		return
-	}
-
-	tmdbID := ctx.Params.ByName("tmdbId")
-	_, err := trakt.RemoveFromCollection("movies", tmdbID)
-	if err != nil {
-		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-	} else {
-		xbmcHost.Notify("Elementum", "Movie removed from collection", config.AddonIcon())
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.collection.movies"))
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.movies.collection"))
-		if ctx != nil {
-			ctx.Abort()
+		verb := "removed from"
+		if add {
+			verb = "added to"
 		}
-		library.ClearPageCache(xbmcHost)
-	}
-}
-
-// AddShowToCollection ...
-func AddShowToCollection(ctx *gin.Context) {
-	defer perf.ScopeTimer()()
-
-	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
-	if xbmcHost == nil {
-		return
-	}
-
-	tmdbID := ctx.Params.ByName("showId")
-	req, err := trakt.AddToCollection("shows", tmdbID)
-	if err != nil {
-		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-	} else if req.ResponseStatusCode != 201 {
-		xbmcHost.Notify("Elementum", fmt.Sprintf("Failed with %d status code", req.ResponseStatusCode), config.AddonIcon())
-	} else {
-		xbmcHost.Notify("Elementum", "Show added to collection", config.AddonIcon())
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.collection.shows"))
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.shows.collection"))
-		if ctx != nil {
-			ctx.Abort()
-		}
-		library.ClearPageCache(xbmcHost)
-	}
-}
-
-// RemoveShowFromCollection ...
-func RemoveShowFromCollection(ctx *gin.Context) {
-	defer perf.ScopeTimer()()
-
-	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
-	if xbmcHost == nil {
-		return
-	}
-
-	tmdbID := ctx.Params.ByName("showId")
-	_, err := trakt.RemoveFromCollection("shows", tmdbID)
-	if err != nil {
-		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-	} else {
-		xbmcHost.Notify("Elementum", "Show removed from collection", config.AddonIcon())
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.collection.shows"))
-		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte("com.trakt.shows.collection"))
+		xbmcHost.Notify("Elementum", fmt.Sprintf("%s %s %s", noun, verb, list), config.AddonIcon())
+		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte(fmt.Sprintf("com.trakt.%s.%ss", list, media)))
+		database.GetCache().DeleteWithPrefix(database.CommonBucket, []byte(fmt.Sprintf("com.trakt.%ss.%s", media, list)))
 		if ctx != nil {
 			ctx.Abort()
 		}
@@ -578,6 +423,7 @@ func renderTraktMovies(ctx *gin.Context, movies []*trakt.Movies, total int, page
 				collectionAction,
 				{"LOCALIZE[30034]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/movies"))},
 			}
+			item.ContextMenu = trackerContextMenu(item.ContextMenu)
 			item.ContextMenu = append(libraryActions, item.ContextMenu...)
 
 			if config.Get().Platform.Kodi < 17 {
@@ -914,6 +760,7 @@ func renderTraktShows(ctx *gin.Context, shows []*trakt.Shows, total int, page in
 				collectionAction,
 				{"LOCALIZE[30035]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/tvshows"))},
 			}
+			item.ContextMenu = trackerContextMenu(item.ContextMenu)
 			item.ContextMenu = append(libraryActions, item.ContextMenu...)
 
 			if config.Get().Platform.Kodi < 17 {
@@ -1450,6 +1297,7 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 				collectionAction,
 				{"LOCALIZE[30034]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/movies"))},
 			}
+			item.ContextMenu = trackerContextMenu(item.ContextMenu)
 			item.ContextMenu = append(libraryActions, item.ContextMenu...)
 
 			if config.Get().Platform.Kodi < 17 {
@@ -1655,6 +1503,7 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 				openShowAction,
 				{"LOCALIZE[30035]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/setviewmode/tvshows"))},
 			}
+			item.ContextMenu = trackerContextMenu(item.ContextMenu)
 			item.ContextMenu = append(libraryActions, item.ContextMenu...)
 
 			if config.Get().Platform.Kodi < 17 {
@@ -1858,8 +1707,8 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 	ctx.JSON(200, xbmc.NewView("episodes", items))
 }
 
-// SelectTraktUserList ...
-func SelectTraktUserList(ctx *gin.Context) {
+// SelectTrackerUserList lets the user pick a list of the active tracker for added/removed sync
+func SelectTrackerUserList(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
@@ -1870,9 +1719,19 @@ func SelectTraktUserList(ctx *gin.Context) {
 	action := ctx.Params.ByName("action")
 	media := ctx.Params.ByName("media")
 
-	lists := trakt.Userlists()
-	items := make([]string, 0, len(lists))
+	p := settingsTracker(xbmcHost)
+	lr, ok := p.(tracker.ListReader)
+	if !ok || !p.Authorized() {
+		xbmcHost.Notify("Elementum", "LOCALIZE[30795]", config.AddonIcon())
+		ctx.String(200, "")
+		return
+	}
 
+	lists, err := lr.Lists()
+	if err != nil {
+		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
+	}
+	items := make([]string, 0, len(lists))
 	for _, l := range lists {
 		items = append(items, l.Name)
 	}
@@ -1880,13 +1739,13 @@ func SelectTraktUserList(ctx *gin.Context) {
 	if choice >= 0 && choice < len(lists) {
 		xbmcHost.SetSetting(fmt.Sprintf("trakt_sync_%s_%s_location", action, media), "2")
 		xbmcHost.SetSetting(fmt.Sprintf("trakt_sync_%s_%s_list_name", action, media), lists[choice].Name)
-		xbmcHost.SetSetting(fmt.Sprintf("trakt_sync_%s_%s_list", action, media), strconv.Itoa(lists[choice].IDs.Trakt))
+		xbmcHost.SetSetting(fmt.Sprintf("trakt_sync_%s_%s_list", action, media), lists[choice].ID)
 	}
 
 	ctx.String(200, "")
 }
 
-// ToggleWatched mark as watched or unwatched in Trakt and Kodi library
+// ToggleWatched mark as watched or unwatched on the active tracker and in Kodi library
 func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		defer perf.ScopeTimer()()
@@ -1896,18 +1755,14 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 			return
 		}
 
-		var watched *trakt.WatchedItem
+		var watched *tracker.WatchedItem
 		var foundInLibrary bool
 
 		// TODO: Make use of Playcount, possibly increment when Watched, use old value if in progress
 		if media == movieType {
 			movieID, _ := strconv.Atoi(ctx.Params.ByName("tmdbId"))
 
-			watched = &trakt.WatchedItem{
-				MediaType: media,
-				Movie:     movieID,
-				Watched:   setWatched,
-			}
+			watched = &tracker.WatchedItem{Item: tracker.Item{Type: tracker.MovieType, IDs: tracker.IDs{TMDB: movieID}}}
 
 			movie, err := uid.GetMovieByTMDB(movieID)
 			if err == nil {
@@ -1926,13 +1781,7 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 			seasonNumber, _ := strconv.Atoi(ctx.Params.ByName("season"))
 			episodeNumber, _ := strconv.Atoi(ctx.Params.ByName("episode"))
 
-			watched = &trakt.WatchedItem{
-				MediaType: media,
-				Show:      showID,
-				Season:    seasonNumber,
-				Episode:   episodeNumber,
-				Watched:   setWatched,
-			}
+			watched = &tracker.WatchedItem{Item: tracker.Item{Type: tracker.EpisodeType, IDs: tracker.IDs{TMDB: showID}, Season: seasonNumber, Episode: episodeNumber}}
 
 			show, err := uid.GetShowByTMDB(showID)
 			if err == nil {
@@ -1951,13 +1800,7 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 			showID, _ := strconv.Atoi(ctx.Params.ByName("showId"))
 			seasonNumber, _ := strconv.Atoi(ctx.Params.ByName("season"))
 
-			watched = &trakt.WatchedItem{
-				MediaType: media,
-				Show:      showID,
-				Season:    seasonNumber,
-				Episode:   0,
-				Watched:   setWatched,
-			}
+			watched = &tracker.WatchedItem{Item: tracker.Item{Type: tracker.SeasonType, IDs: tracker.IDs{TMDB: showID}, Season: seasonNumber}}
 
 			show, err := uid.GetShowByTMDB(showID)
 			if err == nil {
@@ -1975,13 +1818,7 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 		} else if media == showType {
 			showID, _ := strconv.Atoi(ctx.Params.ByName("showId"))
 
-			watched = &trakt.WatchedItem{
-				MediaType: media,
-				Show:      showID,
-				Season:    0,
-				Episode:   0,
-				Watched:   setWatched,
-			}
+			watched = &tracker.WatchedItem{Item: tracker.Item{Type: tracker.ShowType, IDs: tracker.IDs{TMDB: showID}}}
 
 			show, err := uid.GetShowByTMDB(showID)
 			if err == nil {
@@ -1997,9 +1834,9 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 			}
 		}
 
-		if config.Get().TraktToken != "" && watched != nil {
-			log.Debugf("Set Trakt watched to %t for: %#v", setWatched, watched)
-			go trakt.SetWatched(watched)
+		if watched != nil && tracker.Active() != nil {
+			log.Debugf("Set tracker watched to %t for: %#v", setWatched, watched)
+			go tracker.SetWatched([]*tracker.WatchedItem{watched}, setWatched)
 		}
 
 		if !foundInLibrary {

@@ -11,6 +11,7 @@ import (
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/providers"
+	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/util"
 
 	"github.com/dustin/go-humanize"
@@ -186,6 +187,14 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 		movies.GET("/library", MovieLibrary)
 		movies.GET("/elementum_library", MovieElementumLibrary)
 
+		trackerGroup := movies.Group("/tracker")
+		{
+			trackerGroup.GET("/watchlist", trackerView(WatchlistMovies, trackerListView(tracker.KindWatchlist, tracker.MovieType, tracker.MoviesWatchlisted)))
+			trackerGroup.GET("/collection", trackerView(CollectionMovies, trackerListView(tracker.KindCollection, tracker.MovieType, tracker.MoviesCollected)))
+			trackerGroup.GET("/lists/", trackerView(MoviesTraktLists, trackerListsView(movieType)))
+			trackerGroup.GET("/lists/:listId", trackerListView(tracker.KindList, tracker.MovieType, tracker.ListsUpdated))
+		}
+
 		trakt := movies.Group("/trakt")
 		{
 			trakt.GET("/watchlist", WatchlistMovies)
@@ -230,10 +239,10 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 		movie.GET("/:tmdbId/play/*ident", MovieRun("play", s))
 		movie.GET("/:tmdbId/forceplay", MovieRun("forceplay", s))
 		movie.GET("/:tmdbId/forceplay/*ident", MovieRun("forceplay", s))
-		movie.GET("/:tmdbId/watchlist/add", AddMovieToWatchlist)
-		movie.GET("/:tmdbId/watchlist/remove", RemoveMovieFromWatchlist)
-		movie.GET("/:tmdbId/collection/add", AddMovieToCollection)
-		movie.GET("/:tmdbId/collection/remove", RemoveMovieFromCollection)
+		movie.GET("/:tmdbId/watchlist/add", TrackerListAction(movieType, tracker.LocationWatchlist, true))
+		movie.GET("/:tmdbId/watchlist/remove", TrackerListAction(movieType, tracker.LocationWatchlist, false))
+		movie.GET("/:tmdbId/collection/add", TrackerListAction(movieType, tracker.LocationCollection, true))
+		movie.GET("/:tmdbId/collection/remove", TrackerListAction(movieType, tracker.LocationCollection, false))
 		movie.GET("/:tmdbId/watched", ToggleWatched("movie", true))
 		movie.GET("/:tmdbId/watched/*ident", ToggleWatched("movie", true))
 		movie.GET("/:tmdbId/unwatched", ToggleWatched("movie", false))
@@ -266,6 +275,14 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 		shows.GET("/countries", TVCountries)
 		shows.GET("/library", TVLibrary)
 		shows.GET("/elementum_library", TVElementumLibrary)
+
+		trackerGroup := shows.Group("/tracker")
+		{
+			trackerGroup.GET("/watchlist", trackerView(WatchlistShows, trackerListView(tracker.KindWatchlist, tracker.ShowType, tracker.ShowsWatchlisted)))
+			trackerGroup.GET("/collection", trackerView(CollectionShows, trackerListView(tracker.KindCollection, tracker.ShowType, tracker.EpisodesCollected)))
+			trackerGroup.GET("/lists/", trackerView(TVTraktLists, trackerListsView(showType)))
+			trackerGroup.GET("/lists/:listId", trackerListView(tracker.KindList, tracker.ShowType, tracker.ListsUpdated))
+		}
 
 		trakt := shows.Group("/trakt")
 		{
@@ -336,10 +353,10 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 		show.GET("/:showId/season/:season/episode/:episode/watched/*ident", ToggleWatched("episode", true))
 		show.GET("/:showId/season/:season/episode/:episode/unwatched", ToggleWatched("episode", false))
 		show.GET("/:showId/season/:season/episode/:episode/unwatched/*ident", ToggleWatched("episode", false))
-		show.GET("/:showId/watchlist/add", AddShowToWatchlist)
-		show.GET("/:showId/watchlist/remove", RemoveShowFromWatchlist)
-		show.GET("/:showId/collection/add", AddShowToCollection)
-		show.GET("/:showId/collection/remove", RemoveShowFromCollection)
+		show.GET("/:showId/watchlist/add", TrackerListAction(showType, tracker.LocationWatchlist, true))
+		show.GET("/:showId/watchlist/remove", TrackerListAction(showType, tracker.LocationWatchlist, false))
+		show.GET("/:showId/collection/add", TrackerListAction(showType, tracker.LocationCollection, true))
+		show.GET("/:showId/collection/remove", TrackerListAction(showType, tracker.LocationCollection, false))
 	}
 	// TODO: add routes for episode.
 	// episode := r.Group("/episode")
@@ -405,12 +422,13 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 		repo.HEAD("/:user/:repository/*filepath", repository.GetAddonFilesHead)
 	}
 
-	trakt := r.Group("/trakt")
-	{
-		trakt.GET("/authorize", AuthorizeTrakt)
-		trakt.GET("/deauthorize", DeauthorizeTrakt)
-		trakt.GET("/select_list/:action/:media", SelectTraktUserList)
-		trakt.GET("/update", UpdateTrakt)
+	// /trakt routes are kept as aliases for settings of older add-on versions
+	for _, prefix := range []string{"/tracker", "/trakt"} {
+		g := r.Group(prefix)
+		g.GET("/authorize", AuthorizeTracker)
+		g.GET("/deauthorize", DeauthorizeTracker)
+		g.GET("/select_list/:action/:media", SelectTrackerUserList)
+		g.GET("/update", UpdateTracker)
 	}
 
 	r.GET("/setviewmode/:content_type", SetViewMode)

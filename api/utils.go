@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -25,7 +26,8 @@ import (
 // }
 
 func filterListItems(l xbmc.ListItems) xbmc.ListItems {
-	t := config.Get().TraktToken != ""
+	// Trakt-only entries (progress, calendars, recommendations, history) need Trakt as the active tracker
+	t := tracker.IsActive("trakt")
 
 	ret := make(xbmc.ListItems, 0)
 	for _, i := range l {

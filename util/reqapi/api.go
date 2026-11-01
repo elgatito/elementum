@@ -31,6 +31,22 @@ var (
 		RateLimiter: util.NewRateLimiter(100, 10*time.Second, 25),
 	}
 
+	// SimklAPI allows 10 GET/s and 1 POST/s and wants sequential requests, so stay at 1 request per second.
+	SimklAPI = &API{
+		Ident:       SimklIdent,
+		Endpoint:    "https://api.simkl.com",
+		RetriesLeft: 3,
+		RateLimiter: util.NewRateLimiter(1, 1*time.Second, 1),
+	}
+
+	// MDBListAPI allows 1000 reads and 300 writes per 5 minutes; the daily quota is the real limit.
+	MDBListAPI = &API{
+		Ident:       MDBListIdent,
+		Endpoint:    "https://api.mdblist.com",
+		RetriesLeft: 3,
+		RateLimiter: util.NewRateLimiter(60, 1*time.Minute, 2),
+	}
+
 	FanartAPI = &API{
 		Ident:       FanArtIdent,
 		Endpoint:    "http://webservice.fanart.tv/v3",
@@ -54,6 +70,10 @@ func GetAPI(ident APIIdent) *API {
 		return TMDBAPI
 	case TraktIdent:
 		return TraktAPI
+	case SimklIdent:
+		return SimklAPI
+	case MDBListIdent:
+		return MDBListAPI
 	case FanArtIdent:
 		return FanartAPI
 	default:

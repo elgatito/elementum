@@ -16,7 +16,7 @@ const (
 	UIDsMutex MutexType = iota
 	MoviesMutex
 	ShowsMutex
-	TraktMutex
+	TrackerMutex
 )
 
 const (
@@ -51,7 +51,7 @@ type Status struct {
 	IsMovies     bool
 	IsShows      bool
 	IsEpisodes   bool
-	IsTrakt      bool
+	IsTracker    bool
 	IsKodi       bool
 	IsKodiMovies bool
 	IsKodiShows  bool
@@ -152,7 +152,7 @@ func (s *Status) IsAny() bool {
 		s.IsMovies ||
 		s.IsShows ||
 		s.IsEpisodes ||
-		s.IsTrakt ||
+		s.IsTracker ||
 		s.IsKodi ||
 		s.IsKodiMovies ||
 		s.IsKodiShows
