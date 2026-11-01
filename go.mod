@@ -15,7 +15,7 @@ require (
 	github.com/elazarl/goproxy v1.9.2
 	github.com/fatih/color v1.19.0
 	github.com/gin-gonic/gin v1.12.0
-	github.com/goccy/go-json v0.11.2
+	github.com/goccy/go-json v0.12.0
 	github.com/hectane/go-acl v1.0.0
 	github.com/jackpal/gateway v1.2.0
 	github.com/jackpal/go-nat-pmp v1.1.0
