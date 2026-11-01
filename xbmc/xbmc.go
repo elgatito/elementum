@@ -627,14 +627,14 @@ func (h *XBMCHost) ConvertLanguage(language string, format int) string {
 }
 
 // FilesGetSources ...
-func (h *XBMCHost) FilesGetSources() *FileSources {
+func (h *XBMCHost) FilesGetSources() (*FileSources, error) {
 	params := map[string]any{
 		"media": "video",
 	}
 	items := &FileSources{}
-	h.executeJSONRPCO("Files.GetSources", items, params)
+	err := h.executeJSONRPCO("Files.GetSources", items, params)
 
-	return items
+	return items, err
 }
 
 // GetLanguage ...
@@ -703,8 +703,8 @@ func (h *XBMCHost) WaitForSettingsClosed() {
 	}
 }
 
-// VideoLibraryHasMovies checks whether Kodi library has any movie
-func (h *XBMCHost) VideoLibraryHasMovies() (ret bool, err error) {
+// VideoLibraryHasMovies checks whether Kodi library has any movie, located under pathPrefix if it is not empty
+func (h *XBMCHost) VideoLibraryHasMovies(pathPrefix string) (ret bool, err error) {
 	defer perf.ScopeTimer()()
 
 	params := map[string]any{
@@ -712,6 +712,9 @@ func (h *XBMCHost) VideoLibraryHasMovies() (ret bool, err error) {
 			"start": 0,
 			"end":   1,
 		},
+	}
+	if pathPrefix != "" {
+		params["filter"] = map[string]any{"field": "path", "operator": "startswith", "value": pathPrefix}
 	}
 
 	var movies *VideoLibraryMovies
@@ -730,8 +733,8 @@ func (h *XBMCHost) VideoLibraryHasMovies() (ret bool, err error) {
 	return true, nil
 }
 
-// VideoLibraryHasShows checks whether Kodi library has any TV show
-func (h *XBMCHost) VideoLibraryHasShows() (ret bool, err error) {
+// VideoLibraryHasShows checks whether Kodi library has any TV show, located under pathPrefix if it is not empty
+func (h *XBMCHost) VideoLibraryHasShows(pathPrefix string) (ret bool, err error) {
 	defer perf.ScopeTimer()()
 
 	params := map[string]any{
@@ -739,6 +742,9 @@ func (h *XBMCHost) VideoLibraryHasShows() (ret bool, err error) {
 			"start": 0,
 			"end":   1,
 		},
+	}
+	if pathPrefix != "" {
+		params["filter"] = map[string]any{"field": "path", "operator": "startswith", "value": pathPrefix}
 	}
 
 	var shows *VideoLibraryShows

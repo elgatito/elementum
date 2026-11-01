@@ -560,7 +560,7 @@ func Reload() (ret *Configuration, err error) {
 	}
 	log.Infof("Using download path: %s", downloadPath)
 
-	libraryReadOnly := isLibraryReadOnly(xbmcHost) || Args.DisableLibrarySync
+	libraryReadOnly := Args.DisableLibrarySync || isLibraryReadOnly(xbmcHost, libraryPath)
 	if libraryReadOnly {
 		log.Info("Running in a library read-only mode")
 	} else {
@@ -1298,18 +1298,32 @@ func GetStrmLanguage() string {
 
 // isLibraryReadOnly is checking whether we run on a Kodi that has no file sources, but having something in a library.
 // That would mean we are not on the master device and should not write library files and run Kodi sync on this host.
-func isLibraryReadOnly(xbmcHost *xbmc.XBMCHost) bool {
+func isLibraryReadOnly(xbmcHost *xbmc.XBMCHost, libraryPath string) bool {
 	if xbmcHost == nil {
 		return true
 	}
 
-	sources := xbmcHost.FilesGetSources()
-	if sources != nil && len(sources.Sources) > 0 {
+	sources, err := xbmcHost.FilesGetSources()
+	if err != nil {
+		log.Warningf("Could not get Kodi video sources: %s", err)
+	} else if len(sources.Sources) > 0 {
 		return false
 	}
 
-	hasMovies, _ := xbmcHost.VideoLibraryHasMovies()
-	hasShows, _ := xbmcHost.VideoLibraryHasShows()
+	// Files.GetSources returns only sources.xml entries, but on Android content is often set directly on auto-detected drives,
+	// so having library items under our own library path means this Kodi is the one that fills the library.
+	if libraryPath != "" && libraryPath != "." {
+		libraryKodiPath := util.GetKodiPath(libraryPath, &LibrarySubstitutions, xbmcHost.GetPlatform())
+		if hasMovies, _ := xbmcHost.VideoLibraryHasMovies(libraryKodiPath); hasMovies {
+			return false
+		}
+		if hasShows, _ := xbmcHost.VideoLibraryHasShows(libraryKodiPath); hasShows {
+			return false
+		}
+	}
+
+	hasMovies, _ := xbmcHost.VideoLibraryHasMovies("")
+	hasShows, _ := xbmcHost.VideoLibraryHasShows("")
 
 	// If library DOES NOT have sources but has something - then it means library is filled on another Kodi,
 	// or outside of Kodi and we should not modify it
