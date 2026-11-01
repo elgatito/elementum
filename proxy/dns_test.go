@@ -327,9 +327,9 @@ func TestResolveAddr_Opennic(t *testing.T) {
 	tests := []struct {
 		addr string
 	}{
+		// Only OpenNIC-run domains: third-party zones (e.g. .lib) go down and break CI.
 		{addr: "be.libre"},
-		{addr: "rutor.lib"},
-		{addr: "rutracker.lib"},
+		{addr: "opennic.geek"},
 	}
 
 	for _, tt := range tests {
