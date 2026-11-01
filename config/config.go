@@ -1002,7 +1002,7 @@ func TranslatePath(xbmcHost *xbmc.XBMCHost, path string) string {
 	// Special case for temporary path in Kodi
 	if strings.HasPrefix(path, "special://temp/") {
 		dir := strings.Replace(path, "special://temp/", "", 1)
-		kodiDir := xbmcHost.TranslatePath("special://temp")
+		kodiDir := WindowsToWSLPath(xbmcHost.TranslatePath("special://temp"))
 		pathDir := filepath.Join(kodiDir, dir)
 
 		if util.PathExists(pathDir) {
@@ -1045,7 +1045,7 @@ func getKodiBufferSize(xbmcHost *xbmc.XBMCHost) int {
 		return 0
 	}
 
-	xmlFile, err := os.Open(filepath.Join(xbmcHost.TranslatePath("special://userdata"), "advancedsettings.xml"))
+	xmlFile, err := os.Open(filepath.Join(WindowsToWSLPath(xbmcHost.TranslatePath("special://userdata")), "advancedsettings.xml"))
 	if err != nil {
 		return 0
 	}
@@ -1210,7 +1210,7 @@ func fetchConfiguration(xbmcHost *xbmc.XBMCHost) (*ConfigBundle, error) {
 	info.Profile = xbmcHost.TranslatePath(info.Profile)
 	info.Home = xbmcHost.TranslatePath(info.Home)
 	info.Xbmc = xbmcHost.TranslatePath(info.Xbmc)
-	info.TempPath = filepath.Join(xbmcHost.TranslatePath("special://temp"), "elementum")
+	info.TempPath = filepath.Join(WindowsToWSLPath(xbmcHost.TranslatePath("special://temp")), "elementum")
 
 	platform := xbmcHost.GetPlatform()
 
