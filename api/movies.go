@@ -626,7 +626,7 @@ func MovieLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 
-		if torrent := InTorrentsMap(xbmcHost, tmdbID); torrent != nil && !listMode {
+		if torrent := InTorrentsMap(xbmcHost, tmdbID, tmdbID); torrent != nil && !listMode {
 			rURL := URLQuery(URLForXBMC("%s", runAction),
 				"doresume", doresume,
 				"uri", torrent.URI,

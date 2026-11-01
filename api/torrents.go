@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -139,8 +140,8 @@ func AssignTorrent(s *bittorrent.Service) gin.HandlerFunc {
 	}
 }
 
-// InTorrentsMap ...
-func InTorrentsMap(xbmcHost *xbmc.XBMCHost, tmdbID string) *bittorrent.TorrentFile {
+// InTorrentsMap asks to reuse the torrent chosen earlier for tmdbID; a declined torrent is also dropped from the search cache under cacheKey
+func InTorrentsMap(xbmcHost *xbmc.XBMCHost, tmdbID, cacheKey string) *bittorrent.TorrentFile {
 	if !config.Get().UseCacheSelection || tmdbID == "" {
 		return nil
 	}
@@ -170,6 +171,14 @@ func InTorrentsMap(xbmcHost *xbmc.XBMCHost, tmdbID string) *bittorrent.TorrentFi
 
 	database.GetStormDB().DeleteStruct(&ti)
 	database.GetStorm().CleanupTorrentLink(ti.InfoHash)
+
+	// Otherwise auto-play picks the declined (often dead) torrent from cached results again
+	if cached, err := GetCachedTorrents(cacheKey); err == nil && len(cached) > 0 {
+		kept := slices.DeleteFunc(cached, func(t *bittorrent.TorrentFile) bool { return t.InfoHash == ti.InfoHash })
+		if len(kept) != len(cached) {
+			SetCachedTorrents(cacheKey, kept)
+		}
+	}
 
 	return nil
 }
@@ -218,7 +227,7 @@ func GetCachedTorrents(tmdbID string) ([]*bittorrent.TorrentFile, error) {
 	if len(ret) > 0 {
 		for _, t := range ret {
 			if !strings.HasPrefix(t.URI, "magnet:") {
-				if _, err = os.Open(t.URI); err != nil {
+				if _, err = os.Stat(t.URI); err != nil {
 					return nil, fmt.Errorf("Cache is not up to date")
 				}
 			}

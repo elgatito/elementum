@@ -775,7 +775,8 @@ func ShowSeasonLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 
-		if torrent := InTorrentsMap(xbmcHost, strconv.Itoa(season.ID)); torrent != nil && !listMode {
+		fakeTmdbID := strconv.Itoa(showID) + "_" + strconv.Itoa(seasonNumber)
+		if torrent := InTorrentsMap(xbmcHost, strconv.Itoa(season.ID), fakeTmdbID); torrent != nil && !listMode {
 			rURL := URLQuery(
 				URLForXBMC("%s", runAction),
 				"doresume", doresume,
@@ -796,7 +797,6 @@ func ShowSeasonLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		var torrents []*bittorrent.TorrentFile
 		var err error
 
-		fakeTmdbID := strconv.Itoa(showID) + "_" + strconv.Itoa(seasonNumber)
 		if torrents, err = GetCachedTorrents(fakeTmdbID); err != nil || len(torrents) == 0 {
 			if !isCustom {
 				torrents = showSeasonLinks(xbmcHost, callbackHost(ctx, xbmcHost), showID, seasonNumber)
@@ -981,7 +981,8 @@ func ShowEpisodeLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 
-		if torrent := InTorrentsMap(xbmcHost, strconv.Itoa(episode.ID)); torrent != nil && !listMode {
+		fakeTmdbID := strconv.Itoa(showID) + "_" + strconv.Itoa(seasonNumber) + "_" + strconv.Itoa(episodeNumber)
+		if torrent := InTorrentsMap(xbmcHost, strconv.Itoa(episode.ID), fakeTmdbID); torrent != nil && !listMode {
 			rURL := URLQuery(URLForXBMC("%s", runAction),
 				"doresume", doresume,
 				"uri", torrent.URI,
@@ -1001,7 +1002,6 @@ func ShowEpisodeLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		var torrents []*bittorrent.TorrentFile
 		var err error
 
-		fakeTmdbID := strconv.Itoa(showID) + "_" + strconv.Itoa(seasonNumber) + "_" + strconv.Itoa(episodeNumber)
 		if torrents, err = GetCachedTorrents(fakeTmdbID); err != nil || len(torrents) == 0 {
 			if !isCustom {
 				torrents = showEpisodeLinks(xbmcHost, callbackHost(ctx, xbmcHost), showID, seasonNumber, episodeNumber)

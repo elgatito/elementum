@@ -70,7 +70,7 @@ func Search(s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 
-		if torrent := InTorrentsMap(xbmcHost, fakeTmdbID); torrent != nil && !listMode {
+		if torrent := InTorrentsMap(xbmcHost, fakeTmdbID, fakeTmdbID); torrent != nil && !listMode {
 			xbmcHost.PlayURLWithTimeout(URLQuery(
 				URLForXBMC("%s", runAction), "uri", torrent.URI,
 				"query", query,
