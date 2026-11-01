@@ -1114,7 +1114,7 @@ func (btp *Player) consumeAlerts() {
 }
 
 func (btp *Player) startNextFile() {
-	if (btp.p.ShowID == 0 && btp.p.Query == "") || !btp.t.HasNextFile.Load() || !btp.next.done || btp.next.f == nil || btp.t.IsBuffering.Load() || btp.next.started {
+	if !btp.t.HasNextFile.Load() || !btp.next.done || btp.next.f == nil || btp.t.IsBuffering.Load() || btp.next.started {
 		return
 	}
 
@@ -1123,7 +1123,7 @@ func (btp *Player) startNextFile() {
 }
 
 func (btp *Player) findNextFile() {
-	if (btp.p.ShowID == 0 && btp.p.Query == "") || btp.next.done || !config.Get().SmartEpisodeStart {
+	if btp.next.done || !config.Get().SmartEpisodeStart {
 		return
 	}
 

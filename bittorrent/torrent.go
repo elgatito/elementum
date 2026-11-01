@@ -1150,6 +1150,8 @@ func (t *Torrent) Drop(removeFiles, removeData bool) {
 		}
 	}
 
+	dropStarted := time.Now()
+
 	// Removing in background to avoid blocking UI
 	go func() {
 		// Initiating memory release after torrent is removed
@@ -1179,7 +1181,8 @@ func (t *Torrent) Drop(removeFiles, removeData bool) {
 		if removeFiles {
 			// Delete torrent file if it is located in temporary path
 			if len(t.torrentFile) > 0 && strings.HasPrefix(t.torrentFile, config.Get().TemporaryPath) {
-				if i, err := os.Stat(t.torrentFile); err == nil && !i.IsDir() {
+				// Skip a file re-written after drop started (e.g. /history replay for Up Next), it belongs to the new playback
+				if i, err := os.Stat(t.torrentFile); err == nil && !i.IsDir() && i.ModTime().Before(dropStarted) {
 					log.Infof("Deleting torrent file at %s", t.torrentFile)
 					defer os.Remove(t.torrentFile)
 				}
