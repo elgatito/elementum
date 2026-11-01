@@ -177,6 +177,9 @@ client client-shared:
 $(PLATFORMS):
 	$(MAKE) build TARGET_OS=$(firstword $(subst -, ,$@)) TARGET_ARCH=$(word 2, $(subst -, ,$@)) TARGET_SHARED=$(word 3, $(subst -, ,$@))
 
+# X and X-shared share build/<os>_<arch> (vendor libs, chmod -R), so when both are requested, run them in sequence
+$(filter $(addsuffix -shared,$(MAKECMDGOALS)),$(MAKECMDGOALS)): %-shared: %
+
 force:
 	@true
 
