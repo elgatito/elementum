@@ -88,14 +88,6 @@ func trackerListView(kind tracker.ListKind, t tracker.MediaType, bucket tracker.
 	}
 }
 
-// trackerIcon is the menu icon of the active tracker; only Trakt has its own.
-func trackerIcon() string {
-	if tracker.IsActive("trakt") {
-		return config.AddonResource("img", "trakt.png")
-	}
-	return config.AddonResource("img", "favourites.png")
-}
-
 // trackerListsView lists user lists of the active tracker.
 func trackerListsView(media string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
@@ -111,7 +103,7 @@ func trackerListsView(media string) gin.HandlerFunc {
 				items = append(items, &xbmc.ListItem{
 					Label:     list.Name,
 					Path:      URLForXBMC("/%ss/tracker/lists/%s", media, list.ID),
-					Thumbnail: trackerIcon(),
+					Thumbnail: config.AddonResource("img", "lists.png"),
 					ContextMenu: [][]string{
 						{"LOCALIZE[30252]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/%s/list/add/%s", media, list.ID))},
 					},
@@ -136,7 +128,7 @@ func trackerMenuItems(media string) xbmc.ListItems {
 
 	items := xbmc.ListItems{}
 	if _, ok := p.(tracker.ListReader); ok {
-		items = append(items, &xbmc.ListItem{Label: p.Name() + " > LOCALIZE[30263]", Path: URLForXBMC("/%ss/tracker/lists/", media), Thumbnail: trackerIcon()})
+		items = append(items, &xbmc.ListItem{Label: p.Name() + " > LOCALIZE[30263]", Path: URLForXBMC("/%ss/tracker/lists/", media), Thumbnail: config.AddonResource("img", "lists.png")})
 	}
 	lists := []string{"watchlist"}
 	labels := map[string]string{"watchlist": "LOCALIZE[30254]", "collection": "LOCALIZE[30257]"}
@@ -147,7 +139,7 @@ func trackerMenuItems(media string) xbmc.ListItems {
 		items = append(items, &xbmc.ListItem{
 			Label:       p.Name() + " > " + labels[list],
 			Path:        URLForXBMC("/%ss/tracker/%s", media, list),
-			Thumbnail:   trackerIcon(),
+			Thumbnail:   config.AddonResource("img", list+".png"), // watchlist.png, collection.png
 			ContextMenu: [][]string{{"LOCALIZE[30252]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/library/%s/list/add/%s", media, list))}},
 		})
 	}
