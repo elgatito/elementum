@@ -249,6 +249,9 @@ func ListTorrents(s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 
+		// Each Translate is a JSON-RPC round trip to Kodi, so do it once per status, not per torrent
+		translated := map[int]string{}
+
 		for _, t := range torrents {
 			if t == nil || t.Closer.IsSet() || s.Closer.IsSet() {
 				continue
@@ -257,7 +260,11 @@ func ListTorrents(s *bittorrent.Service) gin.HandlerFunc {
 			torrentName := t.Name()
 			progress := t.GetProgress()
 			statusCode := t.GetSmartState()
-			status := xbmcHost.Translate(bittorrent.StatusStrings[statusCode])
+			status, ok := translated[statusCode]
+			if !ok {
+				status = xbmcHost.Translate(bittorrent.StatusStrings[statusCode])
+				translated[statusCode] = status
+			}
 
 			torrentAction := []string{"LOCALIZE[30231]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/pause/%s", t.InfoHash()))}
 			sessionAction := []string{"LOCALIZE[30233]", fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/torrents/pause"))}
@@ -269,24 +276,20 @@ func ListTorrents(s *bittorrent.Service) gin.HandlerFunc {
 			}
 
 			color := "white"
-			switch status {
-			case bittorrent.StatusStrings[bittorrent.StatusPaused]:
-				fallthrough
-			case bittorrent.StatusStrings[bittorrent.StatusFinished]:
+			switch statusCode {
+			case bittorrent.StatusPaused, bittorrent.StatusFinished:
 				color = "grey"
-			case bittorrent.StatusStrings[bittorrent.StatusSeeding]:
+			case bittorrent.StatusSeeding:
 				color = "green"
-			case bittorrent.StatusStrings[bittorrent.StatusBuffering]:
+			case bittorrent.StatusBuffering:
 				color = "blue"
-			case bittorrent.StatusStrings[bittorrent.StatusFinding]:
+			case bittorrent.StatusFinding:
 				color = "orange"
-			case bittorrent.StatusStrings[bittorrent.StatusChecking]:
+			case bittorrent.StatusChecking:
 				color = "teal"
-			case bittorrent.StatusStrings[bittorrent.StatusFinding]:
-				color = "orange"
-			case bittorrent.StatusStrings[bittorrent.StatusAllocating]:
+			case bittorrent.StatusAllocating:
 				color = "black"
-			case bittorrent.StatusStrings[bittorrent.StatusStalled]:
+			case bittorrent.StatusStalled:
 				color = "red"
 			}
 
@@ -350,6 +353,7 @@ func ListTorrentsWeb(s *bittorrent.Service) gin.HandlerFunc {
 		}
 
 		seedTimeLimit := config.Get().SeedTimeLimit
+		translated := map[int]string{}
 
 		for _, t := range torrents {
 			if !t.HasMetadata() || t.Closer.IsSet() || s.Closer.IsSet() {
@@ -367,7 +371,12 @@ func ListTorrentsWeb(s *bittorrent.Service) gin.HandlerFunc {
 			statusCode := t.GetSmartState()
 			status := bittorrent.StatusStrings[statusCode]
 			if !config.Get().ServerMode {
-				status = xbmcHost.Translate(bittorrent.StatusStrings[statusCode])
+				if tr, ok := translated[statusCode]; ok {
+					status = tr
+				} else {
+					status = xbmcHost.Translate(status)
+					translated[statusCode] = status
+				}
 			}
 
 			ratio := float64(0)

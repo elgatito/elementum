@@ -36,8 +36,15 @@ func TestEntrySizeAndRoot(t *testing.T) {
 	}
 	defer root.Close()
 
-	if got := entrySize(root.FS(), "a"); got != 15 {
-		t.Errorf("entrySize = %d, want 15", got)
+	// Allocated size rounds up to filesystem blocks
+	a := entrySize(root.FS(), "a")
+	if a < 15 {
+		t.Errorf("entrySize = %d, want at least 15", a)
+	}
+	os.WriteFile(filepath.Join(dir, "c"), []byte("1"), 0o644)
+	c := entrySize(root.FS(), "c")
+	if total, leftovers := downloadPathUsage(root.FS(), map[string]bool{"a": true}); total != a+c || leftovers != c {
+		t.Errorf("downloadPathUsage = %d, %d, want %d, %d", total, leftovers, a+c, c)
 	}
 	if err := root.RemoveAll("../outside"); err == nil {
 		t.Error("RemoveAll escaped the download root")

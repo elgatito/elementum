@@ -143,14 +143,14 @@ func OpenCustomPath(ctx *gin.Context) {
 	}
 
 	path := ctx.Params.ByName("path")
-	loc := ""
-
-	if path == "library" {
-		loc = config.Get().LibraryPath
-	} else if path == "torrents" {
-		loc = config.Get().TorrentsPath
-	} else if path == "download" {
-		loc = config.Get().DownloadPath
+	overrides := map[string]string{"library": config.Args.LibraryPath, "torrents": config.Args.TorrentsPath, "download": ""}
+	loc, ok := overrides[path]
+	if !ok {
+		return
+	}
+	if loc == "" {
+		// Kodi's own setting value, daemon path can be a WSL mount that Kodi on Windows cannot open
+		loc = xbmcHost.GetSettingString(path + "_path")
 	}
 
 	if loc != "" {

@@ -41,6 +41,7 @@ type Torrent struct {
 	th                lt.TorrentHandle
 	ti                lt.TorrentInfo
 	status            atomic.Pointer[TorrentStatus]
+	playTitle         atomic.Pointer[playTitle]
 	ms                lt.MemoryStorage
 	fastResumeFile    string
 	torrentFile       string
@@ -2055,6 +2056,36 @@ func (t *Torrent) ChooseFile(btp *Player, xbmcHost *xbmc.XBMCHost) (*File, int, 
 	return files[biggestFile], -1, nil
 }
 
+// playTitle is a readable name for the play URL, remembered together with the DBItem it was built from
+type playTitle struct {
+	item  *database.BTItem
+	title string
+}
+
+// getPlayTitle returns movie/episode name for the play URL, fetching TMDB only once per DBItem,
+// so listing many torrents does not reload (or refetch, once cache expired) whole movies/shows.
+func (t *Torrent) getPlayTitle() string {
+	item := t.DBItem
+	if pt := t.playTitle.Load(); pt != nil && pt.item == item {
+		return pt.title
+	}
+
+	title := ""
+	if item.Type == movieType {
+		if movie := tmdb.GetMovie(item.ID, config.Get().Language); movie != nil {
+			title = fmt.Sprintf("%s (%d)", movie.OriginalTitle, movie.Year())
+		}
+	} else if show := tmdb.GetShow(item.ShowID, config.Get().Language); show != nil {
+		title = fmt.Sprintf("%s S%02dE%02d", show.OriginalName, item.Season, item.Episode)
+	}
+
+	// Failed lookups are not remembered, so they are retried next time
+	if title != "" {
+		t.playTitle.Store(&playTitle{item: item, title: title})
+	}
+	return title
+}
+
 // GetPlayURL returns url ready for Kodi
 func (t *Torrent) GetPlayURL(fileIndex string) string {
 	var (
@@ -2071,16 +2102,12 @@ func (t *Torrent) GetPlayURL(fileIndex string) string {
 		contentType = t.DBItem.Type
 		if contentType == movieType {
 			tmdbID = strconv.Itoa(t.DBItem.ID)
-			if movie := tmdb.GetMovie(t.DBItem.ID, config.Get().Language); movie != nil {
-				toBeAdded = fmt.Sprintf("%s (%d)", movie.OriginalTitle, movie.Year())
-			}
+			toBeAdded = t.getPlayTitle()
 		} else if contentType == showType || contentType == episodeType {
 			show = strconv.Itoa(t.DBItem.ShowID)
 			season = strconv.Itoa(t.DBItem.Season)
 			episode = strconv.Itoa(t.DBItem.Episode)
-			if show := tmdb.GetShow(t.DBItem.ShowID, config.Get().Language); show != nil {
-				toBeAdded = fmt.Sprintf("%s S%02dE%02d", show.OriginalName, t.DBItem.Season, t.DBItem.Episode)
-			}
+			toBeAdded = t.getPlayTitle()
 		} else if contentType == searchType {
 			tmdbID = strconv.Itoa(t.DBItem.ID)
 			query = t.DBItem.Query

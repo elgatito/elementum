@@ -15,6 +15,7 @@ import (
 
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/diskusage"
 	"github.com/elgatito/elementum/util/ip"
 	"github.com/elgatito/elementum/xbmc"
 )
@@ -165,7 +166,7 @@ func entrySize(fsys fs.FS, name string) (size uint64) {
 	fs.WalkDir(fsys, name, func(_ string, d fs.DirEntry, err error) error {
 		if err == nil && !d.IsDir() {
 			if info, err := d.Info(); err == nil {
-				size += uint64(info.Size())
+				size += uint64(diskusage.SizeOnDisk(info))
 			}
 		}
 		return nil

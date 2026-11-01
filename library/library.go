@@ -888,6 +888,10 @@ func updateBatchDBItem(tmdbIds []int, state int, mediaType int, showID int) erro
 			ShowID:    showID,
 			State:     state,
 		}
+		// Show rows reference themselves, readers skip shows with ShowID == 0
+		if mediaType == ShowType {
+			li.ShowID = id
+		}
 		err = tx.Save(&li)
 		if err != nil {
 			return err
