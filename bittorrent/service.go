@@ -350,6 +350,8 @@ func (s *Service) configure() {
 	// settings.SetInt("torrent_connect_boost", 100)
 	// settings.SetInt("torrent_connect_boost", 0)
 	settings.SetInt("aio_threads", runtime.NumCPU()*4)
+	// Don't drop resume data (and re-hash everything) on file mtime mismatch, sizes are still verified; libtorrent >= 1.2 does the same
+	settings.SetBool("ignore_resume_timestamps", true)
 	settings.SetInt("cache_size", -1)
 	settings.SetInt("mixed_mode_algorithm", int(lt.SettingsPackPreferTcp))
 
@@ -1518,30 +1520,8 @@ func (s *Service) loadTorrentFiles() {
 		t.SyncSelectedFiles()
 	}
 
-	s.cleanStaleFiles(s.config.DownloadPath, ".parts")
-	s.cleanStaleFiles(s.config.TorrentsPath, ".fastresume")
-}
-
-func (s *Service) cleanStaleFiles(dir string, ext string) {
-	log.Infof("Cleaning up stale %s files at %s ...", ext, dir)
-
-	staleFiles, _ := filepath.Glob(filepath.Join(dir, "*"+ext))
-	for _, staleFile := range staleFiles {
-		infoHash := strings.Replace(strings.Replace(staleFile, dir, "", 1), ext, "", 1)[1:]
-		if infoHash[0] == '.' {
-			infoHash = strings.Replace(strings.Replace(staleFile, dir, "", 1), ext, "", 1)[2:]
-		}
-
-		if t := s.GetTorrentByHash(infoHash); t != nil {
-			continue
-		}
-
-		if err := os.Remove(staleFile); err != nil {
-			log.Errorf("Error removing file %s: %s", staleFile, err)
-		} else {
-			log.Infof("Removed stale file %s", staleFile)
-		}
-	}
+	// .fastresume and .parts files of removed torrents are kept on purpose: their data may still be on disk
+	// and the torrent can be added again later without re-hashing it.
 }
 
 func (s *Service) onDownloadProgress() {

@@ -1197,7 +1197,8 @@ func (t *Torrent) Drop(removeFiles, removeData bool) {
 			}
 		}
 
-		if removeFiles || t.IsMemoryStorage() {
+		// Keep .fastresume and .parts while data stays on disk, so the torrent can be resumed later without re-hashing
+		if removeData || t.IsMemoryStorage() {
 			// Removing .fastresume file
 			if _, err := os.Stat(t.fastResumeFile); err == nil {
 				log.Infof("Deleting fast resume data at %s", t.fastResumeFile)
@@ -1209,7 +1210,9 @@ func (t *Torrent) Drop(removeFiles, removeData bool) {
 				log.Infof("Deleting parts file at %s", t.partsFile)
 				defer os.Remove(t.partsFile)
 			}
+		}
 
+		if removeFiles || t.IsMemoryStorage() {
 			// Removing .memory/.file file
 			if _, err := os.Stat(t.memoryStorageFile); err == nil {
 				log.Infof("Deleting storage type file at %s", t.memoryStorageFile)
