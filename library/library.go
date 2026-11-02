@@ -1592,6 +1592,13 @@ func findMovieDuplicates() ([]*uid.Movie, error) {
 	seen := map[int]struct{}{}
 	duplicates := []*uid.Movie{}
 
+	// Real video files go first, so .strm of an already downloaded movie becomes a duplicate
+	for _, m := range l.Movies {
+		if m != nil && m.UIDs != nil && m.UIDs.TMDB != 0 && m.File != "" && !strings.HasSuffix(m.File, ".strm") {
+			seen[m.UIDs.TMDB] = struct{}{}
+		}
+	}
+
 	for _, m := range l.Movies {
 		if m == nil || m.UIDs == nil || m.XbmcUIDs == nil || m.XbmcUIDs.Elementum == "" || !strings.HasSuffix(m.File, ".strm") {
 			continue
@@ -1642,6 +1649,18 @@ func findEpisodeDuplicates() ([]*uid.Episode, error) {
 	seen := map[string]struct{}{}
 	duplicates := []*uid.Episode{}
 	id := ""
+
+	// Real video files go first, so .strm of an already downloaded episode becomes a duplicate
+	for _, s := range l.Shows {
+		if s == nil || s.UIDs == nil || s.UIDs.TMDB == 0 {
+			continue
+		}
+		for _, e := range s.Episodes {
+			if e != nil && e.File != "" && !strings.HasSuffix(e.File, ".strm") {
+				seen[fmt.Sprintf("%d.%d.%d", s.UIDs.TMDB, e.Season, e.Episode)] = struct{}{}
+			}
+		}
+	}
 
 	for _, s := range l.Shows {
 		if s == nil || s.UIDs == nil || s.Episodes == nil || s.XbmcUIDs == nil || s.XbmcUIDs.Elementum == "" {
@@ -1710,14 +1729,16 @@ func removeMovieDuplicates(xbmcHost *xbmc.XBMCHost) (int, error) {
 			continue
 		}
 
-		dir := filepath.Dir(util.GetRealPath(m.File, &config.LibrarySubstitutions))
-		log.Debugf("Removing duplicate movie '%s' from '%s'", m.Title, dir)
+		strmPath := util.GetRealPath(m.File, &config.LibrarySubstitutions)
+		log.Debugf("Removing duplicate movie '%s' from '%s'", m.Title, strmPath)
 
-		// Remove strm file with parent folder from disk
-		if err := os.RemoveAll(dir); err != nil {
+		// Downloaded movie can be moved into the same folder, so remove only our files and the folder if it is empty
+		if err := os.Remove(strmPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 			log.Error(err)
 			continue
 		}
+		os.Remove(strings.TrimSuffix(strmPath, ".strm") + ".nfo")
+		os.Remove(filepath.Dir(strmPath))
 
 		xbmcHost.VideoLibraryCleanDirectory(m.File, "movies", false)
 		xbmcHost.VideoLibraryRemoveMovie(m.XbmcUIDs.Kodi)
