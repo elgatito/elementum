@@ -786,20 +786,24 @@ func (btp *Player) playerLoop() {
 	log.Info("Waiting for playback...")
 	oneSecond := time.NewTicker(1 * time.Second)
 	defer oneSecond.Stop()
-	playbackTimeout := time.After(time.Duration(config.Get().BufferTimeout) * time.Second)
+	playbackTimeout := time.Duration(config.Get().BufferTimeout) * time.Second
+	lastActive := time.Now()
+	externalReported := false
 
-playbackWaitLoop:
-	for {
-		if btp.p.Background || btp.xbmcHost == nil || btp.isPlayingOwnFile() {
-			break playbackWaitLoop
-		}
-		select {
-		case <-playbackTimeout:
+	for !btp.p.Background && btp.xbmcHost != nil && !btp.isPlayingOwnFile() {
+		// External players (e.g. "Play using" on Android) are invisible to Kodi, so open readers count as playback
+		if btp.t.HasReaders() {
+			lastActive = time.Now()
+			if !externalReported {
+				externalReported = true
+				log.Infof("File is being read before Kodi reports playback (external player?), keeping torrent while readers are active")
+			}
+		} else if time.Since(lastActive) > playbackTimeout {
 			log.Warningf("Playback was unable to start after %d seconds. Aborting...", config.Get().BufferTimeout)
 			btp.bufferEvents.Broadcast(errors.New("Playback was unable to start before timeout"))
 			return
-		case <-oneSecond.C:
 		}
+		<-oneSecond.C
 	}
 
 	log.Info("Playback loop")

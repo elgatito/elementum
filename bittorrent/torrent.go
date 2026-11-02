@@ -1406,6 +1406,14 @@ func (t *Torrent) ResetReaders() {
 	}
 }
 
+// HasReaders reports whether any HTTP reader has the torrent's files open
+func (t *Torrent) HasReaders() bool {
+	t.muReaders.Lock()
+	defer t.muReaders.Unlock()
+
+	return len(t.readers) > 0
+}
+
 // ReadersReadaheadSum ...
 func (t *Torrent) ReadersReadaheadSum() int64 {
 	t.muReaders.Lock()
