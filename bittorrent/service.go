@@ -1706,6 +1706,7 @@ func (s *Service) onDownloadProgress() {
 					// Preparing list of files that need to be moved
 					filesToMove := []string{}
 					filesToCleanup := map[string]bool{}
+					notMoved := []string{}
 					if !t.withHandle(func(lt.TorrentHandle) {
 						for _, fp := range t.files {
 							f := t.GetFileByPath(fp.Path)
@@ -1783,8 +1784,19 @@ func (s *Service) onDownloadProgress() {
 
 						srcPath := filepath.Join(s.config.DownloadPath, filePath)
 						log.Infof("Moving file %s to %s", srcPath, dstPath)
-						if dst, err := util.Move(srcPath, dstPath); err != nil {
+						dst, err := util.Move(srcPath, dstPath)
+						// Retry transient failures (e.g. NAS hiccup during copy), a failed Move leaves the source in place
+						for attempt := 2; err != nil && attempt <= moveAttempts && util.FileExists(srcPath); attempt++ {
+							log.Warningf("Moving %s failed: %s. Retrying in %s (attempt %d of %d)", srcPath, err, moveRetryDelay, attempt, moveAttempts)
+							time.Sleep(moveRetryDelay)
+							dst, err = util.Move(srcPath, dstPath)
+						}
+						if err != nil {
 							log.Error(err)
+							// File is still in the download folder, its directory must not be cleaned up
+							if util.FileExists(srcPath) {
+								notMoved = append(notMoved, filepath.Dir(srcPath))
+							}
 						} else {
 							log.Warning(fileName, "moved to", dst)
 
@@ -1800,10 +1812,22 @@ func (s *Service) onDownloadProgress() {
 						}
 					}
 
-					// Remove leftover folders
+					// Remove leftover folders, except ones still holding files that failed to move
 					for filePath := range filesToCleanup {
+						if slices.ContainsFunc(notMoved, func(dir string) bool {
+							return dir == filePath || strings.HasPrefix(dir, filePath+string(filepath.Separator))
+						}) {
+							log.Warningf("Not removing %s, it still contains files that failed to move", filePath)
+							continue
+						}
 						log.Infof("Removing all from %s", filePath)
 						os.RemoveAll(filePath)
+					}
+
+					// Data is no longer in the download folder, resume data is useless now
+					if len(notMoved) == 0 {
+						os.Remove(t.fastResumeFile)
+						os.Remove(t.partsFile)
 					}
 
 					log.Infof("Marking %s for removal from library and database...", torrentName)

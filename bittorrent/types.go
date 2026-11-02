@@ -83,6 +83,12 @@ const (
 	modifyTrackersEveryTime
 )
 
+// Completed downloads move retries
+const (
+	moveAttempts   = 3
+	moveRetryDelay = 10 * time.Second
+)
+
 var dhtBootstrapNodes = []string{
 	"router.bittorrent.com:6881",
 	"router.utorrent.com:6881",
