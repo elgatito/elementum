@@ -836,8 +836,12 @@ playbackLoop:
 			if btp.scrobble {
 				go btp.scrobbleTracker(tracker.ScrobbleStart)
 			}
-		} else if btp.xbmcHost == nil || btp.xbmcHost.PlayerIsPaused() {
-			if btp.overlayStatusEnabled && btp.p.Playing {
+		} else {
+			// Overlay is also shown while Kodi's info screen or OSD is open, not only on pause
+			state := btp.xbmcHost.InfoBooleans("Player.Paused", "Player.ShowInfo", "Window.IsVisible(videoosd)")
+			paused := state["Player.Paused"]
+
+			if btp.overlayStatusEnabled && btp.p.Playing && (paused || state["Player.ShowInfo"] || state["Window.IsVisible(videoosd)"]) {
 				progress := btp.t.GetProgress()
 				line1, line2, line3 := btp.statusStrings(progress, btp.t.GetStatus())
 				btp.overlayStatus.Update(int(progress), line1, line2, line3)
@@ -845,20 +849,17 @@ playbackLoop:
 					btp.overlayStatus.Show()
 					overlayStatusActive = true
 				}
+			} else if overlayStatusActive {
+				btp.overlayStatus.Hide()
+				overlayStatusActive = false
 			}
 
-			if playing {
+			if paused && playing {
 				playing = false
 				if btp.scrobble {
 					go btp.scrobbleTracker(tracker.ScrobblePause)
 				}
-			}
-		} else {
-			if overlayStatusActive {
-				btp.overlayStatus.Hide()
-				overlayStatusActive = false
-			}
-			if !playing {
+			} else if !paused && !playing {
 				playing = true
 				if btp.scrobble {
 					go btp.scrobbleTracker(tracker.ScrobbleStart)

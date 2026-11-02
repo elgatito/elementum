@@ -165,6 +165,13 @@ func (h *XBMCHost) InfoLabels(labels ...string) map[string]string {
 	return retVal
 }
 
+// InfoBooleans ...
+func (h *XBMCHost) InfoBooleans(conditions ...string) map[string]bool {
+	var retVal map[string]bool
+	h.executeJSONRPC("XBMC.GetInfoBooleans", &retVal, Args{conditions})
+	return retVal
+}
+
 // InfoLabel ...
 func (h *XBMCHost) InfoLabel(label string) string {
 	labels := h.InfoLabels(label)
@@ -299,12 +306,6 @@ func (h *XBMCHost) PlayerSeek(position float64) (ret string) {
 	return
 }
 
-// PlayerIsPaused ...
-func (h *XBMCHost) PlayerIsPaused() bool {
-	retVal := 0
-	h.executeJSONRPCEx("Player_IsPaused", &retVal, nil)
-	return retVal != 0
-}
 
 // PlayerGetSubtitles ...
 func (h *XBMCHost) PlayerGetSubtitles() (ret []string) {
