@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -1069,7 +1070,9 @@ func fetchTrackerList(listID string, t tracker.MediaType, isUpdateNeeded bool) (
 	}
 
 	kind, containers := tracker.KindList, trackerContainers[""]
-	label, addEnabled = "LOCALIZE[30263]", config.Get().TraktSyncUserlists
+	// Empty selection means all lists are synced
+	ids := config.Get().TraktSyncUserlistsIDs
+	label, addEnabled = "LOCALIZE[30263]", config.Get().TraktSyncUserlists && (ids == "" || slices.Contains(strings.Split(ids, ","), listID))
 	switch listID {
 	case "watchlist":
 		kind, containers = tracker.KindWatchlist, trackerContainers[listID]

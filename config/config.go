@@ -195,6 +195,7 @@ type Configuration struct {
 	TraktSyncCollections           bool
 	TraktSyncWatchlist             bool
 	TraktSyncUserlists             bool
+	TraktSyncUserlistsIDs          string
 	TraktSyncPlaybackProgress      bool
 	TraktSyncHidden                bool
 	TraktSyncWatched               bool
@@ -765,6 +766,7 @@ func Reload() (ret *Configuration, err error) {
 		TraktSyncCollections:           settings.ToBool("trakt_sync_collections"),
 		TraktSyncWatchlist:             settings.ToBool("trakt_sync_watchlist"),
 		TraktSyncUserlists:             settings.ToBool("trakt_sync_userlists"),
+		TraktSyncUserlistsIDs:          settings.ToString("trakt_sync_userlists_ids"),
 		TraktSyncPlaybackProgress:      settings.ToBool("trakt_sync_playback_progress"),
 		TraktSyncHidden:                settings.ToBool("trakt_sync_hidden"),
 		TraktSyncWatched:               settings.ToBool("trakt_sync_watched"),

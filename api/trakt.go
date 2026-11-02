@@ -1747,6 +1747,56 @@ func SelectTrackerUserList(ctx *gin.Context) {
 	ctx.String(200, "")
 }
 
+// SelectTrackerSyncLists lets the user pick which lists of the active tracker are synced into the library
+func SelectTrackerSyncLists(ctx *gin.Context) {
+	defer perf.ScopeTimer()()
+
+	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
+	defer ctx.String(200, "")
+
+	p := settingsTracker(xbmcHost)
+	lr, ok := p.(tracker.ListReader)
+	if !ok || !p.Authorized() {
+		xbmcHost.Notify("Elementum", "LOCALIZE[30795]", config.AddonIcon())
+		return
+	}
+
+	lists, err := lr.Lists()
+	if err != nil {
+		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
+		return
+	}
+	lists = slices.DeleteFunc(lists, func(l *tracker.List) bool { return l == nil })
+
+	selected := strings.Split(xbmcHost.GetSettingString("trakt_sync_userlists_ids"), ",")
+	items := make([]string, 0, len(lists))
+	preselect := []int{}
+	for i, l := range lists {
+		items = append(items, l.Name)
+		if slices.Contains(selected, l.ID) {
+			preselect = append(preselect, i)
+		}
+	}
+
+	chosen := xbmcHost.DialogMultiSelect("LOCALIZE[30808]", items, preselect)
+	if chosen == nil {
+		return
+	}
+	ids := make([]string, 0, len(chosen))
+	names := make([]string, 0, len(chosen))
+	for _, i := range chosen {
+		if i >= 0 && i < len(lists) {
+			ids = append(ids, lists[i].ID)
+			names = append(names, lists[i].Name)
+		}
+	}
+	xbmcHost.SetSetting("trakt_sync_userlists_names", strings.Join(names, ", "))
+	xbmcHost.SetSetting("trakt_sync_userlists_ids", strings.Join(ids, ","))
+}
+
 // ToggleWatched mark as watched or unwatched on the active tracker and in Kodi library
 func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {

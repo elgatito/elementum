@@ -429,6 +429,7 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 		g.GET("/authorize", AuthorizeTracker)
 		g.GET("/deauthorize", DeauthorizeTracker)
 		g.GET("/select_list/:action/:media", SelectTrackerUserList)
+		g.GET("/select_sync_lists", SelectTrackerSyncLists)
 		g.GET("/update", UpdateTracker)
 	}
 
