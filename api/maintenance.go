@@ -247,6 +247,8 @@ func Notification(s *bittorrent.Service) gin.HandlerFunc {
 			var item struct {
 				ID   int    `json:"id"`
 				Type string `json:"type"`
+				// Set for removals done by library clean, which drops items with missing files
+				Transaction bool `json:"transaction"`
 			}
 			if err := json.Unmarshal(jsonData, &item); err != nil {
 				log.Error(err)
@@ -254,14 +256,19 @@ func Notification(s *bittorrent.Service) gin.HandlerFunc {
 			}
 
 			go func() {
-				// TODO: to implement auto-remove we will need to change ActionSafeDelete to ActionDelete
 				if item.Type == movieType {
+					if !item.Transaction {
+						library.PlanKodiRemoval(item.ID, library.MovieType)
+					}
 					library.RefreshMovie(item.ID, library.ActionSafeDelete)
 
 					// Remove local playcount history to allow re-setting watched status
 					cacheStore := cache.NewDBStore()
 					cacheStore.Delete(fmt.Sprintf(cache.LibraryWatchedPlaycountKey, "movies"))
 				} else if item.Type == showType {
+					if !item.Transaction {
+						library.PlanKodiRemoval(item.ID, library.ShowType)
+					}
 					library.RefreshShow(item.ID, library.ActionSafeDelete)
 
 					// Remove local playcount history to allow re-setting watched status

@@ -118,6 +118,7 @@ type Configuration struct {
 	LibrarySyncEnabled          bool
 	LibrarySyncPlaybackEnabled  bool
 	LibraryUpdate               int
+	LibrarySyncKodiRemovals     bool
 	StrmLanguage                string
 	LibraryNFOMovies            bool
 	LibraryNFOShows             bool
@@ -711,6 +712,7 @@ func Reload() (ret *Configuration, err error) {
 		LibrarySyncEnabled:          settings.ToBool("library_sync_enabled"),
 		LibrarySyncPlaybackEnabled:  settings.ToBool("library_sync_playback_enabled"),
 		LibraryUpdate:               settings.ToInt("library_update"),
+		LibrarySyncKodiRemovals:     settings.ToBool("library_sync_kodi_removals"),
 		StrmLanguage:                settings.ToString("strm_language"),
 		LibraryNFOMovies:            settings.ToBool("library_nfo_movies"),
 		LibraryNFOShows:             settings.ToBool("library_nfo_shows"),

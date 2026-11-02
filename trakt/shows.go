@@ -350,7 +350,7 @@ func WatchlistShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 		cache.TraktShowsWatchlistExpire,
 	)
 
-	log.Debugf("%d shows retrieved from Trakt", len(shows))
+	log.Debugf("%d shows retrieved from Trakt", len(watchlist))
 
 	shows = make([]*Shows, 0, len(watchlist))
 	for _, show := range watchlist {
@@ -399,7 +399,7 @@ func CollectionShows(isUpdateNeeded bool) (shows []*Shows, err error) {
 		cache.TraktShowsCollectionExpire,
 	)
 
-	log.Debugf("%d shows retrieved from Trakt", len(shows))
+	log.Debugf("%d shows retrieved from Trakt", len(collection))
 
 	slices.SortFunc(collection, func(a, b *CollectionShow) int {
 		return b.CollectedAt.Compare(a.CollectedAt)
@@ -462,7 +462,7 @@ func ListItemsShows(user, listID string) (shows []*Shows, err error) {
 		cache.TraktShowsListExpire,
 	)
 
-	log.Debugf("%d shows retrieved from Trakt", len(shows))
+	log.Debugf("%d shows retrieved from Trakt", len(list))
 
 	shows = make([]*Shows, 0)
 	for _, show := range list {
