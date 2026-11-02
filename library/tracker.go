@@ -806,7 +806,11 @@ func RefreshTrackerLists(p tracker.Provider, isRefreshNeeded bool) error {
 	}
 
 	lists, err := lr.Lists()
-	if err != nil {
+	if errors.Is(err, tracker.ErrPaidAccount) {
+		// not an error: nothing to sync, and failing would keep the whole sync from being saved
+		log.Debugf("%s lists need a paid account, skipping", p.Name())
+		return nil
+	} else if err != nil {
 		return err
 	}
 	for _, list := range lists {

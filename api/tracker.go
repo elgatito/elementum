@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -66,7 +67,7 @@ func trackerListView(kind tracker.ListKind, t tracker.MediaType, bucket tracker.
 			}
 		}
 		if err != nil {
-			xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
+			notifyTrackerError(xbmcHost, p, err)
 		}
 
 		page, _ := strconv.Atoi(ctx.DefaultQuery("page", "0"))
@@ -93,11 +94,17 @@ func trackerListsView(media string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		defer perf.ScopeTimer()()
 
+		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+		if xbmcHost == nil {
+			return
+		}
+
 		items := xbmc.ListItems{}
-		if l, ok := tracker.Active().(tracker.ListReader); ok {
+		p := tracker.Active()
+		if l, ok := p.(tracker.ListReader); ok {
 			lists, err := l.Lists()
 			if err != nil {
-				log.Warningf("Could not get tracker lists: %s", err)
+				notifyTrackerError(xbmcHost, p, err)
 			}
 			for _, list := range lists {
 				items = append(items, &xbmc.ListItem{
@@ -119,6 +126,48 @@ func trackerListsView(media string) gin.HandlerFunc {
 	}
 }
 
+// trackerProgressView renders the next episode of every show in progress on the active tracker.
+func trackerProgressView(ctx *gin.Context) {
+	defer perf.ScopeTimer()()
+
+	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+	if xbmcHost == nil {
+		return
+	}
+
+	p := tracker.Active()
+	pr, ok := p.(tracker.ProgressReader)
+	if !ok {
+		xbmcHost.Notify("Elementum", "LOCALIZE[30795]", config.AddonIcon())
+		return
+	}
+
+	activities, err := tracker.GetActivities(p, "view.progress")
+	items, err := pr.Progress(err != nil || activities.Changed(tracker.EpisodesWatched))
+	if err != nil {
+		notifyTrackerError(xbmcHost, p, err)
+	}
+
+	// the progress renderer reads TMDB ids and episode numbers, so items travel as minimal Trakt objects
+	shows := make([]*trakt.ProgressShow, 0, len(items))
+	for _, i := range items {
+		shows = append(shows, &trakt.ProgressShow{
+			Show:    &trakt.Show{Object: trakt.Object{Title: i.Title, Year: i.Year, IDs: &trakt.IDs{TMDB: i.IDs.TMDB, IMDB: i.IDs.IMDB, TVDB: i.IDs.TVDB}}},
+			Episode: &trakt.Episode{Season: i.Season, Number: i.Episode, IDs: &trakt.IDs{TMDB: i.EpisodeTMDB}},
+		})
+	}
+	renderProgressShows(ctx, shows, -1, 0)
+}
+
+// notifyTrackerError tells the user why a tracker view is empty.
+func notifyTrackerError(xbmcHost *xbmc.XBMCHost, p tracker.Provider, err error) {
+	msg := err.Error()
+	if errors.Is(err, tracker.ErrPaidAccount) {
+		msg = fmt.Sprintf(xbmcHost.GetLocalizedString(30806), p.Name())
+	}
+	xbmcHost.Notify("Elementum", msg, config.AddonIcon())
+}
+
 // trackerMenuItems returns menu entries for the active tracker's lists, labeled with its name.
 func trackerMenuItems(media string) xbmc.ListItems {
 	p := tracker.Active()
@@ -127,6 +176,9 @@ func trackerMenuItems(media string) xbmc.ListItems {
 	}
 
 	items := xbmc.ListItems{}
+	if _, ok := p.(tracker.ProgressReader); ok && media == showType {
+		items = append(items, &xbmc.ListItem{Label: p.Name() + " > LOCALIZE[30360]", Path: URLForXBMC("/shows/tracker/progress"), Thumbnail: config.AddonResource("img", "progress.png")})
+	}
 	if _, ok := p.(tracker.ListReader); ok {
 		items = append(items, &xbmc.ListItem{Label: p.Name() + " > LOCALIZE[30263]", Path: URLForXBMC("/%ss/tracker/lists/", media), Thumbnail: config.AddonResource("img", "lists.png")})
 	}

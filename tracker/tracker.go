@@ -46,6 +46,9 @@ var (
 	ErrNotAuthorized = errors.New("tracker is not authorized")
 	// ErrLocked is returned when the tracker account is locked.
 	ErrLocked = errors.New("tracker account is locked")
+	// ErrPaidAccount is returned for features the tracker offers only to paying members (e.g. Simkl custom lists).
+	// Library sync treats it as nothing to sync, menus tell the user.
+	ErrPaidAccount = errors.New("feature needs a paid tracker account")
 )
 
 // Provider is implemented by every tracker.
@@ -87,6 +90,12 @@ type PlaybackReader interface {
 type ListReader interface {
 	Lists() ([]*List, error)
 	ListItems(listID string, t MediaType, refresh bool) ([]*Item, error)
+}
+
+// ProgressReader is implemented by trackers that know the next episode of the shows a user is watching.
+type ProgressReader interface {
+	// Progress returns episode items: the show's IDs with Season and Episode of its next episode to watch.
+	Progress(refresh bool) ([]*Item, error)
 }
 
 // HiddenReader is implemented by trackers that let users hide items.

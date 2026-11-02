@@ -1417,7 +1417,8 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 					showOriginalName = show.OriginalName
 				}
 			}
-			if airDate == "" {
+			// items from other trackers carry no Trakt id to look the air date up with
+			if airDate == "" && showListing.Show.IDs.Trakt != 0 {
 				episodes := trakt.GetSeasonEpisodes(showListing.Show.IDs.Trakt, seasonNumber)
 				for _, e := range episodes {
 					if e != nil && e.Number == epi.Number {
@@ -1594,7 +1595,8 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 					showName = show.GetName()
 				}
 			}
-			if airDate == "" {
+			// items from other trackers carry no Trakt id to look the air date up with
+			if airDate == "" && showListing.Show.IDs.Trakt != 0 {
 				episodes := trakt.GetSeasonEpisodes(showListing.Show.IDs.Trakt, seasonNumber)
 				for _, e := range episodes {
 					if e != nil && e.Number == epi.Number {

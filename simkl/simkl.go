@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -358,7 +359,46 @@ func (p *Provider) Paused(t tracker.MediaType, refresh bool) ([]*tracker.PausedI
 	return ret, nil
 }
 
-// Lists returns custom lists. They need Simkl PRO or VIP, so other accounts get none.
+// listError interprets custom list responses. Accounts without PRO or VIP get HTTP 200 with
+// {"error": "premium_only"} instead of list data, which must not be read as an empty list.
+func listError(err error, bodyError string) error {
+	if bodyError == "premium_only" {
+		return tracker.ErrPaidAccount
+	} else if bodyError != "" {
+		return fmt.Errorf("simkl custom lists: %s", bodyError)
+	}
+	return err
+}
+
+// Progress returns the next episode of every show in Watching, most recently watched first.
+// Shows without a next episode are caught up and left out, as Simkl recommends.
+func (p *Provider) Progress(refresh bool) ([]*tracker.Item, error) {
+	lib, err := p.library(refresh)
+	if err != nil {
+		return nil, err
+	}
+	return progress(lib), nil
+}
+
+func progress(lib *library) []*tracker.Item {
+	var watching []*entry
+	for _, e := range lib.Entries {
+		if !e.IsMovie && e.Status == "watching" && e.NextEpisode > 0 {
+			watching = append(watching, e)
+		}
+	}
+	slices.SortFunc(watching, func(a, b *entry) int { return b.LastWatchedAt.Compare(a.LastWatchedAt) })
+
+	ret := make([]*tracker.Item, 0, len(watching))
+	for _, e := range watching {
+		i := e.Item
+		i.Type, i.Season, i.Episode = tracker.EpisodeType, e.NextSeason, e.NextEpisode
+		ret = append(ret, &i)
+	}
+	return ret
+}
+
+// Lists returns custom lists, a Simkl PRO and VIP feature: other accounts get tracker.ErrPaidAccount.
 func (p *Provider) Lists() ([]*tracker.List, error) {
 	_, userID, err := p.settings(tracker.Credentials(p.ID()).Token)
 	if err != nil {
@@ -368,6 +408,7 @@ func (p *Provider) Lists() ([]*tracker.List, error) {
 	var ret []*tracker.List
 	for page := 1; ; page++ {
 		var resp struct {
+			Error      string `json:"error"`
 			Pagination struct {
 				TotalPages int `json:"total_pages"`
 			} `json:"pagination"`
@@ -380,11 +421,8 @@ func (p *Provider) Lists() ([]*tracker.List, error) {
 				} `json:"counts"`
 			} `json:"lists"`
 		}
-		req, err := p.request("GET", fmt.Sprintf("/lists/user/%d", userID), url.Values{"page": {strconv.Itoa(page)}}, nil, &resp, false, false)
-		if req != nil && (req.ResponseStatusCode == 403 || req.ResponseStatusCode == 402) {
-			log.Debugf("Simkl custom lists need a PRO or VIP account")
-			return nil, nil
-		} else if err != nil {
+		_, err := p.request("GET", fmt.Sprintf("/lists/user/%d", userID), url.Values{"page": {strconv.Itoa(page)}}, nil, &resp, false, false)
+		if err = listError(err, resp.Error); err != nil {
 			return nil, err
 		}
 
@@ -401,6 +439,7 @@ func (p *Provider) ListItems(listID string, t tracker.MediaType, refresh bool) (
 	var ret []*tracker.Item
 	for page := 1; ; page++ {
 		var resp struct {
+			Error      string `json:"error"`
 			Pagination struct {
 				TotalPages int `json:"total_pages"`
 			} `json:"pagination"`
@@ -412,10 +451,9 @@ func (p *Provider) ListItems(listID string, t tracker.MediaType, refresh bool) (
 			} `json:"items"`
 		}
 		params := url.Values{"page": {strconv.Itoa(page)}, "limit": {"50"}}
-		req, err := p.request("GET", "/lists/"+url.PathEscape(listID), params, nil, &resp, true, refresh)
-		if req != nil && (req.ResponseStatusCode == 403 || req.ResponseStatusCode == 402) {
-			return nil, nil
-		} else if err != nil {
+		// not cached: a premium_only answer must not stick around after the account is upgraded
+		_, err := p.request("GET", "/lists/"+url.PathEscape(listID), params, nil, &resp, false, false)
+		if err = listError(err, resp.Error); err != nil {
 			return nil, err
 		}
 

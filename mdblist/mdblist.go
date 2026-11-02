@@ -416,6 +416,41 @@ func (p *Provider) Paused(t tracker.MediaType, refresh bool) ([]*tracker.PausedI
 	return ret, nil
 }
 
+// Progress returns the next unwatched episode of every show in progress, from /upnext.
+func (p *Provider) Progress(refresh bool) ([]*tracker.Item, error) {
+	const limit = 100
+	var ret []*tracker.Item
+	for offset := 0; offset < limit*maxPages; offset += limit {
+		var page struct {
+			Items []struct {
+				Show        *media `json:"show"`
+				NextEpisode *struct {
+					Season  int `json:"season"`
+					Episode int `json:"episode"`
+					IDs     ids `json:"ids"`
+				} `json:"next_episode"`
+			} `json:"items"`
+		}
+		params := url.Values{"limit": {strconv.Itoa(limit)}, "offset": {strconv.Itoa(offset)}}
+		if _, err := p.request("GET", "/upnext", params, nil, &page, true, refresh); err != nil {
+			return ret, err
+		}
+
+		for _, i := range page.Items {
+			if i.Show == nil || i.NextEpisode == nil || i.NextEpisode.Episode == 0 {
+				continue
+			}
+			item := i.Show.item(tracker.EpisodeType)
+			item.Season, item.Episode, item.EpisodeTMDB = i.NextEpisode.Season, i.NextEpisode.Episode, i.NextEpisode.IDs.TMDB
+			ret = append(ret, item)
+		}
+		if len(page.Items) < limit {
+			break
+		}
+	}
+	return ret, nil
+}
+
 func (p *Provider) Lists() ([]*tracker.List, error) {
 	var lists []struct {
 		ID    int    `json:"id"`

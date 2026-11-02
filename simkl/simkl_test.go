@@ -12,7 +12,7 @@ import (
 // Shapes from the Simkl /sync/all-items reference: ids as strings or numbers, anime wrapped in show, nulls.
 const allItemsJSON = `{
   "shows": [{
-    "last_watched_at": "2026-05-15T00:35:15Z", "status": "watching",
+    "last_watched_at": "2026-05-15T00:35:15Z", "status": "watching", "next_to_watch": "S01E04",
     "show": {"title": "The Walking Dead", "year": 2010, "ids": {"simkl": 2090, "imdb": "tt1520211", "tvdb": "153021", "tmdb": "1402"}},
     "seasons": [{"number": 1, "episodes": [{"number": 2, "watched_at": "2026-05-15T00:32:20Z"}, {"number": 3, "watched_at": null}]}]
   }],
@@ -46,6 +46,9 @@ func TestDecodeAllItems(t *testing.T) {
 	// an episode without its own date takes the show's last watch
 	if !twd.Episodes[1].LastWatchedAt.Equal(twd.LastWatchedAt) || twd.Episodes[1].Plays != 1 {
 		t.Errorf("episode without date = %+v", twd.Episodes[1])
+	}
+	if twd.NextSeason != 1 || twd.NextEpisode != 4 {
+		t.Errorf("next_to_watch = S%02dE%02d, want S01E04", twd.NextSeason, twd.NextEpisode)
 	}
 	if !entries["37089"].matches(tracker.ShowType) {
 		t.Error("anime must be a show")
@@ -95,5 +98,54 @@ func TestHistoryBody(t *testing.T) {
 		`"shows":[{"ids":{"tmdb":"1402"},"seasons":[{"number":1,"episodes":[{"number":1},{"number":2}]},{"number":2,"episodes":[{"number":1}]}]}]}`
 	if string(b) != want {
 		t.Errorf("historyBody =\n%s\nwant\n%s", b, want)
+	}
+}
+
+func TestParseNextToWatch(t *testing.T) {
+	for in, want := range map[string][2]int{"S08E03": {8, 3}, "S01E12": {1, 12}, "E05": {1, 5}, "": {0, 0}, "null": {0, 0}, "S1": {0, 0}} {
+		if s, e := parseNextToWatch(in); s != want[0] || e != want[1] {
+			t.Errorf("parseNextToWatch(%q) = %d, %d; want %v", in, s, e, want)
+		}
+	}
+}
+
+func TestListErrorPremiumOnly(t *testing.T) {
+	// non-PRO accounts get HTTP 200 with an error body instead of lists
+	var resp struct {
+		Error string `json:"error"`
+		Lists []any  `json:"lists"`
+	}
+	if err := json.Unmarshal([]byte(`{"error": "premium_only", "message": "Custom list items are available to Simkl PRO and VIP members only."}`), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if err := listError(nil, resp.Error); err != tracker.ErrPaidAccount {
+		t.Errorf("listError = %v, want ErrPaidAccount", err)
+	}
+	if err := listError(nil, ""); err != nil {
+		t.Errorf("listError on a list body = %v, want nil", err)
+	}
+}
+
+func TestProgress(t *testing.T) {
+	day := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	show := func(id int, status string, next string, watched time.Time) *entry {
+		e := &entry{Status: status, LastWatchedAt: watched, Item: tracker.Item{Type: tracker.ShowType, IDs: tracker.IDs{TMDB: id}}}
+		e.NextSeason, e.NextEpisode = parseNextToWatch(next)
+		return e
+	}
+	lib := &library{Entries: map[string]*entry{
+		"1": show(1, "watching", "S01E02", day),
+		"2": show(2, "watching", "S03E01", day.Add(time.Hour)),
+		"3": show(3, "watching", "", day),        // caught up
+		"4": show(4, "hold", "S01E01", day),      // not in Watching
+		"5": {IsMovie: true, Status: "watching"}, // movies have no progress
+	}}
+
+	got := progress(lib)
+	if len(got) != 2 || got[0].IDs.TMDB != 2 || got[1].IDs.TMDB != 1 {
+		t.Fatalf("progress = %+v, want shows 2 then 1", got)
+	}
+	if got[0].Type != tracker.EpisodeType || got[0].Season != 3 || got[0].Episode != 1 {
+		t.Errorf("next episode = %+v, want S03E01", got[0])
 	}
 }

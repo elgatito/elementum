@@ -161,6 +161,25 @@ func (p *Provider) ListItems(listID string, t tracker.MediaType, refresh bool) (
 	return showsToItems(shows), err
 }
 
+// Progress returns the next episode of shows in progress. The Trakt progress menu keeps its own view;
+// this makes the progress entry appear in the tracker menu.
+func (p *Provider) Progress(refresh bool) ([]*tracker.Item, error) {
+	shows, err := WatchedShowsProgress()
+	ret := make([]*tracker.Item, 0, len(shows))
+	for _, s := range shows {
+		if s == nil || s.Show == nil || s.Show.IDs == nil || s.Episode == nil {
+			continue
+		}
+		i := showItem(s.Show)
+		i.Type, i.Season, i.Episode = tracker.EpisodeType, s.Episode.Season, s.Episode.Number
+		if s.Episode.IDs != nil {
+			i.EpisodeTMDB = s.Episode.IDs.TMDB
+		}
+		ret = append(ret, i)
+	}
+	return ret, err
+}
+
 func (p *Provider) Hidden(section string, refresh bool) ([]*tracker.Item, error) {
 	shows, err := ListHiddenShows(section, refresh)
 	return showsToItems(shows), err

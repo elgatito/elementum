@@ -3,6 +3,7 @@ package simkl
 import (
 	"bytes"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -17,7 +18,8 @@ const (
 	statusPlanToWatch = "plantowatch"
 	statusCompleted   = "completed"
 
-	libraryKey    = "com.tracker.simkl.library"
+	// bump the version when entry changes, so stored copies without the new fields are pulled again once
+	libraryKey    = "com.tracker.simkl.library.v2"
 	libraryExpire = 365 * 24 * time.Hour
 )
 
@@ -35,6 +37,25 @@ type entry struct {
 	Item          tracker.Item
 	LastWatchedAt time.Time
 	Episodes      []tracker.WatchedEpisode
+	// NextSeason and NextEpisode are the first unwatched regular episode, 0 when nothing is left to watch
+	NextSeason  int
+	NextEpisode int
+}
+
+var nextToWatchRe = regexp.MustCompile(`^(?:S(\d+))?E(\d+)$`)
+
+// parseNextToWatch reads Simkl's next episode marker, "S08E03"; a marker without season counts as season 1.
+func parseNextToWatch(s string) (season, episode int) {
+	m := nextToWatchRe.FindStringSubmatch(s)
+	if m == nil {
+		return 0, 0
+	}
+	season = 1
+	if m[1] != "" {
+		season, _ = strconv.Atoi(m[1])
+	}
+	episode, _ = strconv.Atoi(m[2])
+	return season, episode
 }
 
 func (e *entry) matches(t tracker.MediaType) bool {
@@ -54,6 +75,7 @@ type rawItem struct {
 	LastWatchedAt      time.Time `json:"last_watched_at"`
 	Status             string    `json:"status"`
 	AnimeType          string    `json:"anime_type"`
+	NextToWatch        string    `json:"next_to_watch"`
 	Movie              *rawMedia `json:"movie"`
 	Show               *rawMedia `json:"show"`
 	Seasons            []struct {
@@ -109,6 +131,7 @@ func (a *allItems) entries() map[string]*entry {
 				Item:          tracker.Item{Type: t, IDs: m.IDs.tracker(), Title: m.Title, Year: m.Year, ListedAt: r.AddedToWatchlistAt},
 				LastWatchedAt: r.LastWatchedAt,
 			}
+			e.NextSeason, e.NextEpisode = parseNextToWatch(r.NextToWatch)
 			for _, s := range r.Seasons {
 				for _, ep := range s.Episodes {
 					at := ep.WatchedAt

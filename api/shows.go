@@ -34,8 +34,6 @@ func TVIndex(ctx *gin.Context) {
 	items := xbmc.ListItems{
 		{Label: "LOCALIZE[30209]", Path: URLForXBMC("/shows/search"), Thumbnail: config.AddonResource("img", "search.png")},
 		{Label: "LOCALIZE[30765]", Path: URLForXBMC("/shows/advanced"), Thumbnail: config.AddonResource("img", "search_advanced.png")},
-
-		{Label: "Trakt > LOCALIZE[30360]", Path: URLForXBMC("/shows/trakt/progress"), Thumbnail: config.AddonResource("img", "progress.png"), TraktAuth: true},
 	}
 	items = append(items, trackerMenuItems(showType)...)
 	items = append(items, xbmc.ListItems{

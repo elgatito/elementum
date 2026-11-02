@@ -280,6 +280,7 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 		{
 			trackerGroup.GET("/watchlist", trackerView(WatchlistShows, trackerListView(tracker.KindWatchlist, tracker.ShowType, tracker.ShowsWatchlisted)))
 			trackerGroup.GET("/collection", trackerView(CollectionShows, trackerListView(tracker.KindCollection, tracker.ShowType, tracker.EpisodesCollected)))
+			trackerGroup.GET("/progress", trackerView(TraktProgressShows, trackerProgressView))
 			trackerGroup.GET("/lists/", trackerView(TVTraktLists, trackerListsView(showType)))
 			trackerGroup.GET("/lists/:listId", trackerListView(tracker.KindList, tracker.ShowType, tracker.ListsUpdated))
 		}
