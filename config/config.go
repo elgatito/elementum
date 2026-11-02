@@ -291,6 +291,7 @@ type Configuration struct {
 	CompletedMove       bool
 	CompletedMoviesPath string
 	CompletedShowsPath  string
+	CompletedRename     bool
 
 	LocalOnlyClient bool
 	LogLevel        int
@@ -858,6 +859,7 @@ func Reload() (ret *Configuration, err error) {
 		CompletedMove:       settings.ToBool("completed_move"),
 		CompletedMoviesPath: WindowsToWSLPath(settings.ToString("completed_movies_path")),
 		CompletedShowsPath:  WindowsToWSLPath(settings.ToString("completed_shows_path")),
+		CompletedRename:     settings.ToBool("completed_rename"),
 
 		LocalOnlyClient: settings.ToBool("local_only_client"),
 		LogLevel:        settings.ToInt("log_level"),

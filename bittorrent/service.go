@@ -35,7 +35,6 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/database"
 	"github.com/elgatito/elementum/diskusage"
-	"github.com/elgatito/elementum/library"
 	"github.com/elgatito/elementum/proxy"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/trakt"
@@ -1555,10 +1554,7 @@ func (s *Service) onDownloadProgress() {
 				return
 			}
 
-			var totalDownloadRate float64
-			var totalUploadRate float64
-			var totalProgress int
-
+			var totalDownloadRate, totalUploadRate float64
 			activeTorrents := make([]*activeTorrent, 0)
 
 			for _, t := range s.q.All() {
@@ -1567,305 +1563,132 @@ func (s *Service) onDownloadProgress() {
 					continue
 				}
 
-				infoHash := t.InfoHash()
-				isPaused := ts.Paused
-				status := StatusStrings[t.GetSmartState()]
-
 				downloadRate := float64(ts.DownloadPayloadRate)
 				uploadRate := float64(ts.UploadPayloadRate)
 				totalDownloadRate += downloadRate
 				totalUploadRate += uploadRate
 
-				torrentName := ts.Name
 				progress := int(ts.Progress * 100)
-
-				if progress < 100 && !isPaused {
+				if progress < 100 && !ts.Paused {
 					activeTorrents = append(activeTorrents, &activeTorrent{
-						torrentName:  torrentName,
+						torrentName:  ts.Name,
 						downloadRate: downloadRate,
 						uploadRate:   uploadRate,
 						progress:     progress,
 					})
-					totalProgress += progress
 					continue
 				}
 
-				seedingTime := ts.SeedingTime
-				finishedTime := ts.FinishedTime
-				if progress == 100 && seedingTime == 0 {
-					seedingTime = finishedTime
-				}
-
-				if !t.IsMemoryStorage() && s.config.SeedTimeLimit > 0 && !s.config.SeedForever {
-					if seedingTime >= s.config.SeedTimeLimit {
-						if !isPaused {
-							log.Warningf("Seeding time limit reached, pausing %s", torrentName)
-							t.withHandle(func(th lt.TorrentHandle) {
-								th.AutoManaged(false)
-								th.Pause(1)
-							})
-							isPaused = true
-						}
-						status = StatusStrings[StatusSeeding]
+				finished := t.GetSmartState() == StatusSeeding
+				if reason := s.seedLimitReached(t, ts, progress); reason != "" {
+					finished = true
+					if !ts.Paused {
+						log.Warningf("%s, pausing %s", reason, ts.Name)
+						t.withHandle(func(th lt.TorrentHandle) {
+							th.AutoManaged(false)
+							th.Pause(1)
+						})
 					}
 				}
-				if !t.IsMemoryStorage() && s.config.SeedTimeRatioLimit > 0 && !s.config.SeedForever {
-					timeRatio := 0
-					downloadTime := ts.ActiveTime - seedingTime
-					if downloadTime > 1 {
-						timeRatio = seedingTime * 100 / downloadTime
-					}
-					if timeRatio >= s.config.SeedTimeRatioLimit {
-						if !isPaused {
-							log.Warningf("Seeding time ratio reached, pausing %s", torrentName)
-							t.withHandle(func(th lt.TorrentHandle) {
-								th.AutoManaged(false)
-								th.Pause(1)
-							})
-							isPaused = true
-						}
-						status = StatusStrings[StatusSeeding]
-					}
-				}
-				if !t.IsMemoryStorage() && s.config.ShareRatioLimit > 0 && !s.config.SeedForever {
-					ratio := int64(0)
-					allTimeDownload := ts.AllTimeDownload
-					if allTimeDownload > 0 {
-						ratio = ts.AllTimeUpload * 100 / allTimeDownload
-					}
-					if ratio >= int64(s.config.ShareRatioLimit) {
-						if !isPaused {
-							log.Warningf("Share ratio reached, pausing %s", torrentName)
-							t.withHandle(func(th lt.TorrentHandle) {
-								th.AutoManaged(false)
-								th.Pause(1)
-							})
-						}
-						status = StatusStrings[StatusSeeding]
-					}
-				}
-
 				if t.IsMarkedToMove.CompareAndSwap(true, false) {
-					status = StatusStrings[StatusSeeding]
+					finished = true
 				}
 
-				//
-				// Handle moving completed downloads
-				//
-				if t.IsMemoryStorage() || !s.config.CompletedMove || status != StatusStrings[StatusSeeding] || s.anyPlayerIsPlaying() || t.IsMoveInProgress.Load() {
+				if !finished || t.IsMemoryStorage() || !s.config.CompletedMove || s.anyPlayerIsPlaying() || t.IsMoveInProgress.Load() {
 					continue
 				}
 				if xbmcHost != nil && xbmcHost.PlayerIsPlaying() {
 					continue
 				}
-
-				if _, exists := warnedMissing.Load(infoHash); exists {
+				if _, exists := warnedMissing.Load(t.InfoHash()); exists {
 					continue
 				}
 
-				go func(t *Torrent) error {
-					if !t.IsMoveInProgress.CompareAndSwap(false, true) {
-						return nil
-					}
-					defer t.IsMoveInProgress.Store(false)
-
-					item := database.GetStorm().GetBTItem(infoHash)
-					if item == nil {
-						warnedMissing.Store(infoHash, true)
-						return fmt.Errorf("Torrent not found with infohash: %s", infoHash)
-					}
-
-					errMsg := fmt.Sprintf("Missing item type to move files to completed folder for %s", torrentName)
-					if item.Type == "" {
-						log.Error(errMsg)
-						return errors.New(errMsg)
-					}
-					log.Warning(torrentName, "finished seeding, moving files...")
-
-					// Check paths are valid and writable, and only once
-					if _, exists := pathChecked.Load(item.Type); !exists {
-						if item.Type == "movie" {
-							if err := util.IsWritablePath(s.config.CompletedMoviesPath); err != nil {
-								warnedMissing.Store(infoHash, true)
-								pathChecked.Store(item.Type, true)
-								log.Error(err)
-								return err
-							}
-							pathChecked.Store(item.Type, true)
-						} else {
-							if err := util.IsWritablePath(s.config.CompletedShowsPath); err != nil {
-								warnedMissing.Store(infoHash, true)
-								pathChecked.Store(item.Type, true)
-								log.Error(err)
-								return err
-							}
-							pathChecked.Store(item.Type, true)
-						}
-					}
-
-					// Preparing list of files that need to be moved
-					filesToMove := []string{}
-					filesToCleanup := map[string]bool{}
-					notMoved := []string{}
-					if !t.withHandle(func(lt.TorrentHandle) {
-						for _, fp := range t.files {
-							f := t.GetFileByPath(fp.Path)
-							filesToMove = append(filesToMove, t.ti.Files().FilePath(f.Index))
-						}
-					}) {
-						return errors.New("Torrent is closed")
-					}
-
-					log.Infof("Moving torrent '%s' to completed folder", t.Name())
-					log.Info("Removing the torrent without deleting files after Completed move ...")
-
-					// Removing torrent from libtorrent session before moving files physically
-					s.RemoveTorrent(xbmcHost, t, RemoveOptions{ForceDrop: true, ForceKeepTorrentData: true})
-
-					if len(t.files) <= 0 {
-						return errors.New("No files listed in the torrent")
-					}
-
-					// Move files one by one from torrent
-					for _, filePath := range filesToMove {
-						fileName := filepath.Base(filePath)
-
-						extracted := ""
-						re := regexp.MustCompile(`(?i).*\.rar$`)
-						if re.MatchString(fileName) {
-							extractedPath := filepath.Join(s.config.DownloadPath, filepath.Dir(filePath), "extracted")
-							files, err := os.ReadDir(extractedPath)
-							if err != nil {
-								return err
-							}
-							if len(files) == 1 {
-								extracted = files[0].Name()
-							} else {
-								for _, file := range files {
-									fileNameCurrent := file.Name()
-									re := regexp.MustCompile(`(?i).*\.(mkv|mp4|mov|avi)`)
-									if re.MatchString(fileNameCurrent) {
-										extracted = fileNameCurrent
-										break
-									}
-								}
-							}
-							if extracted != "" {
-								filePath = filepath.Join(filepath.Dir(filePath), "extracted", extracted)
-							} else {
-								return errors.New("No extracted file to move")
-							}
-						}
-
-						var dstPath string
-						if item.Type == "movie" {
-							dstPath = util.EffectiveDir(s.config.CompletedMoviesPath)
-							if item.ID > 0 {
-								movie := tmdb.GetMovie(item.ID, config.Get().Language)
-								if movie != nil {
-									dstPath = filepath.Join(dstPath, library.GetMoviePathTitle(movie))
-									os.MkdirAll(dstPath, 0755)
-								}
-							}
-						} else {
-							dstPath = util.EffectiveDir(s.config.CompletedShowsPath)
-							if item.ShowID > 0 {
-								if show := tmdb.GetShow(item.ShowID, config.Get().Language); show != nil {
-									showPath := library.GetShowPathTitle(show)
-									seasonPath := filepath.Join(showPath, fmt.Sprintf("Season %d", item.Season))
-									if item.Season == 0 {
-										seasonPath = filepath.Join(showPath, "Specials")
-									}
-									dstPath = filepath.Join(dstPath, seasonPath)
-									os.MkdirAll(dstPath, 0755)
-								}
-							}
-						}
-
-						srcPath := filepath.Join(s.config.DownloadPath, filePath)
-						log.Infof("Moving file %s to %s", srcPath, dstPath)
-						dst, err := util.Move(srcPath, dstPath)
-						// Retry transient failures (e.g. NAS hiccup during copy), a failed Move leaves the source in place
-						for attempt := 2; err != nil && attempt <= moveAttempts && util.FileExists(srcPath); attempt++ {
-							log.Warningf("Moving %s failed: %s. Retrying in %s (attempt %d of %d)", srcPath, err, moveRetryDelay, attempt, moveAttempts)
-							time.Sleep(moveRetryDelay)
-							dst, err = util.Move(srcPath, dstPath)
-						}
-						if err != nil {
-							log.Error(err)
-							// File is still in the download folder, its directory must not be cleaned up
-							if util.FileExists(srcPath) {
-								notMoved = append(notMoved, filepath.Dir(srcPath))
-							}
-						} else {
-							log.Warning(fileName, "moved to", dst)
-
-							if dirPath := filepath.Dir(filePath); dirPath != "." {
-								filesToCleanup[filepath.Dir(srcPath)] = true
-								if extracted != "" {
-									parentPath := filepath.Clean(filepath.Join(filepath.Dir(srcPath), ".."))
-									if parentPath != "." && parentPath != s.config.DownloadPath {
-										filesToCleanup[parentPath] = true
-									}
-								}
-							}
-						}
-					}
-
-					// Remove leftover folders, except ones still holding files that failed to move
-					for filePath := range filesToCleanup {
-						if slices.ContainsFunc(notMoved, func(dir string) bool {
-							return dir == filePath || strings.HasPrefix(dir, filePath+string(filepath.Separator))
-						}) {
-							log.Warningf("Not removing %s, it still contains files that failed to move", filePath)
-							continue
-						}
-						log.Infof("Removing all from %s", filePath)
-						os.RemoveAll(filePath)
-					}
-
-					// Data is no longer in the download folder, resume data is useless now
-					if len(notMoved) == 0 {
-						os.Remove(t.fastResumeFile)
-						os.Remove(t.partsFile)
-					}
-
-					log.Infof("Marking %s for removal from library and database...", torrentName)
-					database.GetStorm().UpdateBTItemStatus(infoHash, Remove)
-
-					return nil
-				}(t)
+				go s.moveCompleted(xbmcHost, t, ts.Name, &pathChecked, &warnedMissing)
 			}
 
-			totalActive := len(activeTorrents)
-			if totalActive > 0 {
-				showProgress := totalProgress / totalActive
-				showTorrent := fmt.Sprintf("Total - D/L: %s - U/L: %s", humanize.Bytes(uint64(totalDownloadRate))+"/s", humanize.Bytes(uint64(totalUploadRate))+"/s")
-				if showNext >= totalActive {
-					showNext = 0
-				} else {
-					showProgress = activeTorrents[showNext].progress
-					torrentName := activeTorrents[showNext].torrentName
-					if len(torrentName) > 30 {
-						torrentName = torrentName[:30] + "..."
-					}
-					showTorrent = fmt.Sprintf("%s - %s - %s", torrentName, humanize.Bytes(uint64(activeTorrents[showNext].downloadRate))+"/s", humanize.Bytes(uint64(activeTorrents[showNext].uploadRate))+"/s")
-					showNext++
-				}
-				if !s.config.DisableBgProgress && (!s.config.DisableBgProgressPlayback || !s.anyPlayerIsPlaying()) {
-					if s.dialogProgressBG == nil {
-						s.dialogProgressBG = xbmcHost.NewDialogProgressBG("Elementum", "")
-					}
-					if s.dialogProgressBG != nil {
-						s.dialogProgressBG.Update(showProgress, "Elementum", showTorrent)
-					}
-				}
-			} else if (!s.config.DisableBgProgress || (s.config.DisableBgProgressPlayback && s.anyPlayerIsPlaying())) && s.dialogProgressBG != nil {
-				s.dialogProgressBG.Close()
-				s.dialogProgressBG = nil
-			}
+			showNext = s.updateProgressDialog(xbmcHost, activeTorrents, totalDownloadRate, totalUploadRate, showNext)
 		}
 	}
+}
+
+// seedLimitReached returns the reason a finished torrent should stop seeding, or empty string if no limit is reached
+func (s *Service) seedLimitReached(t *Torrent, ts *TorrentStatus, progress int) string {
+	if t.IsMemoryStorage() || s.config.SeedForever {
+		return ""
+	}
+
+	seedingTime := ts.SeedingTime
+	if progress == 100 && seedingTime == 0 {
+		seedingTime = ts.FinishedTime
+	}
+
+	if s.config.SeedTimeLimit > 0 && seedingTime >= s.config.SeedTimeLimit {
+		return "Seeding time limit reached"
+	}
+	if s.config.SeedTimeRatioLimit > 0 {
+		timeRatio := 0
+		if downloadTime := ts.ActiveTime - seedingTime; downloadTime > 1 {
+			timeRatio = seedingTime * 100 / downloadTime
+		}
+		if timeRatio >= s.config.SeedTimeRatioLimit {
+			return "Seeding time ratio reached"
+		}
+	}
+	if s.config.ShareRatioLimit > 0 {
+		ratio := int64(0)
+		if ts.AllTimeDownload > 0 {
+			ratio = ts.AllTimeUpload * 100 / ts.AllTimeDownload
+		}
+		if ratio >= int64(s.config.ShareRatioLimit) {
+			return "Share ratio reached"
+		}
+	}
+
+	return ""
+}
+
+// updateProgressDialog shows total progress and each active torrent in turn, returns the next torrent to show
+func (s *Service) updateProgressDialog(xbmcHost *xbmc.XBMCHost, activeTorrents []*activeTorrent, totalDownloadRate, totalUploadRate float64, showNext int) int {
+	totalActive := len(activeTorrents)
+	if totalActive == 0 {
+		if (!s.config.DisableBgProgress || (s.config.DisableBgProgressPlayback && s.anyPlayerIsPlaying())) && s.dialogProgressBG != nil {
+			s.dialogProgressBG.Close()
+			s.dialogProgressBG = nil
+		}
+		return showNext
+	}
+
+	totalProgress := 0
+	for _, at := range activeTorrents {
+		totalProgress += at.progress
+	}
+
+	showProgress := totalProgress / totalActive
+	showTorrent := fmt.Sprintf("Total - D/L: %s - U/L: %s", humanize.Bytes(uint64(totalDownloadRate))+"/s", humanize.Bytes(uint64(totalUploadRate))+"/s")
+	if showNext >= totalActive {
+		showNext = 0
+	} else {
+		at := activeTorrents[showNext]
+		showProgress = at.progress
+		torrentName := at.torrentName
+		if len(torrentName) > 30 {
+			torrentName = torrentName[:30] + "..."
+		}
+		showTorrent = fmt.Sprintf("%s - %s - %s", torrentName, humanize.Bytes(uint64(at.downloadRate))+"/s", humanize.Bytes(uint64(at.uploadRate))+"/s")
+		showNext++
+	}
+
+	if !s.config.DisableBgProgress && (!s.config.DisableBgProgressPlayback || !s.anyPlayerIsPlaying()) {
+		if s.dialogProgressBG == nil {
+			s.dialogProgressBG = xbmcHost.NewDialogProgressBG("Elementum", "")
+		}
+		if s.dialogProgressBG != nil {
+			s.dialogProgressBG.Update(showProgress, "Elementum", showTorrent)
+		}
+	}
+
+	return showNext
 }
 
 // SetDownloadLimit ...
