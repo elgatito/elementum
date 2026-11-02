@@ -736,7 +736,9 @@ func RefreshTrackerPaused(xbmcHost *xbmc.XBMCHost, p tracker.Provider, itemType 
 		if err != nil {
 			log.Warningf("TrackerSync: Got error from Paused movies: %s", err)
 			return err
-		} else if config.Get().LibraryReadOnly {
+		}
+		uid.SetTrackerPaused(tracker.MovieType, movies)
+		if config.Get().LibraryReadOnly {
 			return nil
 		}
 
@@ -773,7 +775,9 @@ func RefreshTrackerPaused(xbmcHost *xbmc.XBMCHost, p tracker.Provider, itemType 
 		if err != nil {
 			log.Warningf("TrackerSync: Got error from Paused episodes: %s", err)
 			return err
-		} else if config.Get().LibraryReadOnly {
+		}
+		uid.SetTrackerPaused(tracker.EpisodeType, shows)
+		if config.Get().LibraryReadOnly {
 			return nil
 		}
 

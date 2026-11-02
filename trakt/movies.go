@@ -610,13 +610,12 @@ func (movie *Movie) ToListItem() (item *xbmc.ListItem) {
 		}
 	}
 
+	var resume *uid.Resume
 	if lm, err := uid.GetMovieByTMDB(movie.IDs.TMDB); lm != nil && err == nil {
 		item.Info.DBID = lm.UIDs.Kodi
-		if lm.Resume != nil {
-			item.Properties.ResumeTime = strconv.FormatFloat(lm.Resume.Position, 'f', 6, 64)
-			item.Properties.TotalTime = strconv.FormatFloat(lm.Resume.Total, 'f', 6, 64)
-		}
+		resume = lm.Resume
 	}
+	uid.MovieResumeOrTracker(resume, movie.IDs.TMDB, item.Info.Duration).SetProperties(item.Properties)
 
 	if item != nil && item.Info != nil && len(item.Info.Trailer) == 0 {
 		item.Info.Trailer = util.TrailerURL(movie.Trailer)

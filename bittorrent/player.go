@@ -1059,6 +1059,23 @@ func (btp *Player) GetIdent() {
 		}
 	}
 
+	// Items outside of Kodi library can be resumed from tracker playback progress
+	if btp.p.KodiID == 0 && config.Get().TraktSyncPlaybackProgress {
+		if btp.p.ContentType == movieType {
+			runtime := 0
+			if m := tmdb.GetMovie(btp.p.TMDBId, config.Get().Language); m != nil {
+				runtime = m.Runtime * 60
+			}
+			btp.p.Resume = uid.MovieResumeOrTracker(btp.p.Resume, btp.p.TMDBId, runtime)
+		} else if btp.p.ContentType == episodeType && btp.p.Episode > 0 {
+			runtime := 0
+			if e := tmdb.GetEpisode(btp.p.ShowID, btp.p.Season, btp.p.Episode, config.Get().Language); e != nil {
+				runtime = e.Runtime * 60
+			}
+			btp.p.Resume = uid.EpisodeResumeOrTracker(btp.p.Resume, btp.p.ShowID, btp.p.Season, btp.p.Episode, runtime)
+		}
+	}
+
 	if btp.p.KodiID == 0 {
 		log.Debugf("Can't find %s for these parameters: %+v", btp.p.ContentType, btp.p)
 	}

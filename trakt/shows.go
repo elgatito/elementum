@@ -936,15 +936,14 @@ func (episode *Episode) ToListItem(show *Show, tmdbShow *tmdb.Show) (item *xbmc.
 		}
 	}
 
+	var resume *uid.Resume
 	if ls, err := uid.GetShowByTMDB(show.IDs.TMDB); ls != nil && err == nil {
 		if le := ls.GetEpisode(episode.Season, episode.Number); le != nil {
 			item.Info.DBID = le.UIDs.Kodi
-			if le.Resume != nil {
-				item.Properties.ResumeTime = strconv.FormatFloat(le.Resume.Position, 'f', 6, 64)
-				item.Properties.TotalTime = strconv.FormatFloat(le.Resume.Total, 'f', 6, 64)
-			}
+			resume = le.Resume
 		}
 	}
+	uid.EpisodeResumeOrTracker(resume, show.IDs.TMDB, episode.Season, episode.Number, item.Info.Duration).SetProperties(item.Properties)
 
 	return item
 }

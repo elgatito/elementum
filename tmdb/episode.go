@@ -175,15 +175,14 @@ func (episode *Episode) ToListItem(show *Show, season *Season) *xbmc.ListItem {
 		item.Info.IMDBNumber = show.ExternalIDs.IMDBId
 	}
 
+	var resume *uid.Resume
 	if ls, err := uid.GetShowByTMDB(show.ID); ls != nil && err == nil {
 		if le := ls.GetEpisode(episode.SeasonNumber, episode.EpisodeNumber); le != nil {
 			item.Info.DBID = le.UIDs.Kodi
-			if le.Resume != nil {
-				item.Properties.ResumeTime = strconv.FormatFloat(le.Resume.Position, 'f', 6, 64)
-				item.Properties.TotalTime = strconv.FormatFloat(le.Resume.Total, 'f', 6, 64)
-			}
+			resume = le.Resume
 		}
 	}
+	uid.EpisodeResumeOrTracker(resume, show.ID, episode.SeasonNumber, episode.EpisodeNumber, item.Info.Duration).SetProperties(item.Properties)
 
 	episode.SetArt(show, season, item)
 
