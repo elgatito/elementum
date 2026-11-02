@@ -225,15 +225,7 @@ func (h *XBMCHost) DialogConfirmFocused(title string, message string) bool {
 func (h *XBMCHost) dialogConfirmRunner(title, message string, focused bool) bool {
 	c1 := make(chan bool, 1)
 	go func() {
-		// Emulating left click to make "OK predefined"
-		if focused {
-			go func() {
-				time.Sleep(time.Millisecond * 200)
-				retVal := 0
-				h.executeJSONRPC("Input.Left", &retVal, nil)
-			}()
-		}
-
+		// Python side focuses "Yes" when focused is true
 		retVal := 0
 		h.executeJSONRPCEx("Dialog_Confirm_With_Timeout", &retVal, Args{title, message, focused, DialogAutoclose})
 		c1 <- retVal != 0
