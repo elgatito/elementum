@@ -170,7 +170,7 @@ func SetViewMode(ctx *gin.Context) {
 	viewName := xbmcHost.InfoLabel("Container.Viewmode")
 	viewMode := xbmcHost.GetCurrentView()
 	cmdLog.Noticef("ViewMode: %s (%s)", viewName, viewMode)
-	if viewMode != "0" {
+	if viewMode != "" && viewMode != "0" {
 		xbmcHost.SetSetting("viewmode_"+contentType, viewMode)
 	}
 	ctx.String(200, "")
