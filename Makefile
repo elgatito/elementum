@@ -165,10 +165,46 @@ PLATFORMS = $(ANDROID_PLATFORMS) $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) $(DARWI
 # rather than set globally, because this Makefile also runs inside the build containers.
 JOBS ?= 4
 
-.PHONY: $(PLATFORMS) all
+.PHONY: $(PLATFORMS) all help
 
 all:
 	$(MAKE) -j$(JOBS) --output-sync=target $(PLATFORMS)
+
+help:
+	@echo "Usage: make [target] [VAR=value ...]"
+	@echo
+	@echo "Build (in Docker images $(DOCKER_IMAGE):<os>-<arch>):"
+	@echo "  all                  Build all platforms in parallel (JOBS=$(JOBS))"
+	@echo "  <platform>           Build one platform, e.g. 'make linux-x64 windows-x64-shared'"
+	@echo "  build                Build TARGET_OS/TARGET_ARCH[/TARGET_SHARED=shared] in Docker"
+	@echo "  dist                 Build inside the container (used by 'build')"
+	@echo "  test                 Run Go tests in the linux-x64 image"
+	@echo "  docker               Start a shell container for TARGET_OS/TARGET_ARCH"
+	@echo "  client               Create empty build/client directory"
+	@echo
+	@echo "Images and dependencies:"
+	@echo "  pull                 Pull the image for PLATFORM"
+	@echo "  pull-all             Pull images for all platforms"
+	@echo "  prepare              'go get -u' inside the TARGET_OS/TARGET_ARCH image"
+	@echo "  libs                 Build libtorrent-go for PLATFORM"
+	@echo
+	@echo "Packaging and release:"
+	@echo "  zip                  Zip build/<PLATFORM> into build/$(NAME).<version>.<platform>.zip"
+	@echo "  upx / upx-all        Compress TARGET's / all binaries with UPX"
+	@echo "  binaries             Push build/ to elementum-binaries (needs GH_USER, GH_TOKEN)"
+	@echo
+	@echo "Cleanup:"
+	@echo "  clean                Remove build/<TARGET_OS>_<TARGET_ARCH>"
+	@echo "  distclean            Remove build/"
+	@echo
+	@echo "Variables:"
+	@echo "  JOBS=N               Parallel platform builds for 'all' (default 4)"
+	@echo "  IS_RACE=1            Build with -race"
+	@echo "  TARGET_OS, TARGET_ARCH, TARGET_SHARED   Target for build/docker/prepare/clean"
+	@echo "  PLATFORM=<os>-<arch> Target for pull/libs/zip"
+	@echo
+	@echo "Platforms:"
+	@printf '  %s\n' $(PLATFORMS)
 
 client client-shared:
 	mkdir -p $(BUILD_PATH)
