@@ -301,6 +301,53 @@ func PopularShows(params DiscoverFilters, language string, page int) (Shows, int
 	return listShows("discover/tv", p, page)
 }
 
+// PersonShows returns ids of shows a person played in or worked on, the ones with most episodes first,
+// as TMDB popularity would put one-episode guest roles in hit shows on top.
+func PersonShows(personID int) []int {
+	type credit struct {
+		ID           int     `json:"id"`
+		GenreIDs     []int   `json:"genre_ids"`
+		EpisodeCount int     `json:"episode_count"`
+		Popularity   float64 `json:"popularity"`
+	}
+	var results struct {
+		Cast []credit `json:"cast"`
+		Crew []credit `json:"crew"`
+	}
+
+	req := reqapi.Request{
+		API:         reqapi.TMDBAPI,
+		URL:         fmt.Sprintf("/person/%d/tv_credits", personID),
+		Params:      napping.Params{"api_key": apiKey}.AsUrlValues(),
+		Result:      &results,
+		Description: "person tv credits",
+
+		Cache:       true,
+		CacheExpire: cache.CacheExpireMedium,
+	}
+
+	if err := req.Do(); err != nil {
+		return nil
+	}
+
+	episodes := map[int]int{}
+	popularity := map[int]float64{}
+	for _, c := range append(results.Cast, results.Crew...) {
+		// News, Reality and Talk shows are mostly guest appearances as themselves
+		if slices.ContainsFunc(c.GenreIDs, func(g int) bool { return g == 10763 || g == 10764 || g == 10767 }) {
+			continue
+		}
+		episodes[c.ID] += c.EpisodeCount
+		popularity[c.ID] = c.Popularity
+	}
+
+	ids := slices.Collect(maps.Keys(episodes))
+	slices.SortFunc(ids, func(a, b int) int {
+		return cmp.Or(cmp.Compare(episodes[b], episodes[a]), cmp.Compare(popularity[b], popularity[a]))
+	})
+	return ids
+}
+
 // RecentShows ...
 func RecentShows(params DiscoverFilters, language string, page int) (Shows, int) {
 	var p napping.Params

@@ -3,6 +3,7 @@ package api
 import (
 	"cmp"
 	"fmt"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 	"strings"
@@ -83,6 +84,8 @@ func MoviesIndex(ctx *gin.Context) {
 		{Label: "TMDB > LOCALIZE[30211]", Path: URLForXBMC("/movies/top"), Thumbnail: config.AddonResource("img", "top_rated.png")},
 		{Label: "TMDB > LOCALIZE[30212]", Path: URLForXBMC("/movies/mostvoted"), Thumbnail: config.AddonResource("img", "most_voted.png")},
 		{Label: "TMDB > LOCALIZE[30236]", Path: URLForXBMC("/movies/recent"), Thumbnail: config.AddonResource("img", "clock.png")},
+		{Label: "TMDB > LOCALIZE[30811]", Path: URLForXBMC("/movies/random"), Thumbnail: config.AddonResource("img", "random.png")},
+		{Label: "TMDB > LOCALIZE[30812]", Path: URLForXBMC("/movies/people"), Thumbnail: config.AddonResource("img", "people.png")},
 		{Label: "TMDB > LOCALIZE[30213]", Path: URLForXBMC("/movies/imdb250"), Thumbnail: config.AddonResource("img", "imdb.png")},
 		{Label: "TMDB > LOCALIZE[30289]", Path: URLForXBMC("/movies/genres"), Thumbnail: config.AddonResource("img", "genres.png")},
 		{Label: "TMDB > LOCALIZE[30373]", Path: URLForXBMC("/movies/languages"), Thumbnail: config.AddonResource("img", "languages.png")},
@@ -540,6 +543,62 @@ func MoviesMostVoted(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	movies, total := tmdb.MostVotedMovies("", config.Get().Language, page)
 	renderMovies(ctx, movies, page, total, false)
+}
+
+// randomPoolSize is how many most popular titles random lists pick from, so picks stay well known
+const randomPoolSize = 1000
+
+// randomPage picks a random results page within randomPoolSize
+func randomPage() int {
+	return rand.IntN(max(1, randomPoolSize/config.Get().ResultsPerPage)) + 1
+}
+
+// RandomMovies shows a shuffled random page of popular movies, a new one on every visit
+func RandomMovies(ctx *gin.Context) {
+	defer perf.ScopeTimer()()
+
+	movies, _ := tmdb.PopularMovies(tmdb.DiscoverFilters{}, config.Get().Language, randomPage())
+	rand.Shuffle(len(movies), func(i, j int) { movies[i], movies[j] = movies[j], movies[i] })
+	renderMovies(ctx, movies, -1, len(movies), false)
+}
+
+// PopularPeople lists TMDB popular people, each opening their movies or shows
+func PopularPeople(mediaType string) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		defer perf.ScopeTimer()()
+
+		page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+		people, totalPages := tmdb.PopularPeople(config.Get().Language, page)
+
+		items := xbmc.ListItems{}
+		for _, p := range people {
+			thumb := tmdb.ImageURL(p.ProfilePath, "w500")
+			path := URLForXBMC("/shows/person/%d", p.ID)
+			if mediaType == "movies" {
+				path = URLQuery(URLForXBMC("/movies/advanced/results"), "cast", fmt.Sprintf("%d:%s", p.ID, p.Name))
+			}
+			items = append(items, &xbmc.ListItem{
+				Label:     p.Name,
+				Path:      path,
+				Thumbnail: thumb,
+				Art:       &xbmc.ListItemArt{Thumbnail: thumb, Poster: thumb},
+			})
+		}
+		if page < totalPages {
+			items = append(items, &xbmc.ListItem{
+				Label:      "LOCALIZE[30415];;" + strconv.Itoa(page+1),
+				Path:       URLForXBMC("/%s/people?page=%d", mediaType, page+1),
+				Thumbnail:  config.AddonResource("img", "nextpage.png"),
+				Properties: &xbmc.ListItemProperties{SpecialSort: "bottom"},
+			})
+		}
+
+		view := "menus_movies"
+		if mediaType == "shows" {
+			view = "menus_tvshows"
+		}
+		ctx.JSON(200, xbmc.NewView(view, filterListItems(items)))
+	}
 }
 
 // SearchMovies ...

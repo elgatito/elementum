@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"slices"
 	"strconv"
 	"strings"
@@ -51,6 +52,8 @@ func TVIndex(ctx *gin.Context) {
 		{Label: "TMDB > LOCALIZE[30210]", Path: URLForXBMC("/shows/popular"), Thumbnail: config.AddonResource("img", "popular.png")},
 		{Label: "TMDB > LOCALIZE[30211]", Path: URLForXBMC("/shows/top"), Thumbnail: config.AddonResource("img", "top_rated.png")},
 		{Label: "TMDB > LOCALIZE[30212]", Path: URLForXBMC("/shows/mostvoted"), Thumbnail: config.AddonResource("img", "most_voted.png")},
+		{Label: "TMDB > LOCALIZE[30811]", Path: URLForXBMC("/shows/random"), Thumbnail: config.AddonResource("img", "random.png")},
+		{Label: "TMDB > LOCALIZE[30812]", Path: URLForXBMC("/shows/people"), Thumbnail: config.AddonResource("img", "people.png")},
 		{Label: "TMDB > LOCALIZE[30289]", Path: URLForXBMC("/shows/genres"), Thumbnail: config.AddonResource("img", "genres.png")},
 		{Label: "TMDB > LOCALIZE[30373]", Path: URLForXBMC("/shows/languages"), Thumbnail: config.AddonResource("img", "languages.png")},
 		{Label: "TMDB > LOCALIZE[30374]", Path: URLForXBMC("/shows/countries"), Thumbnail: config.AddonResource("img", "countries.png")},
@@ -393,6 +396,30 @@ func PopularShows(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	shows, total := tmdb.PopularShows(p, config.Get().Language, page)
 	renderShows(ctx, shows, page, total, false)
+}
+
+// RandomShows shows a shuffled random page of popular shows, a new one on every visit
+func RandomShows(ctx *gin.Context) {
+	defer perf.ScopeTimer()()
+
+	shows, _ := tmdb.PopularShows(tmdb.DiscoverFilters{}, config.Get().Language, randomPage())
+	rand.Shuffle(len(shows), func(i, j int) { shows[i], shows[j] = shows[j], shows[i] })
+	renderShows(ctx, shows, -1, len(shows), false)
+}
+
+// PersonShows lists shows of a TMDB person, ones they have most episodes in first
+func PersonShows(ctx *gin.Context) {
+	defer perf.ScopeTimer()()
+
+	id, _ := strconv.Atoi(ctx.Params.ByName("id"))
+	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	page = max(page, 1)
+
+	ids := tmdb.PersonShows(id)
+	perPage := config.Get().ResultsPerPage
+	start := min((page-1)*perPage, len(ids))
+	end := min(start+perPage, len(ids))
+	renderShows(ctx, tmdb.GetShows(ids[start:end], config.Get().Language), page, len(ids), false)
 }
 
 // RecentShows ...

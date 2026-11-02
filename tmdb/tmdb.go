@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/elgatito/elementum/cache"
@@ -288,6 +289,35 @@ func SearchPeople(query string, language string) []*IDName {
 		return nil
 	}
 	return results.Results
+}
+
+// PopularPeople returns a page of TMDB popular people, Cast carries the id, name and profile_path they have
+func PopularPeople(language string, page int) (people []*Cast, totalPages int) {
+	var results struct {
+		Results    []*Cast `json:"results"`
+		TotalPages int     `json:"total_pages"`
+	}
+
+	req := reqapi.Request{
+		API: reqapi.TMDBAPI,
+		URL: "/person/popular",
+		Params: napping.Params{
+			"api_key":  apiKey,
+			"language": language,
+			"page":     strconv.Itoa(page),
+		}.AsUrlValues(),
+		Result:      &results,
+		Description: "popular people",
+
+		Cache:       true,
+		CacheExpire: cache.CacheExpireShort,
+	}
+
+	if err := req.Do(); err != nil {
+		return nil, 0
+	}
+	// TMDB reports more pages than it serves, requests past page 500 fail
+	return results.Results, min(results.TotalPages, 500)
 }
 
 // GetLanguages ...
