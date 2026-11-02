@@ -306,7 +306,6 @@ func (h *XBMCHost) PlayerSeek(position float64) (ret string) {
 	return
 }
 
-
 // PlayerGetSubtitles ...
 func (h *XBMCHost) PlayerGetSubtitles() (ret []string) {
 	h.executeJSONRPCEx("Player_GetSubtitles", &ret, nil)
