@@ -29,6 +29,19 @@ var (
 	completedRarRe     = regexp.MustCompile(`(?i)\.rar$`)
 )
 
+// EpisodeFromFileName parses a file name like "Show.Name.S01E02.mkv" or "Show Name 1x02.mkv"
+// into show name, before the episode marker, and season/episode numbers.
+func EpisodeFromFileName(fileName string) (show string, season, episode int, ok bool) {
+	m := completedEpisodeRe.FindStringSubmatch(fileName)
+	if m == nil {
+		return "", 0, 0, false
+	}
+	season, _ = strconv.Atoi(m[1] + m[3])
+	episode, _ = strconv.Atoi(m[2] + m[4])
+	show = strings.Trim(strings.NewReplacer(".", " ", "_", " ").Replace(fileName[:strings.Index(fileName, m[0])]), " -[(")
+	return show, season, episode, true
+}
+
 // completedFileNames maps torrent file paths to Kodi-style names, like library .strm files use:
 // "Title (Year).ext" for a movie, "Show (Year) S01E02.ext" for episodes.
 // Files named after a renamed video (subtitles, nfo) follow it, ambiguous files keep their names.
@@ -48,9 +61,7 @@ func completedFileNames(files []string, name string, isMovie bool, season, episo
 			if len(videos) == 1 {
 				stem = name
 			}
-		} else if m := completedEpisodeRe.FindStringSubmatch(filepath.Base(v)); m != nil {
-			s, _ := strconv.Atoi(m[1] + m[3])
-			e, _ := strconv.Atoi(m[2] + m[4])
+		} else if _, s, e, ok := EpisodeFromFileName(filepath.Base(v)); ok {
 			stem = fmt.Sprintf("%s S%02dE%02d", name, s, e)
 		} else if len(videos) == 1 && episode > 0 {
 			stem = fmt.Sprintf("%s S%02dE%02d", name, season, episode)

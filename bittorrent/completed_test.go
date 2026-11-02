@@ -75,3 +75,23 @@ func TestSeedLimitReached(t *testing.T) {
 		}
 	}
 }
+
+func TestEpisodeFromFileName(t *testing.T) {
+	cases := []struct {
+		name            string
+		show            string
+		season, episode int
+		ok              bool
+	}{
+		{"The.Pitt.2025.S01E02.1080p.WEB.mkv", "The Pitt 2025", 1, 2, true},
+		{"Fallout - 1x08 - The Beginning.mkv", "Fallout", 1, 8, true},
+		{"S02E10.mkv", "", 2, 10, true},
+		{"My.Movie.2020.WEBDL.mp4", "", 0, 0, false},
+	}
+	for _, c := range cases {
+		show, season, episode, ok := EpisodeFromFileName(c.name)
+		if show != c.show || season != c.season || episode != c.episode || ok != c.ok {
+			t.Errorf("%s: got %q %d %d %v", c.name, show, season, episode, ok)
+		}
+	}
+}

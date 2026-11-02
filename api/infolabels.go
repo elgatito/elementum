@@ -1,6 +1,7 @@
 package api
 
 import (
+	"cmp"
 	"errors"
 	"maps"
 	"path/filepath"
@@ -310,11 +311,21 @@ func GetSearchLabels(s *bittorrent.Service, tmdbID string, idx string) (item *xb
 		Info: &xbmc.ListItemInfo{
 			Title:         torrent.DBItem.Query,
 			OriginalTitle: torrent.DBItem.Query,
-			TVShowTitle:   subtitle,
-			DBTYPE:        "episode",
-			Mediatype:     "episode",
+			DBTYPE:        "movie",
+			Mediatype:     "movie",
 		},
 		Art: &xbmc.ListItemArt{},
+	}
+
+	// Subtitle addons treat an item with TVShowTitle as an episode and fail without season/episode numbers
+	if len(chosenFileNames) == 1 {
+		if show, season, episode, ok := bittorrent.EpisodeFromFileName(chosenFileNames[0]); ok {
+			item.Info.TVShowTitle = cmp.Or(show, torrent.DBItem.Query)
+			item.Info.Season = season
+			item.Info.Episode = episode
+			item.Info.DBTYPE = "episode"
+			item.Info.Mediatype = "episode"
+		}
 	}
 
 	return
