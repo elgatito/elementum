@@ -862,6 +862,7 @@ func updateDBItem(tmdbID int, state int, mediaType int, showID int) error {
 	defer perf.ScopeTimer()()
 
 	li := database.LibraryItem{
+		Key:       database.LibraryItemKey(mediaType, tmdbID),
 		ID:        tmdbID,
 		MediaType: mediaType,
 		ShowID:    showID,
@@ -885,6 +886,7 @@ func updateBatchDBItem(tmdbIds []int, state int, mediaType int, showID int) erro
 
 	for _, id := range tmdbIds {
 		li := database.LibraryItem{
+			Key:       database.LibraryItemKey(mediaType, id),
 			ID:        id,
 			MediaType: mediaType,
 			ShowID:    showID,
@@ -907,7 +909,7 @@ func deleteDBItem(tmdbID int, mediaType int, removal bool, purge bool) error {
 	defer perf.ScopeTimer()()
 
 	var li database.LibraryItem
-	if err := database.GetStormDB().One("ID", tmdbID, &li); err != nil {
+	if err := database.GetStormDB().One("Key", database.LibraryItemKey(mediaType, tmdbID), &li); err != nil {
 		log.Debugf("Cannot find deleted item: %s", err)
 		return err
 	}

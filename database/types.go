@@ -1,6 +1,7 @@
 package database
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/anacrolix/sync"
@@ -69,10 +70,17 @@ type BTItem struct {
 
 // LibraryItem ...
 type LibraryItem struct {
-	ID        int `storm:"id"`
-	MediaType int `storm:"index"`
-	State     int `storm:"index"`
-	ShowID    int `storm:"index"`
+	// TMDB IDs of movies, shows and episodes overlap, so the key includes the media type
+	Key       string `storm:"id"`
+	ID        int    `storm:"index"`
+	MediaType int    `storm:"index"`
+	State     int    `storm:"index"`
+	ShowID    int    `storm:"index"`
+}
+
+// LibraryItemKey returns the LibraryItem key for a TMDB ID of given media type
+func LibraryItemKey(mediaType, id int) string {
+	return strconv.Itoa(mediaType) + "_" + strconv.Itoa(id)
 }
 
 // QueryHistory ...

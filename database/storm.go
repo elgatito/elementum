@@ -41,6 +41,10 @@ func InitStormDB(conf *config.Configuration) (*StormDatabase, error) {
 		return nil, errors.New("database not created")
 	}
 
+	if err := migrateLibraryItems(db); err != nil {
+		log.Warningf("Could not migrate library items: %s", err)
+	}
+
 	stormDatabase = &StormDatabase{
 		db:        db,
 		isCaching: false,
@@ -84,6 +88,38 @@ func CreateStormDB(conf *config.Configuration, databasePath, backupPath string) 
 	}
 
 	return db, nil
+}
+
+// migrateLibraryItems re-keys LibraryItem rows, stored by TMDB ID only, to LibraryItemKey.
+// Rows of different media types that already overwrote each other cannot be restored.
+func migrateLibraryItems(db *storm.DB) error {
+	var first LibraryItem
+	if err := db.Select().First(&first); err != nil || first.Key != "" {
+		return nil
+	}
+
+	tx, err := db.Begin(true)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var items []LibraryItem
+	if err := tx.All(&items); err != nil {
+		return err
+	}
+	if err := tx.Drop(&LibraryItem{}); err != nil {
+		return err
+	}
+	for i := range items {
+		items[i].Key = LibraryItemKey(items[i].MediaType, items[i].ID)
+		if err := tx.Save(&items[i]); err != nil {
+			return err
+		}
+	}
+
+	log.Infof("Migrated %d library items to new keys", len(items))
+	return tx.Commit()
 }
 
 // MaintenanceRefreshHandler ...
