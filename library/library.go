@@ -1179,12 +1179,7 @@ func SyncMoviesListAdded(movies []*tracker.Item, updating, isUpdateNeeded bool, 
 
 	if !updating && len(movieIDs) > 0 {
 		log.Infof("Movies list (%s) added %d items", listID, len(movies))
-		xbmcHost, _ := xbmc.GetLocalXBMCHost()
-		if xbmcHost != nil {
-			if config.Get().LibraryUpdate == 0 || (config.Get().LibraryUpdate == 1 && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30277];;%s", label))) {
-				xbmcHost.VideoLibraryScan()
-			}
-		}
+		requestLibraryScan(fmt.Sprintf("LOCALIZE[30277];;%s", label))
 	}
 
 	return nil
@@ -1320,12 +1315,7 @@ func SyncShowsListAdded(shows []*tracker.Item, updating, isUpdateNeeded bool, la
 
 	if !updating && len(showIDs) > 0 {
 		log.Infof("Shows list (%s) added %d items", listID, len(showIDs))
-		xbmcHost, _ := xbmc.GetLocalXBMCHost()
-		if xbmcHost != nil {
-			if config.Get().LibraryUpdate == 0 || (config.Get().LibraryUpdate == 1 && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30277];;%s", label))) {
-				xbmcHost.VideoLibraryScan()
-			}
-		}
+		requestLibraryScan(fmt.Sprintf("LOCALIZE[30277];;%s", label))
 	}
 
 	return nil

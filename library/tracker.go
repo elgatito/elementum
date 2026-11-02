@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/anacrolix/missinggo/perf"
@@ -26,7 +27,30 @@ var (
 
 	lastTrackerID   string
 	lastTrackerSync time.Time
+
+	// trackerAddedItems collects list additions during a tracker sync, so Kodi is rescanned once at the end
+	trackerAddedItems atomic.Bool
 )
+
+// requestLibraryScan rescans Kodi library according to library_update setting,
+// deferring it to the end of a running tracker sync, which syncs many lists in a row.
+func requestLibraryScan(question string) {
+	if uid.Get().Running.IsTracker {
+		trackerAddedItems.Store(true)
+		return
+	}
+	scanLibrary(question)
+}
+
+func scanLibrary(question string) {
+	xbmcHost, _ := xbmc.GetLocalXBMCHost()
+	if xbmcHost == nil {
+		return
+	}
+	if config.Get().LibraryUpdate == 0 || (config.Get().LibraryUpdate == 1 && xbmcHost.DialogConfirmFocused("Elementum", question)) {
+		xbmcHost.VideoLibraryScan()
+	}
+}
 
 // RefreshTracker gets user activities from the active tracker
 // to see if we need to add movies/set watched status and so on
@@ -78,6 +102,13 @@ func refreshTracker(force bool) error {
 	l.Running.IsTracker = true
 	defer func() {
 		l.Running.IsTracker = false
+	}()
+
+	trackerAddedItems.Store(false)
+	defer func() {
+		if trackerAddedItems.Load() {
+			scanLibrary("LOCALIZE[30288]")
+		}
 	}()
 
 	log.Infof("Running %s sync", p.Name())
