@@ -51,7 +51,7 @@ const (
 )
 
 // TrackerProviders maps tracker_provider enum index to tracker id; new trackers are appended, never inserted.
-var TrackerProviders = []string{"none", "trakt", "simkl", "mdblist"}
+var TrackerProviders = []string{"none", "trakt", "simkl", "mdblist", "scrob"}
 
 // TrackerCredentials holds OAuth credentials of a tracker, stored in <id>_token, <id>_refresh_token, <id>_token_expiry, <id>_username settings.
 type TrackerCredentials struct {
@@ -183,6 +183,8 @@ type Configuration struct {
 	TrackerProvider    string
 	TrackerCredentials map[string]*TrackerCredentials
 	MDBListAPIKey      string
+	ScrobURL           string
+	ScrobAPIKey        string
 
 	TraktAuthorized                bool
 	TraktUsername                  string
@@ -756,6 +758,8 @@ func Reload() (ret *Configuration, err error) {
 		TrackerProvider:    trackerProvider(&settings),
 		TrackerCredentials: map[string]*TrackerCredentials{},
 		MDBListAPIKey:      settings.ToString("mdblist_api_key"),
+		ScrobURL:           strings.TrimSpace(settings.ToString("scrob_url")),
+		ScrobAPIKey:        settings.ToString("scrob_api_key"),
 
 		TraktUsername:                  settings.ToString("trakt_username"),
 		TraktToken:                     settings.ToString("trakt_token"),
@@ -932,7 +936,7 @@ func Reload() (ret *Configuration, err error) {
 		}
 	}
 
-	for _, id := range []string{"simkl", "mdblist"} {
+	for _, id := range []string{"simkl", "mdblist", "scrob"} {
 		newConfig.TrackerCredentials[id] = &TrackerCredentials{
 			Token:        settings.ToString(id + "_token"),
 			RefreshToken: settings.ToString(id + "_refresh_token"),

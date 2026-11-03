@@ -15,6 +15,7 @@ const (
 	TraktKey         = "com.trakt."
 	SimklKey         = "com.simkl."
 	MDBListKey       = "com.mdblist."
+	ScrobKey         = "com.scrob."
 	LibraryKey       = "library."
 	FanartKey        = "fanart."
 	OpensubtitlesKey = "osdb."

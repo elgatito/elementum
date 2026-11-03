@@ -32,6 +32,7 @@ import (
 	"github.com/elgatito/elementum/mdblist"
 	"github.com/elgatito/elementum/proxy"
 	"github.com/elgatito/elementum/repository"
+	"github.com/elgatito/elementum/scrob"
 	"github.com/elgatito/elementum/simkl"
 	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/trakt"
@@ -342,6 +343,7 @@ func main() {
 	tracker.Register(trakt.NewProvider())
 	tracker.Register(simkl.NewProvider())
 	tracker.Register(mdblist.NewProvider())
+	tracker.Register(scrob.NewProvider())
 
 	go library.Init()
 	go tracker.TokenRefreshHandler()

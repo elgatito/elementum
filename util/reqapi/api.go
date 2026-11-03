@@ -47,6 +47,13 @@ var (
 		RateLimiter: util.NewRateLimiter(60, 1*time.Minute, 2),
 	}
 
+	// ScrobAPI is a self-hosted server: requests carry the full URL from settings, so there is no endpoint.
+	ScrobAPI = &API{
+		Ident:       ScrobIdent,
+		RetriesLeft: 3,
+		RateLimiter: util.NewRateLimiter(10, 1*time.Second, 2),
+	}
+
 	FanartAPI = &API{
 		Ident:       FanArtIdent,
 		Endpoint:    "http://webservice.fanart.tv/v3",
@@ -74,6 +81,8 @@ func GetAPI(ident APIIdent) *API {
 		return SimklAPI
 	case MDBListIdent:
 		return MDBListAPI
+	case ScrobIdent:
+		return ScrobAPI
 	case FanArtIdent:
 		return FanartAPI
 	default:

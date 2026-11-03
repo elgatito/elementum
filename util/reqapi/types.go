@@ -12,6 +12,7 @@ const (
 	TraktIdent         APIIdent = cache.TraktKey
 	SimklIdent         APIIdent = cache.SimklKey
 	MDBListIdent       APIIdent = cache.MDBListKey
+	ScrobIdent         APIIdent = cache.ScrobKey
 	FanArtIdent        APIIdent = cache.FanartKey
 	OpenSubtitlesIdent APIIdent = cache.OpensubtitlesKey
 )
