@@ -23,6 +23,7 @@ import (
 	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/util/ident"
 	"github.com/elgatito/elementum/util/reqapi"
+	"github.com/elgatito/elementum/xbmc"
 )
 
 var log = logging.MustGetLogger("simkl")
@@ -399,12 +400,15 @@ func progress(lib *library) []*tracker.Item {
 }
 
 // statusLists are the library statuses, shown as lists like simkl.com "My Movies" and "My TV Shows" do.
-var statusLists = []struct{ status, name string }{
-	{"watching", "Watching"},
-	{statusPlanToWatch, "Plan to Watch"},
-	{"hold", "On Hold"},
-	{statusCompleted, "Completed"},
-	{"dropped", "Dropped"},
+var statusLists = []struct {
+	status, name string
+	label        int
+}{
+	{"watching", "Watching", 30819},
+	{statusPlanToWatch, "Plan to Watch", 30820},
+	{"hold", "On Hold", 30821},
+	{statusCompleted, "Completed", 30822},
+	{"dropped", "Dropped", 30823},
 }
 
 const statusListPrefix = "status:"
@@ -436,9 +440,17 @@ func statusItems(lib *library, status string, t tracker.MediaType) []*tracker.It
 // Lists returns the library status lists, then custom lists. Custom lists are a Simkl PRO and VIP feature,
 // other accounts get only the status lists.
 func (p *Provider) Lists() ([]*tracker.List, error) {
+	// names are resolved here, not as LOCALIZE[] labels: they also go to select dialogs and saved settings
+	xbmcHost, _ := xbmc.GetLocalXBMCHost()
 	ret := make([]*tracker.List, 0, len(statusLists))
 	for _, s := range statusLists {
-		ret = append(ret, &tracker.List{ID: statusListPrefix + s.status, Name: s.name})
+		name := s.name
+		if xbmcHost != nil {
+			if l := xbmcHost.GetLocalizedString(s.label); l != "" {
+				name = l
+			}
+		}
+		ret = append(ret, &tracker.List{ID: statusListPrefix + s.status, Name: name})
 	}
 
 	custom, err := p.customLists()
