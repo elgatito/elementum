@@ -398,8 +398,58 @@ func progress(lib *library) []*tracker.Item {
 	return ret
 }
 
-// Lists returns custom lists, a Simkl PRO and VIP feature: other accounts get tracker.ErrPaidAccount.
+// statusLists are the library statuses, shown as lists like simkl.com "My Movies" and "My TV Shows" do.
+var statusLists = []struct{ status, name string }{
+	{"watching", "Watching"},
+	{statusPlanToWatch, "Plan to Watch"},
+	{"hold", "On Hold"},
+	{statusCompleted, "Completed"},
+	{"dropped", "Dropped"},
+}
+
+const statusListPrefix = "status:"
+
+// statusItems returns the library titles of type t with status, most recently watched first.
+func statusItems(lib *library, status string, t tracker.MediaType) []*tracker.Item {
+	var entries []*entry
+	for _, e := range lib.Entries {
+		if e.Status == status && e.matches(t) {
+			entries = append(entries, e)
+		}
+	}
+	// map order is random, a stable order keeps pages from shuffling
+	slices.SortFunc(entries, func(a, b *entry) int {
+		if c := b.LastWatchedAt.Compare(a.LastWatchedAt); c != 0 {
+			return c
+		}
+		return strings.Compare(a.Item.Title, b.Item.Title)
+	})
+
+	ret := make([]*tracker.Item, 0, len(entries))
+	for _, e := range entries {
+		i := e.Item
+		ret = append(ret, &i)
+	}
+	return ret
+}
+
+// Lists returns the library status lists, then custom lists. Custom lists are a Simkl PRO and VIP feature,
+// other accounts get only the status lists.
 func (p *Provider) Lists() ([]*tracker.List, error) {
+	ret := make([]*tracker.List, 0, len(statusLists))
+	for _, s := range statusLists {
+		ret = append(ret, &tracker.List{ID: statusListPrefix + s.status, Name: s.name})
+	}
+
+	custom, err := p.customLists()
+	if errors.Is(err, tracker.ErrPaidAccount) {
+		log.Debugf("Simkl custom lists need a PRO or VIP account, showing only status lists")
+		return ret, nil
+	}
+	return append(ret, custom...), err
+}
+
+func (p *Provider) customLists() ([]*tracker.List, error) {
 	_, userID, err := p.settings(tracker.Credentials(p.ID()).Token)
 	if err != nil {
 		return nil, err
@@ -436,6 +486,16 @@ func (p *Provider) Lists() ([]*tracker.List, error) {
 }
 
 func (p *Provider) ListItems(listID string, t tracker.MediaType, refresh bool) ([]*tracker.Item, error) {
+	if status, ok := strings.CutPrefix(listID, statusListPrefix); ok {
+		// always refresh: status changes do not move the lists bucket the caller decides by,
+		// and the library only refetches when Simkl activities moved
+		lib, err := p.library(true)
+		if err != nil {
+			return nil, err
+		}
+		return statusItems(lib, status, t), nil
+	}
+
 	var ret []*tracker.Item
 	for page := 1; ; page++ {
 		var resp struct {

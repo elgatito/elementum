@@ -149,3 +149,25 @@ func TestProgress(t *testing.T) {
 		t.Errorf("next episode = %+v, want S03E01", got[0])
 	}
 }
+
+func TestStatusItems(t *testing.T) {
+	day := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	item := func(id int, isMovie bool, status, title string, watched time.Time) *entry {
+		return &entry{IsMovie: isMovie, Status: status, LastWatchedAt: watched, Item: tracker.Item{IDs: tracker.IDs{TMDB: id}, Title: title}}
+	}
+	lib := &library{Entries: map[string]*entry{
+		"1": item(1, false, "hold", "B", day),
+		"2": item(2, false, "hold", "A", day),
+		"3": item(3, false, "hold", "C", day.Add(time.Hour)),
+		"4": item(4, false, "dropped", "D", day),
+		"5": item(5, true, "hold", "E", day),
+	}}
+
+	got := statusItems(lib, "hold", tracker.ShowType)
+	if len(got) != 3 || got[0].IDs.TMDB != 3 || got[1].IDs.TMDB != 2 || got[2].IDs.TMDB != 1 {
+		t.Fatalf("statusItems = %+v, want shows 3, 2, 1", got)
+	}
+	if got := statusItems(lib, "hold", tracker.MovieType); len(got) != 1 || got[0].IDs.TMDB != 5 {
+		t.Errorf("movies = %+v, want movie 5", got)
+	}
+}
