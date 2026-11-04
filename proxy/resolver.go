@@ -53,6 +53,8 @@ var (
 
 // NewDoHProvider returns a new DoH client, quad9 is default
 func NewDoHProvider(provider dohprovider) (uri string, p *net.Resolver, err error) {
+	// Bootstrap IPs skip the blocking system DNS lookup of the DoH host, which hangs startup on broken resolvers.
+	var addrs []string
 	switch provider {
 	case CustomProvider:
 		if customDoHServer == "" {
@@ -65,15 +67,18 @@ func NewDoHProvider(provider dohprovider) (uri string, p *net.Resolver, err erro
 		}
 	case CloudflareProvider:
 		uri = "https://cloudflare-dns.com/dns-query"
+		addrs = []string{"1.1.1.1", "1.0.0.1"}
 	case GoogleProvider:
 		uri = "https://dns.google/dns-query{?dns}"
+		addrs = []string{"8.8.8.8", "8.8.4.4"}
 	case OpenNameServerProvider:
 		uri = "https://ns4.opennameserver.org/dns-query{?dns}"
 	case Quad9Provider:
 		uri = "https://dns.quad9.net/dns-query"
+		addrs = []string{"9.9.9.9", "149.112.112.112"}
 	}
 
-	p, err = godns.NewDoHResolver(uri)
+	p, err = godns.NewDoHResolver(uri, godns.DoHAddresses(addrs...))
 	return uri, p, err
 }
 

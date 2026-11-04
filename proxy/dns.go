@@ -69,10 +69,6 @@ var (
 	opennicLock = sync.RWMutex{}
 )
 
-func init() {
-	reloadDNS()
-}
-
 func reloadDNS() {
 	commonLock.Lock()
 	opennicLock.Lock()
