@@ -170,4 +170,7 @@ func TestStatusItems(t *testing.T) {
 	if got := statusItems(lib, "hold", tracker.MovieType); len(got) != 1 || got[0].IDs.TMDB != 5 {
 		t.Errorf("movies = %+v, want movie 5", got)
 	}
+	if got := statusItems(lib, "", tracker.ShowType); len(got) != 4 {
+		t.Errorf("all shows = %+v, want 4 shows in any status", got)
+	}
 }

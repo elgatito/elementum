@@ -413,11 +413,12 @@ var statusLists = []struct {
 
 const statusListPrefix = "status:"
 
-// statusItems returns the library titles of type t with status, most recently watched first.
+// statusItems returns the library titles of type t with status, or with any status when it is empty,
+// most recently watched first.
 func statusItems(lib *library, status string, t tracker.MediaType) []*tracker.Item {
 	var entries []*entry
 	for _, e := range lib.Entries {
-		if e.Status == status && e.matches(t) {
+		if (status == "" || e.Status == status) && e.matches(t) {
 			entries = append(entries, e)
 		}
 	}
@@ -555,9 +556,20 @@ func byType(items []*tracker.Item, conv func(*tracker.Item) any) map[string][]an
 	return ret
 }
 
-// Add supports only the watchlist: Simkl has no collection and custom lists are edited on simkl.com.
+// Collection is the whole library in every status, like simkl.com "My Movies" and "My TV Shows".
+func (p *Provider) Collection(t tracker.MediaType, refresh bool) ([]*tracker.Item, error) {
+	// always refresh: Simkl has no collected bucket, and the library only refetches when activities moved
+	lib, err := p.library(true)
+	if err != nil {
+		return nil, err
+	}
+	return statusItems(lib, "", t), nil
+}
+
+// Add supports the watchlist, and the collection through it: a title added to Plan to Watch is in the library.
+// Custom lists are edited on simkl.com.
 func (p *Provider) Add(loc tracker.Location, listID string, items []*tracker.Item) error {
-	if loc != tracker.LocationWatchlist {
+	if loc != tracker.LocationWatchlist && loc != tracker.LocationCollection {
 		return tracker.ErrUnsupported
 	}
 
