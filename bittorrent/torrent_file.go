@@ -506,7 +506,8 @@ func (t *TorrentFile) Download() ([]byte, error) {
 		}
 	}
 
-	resp, err := proxy.GetClient().Do(req)
+	// Tracker sites are protected the same way as provider searches, with cookies bound to the browser fingerprint
+	resp, err := proxy.GetProxyClient().Do(req)
 	if err != nil || resp == nil {
 		return nil, err
 	} else if resp.StatusCode != http.StatusOK {

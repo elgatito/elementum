@@ -75,6 +75,16 @@ func GetClient() *http.Client {
 	return proxyClient
 }
 
+// GetProxyClient returns the client sending requests through the internal proxy
+// whenever it is enabled, like Burst requests, so they get the same browser fingerprint.
+func GetProxyClient() *http.Client {
+	if !config.Get().InternalProxyEnabled {
+		return directClient
+	}
+
+	return proxyClient
+}
+
 // GetDirectClient ...
 func GetDirectClient() *http.Client {
 	return directClient
