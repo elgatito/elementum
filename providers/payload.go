@@ -25,6 +25,16 @@ type GeneralSearchObject struct {
 	SkipAuth bool `json:"skip_auth"`
 }
 
+// SearchObject is any of search objects, sent to providers
+type SearchObject interface {
+	General() *GeneralSearchObject
+}
+
+// General returns common fields of a search object
+func (g *GeneralSearchObject) General() *GeneralSearchObject {
+	return g
+}
+
 // QuerySearchObject ...
 type QuerySearchObject struct {
 	GeneralSearchObject

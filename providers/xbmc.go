@@ -429,6 +429,26 @@ func (as *AddonSearcher) GetEpisodeSearchObject(show *tmdb.Show, season *tmdb.Se
 
 func (as *AddonSearcher) call(method string, searchObject any) []*bittorrent.TorrentFile {
 	torrents := make([]*bittorrent.TorrentFile, 0)
+	result, ok := as.callRaw(method, searchObject)
+	if !ok {
+		as.log.Warningf("Provider %s was too slow. Ignored.", as.addonID)
+	} else if err := json.Unmarshal(result, &torrents); err != nil {
+		log.Errorf("Failed to unmarshal torrents: %s", err)
+	}
+
+	return torrents
+}
+
+// SearchTimeout is how long providers are waited for
+func SearchTimeout() time.Duration {
+	if config.Get().CustomProviderTimeoutEnabled {
+		return time.Duration(config.Get().CustomProviderTimeout) * time.Second
+	}
+	return providerTimeout()
+}
+
+// callRaw executes the addon and returns the callback body, ok is false if addon did not respond in time
+func (as *AddonSearcher) callRaw(method string, searchObject any) (result []byte, ok bool) {
 	cid, c := GetCallback()
 	cbURL := fmt.Sprintf("http://%s/callbacks/%s", as.callbackHost, cid)
 
@@ -442,22 +462,13 @@ func (as *AddonSearcher) call(method string, searchObject any) []*bittorrent.Tor
 
 	as.xbmcHost.ExecuteAddon(as.addonID, payload.String())
 
-	timeout := providerTimeout()
-	if config.Get().CustomProviderTimeoutEnabled {
-		timeout = time.Duration(config.Get().CustomProviderTimeout) * time.Second
-	}
-
 	select {
-	case <-time.After(timeout):
-		as.log.Warningf("Provider %s was too slow. Ignored.", as.addonID)
+	case <-time.After(SearchTimeout()):
 		RemoveCallback(cid)
-	case result := <-c:
-		if err := json.Unmarshal(result, &torrents); err != nil {
-			log.Errorf("Failed to unmarshal torrents: %s", err)
-		}
+		return nil, false
+	case result = <-c:
+		return result, true
 	}
-
-	return torrents
 }
 
 // SearchLinks ...
