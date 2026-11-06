@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"errors"
 	"net/http"
 	"regexp"
 	"strings"
@@ -28,71 +29,93 @@ var (
 	firefoxVersionRegex = regexp.MustCompile(`Firefox/([0-9][0-9.]*)`)
 	safariVersionRegex  = regexp.MustCompile(`Version/([0-9][0-9.]*)`)
 
+	// impersonateLock also guards Proxy.Tr, transports are cloned from it
 	impersonateLock       sync.Mutex
 	impersonateTransports = map[string]mimic.Transport{}
+
+	errNoImpersonation = errors.New("proxy: no browser profile to impersonate")
 )
 
 // impersonate returns a round tripper adopting the browser fingerprint from the
-// request's User-Agent, or nil to keep the regular Go fingerprint. Requests with
-// an unknown User-Agent are sent as the default browser.
+// request's User-Agent. Requests with an unknown or unsupported User-Agent are
+// sent as the default browser, never with the Go TLS fingerprint.
 func impersonate(req *http.Request) goproxy.RoundTripper {
 	transport, matched := impersonateTransport(req.UserAgent())
-	if transport == nil {
-		return nil
-	}
 	if !matched {
 		req.Header.Set("User-Agent", defaultUserAgent)
 	}
 
 	return goproxy.RoundTripperFunc(func(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Response, error) {
+		if transport == nil {
+			return nil, errNoImpersonation
+		}
 		return transport.RoundTrip(req)
 	})
 }
 
 // impersonateTransport returns a cached transport and whether the User-Agent
-// matched a known browser.
+// matched a supported browser. Otherwise it returns the default browser transport.
 func impersonateTransport(userAgent string) (mimic.Transport, bool) {
-	key, build := detectBrowser(userAgent)
-	matched := build != nil
-	if !matched {
-		key, build = "default", func() (*mimic.Profile, error) {
-			return chromium.New(chromium.Config{
-				Brand:    chromium.Chrome,
-				Version:  defaultBrowserVersion,
-				Platform: chromium.Linux,
-			})
-		}
-	}
-
 	impersonateLock.Lock()
 	defer impersonateLock.Unlock()
 
-	if transport, ok := impersonateTransports[key]; ok {
-		return transport, matched
-	}
-	if len(impersonateTransports) >= maxImpersonationTransports {
-		return nil, false
+	if key, build := detectBrowser(userAgent); build != nil {
+		if transport := cachedTransport(key, build); transport != nil {
+			return transport, true
+		}
 	}
 
+	return cachedTransport("default", func() (*mimic.Profile, error) {
+		return chromium.New(chromium.Config{
+			Brand:    chromium.Chrome,
+			Version:  defaultBrowserVersion,
+			Platform: chromium.Linux,
+		})
+	}), false
+}
+
+// cachedTransport returns the transport for a key, building it once. Failed
+// builds are cached as nil, so an unsupported browser is reported only once.
+func cachedTransport(key string, build func() (*mimic.Profile, error)) mimic.Transport {
+	if transport, ok := impersonateTransports[key]; ok {
+		return transport
+	}
+	// The default transport is the fallback for everything else, so it is never refused
+	if key != "default" && len(impersonateTransports) >= maxImpersonationTransports {
+		return nil
+	}
+
+	transport, err := newTransport(build)
+	if err != nil {
+		log.Warningf("Cannot impersonate %s, sending as Chrome %s instead, cookies bound to that browser will not work: %s", key, defaultBrowserVersion, err)
+	}
+	impersonateTransports[key] = transport
+	return transport
+}
+
+func newTransport(build func() (*mimic.Profile, error)) (mimic.Transport, error) {
 	profile, err := build()
 	if err != nil {
-		log.Debugf("Not impersonating %q: %s", userAgent, err)
-		return nil, false
+		return nil, err
 	}
 
-	transport, err := mimic.NewTransport(mimic.Config{
+	return mimic.NewTransport(mimic.Config{
 		Profile: profile,
 		HTTP:    Proxy.Tr.Clone(),
 		// The proxy is also used for hosts with broken certificates.
 		TLS: &tlsx.Config{InsecureSkipVerify: true},
 	})
-	if err != nil {
-		log.Debugf("Not impersonating %q: %s", userAgent, err)
-		return nil, false
-	}
+}
 
-	impersonateTransports[key] = transport
-	return transport, matched
+// resetTransports drops cached transports, so new ones are cloned from the updated proxy transport.
+// Callers hold impersonateLock.
+func resetTransports() {
+	for _, transport := range impersonateTransports {
+		if transport != nil {
+			transport.CloseIdleConnections()
+		}
+	}
+	impersonateTransports = map[string]mimic.Transport{}
 }
 
 // detectBrowser maps a User-Agent to a profile builder and a cache key.

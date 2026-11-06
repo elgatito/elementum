@@ -164,26 +164,11 @@ func StartProxy() *CustomProxy {
 	proxyLock.Lock()
 	defer proxyLock.Unlock()
 
+	// Applied on every start, Reload calls it on settings change while the proxy is running
+	configureTransport()
+
 	if activeProxy != nil {
 		return activeProxy
-	}
-
-	Proxy.Tr.Proxy = nil
-	if config.Get().ProxyUseHTTP {
-		if config.Get().ProxyURL != "" {
-			proxyURL, _ := url.Parse(config.Get().ProxyURL)
-			Proxy.Tr.Proxy = http.ProxyURL(proxyURL)
-
-			log.Debugf("Setting up proxy for internal proxy: %s", config.Get().ProxyURL)
-		} else if config.Get().AntizapretEnabled {
-			Proxy.Tr.Proxy = antizapretProxy.ProxyURL
-
-			log.Debugf("Setting up proxy for direct client to use Antizapret proxy dynamically.")
-		}
-	}
-
-	if config.Get().InternalDNSEnabled {
-		Proxy.Tr.DialContext = CustomDialContext
 	}
 
 	// Bind synchronously, so a port conflict cannot leave the app with an
@@ -208,6 +193,32 @@ func StartProxy() *CustomProxy {
 	}()
 
 	return srv
+}
+
+// configureTransport applies upstream proxy and DNS settings to the transport,
+// that impersonating transports are cloned from.
+func configureTransport() {
+	impersonateLock.Lock()
+	defer impersonateLock.Unlock()
+
+	Proxy.Tr.Proxy = nil
+	if config.Get().ProxyUseHTTP {
+		if config.Get().ProxyURL != "" {
+			proxyURL, _ := url.Parse(config.Get().ProxyURL)
+			Proxy.Tr.Proxy = http.ProxyURL(proxyURL)
+
+			log.Debugf("Setting up proxy for internal proxy: %s", config.Get().ProxyURL)
+		} else if config.Get().AntizapretEnabled {
+			Proxy.Tr.Proxy = antizapretProxy.ProxyURL
+
+			log.Debugf("Setting up proxy for direct client to use Antizapret proxy dynamically.")
+		}
+	}
+
+	// Checks InternalDNSEnabled itself
+	Proxy.Tr.DialContext = CustomDialContext
+
+	resetTransports()
 }
 
 // StopProxy shuts down the running proxy, if any.

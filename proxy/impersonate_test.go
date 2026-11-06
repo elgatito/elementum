@@ -71,6 +71,9 @@ func TestImpersonateUserAgent(t *testing.T) {
 	}{
 		{"known browser", chromeUA, chromeUA},
 		{"unknown browser", "SomeBot/1.0", defaultUserAgent},
+		// Versions mimic cannot build must not fall back to the Go TLS fingerprint
+		{"unsupported chrome", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36", defaultUserAgent},
+		{"unsupported firefox", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0", defaultUserAgent},
 		{"missing", "", defaultUserAgent},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -85,5 +88,24 @@ func TestImpersonateUserAgent(t *testing.T) {
 				t.Fatalf("got User-Agent %q, want %q", got, test.want)
 			}
 		})
+	}
+}
+
+func TestImpersonateTransportsFull(t *testing.T) {
+	impersonateLock.Lock()
+	resetTransports()
+	for i := 0; i < maxImpersonationTransports; i++ {
+		impersonateTransports[string(rune('a'+i))] = nil
+	}
+	impersonateLock.Unlock()
+	defer func() {
+		impersonateLock.Lock()
+		resetTransports()
+		impersonateLock.Unlock()
+	}()
+
+	transport, matched := impersonateTransport("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36")
+	if transport == nil || matched {
+		t.Fatalf("full cache must fall back to the default browser, got transport=%v matched=%v", transport, matched)
 	}
 }
