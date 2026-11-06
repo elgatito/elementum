@@ -32,7 +32,8 @@ func (h *XBMCHost) DialogInsert() map[string]string {
 // NewDialogProgress ...
 func (h *XBMCHost) NewDialogProgress(title, line1, line2, line3 string) *DialogProgress {
 	retVal := ""
-	h.executeJSONRPCEx("DialogProgress_Create", &retVal, Args{title, line1, line2, line3})
+	// Python side does not translate, same as in Update
+	h.executeJSONRPCEx("DialogProgress_Create", &retVal, Args{h.TranslateText(title), h.TranslateText(line1), h.TranslateText(line2), h.TranslateText(line3)})
 	if len(retVal) <= 0 {
 		return nil
 	}
