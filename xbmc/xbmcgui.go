@@ -255,6 +255,11 @@ func (h *XBMCHost) DialogText(title string, text string) bool {
 	return retVal != 0
 }
 
+// DialogTextModal shows text and returns when the viewer is closed
+func (h *XBMCHost) DialogTextModal(title string, text string) {
+	h.executeJSONRPCEx("Dialog_Text_Modal", nil, Args{title, text})
+}
+
 // ListDialog ...
 func (h *XBMCHost) ListDialog(title string, items ...string) int {
 	retVal := -1
