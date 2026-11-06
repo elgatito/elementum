@@ -42,6 +42,8 @@ type CustomProxy struct {
 
 // AlwaysHTTPMitm ...
 var AlwaysHTTPMitm goproxy.FuncHttpsHandler = func(host string, ctx *goproxy.ProxyCtx) (*goproxy.ConnectAction, string) {
+	// Proxy credentials come only with CONNECT, goproxy copies UserData to the tunneled requests
+	ctx.UserData = proxyUser(ctx.Req)
 	return &goproxy.ConnectAction{Action: goproxy.ConnectMitm, TLSConfig: CustomTLS(&goproxy.GoproxyCa)}, host
 }
 
@@ -63,6 +65,9 @@ func handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *ht
 	req.Header.Del("Accept-Encoding")
 
 	ctx.RoundTripper = impersonate(req)
+	if ctx.UserData == nil {
+		ctx.UserData = proxyUser(req)
+	}
 
 	// req.Header.Del("Cookie")
 	// req.Header.Del("Origin")
@@ -76,7 +81,6 @@ func handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *ht
 	bodyBytes, _ := io.ReadAll(req.Body)
 	defer req.Body.Close()
 
-	ctx.UserData = bodyBytes
 	if len(bodyBytes) == 0 {
 		req.Body = http.NoBody
 	} else {
@@ -88,6 +92,8 @@ func handleRequest(req *http.Request, ctx *goproxy.ProxyCtx) (*http.Request, *ht
 
 func handleResponse(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 	defer ctx.Req.Body.Close()
+
+	record(resp, ctx)
 
 	if config.Get().InternalProxyLogging {
 		dumpResponse(resp, ctx, true, config.Get().InternalProxyLoggingBody)
