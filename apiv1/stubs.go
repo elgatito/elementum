@@ -9,22 +9,6 @@ import (
 
 var notImplemented = newError(ErrorCodeNotImplemented, "not implemented")
 
-func (Server) CreatePlayback(context.Context, CreatePlaybackRequestObject) (CreatePlaybackResponseObject, error) {
-	return CreatePlaybackdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
-func (Server) DeletePlayback(context.Context, DeletePlaybackRequestObject) (DeletePlaybackResponseObject, error) {
-	return DeletePlaybackdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
-func (Server) GetPlayback(context.Context, GetPlaybackRequestObject) (GetPlaybackResponseObject, error) {
-	return GetPlaybackdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
-func (Server) GetStream(context.Context, GetStreamRequestObject) (GetStreamResponseObject, error) {
-	return GetStreamdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
 func (Server) ListLibraryMovies(context.Context, ListLibraryMoviesRequestObject) (ListLibraryMoviesResponseObject, error) {
 	return ListLibraryMoviesdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
 }
@@ -55,8 +39,4 @@ func (Server) ListTrackerWatchlist(context.Context, ListTrackerWatchlistRequestO
 
 func (Server) ListTraktChart(context.Context, ListTraktChartRequestObject) (ListTraktChartResponseObject, error) {
 	return ListTraktChartdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
-func (Server) ReportPlaybackProgress(context.Context, ReportPlaybackProgressRequestObject) (ReportPlaybackProgressResponseObject, error) {
-	return ReportPlaybackProgressdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
 }

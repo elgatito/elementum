@@ -1806,7 +1806,8 @@ func (s *Service) AttachPlayer(p *Player) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.Players[p.t.InfoHash()]; ok {
+	// A player closed while buffering (API session stopped) would stay registered, Close already detached it
+	if _, ok := s.Players[p.t.InfoHash()]; ok || p.closer.IsSet() {
 		return
 	}
 
@@ -1828,7 +1829,10 @@ func (s *Service) DetachPlayer(p *Player) {
 		return
 	}
 
-	delete(s.Players, p.t.InfoHash())
+	// Another player (e.g. Kodi's next to an API session) may own the entry for the same torrent
+	if s.Players[p.t.InfoHash()] == p {
+		delete(s.Players, p.t.InfoHash())
+	}
 }
 
 // GetPlayer searches for player with desired TMDB id
@@ -1866,13 +1870,14 @@ func (s *Service) anyPlayerIsPlaying() bool {
 	return false
 }
 
-// GetActivePlayer searches for player that is Playing anything
+// GetActivePlayer searches for player that is Playing anything.
+// API (External) players are skipped, so Kodi player events never reach them.
 func (s *Service) GetActivePlayer() *Player {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	for _, p := range s.Players {
-		if p == nil || p.t == nil {
+		if p == nil || p.t == nil || p.p.External {
 			continue
 		}
 

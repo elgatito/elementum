@@ -1998,6 +1998,11 @@ func (t *Torrent) ChooseFile(btp *Player, xbmcHost *xbmc.XBMCHost) (*File, int, 
 			return files[choices[btp.p.FileIndex].Index], btp.p.FileIndex, nil
 		}
 
+		// API sessions let their client pick from GetCandidateFiles
+		if btp != nil && btp.p.External {
+			return nil, -1, ErrChooseFile
+		}
+
 		// External callers may explicitly disable the manual file picker.
 		// Automatic selection above still has priority and existing behavior
 		// remains unchanged unless this option is requested.

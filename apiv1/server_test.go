@@ -20,7 +20,7 @@ func newEngine() *gin.Engine {
 	r := gin.New()
 	r.Use(api.CORS(), api.Auth())
 	r.GET("/status", func(c *gin.Context) { c.String(http.StatusOK, "ok") }) // stands in for a Kodi route
-	apiv1.Register(r)
+	apiv1.Register(r, nil)
 	return r
 }
 
@@ -222,7 +222,7 @@ func TestErrors(t *testing.T) {
 		{request{path: "/api/v1/shows/lists/by_genre?genre=18&year=1869"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
 		{request{path: "/api/v1/movies/lists/by_genre?genre=28&year=2101"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
 		{request{path: "/api/v1/search"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{method: http.MethodDelete, path: "/api/v1/playback/abc"}, http.StatusNotImplemented, apiv1.ErrorCodeNotImplemented},
+		{request{method: http.MethodDelete, path: "/api/v1/playback/abc"}, http.StatusNotFound, apiv1.ErrorCodeNotFound},
 		{request{path: "/api/v1/nope"}, http.StatusNotFound, apiv1.ErrorCodeNotFound},
 		{request{path: "/api/nope"}, http.StatusNotFound, apiv1.ErrorCodeNotFound},
 		{request{path: "/api/v1/movies/lists/popular?page=x"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},

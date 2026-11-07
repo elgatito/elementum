@@ -97,7 +97,7 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 
 	gin.SetMode(gin.ReleaseMode)
 
-	apiv1.Register(r)
+	apiv1.Register(r, s)
 
 	r.GET("/", Index(s))
 	r.GET("/playtorrent", PlayTorrent)

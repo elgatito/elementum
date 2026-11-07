@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/op/go-logging"
 
+	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/util/ident"
@@ -36,8 +37,9 @@ var (
 // http.ServeContent.
 type Server struct{}
 
-// Register mounts /api/v1, the spec and /api/docs on the engine.
-func Register(r *gin.Engine) {
+// Register mounts /api/v1, the spec and /api/docs on the engine. Playback runs its torrents on s.
+func Register(r *gin.Engine, s *bittorrent.Service) {
+	sessions.bts = s
 	r.GET("/api/docs", func(c *gin.Context) { c.Data(http.StatusOK, "text/html; charset=utf-8", docs) })
 	r.GET("/api/v1/openapi.yaml", func(c *gin.Context) { c.Data(http.StatusOK, "application/yaml", spec) })
 
@@ -57,9 +59,17 @@ func Register(r *gin.Engine) {
 		log.Errorf("panic in %s %s: %v", c.Request.Method, c.Request.URL.Path, err)
 		abort(c, http.StatusInternalServerError, ErrorCodeInternalError, "internal error")
 	})
-	RegisterHandlersWithOptions(r.Group("/api/v1", recovery, basicAuth), handler, GinServerOptions{
-		ErrorHandler: func(c *gin.Context, err error, status int) { abort(c, status, ErrorCodeBadRequest, err.Error()) },
-	})
+	group := r.Group("/api/v1", recovery, basicAuth)
+	paramError := func(c *gin.Context, err error, status int) {
+		if strings.HasPrefix(c.FullPath(), "/api/v1/stream/") {
+			c.AbortWithStatusJSON(http.StatusForbidden, forbidden) // every stream link rejection looks the same
+			return
+		}
+		abort(c, status, ErrorCodeBadRequest, err.Error())
+	}
+	RegisterHandlersWithOptions(group, handler, GinServerOptions{ErrorHandler: paramError})
+	// OpenAPI 3.0 can't declare HEAD; the stream handler serves it like GET (players probe with it).
+	group.HEAD("/stream/:id/:file_index", (&ServerInterfaceWrapper{Handler: handler, ErrorHandler: paramError}).GetStream)
 
 	// Without handlers gin still writes its plain 404 for other paths, so Kodi routes are unaffected.
 	r.NoRoute(func(c *gin.Context) {

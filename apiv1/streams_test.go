@@ -90,7 +90,7 @@ func TestToStreamsEmptyIsArray(t *testing.T) {
 func TestStreamErrors(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	Register(r)
+	Register(r, nil)
 
 	for path, want := range map[string]int{
 		"/api/v1/movies/0/streams":                        http.StatusBadRequest,

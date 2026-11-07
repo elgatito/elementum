@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	lt "github.com/ElementumOrg/libtorrent-go"
@@ -47,6 +48,11 @@ const (
 var (
 	errNoCandidates = fmt.Errorf("No candidates left")
 	errNoXBMCHost   = fmt.Errorf("No xbmcHost was found")
+
+	// ErrChooseFile is returned by Buffer in External mode when the file can't be chosen automatically.
+	ErrChooseFile = errors.New("File must be chosen")
+
+	errPlayerClosed = errors.New("Player closed")
 )
 
 const (
@@ -84,6 +90,8 @@ type Player struct {
 
 	closer event.Event
 	closed bool
+	mu     sync.Mutex    // orders Close against addTorrent's SetTorrent in External mode
+	queued chan struct{} // last External scrobble, so they reach the tracker in order
 }
 
 // PlayerParams ...
@@ -123,6 +131,7 @@ type PlayerParams struct {
 	MinSize           int64
 	SizeAtStart       bool
 	UpNextSent        bool
+	External          bool // API session: no Kodi host or dialogs, driven by UpdateExternal and Close
 	UIDs              *uid.UniqueIDs
 	Resume            *uid.Resume
 	StoredResume      *uid.Resume
@@ -203,7 +212,18 @@ func (btp *Player) addTorrent() error {
 			return err
 		}
 
+		btp.mu.Lock()
+		if btp.p.External && btp.closed {
+			btp.mu.Unlock()
+			// Close found no torrent to release, so drop it here unless another player took it meanwhile.
+			// A duplicate add returns a new wrapper of an already queued torrent, which isn't ours to remove.
+			if btp.s.GetTorrentByHash(torrent.InfoHash()) == torrent && torrent.PlayerAttached.Load() == 0 {
+				btp.s.RemoveTorrent(nil, torrent, RemoveOptions{})
+			}
+			return errPlayerClosed
+		}
 		btp.SetTorrent(torrent)
+		btp.mu.Unlock()
 	}
 	if btp.t == nil || btp.t.th == nil {
 		return fmt.Errorf("Unable to add torrent with URI %s", btp.p.URI)
@@ -245,7 +265,15 @@ func (btp *Player) PlayURL() string {
 
 // Buffer ...
 func (btp *Player) Buffer() error {
+	// Without Kodi only External mode can run, the Kodi player loop would dereference the nil host.
+	if btp.xbmcHost == nil && !btp.p.External {
+		return errNoXBMCHost
+	}
+
 	if btp.p.ResumeHash != "" {
+		if btp.p.External && btp.closer.IsSet() {
+			return errPlayerClosed // Close already released the reused torrent
+		}
 		if err := btp.resumeTorrent(); err != nil {
 			log.Errorf("Error resuming torrent: %s", err)
 			return err
@@ -524,6 +552,41 @@ func (btp *Player) findSubtitlesFile() *File {
 	return nil
 }
 
+// ChosenFile returns the file chosen by Buffer, nil before that.
+func (btp *Player) ChosenFile() *File {
+	return btp.chosenFile
+}
+
+// UpdateExternal takes the playback state from an API client in External mode, in place of Kodi's player
+// polling: it stores the resume point and scrobbles start and pause like the Kodi player loop.
+func (btp *Player) UpdateExternal(position, duration float64, paused bool) {
+	btp.p.WatchedTime, btp.p.VideoDuration = position, duration
+	if duration > 0 {
+		btp.p.WatchedProgress = position / duration * 100
+	}
+	var action tracker.ScrobbleAction
+	if !btp.p.TraktScrobbled || (!paused && btp.p.Paused) {
+		action = tracker.ScrobbleStart
+	} else if paused && !btp.p.Paused {
+		action = tracker.ScrobblePause
+	}
+	if item, percent := btp.scrobbleItem(); btp.scrobble && action != "" && item != nil {
+		btp.p.TraktScrobbled = action == tracker.ScrobbleStart || btp.p.TraktScrobbled
+		// The item is copied here, so the goroutine reads no Player state; each one waits for the one before.
+		prev, done := btp.queued, make(chan struct{})
+		btp.queued = done
+		go func() {
+			if prev != nil {
+				<-prev
+			}
+			tracker.Scrobble(action, item, percent)
+			close(done)
+		}()
+	}
+	btp.p.Paused = paused
+	btp.SaveStoredResume()
+}
+
 // IsClosed returns whether player is in closing stage
 func (btp *Player) IsClosed() bool {
 	return btp.closed
@@ -532,12 +595,15 @@ func (btp *Player) IsClosed() bool {
 // Close ...
 func (btp *Player) Close() {
 	// Prevent double-closing
+	btp.mu.Lock()
 	if btp.closed {
+		btp.mu.Unlock()
 		return
 	}
 
 	btp.closed = true
 	btp.closer.Set()
+	btp.mu.Unlock()
 
 	// Torrent was not initialized so just close and return
 	if btp.t == nil {
@@ -587,12 +653,13 @@ func (btp *Player) bufferDialog() {
 	for {
 		select {
 		case <-halfSecond.C:
-			if btp.dialogProgress == nil {
+			if btp.dialogProgress == nil && !btp.p.External {
 				halfSecond.Stop()
 				break
 			}
 
-			if btp.closer.IsSet() || btp.dialogProgress.IsCanceled() || btp.notEnoughSpace {
+			// External mode has no dialog, so Close is its only way to cancel buffering
+			if btp.closer.IsSet() || (btp.dialogProgress != nil && btp.dialogProgress.IsCanceled()) || btp.notEnoughSpace {
 				errMsg := "User cancelled the buffering"
 				log.Info(errMsg)
 				btp.bufferEvents.Broadcast(errors.New(errMsg))
@@ -783,96 +850,104 @@ func (btp *Player) playerLoop() {
 		return
 	}
 
-	log.Info("Waiting for playback...")
-	oneSecond := time.NewTicker(1 * time.Second)
-	defer oneSecond.Stop()
-	playbackTimeout := time.Duration(config.Get().BufferTimeout) * time.Second
-	lastActive := time.Now()
-	externalReported := false
+	if btp.p.External {
+		// Playback is driven by the API: UpdateExternal reports progress, Close ends it.
+		btp.p.Playing = true
+		btp.t.IsPlaying.Store(true)
+		<-btp.closer.C()
+		btp.t.IsPlaying.Store(false)
+	} else {
+		log.Info("Waiting for playback...")
+		oneSecond := time.NewTicker(1 * time.Second)
+		defer oneSecond.Stop()
+		playbackTimeout := time.Duration(config.Get().BufferTimeout) * time.Second
+		lastActive := time.Now()
+		externalReported := false
 
-	for !btp.p.Background && btp.xbmcHost != nil && !btp.isPlayingOwnFile() {
-		// External players (e.g. "Play using" on Android) are invisible to Kodi, so open readers count as playback
-		if btp.t.HasReaders() {
-			lastActive = time.Now()
-			if !externalReported {
-				externalReported = true
-				log.Infof("File is being read before Kodi reports playback (external player?), keeping torrent while readers are active")
+		for !btp.p.Background && btp.xbmcHost != nil && !btp.isPlayingOwnFile() {
+			// External players (e.g. "Play using" on Android) are invisible to Kodi, so open readers count as playback
+			if btp.t.HasReaders() {
+				lastActive = time.Now()
+				if !externalReported {
+					externalReported = true
+					log.Infof("File is being read before Kodi reports playback (external player?), keeping torrent while readers are active")
+				}
+			} else if time.Since(lastActive) > playbackTimeout {
+				log.Warningf("Playback was unable to start after %d seconds. Aborting...", config.Get().BufferTimeout)
+				btp.bufferEvents.Broadcast(errors.New("Playback was unable to start before timeout"))
+				return
 			}
-		} else if time.Since(lastActive) > playbackTimeout {
-			log.Warningf("Playback was unable to start after %d seconds. Aborting...", config.Get().BufferTimeout)
-			btp.bufferEvents.Broadcast(errors.New("Playback was unable to start before timeout"))
-			return
+			<-oneSecond.C
 		}
-		<-oneSecond.C
-	}
 
-	log.Info("Playback loop")
-	overlayStatusActive := false
-	playing := true
+		log.Info("Playback loop")
+		overlayStatusActive := false
+		playing := true
 
-	btp.updateWatchTimes()
-	btp.findNextFile()
-
-	log.Infof("Got playback: %fs / %fs", btp.p.WatchedTime, btp.p.VideoDuration)
-	if btp.scrobble {
-		btp.scrobbleTracker(tracker.ScrobbleStart)
-		btp.p.TraktScrobbled = true
-	}
-
-	btp.t.IsPlaying.Store(true)
-
-playbackLoop:
-	for {
-		if btp.p.Background || btp.xbmcHost == nil || !btp.isPlayingOwnFile() {
-			btp.t.IsPlaying.Store(false)
-			break playbackLoop
-		}
-		<-oneSecond.C
 		btp.updateWatchTimes()
+		btp.findNextFile()
 
-		// Trigger UpNext notification if Player is done with initialization
-		if btp.p.VideoDuration > 0 && !btp.p.UpNextSent {
-			go btp.processUpNextPayload()
+		log.Infof("Got playback: %fs / %fs", btp.p.WatchedTime, btp.p.VideoDuration)
+		if btp.scrobble {
+			btp.scrobbleTracker(tracker.ScrobbleStart)
+			btp.p.TraktScrobbled = true
 		}
 
-		if btp.p.Seeked {
-			btp.p.Seeked = false
-			if btp.scrobble {
-				go btp.scrobbleTracker(tracker.ScrobbleStart)
-			}
-		} else {
-			// Overlay is also shown while Kodi's info screen or OSD is open, not only on pause
-			state := btp.xbmcHost.InfoBooleans("Player.Paused", "Player.ShowInfo", "Window.IsVisible(videoosd)")
-			paused := state["Player.Paused"]
+		btp.t.IsPlaying.Store(true)
 
-			if btp.overlayStatusEnabled && btp.p.Playing && (paused || state["Player.ShowInfo"] || state["Window.IsVisible(videoosd)"]) {
-				progress := btp.t.GetProgress()
-				line1, line2, line3 := btp.statusStrings(progress, btp.t.GetStatus())
-				btp.overlayStatus.Update(int(progress), line1, line2, line3)
-				if !overlayStatusActive {
-					btp.overlayStatus.Show()
-					overlayStatusActive = true
-				}
-			} else if overlayStatusActive {
-				btp.overlayStatus.Hide()
-				overlayStatusActive = false
+	playbackLoop:
+		for {
+			if btp.p.Background || btp.xbmcHost == nil || !btp.isPlayingOwnFile() {
+				btp.t.IsPlaying.Store(false)
+				break playbackLoop
+			}
+			<-oneSecond.C
+			btp.updateWatchTimes()
+
+			// Trigger UpNext notification if Player is done with initialization
+			if btp.p.VideoDuration > 0 && !btp.p.UpNextSent {
+				go btp.processUpNextPayload()
 			}
 
-			if paused && playing {
-				playing = false
-				if btp.scrobble {
-					go btp.scrobbleTracker(tracker.ScrobblePause)
-				}
-			} else if !paused && !playing {
-				playing = true
+			if btp.p.Seeked {
+				btp.p.Seeked = false
 				if btp.scrobble {
 					go btp.scrobbleTracker(tracker.ScrobbleStart)
 				}
-			}
-		}
+			} else {
+				// Overlay is also shown while Kodi's info screen or OSD is open, not only on pause
+				state := btp.xbmcHost.InfoBooleans("Player.Paused", "Player.ShowInfo", "Window.IsVisible(videoosd)")
+				paused := state["Player.Paused"]
 
-		if btp.next.f != nil && !btp.next.started && btp.isReadyForNextFile() {
-			btp.startNextFile()
+				if btp.overlayStatusEnabled && btp.p.Playing && (paused || state["Player.ShowInfo"] || state["Window.IsVisible(videoosd)"]) {
+					progress := btp.t.GetProgress()
+					line1, line2, line3 := btp.statusStrings(progress, btp.t.GetStatus())
+					btp.overlayStatus.Update(int(progress), line1, line2, line3)
+					if !overlayStatusActive {
+						btp.overlayStatus.Show()
+						overlayStatusActive = true
+					}
+				} else if overlayStatusActive {
+					btp.overlayStatus.Hide()
+					overlayStatusActive = false
+				}
+
+				if paused && playing {
+					playing = false
+					if btp.scrobble {
+						go btp.scrobbleTracker(tracker.ScrobblePause)
+					}
+				} else if !paused && !playing {
+					playing = true
+					if btp.scrobble {
+						go btp.scrobbleTracker(tracker.ScrobbleStart)
+					}
+				}
+			}
+
+			if btp.next.f != nil && !btp.next.started && btp.isReadyForNextFile() {
+				btp.startNextFile()
+			}
 		}
 	}
 
@@ -880,6 +955,9 @@ playbackLoop:
 	btp.SaveStoredResume()
 	btp.setRateLimiting(false)
 	go func() {
+		if btp.queued != nil {
+			<-btp.queued // External: the final scrobble goes after the queued ones
+		}
 		btp.GetIdent()
 		btp.UpdateWatched()
 		if btp.scrobble {
@@ -1670,16 +1748,23 @@ func (btp *Player) GetXBMCHost() *xbmc.XBMCHost {
 
 // scrobbleTracker reports playback progress of the current item to the active tracker.
 func (btp *Player) scrobbleTracker(action tracker.ScrobbleAction) {
+	if item, percent := btp.scrobbleItem(); item != nil {
+		tracker.Scrobble(action, item, percent)
+	}
+}
+
+// scrobbleItem returns the tracker item and watched percent to scrobble, nil when there is nothing to report.
+func (btp *Player) scrobbleItem() (*tracker.Item, float64) {
 	if btp.p.VideoDuration < 1 {
-		return
+		return nil, 0
 	}
 
 	item := &tracker.Item{Type: tracker.MovieType, IDs: tracker.IDs{TMDB: btp.p.TMDBId}}
 	if btp.p.ContentType == episodeType {
 		item = &tracker.Item{Type: tracker.EpisodeType, IDs: tracker.IDs{TMDB: btp.p.ShowID}, Season: btp.p.Season, Episode: btp.p.Episode, EpisodeTMDB: btp.p.TMDBId}
 	} else if btp.p.ContentType != movieType {
-		return
+		return nil, 0
 	}
 
-	tracker.Scrobble(action, item, btp.p.WatchedTime/btp.p.VideoDuration*100)
+	return item, btp.p.WatchedTime / btp.p.VideoDuration * 100
 }
