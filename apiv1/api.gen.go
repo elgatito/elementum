@@ -532,7 +532,10 @@ type MediaItemPage struct {
 	// TotalPages Example: 10
 	TotalPages int `json:"total_pages"`
 
-	// TotalResults Null when the source can't tell.
+	// TotalResults Null when the source can't tell. For library, tracker and Trakt lists it counts the source's
+	// entries, and a page can hold fewer than `limit` items when some can't be resolved to TMDB, so
+	// page by `total_pages`.
+	//
 	//
 	// Example: 200
 	TotalResults *int `json:"total_results"`
@@ -629,7 +632,9 @@ type NextEpisodePage struct {
 	// TotalPages Example: 1
 	TotalPages int `json:"total_pages"`
 
-	// TotalResults Null when the source can't tell.
+	// TotalResults Counts the tracker's shows in progress. A page can hold fewer than `limit` items when some can't
+	// be resolved to TMDB, so page by `total_pages`.
+	//
 	//
 	// Example: 3
 	TotalResults *int `json:"total_results"`

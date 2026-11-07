@@ -197,11 +197,22 @@ func TestErrors(t *testing.T) {
 		status int
 		code   apiv1.ErrorCode
 	}{
-		{request{path: "/api/v1/library/movies"}, http.StatusNotImplemented, apiv1.ErrorCodeNotImplemented},
-		// static and param siblings in the same tree must both resolve
-		{request{path: "/api/v1/tracker/shows/watchlist"}, http.StatusNotImplemented, apiv1.ErrorCodeNotImplemented},
-		{request{path: "/api/v1/tracker/shows/progress"}, http.StatusNotImplemented, apiv1.ErrorCodeNotImplemented},
-		{request{path: "/api/v1/tracker/lists"}, http.StatusNotImplemented, apiv1.ErrorCodeNotImplemented},
+		// no tracker selected; static and param siblings in the same tree must both resolve
+		{request{path: "/api/v1/tracker/shows/watchlist"}, http.StatusConflict, apiv1.ErrorCodeTrackerNotAuthorized},
+		{request{path: "/api/v1/tracker/shows/progress"}, http.StatusConflict, apiv1.ErrorCodeTrackerNotAuthorized},
+		{request{path: "/api/v1/tracker/lists"}, http.StatusConflict, apiv1.ErrorCodeTrackerNotAuthorized},
+		// library, Trakt and tracker: bad enums and params are rejected before any fetch
+		{request{path: "/api/v1/library/movies?page=0"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/library/shows?lang=deu"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/trakt/films/lists/trending"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/trakt/movies/lists/boxoffice"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/trakt/shows/lists/trending?limit=0"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/tracker/films/watchlist"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/tracker/films/collection"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/tracker/shows/progress?page=0"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/tracker/lists/42/items?media=films"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/tracker/lists/42/items"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/tracker/lists/a..b/items?media=movies"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
 		{request{path: "/api/v1/movies/genres?lang=deu"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
 		{request{path: "/api/v1/movies/603?lang=deu"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
 		// catalog: bad enums and params are rejected before any TMDB call

@@ -464,7 +464,7 @@ func TraktPopularMovies(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, total, err := trakt.TopMovies("popular", pageParam)
+	movies, total, err := trakt.TopMovies("popular", pageParam, config.Get().ResultsPerPage)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -483,7 +483,7 @@ func TraktRecommendationsMovies(ctx *gin.Context) {
 
 	page := config.Get().ResultsPerPage * -5
 	pageParam := strconv.Itoa(page)
-	movies, total, err := trakt.TopMovies("recommendations", pageParam)
+	movies, total, err := trakt.TopMovies("recommendations", pageParam, config.Get().ResultsPerPage)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -502,7 +502,7 @@ func TraktTrendingMovies(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, total, err := trakt.TopMovies("trending", pageParam)
+	movies, total, err := trakt.TopMovies("trending", pageParam, config.Get().ResultsPerPage)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -521,7 +521,7 @@ func TraktMostPlayedMovies(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, total, err := trakt.TopMovies("played", pageParam)
+	movies, total, err := trakt.TopMovies("played", pageParam, config.Get().ResultsPerPage)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -540,7 +540,7 @@ func TraktMostWatchedMovies(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, total, err := trakt.TopMovies("watched", pageParam)
+	movies, total, err := trakt.TopMovies("watched", pageParam, config.Get().ResultsPerPage)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -559,7 +559,7 @@ func TraktMostCollectedMovies(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, total, err := trakt.TopMovies("collected", pageParam)
+	movies, total, err := trakt.TopMovies("collected", pageParam, config.Get().ResultsPerPage)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -578,7 +578,7 @@ func TraktMostAnticipatedMovies(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	movies, total, err := trakt.TopMovies("anticipated", pageParam)
+	movies, total, err := trakt.TopMovies("anticipated", pageParam, config.Get().ResultsPerPage)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -595,7 +595,7 @@ func TraktBoxOffice(ctx *gin.Context) {
 		return
 	}
 
-	movies, _, err := trakt.TopMovies("boxoffice", "1")
+	movies, _, err := trakt.TopMovies("boxoffice", "1", config.Get().ResultsPerPage)
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
 	}
@@ -805,7 +805,7 @@ func TraktPopularShows(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.TopShows("popular", pageParam)
+	shows, total, err := trakt.TopShows("popular", pageParam, config.Get().ResultsPerPage)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -824,7 +824,7 @@ func TraktRecommendationsShows(ctx *gin.Context) {
 
 	page := config.Get().ResultsPerPage * -5
 	pageParam := strconv.Itoa(page)
-	shows, total, err := trakt.TopShows("recommendations", pageParam)
+	shows, total, err := trakt.TopShows("recommendations", pageParam, config.Get().ResultsPerPage)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -843,7 +843,7 @@ func TraktTrendingShows(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.TopShows("trending", pageParam)
+	shows, total, err := trakt.TopShows("trending", pageParam, config.Get().ResultsPerPage)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -862,7 +862,7 @@ func TraktMostPlayedShows(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.TopShows("played", pageParam)
+	shows, total, err := trakt.TopShows("played", pageParam, config.Get().ResultsPerPage)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -881,7 +881,7 @@ func TraktMostWatchedShows(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.TopShows("watched", pageParam)
+	shows, total, err := trakt.TopShows("watched", pageParam, config.Get().ResultsPerPage)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -900,7 +900,7 @@ func TraktMostCollectedShows(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.TopShows("collected", pageParam)
+	shows, total, err := trakt.TopShows("collected", pageParam, config.Get().ResultsPerPage)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
@@ -919,7 +919,7 @@ func TraktMostAnticipatedShows(ctx *gin.Context) {
 
 	pageParam := ctx.DefaultQuery("page", "1")
 	page, _ := strconv.Atoi(pageParam)
-	shows, total, err := trakt.TopShows("anticipated", pageParam)
+	shows, total, err := trakt.TopShows("anticipated", pageParam, config.Get().ResultsPerPage)
 
 	if err != nil {
 		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())

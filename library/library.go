@@ -966,6 +966,27 @@ func wasRemoved(id int, mediaType int) (wasRemoved bool) {
 	return false
 }
 
+// ActiveIDs returns the TMDB ids of the active movies (MovieType) or shows (ShowType) in the
+// Elementum library, in storage order. Shows whose row has no ShowID are skipped, as the library views do.
+func ActiveIDs(mediaType int) []int {
+	field := "ID"
+	if mediaType == ShowType {
+		field = "ShowID"
+	}
+	var lis []database.LibraryItem
+	if err := database.GetStormDB().Select(q.Eq("MediaType", mediaType), q.Eq("State", StateActive), q.Not(q.Eq(field, "0"))).Find(&lis); err != nil && err != storm.ErrNotFound {
+		log.Infof("Could not get list of library items: %s", err)
+	}
+
+	ids := make([]int, 0, len(lis))
+	for _, i := range lis {
+		if i.ID != 0 && (mediaType != ShowType || i.ShowID != 0) {
+			ids = append(ids, i.ID)
+		}
+	}
+	return ids
+}
+
 // IsInLibrary checks for LibraryItem in Elementum database
 func IsInLibrary(id int, mediaType int) (res bool) {
 	defer perf.ScopeTimer()()

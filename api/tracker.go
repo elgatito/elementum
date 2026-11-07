@@ -49,23 +49,7 @@ func trackerListView(kind tracker.ListKind, t tracker.MediaType, bucket tracker.
 			return
 		}
 
-		activities, err := tracker.GetActivities(p, fmt.Sprintf("view.%s.%d", kind, t))
-		refresh := err != nil || activities.Changed(bucket)
-
-		var items []*tracker.Item
-		listID := ctx.Params.ByName("listId")
-		switch kind {
-		case tracker.KindWatchlist:
-			items, err = p.Watchlist(t, refresh)
-		case tracker.KindCollection:
-			if c, ok := p.(tracker.Collector); ok {
-				items, err = c.Collection(t, refresh)
-			}
-		case tracker.KindList:
-			if l, ok := p.(tracker.ListReader); ok {
-				items, err = l.ListItems(listID, t, refresh)
-			}
-		}
+		items, err := tracker.ViewItems(p, kind, ctx.Params.ByName("listId"), t, bucket)
 		if err != nil {
 			notifyTrackerError(xbmcHost, p, err)
 		}

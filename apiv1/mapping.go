@@ -142,6 +142,41 @@ func mediaPage(items []MediaItem, total, page, limit int) MediaItemPage {
 	}
 }
 
+// window returns page (1-based) of s, or nil past its end.
+func window[T any](s []T, page, limit int) []T {
+	if page-1 > len(s)/limit { // also keeps (page-1)*limit from overflowing
+		return nil
+	}
+	start := (page - 1) * limit
+	return s[start:min(start+limit, len(s))]
+}
+
+// listPage pages a source that reports its own total.
+func listPage(items []MediaItem, total, page, limit int) MediaItemPage {
+	p := MediaItemPage{Items: items, Page: page, Limit: limit}
+	p.TotalPages, p.TotalResults = pageTotals(total, page, limit)
+	return p
+}
+
+// pageTotals counts pages of a source's total. A negative total is unknown: total_results is null and
+// total_pages only counts up to this page.
+func pageTotals(total, page, limit int) (int, *int) {
+	if total < 0 {
+		return page, nil
+	}
+	return (total + limit - 1) / limit, &total
+}
+
+// nextEpisode maps a show and its next episode; e is nil when TMDB doesn't know the episode.
+func nextEpisode(s *tmdb.Show, e *tmdb.Episode, seasonNumber, episodeNumber int) NextEpisode {
+	n := NextEpisode{Show: showItem(s), Season: seasonNumber, Episode: episodeNumber}
+	if e != nil && e.ID != 0 {
+		n.Title, n.Overview = optional(e.Name), optional(e.Overview)
+		n.AirDate, n.Still = date(e.AirDate), imageURL(e.StillPath, stillSize)
+	}
+	return n
+}
+
 func genres(gs []*tmdb.Genre) []Genre {
 	out := make([]Genre, 0, len(gs))
 	for _, g := range gs {

@@ -10,8 +10,6 @@ import (
 
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/anacrolix/sync"
-	"github.com/asdine/storm/v3"
-	"github.com/asdine/storm/v3/q"
 	"github.com/gin-gonic/gin"
 
 	"github.com/elgatito/elementum/bittorrent"
@@ -221,32 +219,7 @@ func MovieLibrary(ctx *gin.Context) {
 func MovieElementumLibrary(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
-	var lis []database.LibraryItem
-	if err := database.GetStormDB().Select(q.Eq("MediaType", library.MovieType), q.Eq("State", library.StateActive), q.Not(q.Eq("ID", "0"))).Find(&lis); err != nil && err != storm.ErrNotFound {
-		log.Infof("Could not get list of library items: %s", err)
-	}
-
-	tmdbMovies := make(tmdb.Movies, len(lis))
-
-	wg := sync.WaitGroup{}
-	index := -1
-	for _, i := range lis {
-		if i.ID == 0 {
-			continue
-		}
-
-		wg.Add(1)
-		index++
-
-		go func(id, idx int) {
-			defer wg.Done()
-			m := tmdb.GetMovie(id, config.Get().Language)
-			if m != nil {
-				tmdbMovies[idx] = m
-			}
-		}(i.ID, index)
-	}
-	wg.Wait()
+	tmdbMovies := tmdb.GetMovies(library.ActiveIDs(library.MovieType), config.Get().Language)
 
 	for i, tmdbMovie := range slices.Backward(tmdbMovies) {
 		if tmdbMovie == nil {

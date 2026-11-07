@@ -130,3 +130,25 @@ func FetchWatched(p Provider, t MediaType, refresh bool) (prev, cur []*WatchedIt
 	}
 	return
 }
+
+// ViewItems reads a watchlist, collection or user list for display. It refreshes the list when bucket moved
+// since the last view of this kind. When p lacks the kind it returns no items and the activities error, if any.
+// Unlike FetchList it keeps no snapshot, so it never moves the library sync's diff base.
+func ViewItems(p Provider, kind ListKind, listID string, t MediaType, bucket Bucket) (items []*Item, err error) {
+	activities, err := GetActivities(p, fmt.Sprintf("view.%s.%d", kind, t))
+	refresh := err != nil || activities.Changed(bucket)
+
+	switch kind {
+	case KindWatchlist:
+		items, err = p.Watchlist(t, refresh)
+	case KindCollection:
+		if c, ok := p.(Collector); ok {
+			items, err = c.Collection(t, refresh)
+		}
+	case KindList:
+		if l, ok := p.(ListReader); ok {
+			items, err = l.ListItems(listID, t, refresh)
+		}
+	}
+	return
+}

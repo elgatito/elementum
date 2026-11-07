@@ -12,8 +12,6 @@ import (
 
 	"github.com/anacrolix/missinggo/perf"
 	"github.com/anacrolix/sync"
-	"github.com/asdine/storm/v3"
-	"github.com/asdine/storm/v3/q"
 	"github.com/gin-gonic/gin"
 
 	"github.com/elgatito/elementum/bittorrent"
@@ -192,32 +190,7 @@ func TVLibrary(ctx *gin.Context) {
 func TVElementumLibrary(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
-	var lis []database.LibraryItem
-	if err := database.GetStormDB().Select(q.Eq("MediaType", library.ShowType), q.Eq("State", library.StateActive), q.Not(q.Eq("ShowID", "0"))).Find(&lis); err != nil && err != storm.ErrNotFound {
-		log.Infof("Could not get list of library items: %s", err)
-	}
-
-	tmdbShows := make(tmdb.Shows, len(lis))
-
-	wg := sync.WaitGroup{}
-	index := -1
-	for _, i := range lis {
-		if i.ShowID == 0 {
-			continue
-		}
-
-		wg.Add(1)
-		index++
-
-		go func(id, idx int) {
-			defer wg.Done()
-			s := tmdb.GetShow(id, config.Get().Language)
-			if s != nil {
-				tmdbShows[idx] = s
-			}
-		}(i.ID, index)
-	}
-	wg.Wait()
+	tmdbShows := tmdb.GetShows(library.ActiveIDs(library.ShowType), config.Get().Language)
 
 	for i, tmdbShow := range slices.Backward(tmdbShows) {
 		if tmdbShow == nil {

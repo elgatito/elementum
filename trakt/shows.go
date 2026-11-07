@@ -257,8 +257,8 @@ func SearchShows(query string, page string) (shows []*Shows, err error) {
 	return
 }
 
-// TopShows ...
-func TopShows(topCategory string, page string) (shows []*Shows, total int, err error) {
+// TopShows reads a Trakt show chart, paged like TopMovies.
+func TopShows(topCategory string, page string, perPage int) (shows []*Shows, total int, err error) {
 	defer perf.ScopeTimer()()
 
 	endPoint := "shows/" + topCategory
@@ -266,7 +266,7 @@ func TopShows(topCategory string, page string) (shows []*Shows, total int, err e
 		endPoint = topCategory + "/shows"
 	}
 
-	resultsPerPage := config.Get().ResultsPerPage
+	resultsPerPage := perPage
 	limit := resultsPerPage
 	pageInt, err := strconv.Atoi(page)
 	if err != nil {

@@ -371,7 +371,8 @@ paths:
         - name: list_id
           in: path
           required: true
-          schema: { type: string, minLength: 1, example: "12345" }
+          description: The tracker's list id, as listed by `/tracker/lists` (e.g. `12345` or Simkl's `status:watching`).
+          schema: { type: string, pattern: "^[A-Za-z0-9_:-]{1,64}$", example: "12345" }
         - name: media
           in: query
           required: true
@@ -716,7 +717,15 @@ components:
         page: { type: integer, minimum: 1, example: 1 }
         limit: { type: integer, minimum: 1, maximum: 100, description: Effective page size., example: 20 }
         total_pages: { type: integer, minimum: 0, example: 10 }
-        total_results: { type: integer, minimum: 0, nullable: true, description: Null when the source can't tell., example: 200 }
+        total_results:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: |
+            Null when the source can't tell. For library, tracker and Trakt lists it counts the source's
+            entries, and a page can hold fewer than `limit` items when some can't be resolved to TMDB, so
+            page by `total_pages`.
+          example: 200
     Genre:
       type: object
       required: [id, name]
@@ -857,7 +866,14 @@ components:
         page: { type: integer, minimum: 1, example: 1 }
         limit: { type: integer, minimum: 1, maximum: 100, description: Effective page size., example: 20 }
         total_pages: { type: integer, minimum: 0, example: 1 }
-        total_results: { type: integer, minimum: 0, nullable: true, description: Null when the source can't tell., example: 3 }
+        total_results:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: |
+            Counts the tracker's shows in progress. A page can hold fewer than `limit` items when some can't
+            be resolved to TMDB, so page by `total_pages`.
+          example: 3
     TrackerList:
       type: object
       required: [id, name, item_count]

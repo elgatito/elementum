@@ -110,8 +110,8 @@ func SearchMovies(query string, page string) (movies []*Movies, err error) {
 	return
 }
 
-// TopMovies ...
-func TopMovies(topCategory string, page string) (movies []*Movies, total int, err error) {
+// TopMovies reads a Trakt movie chart; perPage is the page size, and a page below -1 fetches -page items from page 1.
+func TopMovies(topCategory string, page string, perPage int) (movies []*Movies, total int, err error) {
 	defer perf.ScopeTimer()()
 
 	endPoint := "movies/" + topCategory
@@ -119,7 +119,7 @@ func TopMovies(topCategory string, page string) (movies []*Movies, total int, er
 		endPoint = topCategory + "/movies"
 	}
 
-	resultsPerPage := config.Get().ResultsPerPage
+	resultsPerPage := perPage
 	limit := resultsPerPage
 	pageInt, err := strconv.Atoi(page)
 	if err != nil {
