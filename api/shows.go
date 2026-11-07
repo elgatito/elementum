@@ -823,16 +823,16 @@ func ShowSeasonLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		var torrents []*bittorrent.TorrentFile
 		var err error
 
-		if torrents, err = GetCachedTorrents(fakeTmdbID); err != nil || len(torrents) == 0 {
+		if torrents, err = providers.GetCachedTorrents(fakeTmdbID); err != nil || len(torrents) == 0 {
 			if !isCustom {
-				torrents = showSeasonLinks(xbmcHost, callbackHost(ctx, xbmcHost), showID, seasonNumber)
+				torrents = showSeasonLinks(xbmcHost, providers.CallbackHost(ctx, xbmcHost), showID, seasonNumber)
 			} else {
 				if query := xbmcHost.Keyboard(longName, "LOCALIZE[30209]"); len(query) != 0 {
-					torrents = searchLinks(xbmcHost, callbackHost(ctx, xbmcHost), query)
+					torrents = searchLinks(xbmcHost, providers.CallbackHost(ctx, xbmcHost), query)
 				}
 			}
 
-			SetCachedTorrents(fakeTmdbID, torrents)
+			providers.SetCachedTorrents(fakeTmdbID, torrents)
 		}
 
 		if listMode {
@@ -1028,17 +1028,17 @@ func ShowEpisodeLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		var torrents []*bittorrent.TorrentFile
 		var err error
 
-		if torrents, err = GetCachedTorrents(fakeTmdbID); err != nil || len(torrents) == 0 {
+		if torrents, err = providers.GetCachedTorrents(fakeTmdbID); err != nil || len(torrents) == 0 {
 			if !isCustom {
-				torrents = showEpisodeLinks(xbmcHost, callbackHost(ctx, xbmcHost), showID, seasonNumber, episodeNumber)
+				torrents = showEpisodeLinks(xbmcHost, providers.CallbackHost(ctx, xbmcHost), showID, seasonNumber, episodeNumber)
 			} else {
 				if query := xbmcHost.Keyboard(longName, "LOCALIZE[30209]"); len(query) != 0 {
-					torrents = searchLinks(xbmcHost, callbackHost(ctx, xbmcHost), query)
+					torrents = searchLinks(xbmcHost, providers.CallbackHost(ctx, xbmcHost), query)
 					err = nil
 				}
 			}
 
-			SetCachedTorrents(fakeTmdbID, torrents)
+			providers.SetCachedTorrents(fakeTmdbID, torrents)
 		}
 
 		if listMode {

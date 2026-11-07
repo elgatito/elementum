@@ -30,7 +30,7 @@ func ProvidersDiagnose(ctx *gin.Context) {
 	}
 
 	// Dialogs can stay open longer than plugin waits for a response
-	go diagnoseProviders(xbmcHost, callbackHost(ctx, xbmcHost))
+	go diagnoseProviders(xbmcHost, providers.CallbackHost(ctx, xbmcHost))
 	ctx.String(200, "")
 }
 

@@ -37,10 +37,6 @@ func (Server) GetStream(context.Context, GetStreamRequestObject) (GetStreamRespo
 	return GetStreamdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
 }
 
-func (Server) ListEpisodeStreams(context.Context, ListEpisodeStreamsRequestObject) (ListEpisodeStreamsResponseObject, error) {
-	return ListEpisodeStreamsdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
 func (Server) ListLibraryMovies(context.Context, ListLibraryMoviesRequestObject) (ListLibraryMoviesResponseObject, error) {
 	return ListLibraryMoviesdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
 }
@@ -51,10 +47,6 @@ func (Server) ListLibraryShows(context.Context, ListLibraryShowsRequestObject) (
 
 func (Server) ListMovieGenres(context.Context, ListMovieGenresRequestObject) (ListMovieGenresResponseObject, error) {
 	return ListMovieGenresdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
-func (Server) ListMovieStreams(context.Context, ListMovieStreamsRequestObject) (ListMovieStreamsResponseObject, error) {
-	return ListMovieStreamsdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
 }
 
 func (Server) ListMovies(context.Context, ListMoviesRequestObject) (ListMoviesResponseObject, error) {

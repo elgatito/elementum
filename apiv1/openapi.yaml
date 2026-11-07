@@ -105,6 +105,7 @@ paths:
         - $ref: "#/components/parameters/TmdbIdParam"
       responses:
         "200": { $ref: "#/components/responses/StreamList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "502": { $ref: "#/components/responses/ProvidersUnavailable" }
@@ -192,6 +193,7 @@ paths:
         - $ref: "#/components/parameters/EpisodeParam"
       responses:
         "200": { $ref: "#/components/responses/StreamList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "502": { $ref: "#/components/responses/ProvidersUnavailable" }
@@ -858,7 +860,9 @@ components:
       properties:
         uri:
           type: string
-          description: Magnet or .torrent URL; pass it to `createPlayback` as is.
+          description: |
+            A magnet link, a provider http(s) URL, or a `.torrent` path on the Elementum host.
+            Opaque: send it back only to `createPlayback`, as is.
           example: "magnet:?xt=urn:btih:..."
         name: { type: string, example: "The.Matrix.1999.1080p.BluRay.x264" }
         provider: { type: string, example: "Burst (YTS)" }

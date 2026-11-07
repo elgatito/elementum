@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -20,7 +19,6 @@ import (
 	"github.com/elgatito/elementum/database"
 	"github.com/elgatito/elementum/providers"
 	"github.com/elgatito/elementum/util"
-	"github.com/elgatito/elementum/util/ip"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -83,10 +81,10 @@ func Search(s *bittorrent.Service) gin.HandlerFunc {
 		var torrents []*bittorrent.TorrentFile
 		var err error
 
-		if torrents, err = GetCachedTorrents(fakeTmdbID); err != nil || len(torrents) == 0 {
-			torrents = searchLinks(xbmcHost, callbackHost(ctx, xbmcHost), query)
+		if torrents, err = providers.GetCachedTorrents(fakeTmdbID); err != nil || len(torrents) == 0 {
+			torrents = searchLinks(xbmcHost, providers.CallbackHost(ctx, xbmcHost), query)
 
-			SetCachedTorrents(fakeTmdbID, torrents)
+			providers.SetCachedTorrents(fakeTmdbID, torrents)
 		}
 
 		if listMode {
@@ -164,24 +162,6 @@ func Search(s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 	}
-}
-
-// callbackHost returns daemon address, that Kodi uses to send provider results back.
-// Kodi requests came to the address it can reach, but Web UI could be opened by an address, that chosen Kodi can't reach.
-func callbackHost(ctx *gin.Context, xbmcHost *xbmc.XBMCHost) string {
-	if ctx.GetHeader("User-Agent") == "plugin.video.elementum" || xbmcHost == nil {
-		return ctx.Request.Host
-	}
-
-	host := config.Args.ServerExternalIP
-	if host == "" {
-		localIP, err := ip.LocalIPFor(xbmcHost.Host)
-		if err != nil {
-			return ctx.Request.Host
-		}
-		host = localIP.String()
-	}
-	return net.JoinHostPort(host, strconv.Itoa(config.Args.LocalPort))
 }
 
 // wantsLinksList reports whether the caller wants found links in the response instead of a selection dialog in Kodi:

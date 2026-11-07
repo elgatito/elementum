@@ -858,7 +858,9 @@ type Stream struct {
 	// SizeBytes Example: 2147483648
 	SizeBytes *int64 `json:"size_bytes"`
 
-	// Uri Magnet or .torrent URL; pass it to `createPlayback` as is.
+	// Uri A magnet link, a provider http(s) URL, or a `.torrent` path on the Elementum host.
+	// Opaque: send it back only to `createPlayback`, as is.
+	//
 	//
 	// Example: magnet:?xt=urn:btih:...
 	Uri string `json:"uri"`
@@ -2625,6 +2627,20 @@ func (response ListMovieStreams200JSONResponse) VisitListMovieStreamsResponse(w 
 	return err
 }
 
+type ListMovieStreams400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ListMovieStreams400JSONResponse) VisitListMovieStreamsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListMovieStreams401JSONResponse struct{ UnauthorizedJSONResponse }
 
 func (response ListMovieStreams401JSONResponse) VisitListMovieStreamsResponse(w http.ResponseWriter) error {
@@ -3302,6 +3318,20 @@ func (response ListEpisodeStreams200JSONResponse) VisitListEpisodeStreamsRespons
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEpisodeStreams400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ListEpisodeStreams400JSONResponse) VisitListEpisodeStreamsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
 	_, err := buf.WriteTo(w)
 	return err
 }

@@ -138,6 +138,19 @@ func SearchSeason(xbmcHost *xbmc.XBMCHost, searchers []SeasonSearcher, show *tmd
 
 // SearchEpisode ...
 func SearchEpisode(xbmcHost *xbmc.XBMCHost, searchers []EpisodeSearcher, show *tmdb.Show, season *tmdb.Season, episode *tmdb.Episode) []*bittorrent.TorrentFile {
+	return searchEpisode(xbmcHost, searchers, false, func(searcher EpisodeSearcher) []*bittorrent.TorrentFile {
+		return searcher.SearchEpisodeLinks(show, season, episode)
+	})
+}
+
+// SearchEpisodeSilent is SearchEpisode without Kodi dialogs, in Elementum and in the providers.
+func SearchEpisodeSilent(xbmcHost *xbmc.XBMCHost, searchers []EpisodeSearcher, show *tmdb.Show, season *tmdb.Season, episode *tmdb.Episode, withAuth bool) []*bittorrent.TorrentFile {
+	return searchEpisode(xbmcHost, searchers, true, func(searcher EpisodeSearcher) []*bittorrent.TorrentFile {
+		return searcher.SearchEpisodeLinksSilent(show, season, episode, withAuth)
+	})
+}
+
+func searchEpisode(xbmcHost *xbmc.XBMCHost, searchers []EpisodeSearcher, isSilent bool, search func(EpisodeSearcher) []*bittorrent.TorrentFile) []*bittorrent.TorrentFile {
 	torrentsChan := make(chan *bittorrent.TorrentFile)
 	go func() {
 		wg := sync.WaitGroup{}
@@ -145,7 +158,7 @@ func SearchEpisode(xbmcHost *xbmc.XBMCHost, searchers []EpisodeSearcher, show *t
 			wg.Add(1)
 			go func(searcher EpisodeSearcher) {
 				defer wg.Done()
-				for _, torrent := range searcher.SearchEpisodeLinks(show, season, episode) {
+				for _, torrent := range search(searcher) {
 					torrentsChan <- torrent
 				}
 			}(searcher)
@@ -154,7 +167,7 @@ func SearchEpisode(xbmcHost *xbmc.XBMCHost, searchers []EpisodeSearcher, show *t
 		close(torrentsChan)
 	}()
 
-	return processLinks(xbmcHost, torrentsChan, SortShows, false)
+	return processLinks(xbmcHost, torrentsChan, SortShows, isSilent)
 }
 
 func processLinks(xbmcHost *xbmc.XBMCHost, torrentsChan chan *bittorrent.TorrentFile, sortType int, isSilent bool) []*bittorrent.TorrentFile {
@@ -220,7 +233,13 @@ func processLinks(xbmcHost *xbmc.XBMCHost, torrentsChan chan *bittorrent.Torrent
 	}
 
 	var dialogProgressBG *xbmc.DialogProgressBG
-	if !isSilent {
+	if isSilent {
+		// Nothing shows progress, but the resolve goroutines still send to it.
+		go func() {
+			for range progressUpdate {
+			}
+		}()
+	} else {
 		dialogProgressBG = xbmcHost.NewDialogProgressBG("Elementum", "LOCALIZE[30117]", "LOCALIZE[30117]", "LOCALIZE[30118]")
 		go func() {
 			for {

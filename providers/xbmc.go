@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand/v2"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -69,6 +70,24 @@ func CallbackHandler(ctx *gin.Context) {
 	body, _ := io.ReadAll(ctx.Request.Body)
 	c <- body
 	close(c)
+}
+
+// CallbackHost returns daemon address, that Kodi uses to send provider results back.
+// Kodi requests came to the address it can reach, but Web UI could be opened by an address, that chosen Kodi can't reach.
+func CallbackHost(ctx *gin.Context, xbmcHost *xbmc.XBMCHost) string {
+	if ctx.GetHeader("User-Agent") == "plugin.video.elementum" || xbmcHost == nil {
+		return ctx.Request.Host
+	}
+
+	host := config.Args.ServerExternalIP
+	if host == "" {
+		localIP, err := ip.LocalIPFor(xbmcHost.Host)
+		if err != nil {
+			return ctx.Request.Host
+		}
+		host = localIP.String()
+	}
+	return net.JoinHostPort(host, strconv.Itoa(config.Args.LocalPort))
 }
 
 func getSearchers(xbmcHost *xbmc.XBMCHost, callbackHost string) []any {
@@ -510,4 +529,16 @@ func (as *AddonSearcher) SearchEpisodeLinks(show *tmdb.Show, season *tmdb.Season
 	}
 
 	return as.call("search_episode", as.GetEpisodeSearchObject(show, season, episode))
+}
+
+// SearchEpisodeLinksSilent is SearchEpisodeLinks without Kodi dialogs in the provider.
+func (as *AddonSearcher) SearchEpisodeLinksSilent(show *tmdb.Show, season *tmdb.Season, episode *tmdb.Episode, withAuth bool) []*bittorrent.TorrentFile {
+	if show == nil || season == nil || episode == nil {
+		return []*bittorrent.TorrentFile{}
+	}
+
+	o := as.GetEpisodeSearchObject(show, season, episode)
+	o.Silent = true
+	o.SkipAuth = !withAuth
+	return as.call("search_episode", o)
 }

@@ -703,16 +703,16 @@ func MovieLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 		var torrents []*bittorrent.TorrentFile
 		var err error
 
-		if torrents, err = GetCachedTorrents(tmdbID); err != nil || len(torrents) == 0 {
+		if torrents, err = providers.GetCachedTorrents(tmdbID); err != nil || len(torrents) == 0 {
 			if !isCustom {
-				torrents = movieLinks(xbmcHost, callbackHost(ctx, xbmcHost), tmdbID)
+				torrents = movieLinks(xbmcHost, providers.CallbackHost(ctx, xbmcHost), tmdbID)
 			} else {
 				if query := xbmcHost.Keyboard(movie.GetTitle(), "LOCALIZE[30209]"); len(query) != 0 {
-					torrents = searchLinks(xbmcHost, callbackHost(ctx, xbmcHost), query)
+					torrents = searchLinks(xbmcHost, providers.CallbackHost(ctx, xbmcHost), query)
 				}
 			}
 
-			SetCachedTorrents(tmdbID, torrents)
+			providers.SetCachedTorrents(tmdbID, torrents)
 		}
 
 		if listMode {
