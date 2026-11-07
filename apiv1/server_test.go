@@ -197,13 +197,31 @@ func TestErrors(t *testing.T) {
 		status int
 		code   apiv1.ErrorCode
 	}{
-		{request{path: "/api/v1/movies/lists/popular"}, http.StatusNotImplemented, apiv1.ErrorCodeNotImplemented},
+		{request{path: "/api/v1/library/movies"}, http.StatusNotImplemented, apiv1.ErrorCodeNotImplemented},
 		// static and param siblings in the same tree must both resolve
 		{request{path: "/api/v1/tracker/shows/watchlist"}, http.StatusNotImplemented, apiv1.ErrorCodeNotImplemented},
 		{request{path: "/api/v1/tracker/shows/progress"}, http.StatusNotImplemented, apiv1.ErrorCodeNotImplemented},
 		{request{path: "/api/v1/tracker/lists"}, http.StatusNotImplemented, apiv1.ErrorCodeNotImplemented},
-		{request{path: "/api/v1/movies/genres"}, http.StatusNotImplemented, apiv1.ErrorCodeNotImplemented},
-		{request{path: "/api/v1/movies/603"}, http.StatusNotImplemented, apiv1.ErrorCodeNotImplemented},
+		{request{path: "/api/v1/movies/genres?lang=deu"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/movies/603?lang=deu"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		// catalog: bad enums and params are rejected before any TMDB call
+		{request{path: "/api/v1/movies/lists/nope"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/movies/lists/by_genre"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/movies/lists/popular?page=0"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/movies/lists/popular?limit=101"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/shows/lists/now_playing"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/shows/lists/by_genre?year=2000"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/shows/genres?lang=de-"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/shows/1396?lang=1"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/shows/1396/seasons/1?lang=1"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/search?query=matrix&type=person"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/search?query=%20&type=movie"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/search?query=matrix&type=multi"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/search?query=matrix"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/movies/lists/by_genre?genre=0"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/shows/lists/by_genre?genre=18&year=1869"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/movies/lists/by_genre?genre=28&year=2101"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/v1/search"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
 		{request{method: http.MethodDelete, path: "/api/v1/playback/abc"}, http.StatusNotImplemented, apiv1.ErrorCodeNotImplemented},
 		{request{path: "/api/v1/nope"}, http.StatusNotFound, apiv1.ErrorCodeNotFound},
 		{request{path: "/api/nope"}, http.StatusNotFound, apiv1.ErrorCodeNotFound},
@@ -232,4 +250,24 @@ func TestErrors(t *testing.T) {
 			t.Errorf("status %d, Content-Type %q", w.Code, w.Header().Get("Content-Type"))
 		}
 	})
+}
+
+// Pages past TMDB's last one are answered empty without a TMDB call (none is reachable in tests).
+func TestPastLastPage(t *testing.T) {
+	setCreds(t, "", "")
+	r := newEngine()
+	for _, path := range []string{
+		"/api/v1/movies/lists/popular?page=501&limit=20",
+		"/api/v1/shows/lists/by_genre?genre=18&page=335&limit=30",
+		"/api/v1/search?query=matrix&type=show&page=9223372036854775807&limit=100",
+	} {
+		w := do(r, request{path: path})
+		var page apiv1.MediaItemPage
+		if err := json.Unmarshal(w.Body.Bytes(), &page); err != nil || w.Code != http.StatusOK {
+			t.Fatalf("%s: status %d, %v: %s", path, w.Code, err, w.Body)
+		}
+		if page.Items == nil || len(page.Items) != 0 || page.TotalResults != nil || page.Page < 335 {
+			t.Errorf("%s: %+v", path, page)
+		}
+	}
 }

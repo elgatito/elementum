@@ -1,0 +1,42 @@
+{
+  "adult": false,
+  "backdrop_path": "/fNG7i7RqMErkcqhohV2a6cV1Ehy.jpg",
+  "genres": [{"id": 28, "name": "Action"}, {"id": 878, "name": "Science Fiction"}],
+  "id": 603,
+  "imdb_id": "tt0133093",
+  "original_language": "en",
+  "original_title": "The Matrix",
+  "overview": "Der Hacker Neo wird übers Internet von einer geheimnisvollen Untergrund-Organisation kontaktiert.",
+  "popularity": 85.123,
+  "poster_path": "/9X9KrQ4oQUvRkA5JY6mBIN7uSNb.jpg",
+  "release_date": "1999-03-31",
+  "runtime": 136,
+  "tagline": "Willkommen in der realen Welt.",
+  "title": "Matrix",
+  "vote_average": 8.2,
+  "vote_count": 25000,
+  "credits": {
+    "cast": [
+      {"id": 6384, "name": "Keanu Reeves", "character": "Thomas A. Anderson / Neo", "profile_path": "/4D0PpNI0kmP58hgrwGC3wCjxhnm.jpg", "order": 0},
+      {"id": 2975, "name": "Laurence Fishburne", "character": "Morpheus", "profile_path": null, "order": 1}
+    ],
+    "crew": [
+      {"id": 9340, "name": "Lana Wachowski", "job": "Director", "department": "Directing", "profile_path": null}
+    ]
+  },
+  "images": {
+    "backdrops": [{"file_path": "/icmmSD4vTTDKOq2vvdulafOGw93.jpg", "height": 2160, "width": 3840, "iso_639_1": null}],
+    "posters": [{"file_path": "/9X9KrQ4oQUvRkA5JY6mBIN7uSNb.jpg", "height": 3000, "width": 2000, "iso_639_1": "de"}],
+    "logos": [{"file_path": "/vzAVHkM7Szc4qOYdMXr1OmCVEuy.png", "height": 359, "width": 1500, "iso_639_1": "en"}]
+  },
+  "videos": {
+    "results": [{"name": "Matrix - Trailer (Deutsch)", "key": "vKQi3bBA1y8", "site": "YouTube", "type": "Trailer", "iso_639_1": "de"}]
+  },
+  "external_ids": {"imdb_id": "tt0133093", "tvdb_id": null},
+  "translations": {
+    "translations": [
+      {"iso_3166_1": "US", "iso_639_1": "en", "name": "English", "english_name": "English",
+       "data": {"title": "", "overview": "Set in the 22nd century, The Matrix tells the story of a computer hacker.", "tagline": "Welcome to the Real World."}}
+    ]
+  }
+}

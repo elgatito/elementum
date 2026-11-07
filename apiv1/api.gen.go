@@ -176,7 +176,6 @@ func (e PlaybackType) Valid() bool {
 // Defines values for SearchType.
 const (
 	SearchTypeMovie SearchType = "movie"
-	SearchTypeMulti SearchType = "multi"
 	SearchTypeShow  SearchType = "show"
 )
 
@@ -184,8 +183,6 @@ const (
 func (e SearchType) Valid() bool {
 	switch e {
 	case SearchTypeMovie:
-		return true
-	case SearchTypeMulti:
 		return true
 	case SearchTypeShow:
 		return true
@@ -976,17 +973,11 @@ type BadRequest = Error
 // Forbidden defines model for Forbidden.
 type Forbidden = Error
 
-// GenreList defines model for GenreList.
-type GenreList = []Genre
-
 // NotFound defines model for NotFound.
 type NotFound = Error
 
 // ProvidersUnavailable defines model for ProvidersUnavailable.
 type ProvidersUnavailable = Error
-
-// StreamList defines model for StreamList.
-type StreamList = []Stream
 
 // TrackerUnavailable defines model for TrackerUnavailable.
 type TrackerUnavailable = Error
@@ -1051,9 +1042,9 @@ type GetMovieParams struct {
 
 // SearchParams defines parameters for Search.
 type SearchParams struct {
-	Query string      `form:"query" json:"query"`
-	Type  *SearchType `form:"type,omitempty" json:"type,omitempty"`
-	Page  *PageParam  `form:"page,omitempty" json:"page,omitempty"`
+	Query string     `form:"query" json:"query"`
+	Type  SearchType `form:"type" json:"type"`
+	Page  *PageParam `form:"page,omitempty" json:"page,omitempty"`
 
 	// Limit Page size. Defaults to Elementum's `results_per_page` setting.
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
@@ -1208,7 +1199,7 @@ type ServerInterface interface {
 	// ReportPlaybackProgress Keepalive, resume point and tracker scrobble
 	// (POST /playback/{id}/progress)
 	ReportPlaybackProgress(c *gin.Context, id SessionIdParam)
-	// Search Search TMDB
+	// Search Search TMDB movies or shows
 	// (GET /search)
 	Search(c *gin.Context, params SearchParams)
 	// ListShowGenres Show genres
@@ -1608,9 +1599,9 @@ func (siw *ServerInterfaceWrapper) Search(c *gin.Context) {
 		return
 	}
 
-	// ------------- Optional query parameter "type" -------------
+	// ------------- Required query parameter "type" -------------
 
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "type", c.Request.URL.Query(), &params.Type, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "type", c.Request.URL.Query(), &params.Type, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
 	if err != nil {
 		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter type: %w", err), http.StatusBadRequest)
 		return
@@ -2296,15 +2287,11 @@ type ErrorJSONResponse Error
 
 type ForbiddenJSONResponse Error
 
-type GenreListJSONResponse []Genre
-
 type MediaItemPageJSONResponse MediaItemPage
 
 type NotFoundJSONResponse Error
 
 type ProvidersUnavailableJSONResponse Error
-
-type StreamListJSONResponse []Stream
 
 type TrackerUnavailableJSONResponse Error
 
@@ -2424,7 +2411,7 @@ type ListMovieGenresResponseObject interface {
 	VisitListMovieGenresResponse(w http.ResponseWriter) error
 }
 
-type ListMovieGenres200JSONResponse struct{ GenreListJSONResponse }
+type ListMovieGenres200JSONResponse []Genre
 
 func (response ListMovieGenres200JSONResponse) VisitListMovieGenresResponse(w http.ResponseWriter) error {
 
@@ -2613,7 +2600,7 @@ type ListMovieStreamsResponseObject interface {
 	VisitListMovieStreamsResponse(w http.ResponseWriter) error
 }
 
-type ListMovieStreams200JSONResponse struct{ StreamListJSONResponse }
+type ListMovieStreams200JSONResponse []Stream
 
 func (response ListMovieStreams200JSONResponse) VisitListMovieStreamsResponse(w http.ResponseWriter) error {
 
@@ -3048,7 +3035,7 @@ type ListShowGenresResponseObject interface {
 	VisitListShowGenresResponse(w http.ResponseWriter) error
 }
 
-type ListShowGenres200JSONResponse struct{ GenreListJSONResponse }
+type ListShowGenres200JSONResponse []Genre
 
 func (response ListShowGenres200JSONResponse) VisitListShowGenresResponse(w http.ResponseWriter) error {
 
@@ -3308,7 +3295,7 @@ type ListEpisodeStreamsResponseObject interface {
 	VisitListEpisodeStreamsResponse(w http.ResponseWriter) error
 }
 
-type ListEpisodeStreams200JSONResponse struct{ StreamListJSONResponse }
+type ListEpisodeStreams200JSONResponse []Stream
 
 func (response ListEpisodeStreams200JSONResponse) VisitListEpisodeStreamsResponse(w http.ResponseWriter) error {
 
@@ -3990,7 +3977,7 @@ type StrictServerInterface interface {
 	// ReportPlaybackProgress Keepalive, resume point and tracker scrobble
 	// (POST /playback/{id}/progress)
 	ReportPlaybackProgress(ctx context.Context, request ReportPlaybackProgressRequestObject) (ReportPlaybackProgressResponseObject, error)
-	// Search Search TMDB
+	// Search Search TMDB movies or shows
 	// (GET /search)
 	Search(ctx context.Context, request SearchRequestObject) (SearchResponseObject, error)
 	// ListShowGenres Show genres

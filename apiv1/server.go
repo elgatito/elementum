@@ -105,11 +105,12 @@ func checkParams(page, limit *int, enums ...interface{ Valid() bool }) *Error {
 		return &e
 	}
 	for _, v := range enums {
-		if rv := reflect.ValueOf(v); rv.Kind() == reflect.Pointer && rv.IsNil() {
+		rv := reflect.ValueOf(v)
+		if rv.Kind() == reflect.Pointer && rv.IsNil() {
 			continue // unset optional enum
 		}
 		if !v.Valid() {
-			e := newError(ErrorCodeBadRequest, fmt.Sprintf("invalid value %q", v))
+			e := newError(ErrorCodeBadRequest, fmt.Sprintf("invalid value %q", reflect.Indirect(rv).Interface()))
 			return &e
 		}
 	}

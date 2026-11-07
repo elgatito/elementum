@@ -199,20 +199,25 @@ func SearchShows(query string, language string, page int) (Shows, int) {
 	return GetShows(tmdbIds, language), results.TotalResults
 }
 
-func listShows(endpoint string, params napping.Params, page int) (Shows, int) {
+// SearchShowsPerPage is SearchShows re-sliced into perPage results per page, like the lists.
+func SearchShowsPerPage(query string, language string, page int, perPage int) (Shows, int) {
+	return listShows("search/tv", napping.Params{"query": query, "language": language, "include_adult": "false"}, page, perPage)
+}
+
+func listShows(endpoint string, params napping.Params, page int, perPage int) (Shows, int) {
 	defer perf.ScopeTimer()()
 
 	params["api_key"] = apiKey
 	totalResults := -1
+	var totalOnce sync.Once // pages are fetched concurrently; the first one sets the total
 
-	requestPerPage := config.Get().ResultsPerPage
-	requestLimitStart := (page - 1) * requestPerPage
-	requestLimitEnd := page*requestPerPage - 1
+	requestLimitStart := (page - 1) * perPage
+	requestLimitEnd := page*perPage - 1
 
 	pageStart := requestLimitStart / TMDBResultsPerPage
-	pageEnd := requestLimitEnd / TMDBResultsPerPage
+	pageEnd := min(requestLimitEnd/TMDBResultsPerPage, TMDBMaxPages-1)
 
-	shows := make(Shows, requestPerPage)
+	shows := make(Shows, perPage)
 
 	wg := sync.WaitGroup{}
 	for p := pageStart; p <= pageEnd; p++ {
@@ -240,9 +245,7 @@ func listShows(endpoint string, params napping.Params, page int) (Shows, int) {
 				return
 			}
 
-			if totalResults == -1 {
-				totalResults = results.TotalResults
-			}
+			totalOnce.Do(func() { totalResults = results.TotalResults })
 
 			var wgItems sync.WaitGroup
 			wgItems.Add(len(results.Results))
@@ -267,7 +270,7 @@ func listShows(endpoint string, params napping.Params, page int) (Shows, int) {
 }
 
 // PopularShows ...
-func PopularShows(params DiscoverFilters, language string, page int) (Shows, int) {
+func PopularShows(params DiscoverFilters, language string, page int, perPage int) (Shows, int) {
 	var p napping.Params
 	if params.Genre != "" {
 		p = napping.Params{
@@ -298,7 +301,7 @@ func PopularShows(params DiscoverFilters, language string, page int) (Shows, int
 		}
 	}
 
-	return listShows("discover/tv", p, page)
+	return listShows("discover/tv", p, page, perPage)
 }
 
 // PersonShows returns ids of shows a person played in or worked on, the ones with most episodes first,
@@ -349,7 +352,7 @@ func PersonShows(personID int) []int {
 }
 
 // RecentShows ...
-func RecentShows(params DiscoverFilters, language string, page int) (Shows, int) {
+func RecentShows(params DiscoverFilters, language string, page int, perPage int) (Shows, int) {
 	var p napping.Params
 	if params.Genre != "" {
 		p = napping.Params{
@@ -380,11 +383,11 @@ func RecentShows(params DiscoverFilters, language string, page int) (Shows, int)
 		}
 	}
 
-	return listShows("discover/tv", p, page)
+	return listShows("discover/tv", p, page, perPage)
 }
 
 // RecentEpisodes ...
-func RecentEpisodes(params DiscoverFilters, language string, page int) (Shows, int) {
+func RecentEpisodes(params DiscoverFilters, language string, page int, perPage int) (Shows, int) {
 	var p napping.Params
 
 	if params.Genre != "" {
@@ -416,28 +419,33 @@ func RecentEpisodes(params DiscoverFilters, language string, page int) (Shows, i
 		}
 	}
 
-	return listShows("discover/tv", p, page)
+	return listShows("discover/tv", p, page, perPage)
 }
 
 // DiscoverShows runs /discover/tv with caller-built filters and sorting
-func DiscoverShows(params napping.Params, language string, page int) (Shows, int) {
+func DiscoverShows(params napping.Params, language string, page int, perPage int) (Shows, int) {
 	params["language"] = language
-	return listShows("discover/tv", params, page)
+	return listShows("discover/tv", params, page, perPage)
 }
 
 // TopRatedShows ...
-func TopRatedShows(genre string, language string, page int) (Shows, int) {
-	return listShows("tv/top_rated", napping.Params{"language": language}, page)
+func TopRatedShows(genre string, language string, page int, perPage int) (Shows, int) {
+	return listShows("tv/top_rated", napping.Params{"language": language}, page, perPage)
+}
+
+// TrendingShows ...
+func TrendingShows(language string, page int, perPage int) (Shows, int) {
+	return listShows("trending/tv/week", napping.Params{"language": language}, page, perPage)
 }
 
 // MostVotedShows ...
-func MostVotedShows(genre string, language string, page int) (Shows, int) {
+func MostVotedShows(genre string, language string, page int, perPage int) (Shows, int) {
 	return listShows("discover/tv", napping.Params{
 		"language":           language,
 		"sort_by":            "vote_count.desc",
 		"first_air_date.lte": time.Now().UTC().Format(time.DateOnly),
 		"with_genres":        genre,
-	}, page)
+	}, page, perPage)
 }
 
 // GetTVGenres ...

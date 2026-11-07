@@ -394,7 +394,7 @@ func PopularShows(ctx *gin.Context) {
 	}
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
-	shows, total := tmdb.PopularShows(p, config.Get().Language, page)
+	shows, total := tmdb.PopularShows(p, config.Get().Language, page, config.Get().ResultsPerPage)
 	renderShows(ctx, shows, page, total, false)
 }
 
@@ -402,7 +402,7 @@ func PopularShows(ctx *gin.Context) {
 func RandomShows(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
-	shows, _ := tmdb.PopularShows(tmdb.DiscoverFilters{}, config.Get().Language, randomPage())
+	shows, _ := tmdb.PopularShows(tmdb.DiscoverFilters{}, config.Get().Language, randomPage(), config.Get().ResultsPerPage)
 	rand.Shuffle(len(shows), func(i, j int) { shows[i], shows[j] = shows[j], shows[i] })
 	renderShows(ctx, shows, -1, len(shows), false)
 }
@@ -435,7 +435,7 @@ func RecentShows(ctx *gin.Context) {
 	}
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
-	shows, total := tmdb.RecentShows(p, config.Get().Language, page)
+	shows, total := tmdb.RecentShows(p, config.Get().Language, page, config.Get().ResultsPerPage)
 	renderShows(ctx, shows, page, total, false)
 }
 
@@ -452,7 +452,7 @@ func RecentEpisodes(ctx *gin.Context) {
 	}
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
-	shows, total := tmdb.RecentEpisodes(p, config.Get().Language, page)
+	shows, total := tmdb.RecentEpisodes(p, config.Get().Language, page, config.Get().ResultsPerPage)
 	renderShows(ctx, shows, page, total, false)
 }
 
@@ -461,7 +461,7 @@ func TopRatedShows(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
-	shows, total := tmdb.TopRatedShows("", config.Get().Language, page)
+	shows, total := tmdb.TopRatedShows("", config.Get().Language, page, config.Get().ResultsPerPage)
 	renderShows(ctx, shows, page, total, false)
 }
 
@@ -470,7 +470,7 @@ func TVMostVoted(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
-	shows, total := tmdb.MostVotedShows("", config.Get().Language, page)
+	shows, total := tmdb.MostVotedShows("", config.Get().Language, page, config.Get().ResultsPerPage)
 	renderShows(ctx, shows, page, total, false)
 }
 

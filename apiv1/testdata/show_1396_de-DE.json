@@ -1,0 +1,33 @@
+{
+  "backdrop_path": "/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg",
+  "episode_run_time": [],
+  "first_air_date": "2008-01-20",
+  "last_episode_to_air": {"id": 62161, "name": "Felina", "air_date": "2013-09-29", "episode_number": 16, "season_number": 5, "runtime": 56},
+  "genres": [{"id": 18, "name": "Drama"}, {"id": 80, "name": "Krimi"}],
+  "id": 1396,
+  "name": "Breaking Bad",
+  "number_of_episodes": 62,
+  "number_of_seasons": 5,
+  "original_language": "en",
+  "original_name": "Breaking Bad",
+  "overview": "",
+  "popularity": "412.5",
+  "poster_path": "/ggFHVNu6YYI5L9pCfOacjizRGt.jpg",
+  "status": "Ended",
+  "tagline": "",
+  "vote_average": 8.9,
+  "vote_count": 15000,
+  "seasons": [
+    {"air_date": "2009-02-17", "episode_count": 9, "id": 3577, "name": "Specials", "overview": "", "poster_path": null, "season_number": 0},
+    {"air_date": "2008-01-20", "episode_count": 7, "id": 3572, "name": "Staffel 1", "overview": "", "poster_path": "/1BP4xYv9ZG4ZVHkL7ocOziBbSYH.jpg", "season_number": 1}
+  ],
+  "credits": {"cast": [], "crew": []},
+  "external_ids": {"imdb_id": "tt0903747", "tvdb_id": 81189},
+  "translations": {
+    "translations": [
+      {"iso_3166_1": "DE", "iso_639_1": "de", "name": "Deutsch", "english_name": "German", "data": {"name": "", "overview": ""}},
+      {"iso_3166_1": "US", "iso_639_1": "en", "name": "English", "english_name": "English",
+       "data": {"name": "Breaking Bad", "overview": "Walter White, a New Mexico chemistry teacher, is diagnosed with Stage III cancer."}}
+    ]
+  }
+}

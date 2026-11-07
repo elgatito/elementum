@@ -71,7 +71,13 @@ paths:
       parameters:
         - $ref: "#/components/parameters/LangParam"
       responses:
-        "200": { $ref: "#/components/responses/GenreList" }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Genre" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         default: { $ref: "#/components/responses/Error" }
 
@@ -104,7 +110,13 @@ paths:
       parameters:
         - $ref: "#/components/parameters/TmdbIdParam"
       responses:
-        "200": { $ref: "#/components/responses/StreamList" }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Stream" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -140,7 +152,13 @@ paths:
       parameters:
         - $ref: "#/components/parameters/LangParam"
       responses:
-        "200": { $ref: "#/components/responses/GenreList" }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Genre" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         default: { $ref: "#/components/responses/Error" }
 
@@ -192,7 +210,13 @@ paths:
         - $ref: "#/components/parameters/SeasonParam"
         - $ref: "#/components/parameters/EpisodeParam"
       responses:
-        "200": { $ref: "#/components/responses/StreamList" }
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Stream" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -203,8 +227,8 @@ paths:
     get:
       tags: [search]
       operationId: search
-      summary: Search TMDB
-      description: "`multi` returns movies and shows."
+      summary: Search TMDB movies or shows
+      description: One media type per call; search movies and shows with two calls.
       parameters:
         - name: query
           in: query
@@ -212,6 +236,7 @@ paths:
           schema: { type: string, minLength: 1, example: "matrix" }
         - name: type
           in: query
+          required: true
           schema: { $ref: "#/components/schemas/SearchType" }
         - $ref: "#/components/parameters/PageParam"
         - $ref: "#/components/parameters/LimitParam"
@@ -540,26 +565,14 @@ components:
       description: Release (movies) or first-air (shows) year. Used by `by_genre` only.
       schema: { type: integer, minimum: 1870, maximum: 2100, example: 1999 }
 
+  # Array bodies are declared inline per operation, never as $ref'd responses: oapi-codegen would wrap
+  # them in a struct and encode {"XJSONResponse": [...]} instead of [...].
   responses:
     MediaItemPage:
       description: OK
       content:
         application/json:
           schema: { $ref: "#/components/schemas/MediaItemPage" }
-    GenreList:
-      description: OK
-      content:
-        application/json:
-          schema:
-            type: array
-            items: { $ref: "#/components/schemas/Genre" }
-    StreamList:
-      description: OK
-      content:
-        application/json:
-          schema:
-            type: array
-            items: { $ref: "#/components/schemas/Stream" }
     BadRequest:
       description: Invalid parameters or body (`bad_request`)
       content:
@@ -675,8 +688,7 @@ components:
       enum: [trending, popular, anticipated, watched, played]
     SearchType:
       type: string
-      default: multi
-      enum: [movie, show, multi]
+      enum: [movie, show]
 
     MediaItem:
       type: object

@@ -17,20 +17,8 @@ func (Server) DeletePlayback(context.Context, DeletePlaybackRequestObject) (Dele
 	return DeletePlaybackdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
 }
 
-func (Server) GetMovie(context.Context, GetMovieRequestObject) (GetMovieResponseObject, error) {
-	return GetMoviedefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
 func (Server) GetPlayback(context.Context, GetPlaybackRequestObject) (GetPlaybackResponseObject, error) {
 	return GetPlaybackdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
-func (Server) GetSeason(context.Context, GetSeasonRequestObject) (GetSeasonResponseObject, error) {
-	return GetSeasondefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
-func (Server) GetShow(context.Context, GetShowRequestObject) (GetShowResponseObject, error) {
-	return GetShowdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
 }
 
 func (Server) GetStream(context.Context, GetStreamRequestObject) (GetStreamResponseObject, error) {
@@ -43,22 +31,6 @@ func (Server) ListLibraryMovies(context.Context, ListLibraryMoviesRequestObject)
 
 func (Server) ListLibraryShows(context.Context, ListLibraryShowsRequestObject) (ListLibraryShowsResponseObject, error) {
 	return ListLibraryShowsdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
-func (Server) ListMovieGenres(context.Context, ListMovieGenresRequestObject) (ListMovieGenresResponseObject, error) {
-	return ListMovieGenresdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
-func (Server) ListMovies(context.Context, ListMoviesRequestObject) (ListMoviesResponseObject, error) {
-	return ListMoviesdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
-func (Server) ListShowGenres(context.Context, ListShowGenresRequestObject) (ListShowGenresResponseObject, error) {
-	return ListShowGenresdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
-func (Server) ListShows(context.Context, ListShowsRequestObject) (ListShowsResponseObject, error) {
-	return ListShowsdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
 }
 
 func (Server) ListTrackerCollection(context.Context, ListTrackerCollectionRequestObject) (ListTrackerCollectionResponseObject, error) {
@@ -87,8 +59,4 @@ func (Server) ListTraktChart(context.Context, ListTraktChartRequestObject) (List
 
 func (Server) ReportPlaybackProgress(context.Context, ReportPlaybackProgressRequestObject) (ReportPlaybackProgressResponseObject, error) {
 	return ReportPlaybackProgressdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
-}
-
-func (Server) Search(context.Context, SearchRequestObject) (SearchResponseObject, error) {
-	return SearchdefaultJSONResponse{Body: notImplemented, StatusCode: http.StatusNotImplemented}, nil
 }

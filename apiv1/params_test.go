@@ -1,6 +1,9 @@
 package apiv1
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestCheckParams(t *testing.T) {
 	page := func(n int) *int { return &n }
@@ -19,13 +22,14 @@ func TestCheckParams(t *testing.T) {
 		"limit 101":    {limit: page(101), bad: true},
 		"bad enum":     {page: page(2), enums: []interface{ Valid() bool }{MediaKindMovies, MovieListName("nope")}, bad: true},
 		"nil optional": {enums: []interface{ Valid() bool }{(*SearchType)(nil), MediaKindMovies}},
+		"bad optional": {enums: []interface{ Valid() bool }{new(SearchType("person"))}, bad: true},
 	} {
 		t.Run(name, func(t *testing.T) {
 			e := checkParams(tc.page, tc.limit, tc.enums...)
 			if (e != nil) != tc.bad {
 				t.Fatalf("got %+v, want bad=%v", e, tc.bad)
 			}
-			if e != nil && (e.Error.Code != ErrorCodeBadRequest || e.Error.Message == "") {
+			if e != nil && (e.Error.Code != ErrorCodeBadRequest || e.Error.Message == "" || strings.Contains(e.Error.Message, "0x")) {
 				t.Errorf("error = %+v", e.Error)
 			}
 		})

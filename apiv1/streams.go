@@ -34,7 +34,7 @@ func (Server) ListMovieStreams(ctx context.Context, req ListMovieStreamsRequestO
 	c := ctx.(*gin.Context)
 	key := strconv.Itoa(req.TmdbId)
 	if cached := cachedStreams(key); cached != nil {
-		return ListMovieStreams200JSONResponse{cached}, nil
+		return ListMovieStreams200JSONResponse(cached), nil
 	}
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(c)
 	if xbmcHost == nil {
@@ -53,7 +53,7 @@ func (Server) ListMovieStreams(ctx context.Context, req ListMovieStreamsRequestO
 	if c.Request.Context().Err() != nil {
 		return ListMovieStreams200JSONResponse{}, nil // client is gone, don't start the search
 	}
-	return ListMovieStreams200JSONResponse{storeStreams(key, providers.SearchMovieSilent(xbmcHost, searchers, movie, true))}, nil
+	return ListMovieStreams200JSONResponse(storeStreams(key, providers.SearchMovieSilent(xbmcHost, searchers, movie, true))), nil
 }
 
 // ListEpisodeStreams searches the providers for an episode.
@@ -64,7 +64,7 @@ func (Server) ListEpisodeStreams(ctx context.Context, req ListEpisodeStreamsRequ
 	c := ctx.(*gin.Context)
 	key := fmt.Sprintf("%d_%d_%d", req.TmdbId, req.Season, req.Episode)
 	if cached := cachedStreams(key); cached != nil {
-		return ListEpisodeStreams200JSONResponse{cached}, nil
+		return ListEpisodeStreams200JSONResponse(cached), nil
 	}
 	xbmcHost, _ := xbmc.GetXBMCHostWithContext(c)
 	if xbmcHost == nil {
@@ -92,11 +92,11 @@ func (Server) ListEpisodeStreams(ctx context.Context, req ListEpisodeStreamsRequ
 	if c.Request.Context().Err() != nil {
 		return ListEpisodeStreams200JSONResponse{}, nil // client is gone, don't start the search
 	}
-	return ListEpisodeStreams200JSONResponse{storeStreams(key, providers.SearchEpisodeSilent(xbmcHost, searchers, show, season, episode, true))}, nil
+	return ListEpisodeStreams200JSONResponse(storeStreams(key, providers.SearchEpisodeSilent(xbmcHost, searchers, show, season, episode, true))), nil
 }
 
 // cachedStreams returns the cached search results for key, or nil when there are none.
-func cachedStreams(key string) StreamListJSONResponse {
+func cachedStreams(key string) []Stream {
 	if torrents, err := providers.GetCachedTorrents(key); err == nil && len(torrents) > 0 {
 		return toStreams(torrents)
 	}
@@ -104,15 +104,15 @@ func cachedStreams(key string) StreamListJSONResponse {
 }
 
 // storeStreams caches the results like the Kodi routes do (empty ones too) and maps them.
-func storeStreams(key string, torrents []*bittorrent.TorrentFile) StreamListJSONResponse {
+func storeStreams(key string, torrents []*bittorrent.TorrentFile) []Stream {
 	if err := providers.SetCachedTorrents(key, torrents); err != nil {
 		log.Warningf("Caching stream search for %s: %v", key, err)
 	}
 	return toStreams(torrents)
 }
 
-func toStreams(torrents []*bittorrent.TorrentFile) StreamListJSONResponse {
-	streams := make(StreamListJSONResponse, 0, len(torrents)) // never null in JSON
+func toStreams(torrents []*bittorrent.TorrentFile) []Stream {
+	streams := make([]Stream, 0, len(torrents)) // never null in JSON
 	for _, t := range torrents {
 		streams = append(streams, toStream(t))
 	}

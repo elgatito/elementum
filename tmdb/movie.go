@@ -186,6 +186,11 @@ func SearchMovies(query string, language string, page int) (Movies, int) {
 	return GetMovies(tmdbIds, language), results.TotalResults
 }
 
+// SearchMoviesPerPage is SearchMovies re-sliced into perPage results per page, like the lists.
+func SearchMoviesPerPage(query string, language string, page int, perPage int) (Movies, int) {
+	return listMovies("search/movie", napping.Params{"query": query, "language": language, "include_adult": "false"}, page, perPage)
+}
+
 // GetIMDBList ...
 func GetIMDBList(listID string, language string, page int) (movies Movies, totalResults int) {
 	defer perf.ScopeTimer()()
@@ -227,20 +232,20 @@ func GetIMDBList(listID string, language string, page int) (movies Movies, total
 	return
 }
 
-func listMovies(endpoint string, params napping.Params, page int) (Movies, int) {
+func listMovies(endpoint string, params napping.Params, page int, perPage int) (Movies, int) {
 	defer perf.ScopeTimer()()
 
 	params["api_key"] = apiKey
 	totalResults := -1
+	var totalOnce sync.Once // pages are fetched concurrently; the first one sets the total
 
-	requestPerPage := config.Get().ResultsPerPage
-	requestLimitStart := (page - 1) * requestPerPage
-	requestLimitEnd := page*requestPerPage - 1
+	requestLimitStart := (page - 1) * perPage
+	requestLimitEnd := page*perPage - 1
 
 	pageStart := requestLimitStart / TMDBResultsPerPage
-	pageEnd := requestLimitEnd / TMDBResultsPerPage
+	pageEnd := min(requestLimitEnd/TMDBResultsPerPage, TMDBMaxPages-1)
 
-	movies := make(Movies, requestPerPage)
+	movies := make(Movies, perPage)
 
 	wg := sync.WaitGroup{}
 	for p := pageStart; p <= pageEnd; p++ {
@@ -268,9 +273,7 @@ func listMovies(endpoint string, params napping.Params, page int) (Movies, int) 
 				return
 			}
 
-			if totalResults == -1 {
-				totalResults = results.TotalResults
-			}
+			totalOnce.Do(func() { totalResults = results.TotalResults })
 
 			var wgItems sync.WaitGroup
 			wgItems.Add(len(results.Results))
@@ -295,7 +298,7 @@ func listMovies(endpoint string, params napping.Params, page int) (Movies, int) 
 }
 
 // PopularMovies ...
-func PopularMovies(params DiscoverFilters, language string, page int) (Movies, int) {
+func PopularMovies(params DiscoverFilters, language string, page int, perPage int) (Movies, int) {
 	var p napping.Params
 	if params.Genre != "" {
 		p = napping.Params{
@@ -326,11 +329,11 @@ func PopularMovies(params DiscoverFilters, language string, page int) (Movies, i
 		}
 	}
 
-	return listMovies("discover/movie", p, page)
+	return listMovies("discover/movie", p, page, perPage)
 }
 
 // RecentMovies ...
-func RecentMovies(params DiscoverFilters, language string, page int) (Movies, int) {
+func RecentMovies(params DiscoverFilters, language string, page int, perPage int) (Movies, int) {
 	var p napping.Params
 	if params.Genre != "" {
 		p = napping.Params{
@@ -365,22 +368,32 @@ func RecentMovies(params DiscoverFilters, language string, page int) (Movies, in
 		}
 	}
 
-	return listMovies("discover/movie", p, page)
+	return listMovies("discover/movie", p, page, perPage)
 }
 
 // DiscoverMovies runs /discover/movie with caller-built filters and sorting
-func DiscoverMovies(params napping.Params, language string, page int) (Movies, int) {
+func DiscoverMovies(params napping.Params, language string, page int, perPage int) (Movies, int) {
 	params["language"] = language
-	return listMovies("discover/movie", params, page)
+	return listMovies("discover/movie", params, page, perPage)
 }
 
 // TopRatedMovies ...
-func TopRatedMovies(genre string, language string, page int) (Movies, int) {
-	return listMovies("movie/top_rated", napping.Params{"language": language}, page)
+func TopRatedMovies(genre string, language string, page int, perPage int) (Movies, int) {
+	return listMovies("movie/top_rated", napping.Params{"language": language}, page, perPage)
+}
+
+// TrendingMovies ...
+func TrendingMovies(language string, page int, perPage int) (Movies, int) {
+	return listMovies("trending/movie/week", napping.Params{"language": language}, page, perPage)
+}
+
+// UpcomingMovies ...
+func UpcomingMovies(language string, page int, perPage int) (Movies, int) {
+	return listMovies("movie/upcoming", napping.Params{"language": language}, page, perPage)
 }
 
 // MostVotedMovies ...
-func MostVotedMovies(genre string, language string, page int) (Movies, int) {
+func MostVotedMovies(genre string, language string, page int, perPage int) (Movies, int) {
 	var p napping.Params
 	if genre == "" {
 		p = napping.Params{
@@ -396,7 +409,7 @@ func MostVotedMovies(genre string, language string, page int) (Movies, int) {
 			"with_genres":              genre,
 		}
 	}
-	return listMovies("discover/movie", p, page)
+	return listMovies("discover/movie", p, page, perPage)
 }
 
 // Year returns year of the movie

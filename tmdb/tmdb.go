@@ -24,6 +24,8 @@ import (
 const (
 	// TMDBResultsPerPage reflects TMDB number of results on the page. It's statically set to 20, so we should work with that
 	TMDBResultsPerPage = 20
+	// TMDBMaxPages is the last page TMDB serves for any list or search; later pages are a 400
+	TMDBMaxPages = 500
 
 	imageEndpoint = "https://image.tmdb.org/t/p/"
 )

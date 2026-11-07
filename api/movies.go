@@ -493,7 +493,7 @@ func PopularMovies(ctx *gin.Context) {
 	}
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
-	movies, total := tmdb.PopularMovies(p, config.Get().Language, page)
+	movies, total := tmdb.PopularMovies(p, config.Get().Language, page, config.Get().ResultsPerPage)
 	renderMovies(ctx, movies, page, total, false)
 }
 
@@ -510,7 +510,7 @@ func RecentMovies(ctx *gin.Context) {
 	}
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
-	movies, total := tmdb.RecentMovies(p, config.Get().Language, page)
+	movies, total := tmdb.RecentMovies(p, config.Get().Language, page, config.Get().ResultsPerPage)
 	renderMovies(ctx, movies, page, total, false)
 }
 
@@ -523,7 +523,7 @@ func TopRatedMovies(ctx *gin.Context) {
 		genre = ""
 	}
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
-	movies, total := tmdb.TopRatedMovies(genre, config.Get().Language, page)
+	movies, total := tmdb.TopRatedMovies(genre, config.Get().Language, page, config.Get().ResultsPerPage)
 	renderMovies(ctx, movies, page, total, false)
 }
 
@@ -541,7 +541,7 @@ func MoviesMostVoted(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
-	movies, total := tmdb.MostVotedMovies("", config.Get().Language, page)
+	movies, total := tmdb.MostVotedMovies("", config.Get().Language, page, config.Get().ResultsPerPage)
 	renderMovies(ctx, movies, page, total, false)
 }
 
@@ -557,7 +557,7 @@ func randomPage() int {
 func RandomMovies(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
-	movies, _ := tmdb.PopularMovies(tmdb.DiscoverFilters{}, config.Get().Language, randomPage())
+	movies, _ := tmdb.PopularMovies(tmdb.DiscoverFilters{}, config.Get().Language, randomPage(), config.Get().ResultsPerPage)
 	rand.Shuffle(len(movies), func(i, j int) { movies[i], movies[j] = movies[j], movies[i] })
 	renderMovies(ctx, movies, -1, len(movies), false)
 }

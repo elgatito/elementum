@@ -1,0 +1,13 @@
+{
+  "_id": "52542282760ee313280017f9",
+  "air_date": "2008-01-20",
+  "id": 3572,
+  "name": "Staffel 1",
+  "overview": "",
+  "poster_path": "/1BP4xYv9ZG4ZVHkL7ocOziBbSYH.jpg",
+  "season_number": 1,
+  "episodes": [
+    {"air_date": "2008-01-20", "episode_number": 1, "id": 62085, "name": "Der Einstieg", "overview": "Walter White ist Chemielehrer.", "runtime": 58, "season_number": 1, "still_path": "/ydlY3iPfeOAvu8gVqrxPoMvzNCn.jpg", "vote_average": 8.3},
+    {"air_date": "", "episode_number": 2, "id": 62086, "name": "Die Katze ist im Sack", "overview": "", "runtime": null, "season_number": 1, "still_path": null, "vote_average": 0}
+  ]
+}

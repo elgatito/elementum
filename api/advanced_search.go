@@ -483,7 +483,7 @@ func AdvancedSearchResults(mediaType string) gin.HandlerFunc {
 			if title != "" {
 				movies, total = titleSearch(func(pg int) ([]*tmdb.Movie, int) { return tmdb.SearchMovies(title, language, pg) }, movieSearchItem, params, page, perPage)
 			} else {
-				movies, total = tmdb.DiscoverMovies(params, language, page)
+				movies, total = tmdb.DiscoverMovies(params, language, page, perPage)
 			}
 			renderMovies(ctx, movies, page, total, false)
 		} else {
@@ -492,7 +492,7 @@ func AdvancedSearchResults(mediaType string) gin.HandlerFunc {
 			if title != "" {
 				shows, total = titleSearch(func(pg int) ([]*tmdb.Show, int) { return tmdb.SearchShows(title, language, pg) }, showSearchItem, params, page, perPage)
 			} else {
-				shows, total = tmdb.DiscoverShows(params, language, page)
+				shows, total = tmdb.DiscoverShows(params, language, page, perPage)
 			}
 			renderShows(ctx, shows, page, total, false)
 		}
