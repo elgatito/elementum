@@ -32,6 +32,11 @@ jobs:
             exit 1
           fi
 
+      - name: Check generated API code
+        run: |
+          go generate ./apiv1/...
+          git diff --exit-code -- apiv1/ || { echo "::error::Run 'go generate ./apiv1/...' and commit the result"; exit 1; }
+
   test:
     name: Test
     runs-on: ubuntu-latest

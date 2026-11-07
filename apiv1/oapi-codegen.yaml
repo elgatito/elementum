@@ -1,0 +1,8 @@
+package: apiv1
+output: api.gen.go
+generate:
+  gin-server: true
+  strict-server: true
+  models: true
+compatibility:
+  always-prefix-enum-values: true

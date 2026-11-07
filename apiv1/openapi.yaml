@@ -1,0 +1,958 @@
+openapi: 3.0.3
+info:
+  title: Elementum API
+  version: 1.0.0
+  description: |
+    JSON API for non-Kodi clients (e.g. the Elementum TV app).
+
+    * Auth: HTTP Basic with Elementum's `localLogin`/`localPassword`. When both are empty, no auth is needed.
+      A 401 carries no `WWW-Authenticate` header, so browsers do not show a login popup.
+    * Errors: every error body is an `Error` (`{"error": {"code": "...", "message": "..."}}`). Branch on `code`.
+    * Paging: `page` is 1-based; `limit` is the page size (1-100), defaulting to Elementum's "results per page" setting.
+    * Language: `lang` accepts `de` or `de-DE` and defaults to Elementum's language setting.
+      Image URLs are absolute.
+servers:
+  - url: /api/v1
+security:
+  - basicAuth: []
+
+tags:
+  - name: system
+  - name: movies
+  - name: shows
+  - name: search
+  - name: library
+  - name: trakt
+  - name: tracker
+  - name: streams
+  - name: playback
+
+paths:
+  /system/info:
+    get:
+      tags: [system]
+      operationId: getSystemInfo
+      summary: Server info; also the "test connection" call
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SystemInfo" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /movies/lists/{list}:
+    get:
+      tags: [movies]
+      operationId: listMovies
+      summary: TMDB movie list
+      parameters:
+        - name: list
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/MovieListName" }
+        - $ref: "#/components/parameters/GenreParam"
+        - $ref: "#/components/parameters/YearParam"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200": { $ref: "#/components/responses/MediaItemPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /movies/genres:
+    get:
+      tags: [movies]
+      operationId: listMovieGenres
+      summary: Movie genres
+      parameters:
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200": { $ref: "#/components/responses/GenreList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /movies/{tmdb_id}:
+    get:
+      tags: [movies]
+      operationId: getMovie
+      summary: Movie details
+      parameters:
+        - $ref: "#/components/parameters/TmdbIdParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MovieDetails" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /movies/{tmdb_id}/streams:
+    get:
+      tags: [streams]
+      operationId: listMovieStreams
+      summary: Search providers for a movie
+      description: |
+        Blocking call, bounded by Elementum's provider timeout (can take ~1 min).
+        Sorted by Elementum's sorting settings. An empty array means no results.
+      parameters:
+        - $ref: "#/components/parameters/TmdbIdParam"
+      responses:
+        "200": { $ref: "#/components/responses/StreamList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/ProvidersUnavailable" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /shows/lists/{list}:
+    get:
+      tags: [shows]
+      operationId: listShows
+      summary: TMDB show list
+      parameters:
+        - name: list
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/ShowListName" }
+        - $ref: "#/components/parameters/GenreParam"
+        - $ref: "#/components/parameters/YearParam"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200": { $ref: "#/components/responses/MediaItemPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /shows/genres:
+    get:
+      tags: [shows]
+      operationId: listShowGenres
+      summary: Show genres
+      parameters:
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200": { $ref: "#/components/responses/GenreList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /shows/{tmdb_id}:
+    get:
+      tags: [shows]
+      operationId: getShow
+      summary: Show details with a season summary
+      parameters:
+        - $ref: "#/components/parameters/TmdbIdParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ShowDetails" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /shows/{tmdb_id}/seasons/{season}:
+    get:
+      tags: [shows]
+      operationId: getSeason
+      summary: Season with its episodes
+      parameters:
+        - $ref: "#/components/parameters/TmdbIdParam"
+        - $ref: "#/components/parameters/SeasonParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Season" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /shows/{tmdb_id}/seasons/{season}/episodes/{episode}/streams:
+    get:
+      tags: [streams]
+      operationId: listEpisodeStreams
+      summary: Search providers for an episode
+      description: Same behaviour as `listMovieStreams`.
+      parameters:
+        - $ref: "#/components/parameters/TmdbIdParam"
+        - $ref: "#/components/parameters/SeasonParam"
+        - $ref: "#/components/parameters/EpisodeParam"
+      responses:
+        "200": { $ref: "#/components/responses/StreamList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/ProvidersUnavailable" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /search:
+    get:
+      tags: [search]
+      operationId: search
+      summary: Search TMDB
+      description: "`multi` returns movies and shows."
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, example: "matrix" }
+        - name: type
+          in: query
+          schema: { $ref: "#/components/schemas/SearchType" }
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200": { $ref: "#/components/responses/MediaItemPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /library/movies:
+    get:
+      tags: [library]
+      operationId: listLibraryMovies
+      summary: Movies in the Elementum library
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200": { $ref: "#/components/responses/MediaItemPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /library/shows:
+    get:
+      tags: [library]
+      operationId: listLibraryShows
+      summary: Shows in the Elementum library
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200": { $ref: "#/components/responses/MediaItemPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /trakt/{media}/lists/{list}:
+    get:
+      tags: [trakt]
+      operationId: listTraktChart
+      summary: Public Trakt chart (no Trakt account needed)
+      parameters:
+        - $ref: "#/components/parameters/MediaParam"
+        - name: list
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/TraktChartName" }
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200": { $ref: "#/components/responses/MediaItemPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /tracker/{media}/watchlist:
+    get:
+      tags: [tracker]
+      operationId: listTrackerWatchlist
+      summary: Watchlist of the linked tracker (Trakt, Simkl, MDBList, ...)
+      parameters:
+        - $ref: "#/components/parameters/MediaParam"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200": { $ref: "#/components/responses/MediaItemPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/TrackerUnavailable" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /tracker/{media}/collection:
+    get:
+      tags: [tracker]
+      operationId: listTrackerCollection
+      summary: Collection of the linked tracker
+      parameters:
+        - $ref: "#/components/parameters/MediaParam"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200": { $ref: "#/components/responses/MediaItemPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/TrackerUnavailable" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /tracker/shows/progress:
+    get:
+      tags: [tracker]
+      operationId: listTrackerProgress
+      summary: Next episode to watch per show ("Next up")
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NextEpisodePage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/TrackerUnavailable" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /tracker/lists:
+    get:
+      tags: [tracker]
+      operationId: listTrackerLists
+      summary: The user's custom lists on the linked tracker
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/TrackerList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/TrackerUnavailable" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /tracker/lists/{list_id}/items:
+    get:
+      tags: [tracker]
+      operationId: listTrackerListItems
+      summary: Movies or shows of one custom list
+      parameters:
+        - name: list_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, example: "12345" }
+        - name: media
+          in: query
+          required: true
+          schema: { $ref: "#/components/schemas/MediaKind" }
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/LimitParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200": { $ref: "#/components/responses/MediaItemPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/TrackerUnavailable" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /playback:
+    post:
+      tags: [playback]
+      operationId: createPlayback
+      summary: Start a playback session
+      description: |
+        Adds the torrent and selects the file. Only one API session is active at a time; a new one stops the old.
+        If the file can't be chosen automatically, the session goes to `choosing_file`;
+        the client then POSTs again with `file_index` set. That returns a **new** session id, which the client
+        must switch to; the server reuses the already running torrent.
+        `season` and `episode` are required when `type` is `episode` (400 otherwise).
+        The session ends on DELETE or after 60 s without a GET or progress call.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlaybackRequest" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlaybackSession" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /playback/{id}:
+    get:
+      tags: [playback]
+      operationId: getPlayback
+      summary: Session state; poll it (also keeps the session alive)
+      parameters:
+        - $ref: "#/components/parameters/SessionIdParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PlaybackSession" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        default: { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [playback]
+      operationId: deletePlayback
+      summary: Stop the session and clean up
+      parameters:
+        - $ref: "#/components/parameters/SessionIdParam"
+      responses:
+        "204": { description: Stopped }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /playback/{id}/progress:
+    post:
+      tags: [playback]
+      operationId: reportPlaybackProgress
+      summary: Keepalive, resume point and tracker scrobble
+      parameters:
+        - $ref: "#/components/parameters/SessionIdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PlaybackProgress" }
+      responses:
+        "204": { description: Stored }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /stream/{id}/{file_index}:
+    get:
+      tags: [playback]
+      operationId: getStream
+      summary: Media bytes of a session file (supports Range)
+      description: |
+        Use the `stream_url` from `PlaybackSession` as is. The 200/206 Content-Type is the file's real MIME type
+        (e.g. `video/x-matroska`), not `application/octet-stream`.
+        Authorized only by the signed link, not by Basic auth:
+        `sig = hex(HMAC-SHA256(key, id + "/" + file_index + "/" + exp))` with a per-process key.
+        Expired, tampered or stopped-session links get 403.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/SessionIdParam"
+        - name: file_index
+          in: path
+          required: true
+          schema: { type: integer, minimum: 0, example: 0 }
+        - name: exp
+          in: query
+          required: true
+          description: Link expiry, unix seconds.
+          schema: { type: integer, format: int64, example: 1793750400 }
+        - name: sig
+          in: query
+          required: true
+          schema: { type: string, pattern: "^[0-9a-f]{64}$" }
+        - name: Range
+          in: header
+          schema: { type: string, example: "bytes=0-" }
+      responses:
+        "200":
+          description: Whole file
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "206":
+          description: Partial content
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "416": { description: Range not satisfiable }
+        default: { $ref: "#/components/responses/Error" }
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    LimitParam:
+      name: limit
+      in: query
+      description: Page size. Defaults to Elementum's `results_per_page` setting.
+      schema: { type: integer, minimum: 1, maximum: 100, example: 20 }
+    LangParam:
+      name: lang
+      in: query
+      description: |
+        Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
+        It does not affect images/logos, whose language comes from Elementum's config.
+      schema: { type: string, pattern: "^[a-zA-Z]{2}([-_][a-zA-Z]{2})?$", example: "de-DE" }
+    TmdbIdParam:
+      name: tmdb_id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1, example: 603 }
+    SeasonParam:
+      name: season
+      in: path
+      required: true
+      schema: { type: integer, minimum: 0, example: 1 }
+    EpisodeParam:
+      name: episode
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1, example: 1 }
+    SessionIdParam:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, example: "3f2a9c" }
+    MediaParam:
+      name: media
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/MediaKind" }
+    GenreParam:
+      name: genre
+      in: query
+      description: TMDB genre id. Required for `by_genre`, ignored by other lists.
+      schema: { type: integer, minimum: 1, example: 28 }
+    YearParam:
+      name: year
+      in: query
+      description: Release (movies) or first-air (shows) year. Used by `by_genre` only.
+      schema: { type: integer, minimum: 1870, maximum: 2100, example: 1999 }
+
+  responses:
+    MediaItemPage:
+      description: OK
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/MediaItemPage" }
+    GenreList:
+      description: OK
+      content:
+        application/json:
+          schema:
+            type: array
+            items: { $ref: "#/components/schemas/Genre" }
+    StreamList:
+      description: OK
+      content:
+        application/json:
+          schema:
+            type: array
+            items: { $ref: "#/components/schemas/Stream" }
+    BadRequest:
+      description: Invalid parameters or body (`bad_request`)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: bad_request, message: "genre is required for by_genre" } }
+    Unauthorized:
+      description: Missing or wrong credentials (`unauthorized`). No `WWW-Authenticate` header.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: unauthorized, message: "invalid credentials" } }
+    Forbidden:
+      description: Invalid, expired or stopped-session stream link (`forbidden`)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: forbidden, message: "link expired" } }
+    NotFound:
+      description: Unknown id or path (`not_found`)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: not_found, message: "not found" } }
+    TrackerUnavailable:
+      description: |
+        No tracker account is linked (`tracker_not_authorized`), or the linked tracker lacks this feature
+        (`tracker_unsupported`, e.g. no collection).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: tracker_not_authorized, message: "no tracker account is linked" } }
+    ProvidersUnavailable:
+      description: Kodi or the search providers can't be reached (`providers_unavailable`)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: providers_unavailable, message: "Kodi is not reachable" } }
+    Error:
+      description: Any other error, e.g. 501 `not_implemented` or 500 `internal_error`
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: not_implemented, message: "not implemented" } }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { $ref: "#/components/schemas/ErrorBody" }
+    ErrorBody:
+      type: object
+      required: [code, message]
+      properties:
+        code: { $ref: "#/components/schemas/ErrorCode" }
+        message: { type: string, example: "not implemented" }
+    ErrorCode:
+      type: string
+      enum:
+        - bad_request
+        - unauthorized
+        - forbidden
+        - not_found
+        - tracker_not_authorized
+        - tracker_unsupported
+        - providers_unavailable
+        - playback_failed
+        - not_implemented
+        - internal_error
+
+    SystemInfo:
+      type: object
+      required: [version, auth_required, language, tracker]
+      properties:
+        version: { type: string, example: "0.1.120" }
+        auth_required: { type: boolean, example: true }
+        language:
+          type: string
+          description: Elementum's default metadata language (ISO 639-1).
+          example: de
+        tracker:
+          description: The tracker selected in Elementum's settings, or null when none is selected.
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/TrackerInfo"
+    TrackerInfo:
+      type: object
+      required: [id, name, authorized]
+      properties:
+        id: { type: string, example: trakt }
+        name: { type: string, example: Trakt }
+        authorized: { type: boolean, description: An account is linked. }
+
+    MediaKind:
+      type: string
+      enum: [movies, shows]
+    MediaType:
+      type: string
+      enum: [movie, show]
+    MovieListName:
+      type: string
+      description: |
+        `now_playing` = recently released, `by_genre` = popular in `genre` (optionally in `year`).
+      enum: [popular, trending, top_rated, now_playing, upcoming, by_genre]
+    ShowListName:
+      type: string
+      description: |
+        `on_the_air` = shows with episodes aired in the last days, `by_genre` = popular in `genre` (optionally in `year`).
+      enum: [popular, trending, top_rated, on_the_air, by_genre]
+    TraktChartName:
+      type: string
+      enum: [trending, popular, anticipated, watched, played]
+    SearchType:
+      type: string
+      default: multi
+      enum: [movie, show, multi]
+
+    MediaItem:
+      type: object
+      required: [type, tmdb_id, title, year, overview, poster, backdrop, rating, genres]
+      properties:
+        type: { $ref: "#/components/schemas/MediaType" }
+        tmdb_id: { type: integer, example: 603 }
+        title: { type: string, example: "The Matrix" }
+        year: { type: integer, nullable: true, example: 1999 }
+        overview: { type: string, example: "Set in the 22nd century, ..." }
+        poster: { type: string, format: uri, nullable: true, example: "https://image.tmdb.org/t/p/w342/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg" }
+        backdrop: { type: string, format: uri, nullable: true, example: "https://image.tmdb.org/t/p/w1280/fNG7i7RqMErkcqhohV2a6cV1Ehy.jpg" }
+        rating: { type: number, format: float, minimum: 0, maximum: 10, example: 8.2 }
+        genres:
+          type: array
+          items: { type: string }
+          example: [Action, Science Fiction]
+    MediaItemPage:
+      type: object
+      required: [items, page, limit, total_pages, total_results]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/MediaItem" }
+        page: { type: integer, minimum: 1, example: 1 }
+        limit: { type: integer, minimum: 1, maximum: 100, description: Effective page size., example: 20 }
+        total_pages: { type: integer, minimum: 0, example: 10 }
+        total_results: { type: integer, minimum: 0, nullable: true, description: Null when the source can't tell., example: 200 }
+    Genre:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: integer, example: 28 }
+        name: { type: string, example: Action }
+
+    CastMember:
+      type: object
+      required: [tmdb_id, name, character, profile]
+      properties:
+        tmdb_id: { type: integer, example: 6384 }
+        name: { type: string, example: "Keanu Reeves" }
+        character: { type: string, example: Neo }
+        profile: { type: string, format: uri, nullable: true }
+    CrewMember:
+      type: object
+      required: [tmdb_id, name, job, department, profile]
+      properties:
+        tmdb_id: { type: integer, example: 9340 }
+        name: { type: string, example: "Lana Wachowski" }
+        job: { type: string, example: Director }
+        department: { type: string, example: Directing }
+        profile: { type: string, format: uri, nullable: true }
+    Image:
+      type: object
+      required: [url, width, height, language]
+      properties:
+        url: { type: string, format: uri }
+        width: { type: integer, example: 2000 }
+        height: { type: integer, example: 3000 }
+        language: { type: string, nullable: true, example: en }
+    Images:
+      type: object
+      required: [posters, backdrops, logos]
+      properties:
+        posters: { type: array, items: { $ref: "#/components/schemas/Image" } }
+        backdrops: { type: array, items: { $ref: "#/components/schemas/Image" } }
+        logos: { type: array, items: { $ref: "#/components/schemas/Image" } }
+    Video:
+      type: object
+      required: [name, site, key, type, language]
+      properties:
+        name: { type: string, example: "Official Trailer" }
+        site: { type: string, example: YouTube }
+        key: { type: string, example: "vKQi3bBA1y8" }
+        type: { type: string, example: Trailer }
+        language: { type: string, nullable: true, example: en }
+    ExternalIds:
+      type: object
+      required: [imdb_id, tvdb_id]
+      properties:
+        imdb_id: { type: string, nullable: true, example: tt0133093 }
+        tvdb_id: { type: integer, nullable: true }
+    DetailsCommon:
+      type: object
+      required: [original_title, tagline, cast, crew, images, videos, external_ids]
+      description: Fields shared by movie and show details.
+      properties:
+        original_title: { type: string, example: "The Matrix" }
+        tagline: { type: string, example: "Welcome to the Real World." }
+        cast: { type: array, items: { $ref: "#/components/schemas/CastMember" } }
+        crew: { type: array, items: { $ref: "#/components/schemas/CrewMember" } }
+        images: { $ref: "#/components/schemas/Images" }
+        videos: { type: array, items: { $ref: "#/components/schemas/Video" } }
+        external_ids: { $ref: "#/components/schemas/ExternalIds" }
+    MovieDetails:
+      allOf:
+        - $ref: "#/components/schemas/MediaItem"
+        - $ref: "#/components/schemas/DetailsCommon"
+        - type: object
+          required: [runtime, release_date]
+          properties:
+            runtime: { type: integer, nullable: true, description: Minutes., example: 136 }
+            release_date: { type: string, format: date, nullable: true, example: "1999-03-31" }
+    ShowDetails:
+      allOf:
+        - $ref: "#/components/schemas/MediaItem"
+        - $ref: "#/components/schemas/DetailsCommon"
+        - type: object
+          required: [status, first_air_date, episode_runtime, number_of_seasons, number_of_episodes, seasons]
+          properties:
+            status: { type: string, example: Ended }
+            first_air_date: { type: string, format: date, nullable: true, example: "2008-01-20" }
+            episode_runtime: { type: integer, nullable: true, description: Minutes., example: 47 }
+            number_of_seasons: { type: integer, example: 5 }
+            number_of_episodes: { type: integer, example: 62 }
+            seasons: { type: array, items: { $ref: "#/components/schemas/SeasonSummary" } }
+    SeasonSummary:
+      type: object
+      required: [season_number, name, episode_count, air_date, poster]
+      properties:
+        season_number: { type: integer, example: 1 }
+        name: { type: string, example: "Season 1" }
+        episode_count: { type: integer, example: 7 }
+        air_date: { type: string, format: date, nullable: true, example: "2008-01-20" }
+        poster: { type: string, format: uri, nullable: true }
+    Season:
+      type: object
+      required: [season_number, name, overview, air_date, poster, episodes]
+      properties:
+        season_number: { type: integer, example: 1 }
+        name: { type: string, example: "Season 1" }
+        overview: { type: string }
+        air_date: { type: string, format: date, nullable: true, example: "2008-01-20" }
+        poster: { type: string, format: uri, nullable: true }
+        episodes: { type: array, items: { $ref: "#/components/schemas/Episode" } }
+    Episode:
+      type: object
+      required: [tmdb_id, season_number, episode_number, name, overview, air_date, still, runtime, rating]
+      properties:
+        tmdb_id: { type: integer, example: 62085 }
+        season_number: { type: integer, example: 1 }
+        episode_number: { type: integer, example: 1 }
+        name: { type: string, example: Pilot }
+        overview: { type: string }
+        air_date: { type: string, format: date, nullable: true, example: "2008-01-20" }
+        still: { type: string, format: uri, nullable: true }
+        runtime: { type: integer, nullable: true, description: Minutes., example: 58 }
+        rating: { type: number, format: float, minimum: 0, maximum: 10, example: 8.3 }
+
+    NextEpisode:
+      type: object
+      required: [show, season, episode, title, overview, air_date, still]
+      properties:
+        show: { $ref: "#/components/schemas/MediaItem" }
+        season: { type: integer, example: 2 }
+        episode: { type: integer, example: 5 }
+        title: { type: string, nullable: true, description: Episode title., example: "Breakage" }
+        overview: { type: string, nullable: true }
+        air_date: { type: string, format: date, nullable: true, example: "2009-04-05" }
+        still: { type: string, format: uri, nullable: true }
+    NextEpisodePage:
+      type: object
+      required: [items, page, limit, total_pages, total_results]
+      properties:
+        items: { type: array, items: { $ref: "#/components/schemas/NextEpisode" } }
+        page: { type: integer, minimum: 1, example: 1 }
+        limit: { type: integer, minimum: 1, maximum: 100, description: Effective page size., example: 20 }
+        total_pages: { type: integer, minimum: 0, example: 1 }
+        total_results: { type: integer, minimum: 0, nullable: true, description: Null when the source can't tell., example: 3 }
+    TrackerList:
+      type: object
+      required: [id, name, item_count]
+      properties:
+        id: { type: string, example: "12345" }
+        name: { type: string, example: "Weekend picks" }
+        item_count: { type: integer, example: 42 }
+
+    Stream:
+      type: object
+      required: [uri, info_hash, name, provider, size_bytes, seeds, peers, resolution, rip, codec, audio, language, multi_provider]
+      properties:
+        uri:
+          type: string
+          description: Magnet or .torrent URL; pass it to `createPlayback` as is.
+          example: "magnet:?xt=urn:btih:..."
+        name: { type: string, example: "The.Matrix.1999.1080p.BluRay.x264" }
+        provider: { type: string, example: "Burst (YTS)" }
+        size_bytes: { type: integer, format: int64, nullable: true, example: 2147483648 }
+        info_hash: { type: string, nullable: true, example: "dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c" }
+        seeds: { type: integer, format: int32, example: 120 }
+        peers: { type: integer, format: int32, example: 30 }
+        resolution:
+          type: string
+          nullable: true
+          enum: ["240p", "480p", "720p", "1080p", "2K", "4K"]
+        rip:
+          type: string
+          nullable: true
+          description: Release source.
+          enum: [CamRip, TeleSync, TeleCine, Screener, DVD Screener, DVDRip, HDTV, WebDL, Blu-Ray]
+        codec:
+          type: string
+          nullable: true
+          description: Video codec.
+          enum: [Xvid, H.264, H.265]
+        audio:
+          type: string
+          nullable: true
+          description: Audio codec.
+          enum: [MP3, AAC, AC3, DTS, DTS HD, DTS HD MA]
+        language: { type: string, nullable: true, description: Language as reported by the provider., example: en }
+        multi_provider:
+          type: boolean
+          description: Several providers returned this torrent (not "multi-file").
+
+    PlaybackRequest:
+      type: object
+      required: [uri, type, tmdb_id]
+      properties:
+        uri: { type: string, minLength: 1, description: "`Stream.uri`" }
+        type: { $ref: "#/components/schemas/PlaybackType" }
+        tmdb_id:
+          type: integer
+          minimum: 1
+          description: Movie id, or the show id for an episode.
+          example: 603
+        season: { type: integer, minimum: 0, description: Required when `type` is `episode`. }
+        episode: { type: integer, minimum: 1, description: Required when `type` is `episode`. }
+        file_index:
+          type: integer
+          minimum: 0
+          description: Torrent file index, from `PlaybackSession.files` in `choosing_file`.
+    PlaybackType:
+      type: string
+      enum: [movie, episode]
+    PlaybackState:
+      type: string
+      enum: [resolving, choosing_file, buffering, ready, error, stopped]
+    PlaybackSession:
+      type: object
+      required: [id, state, buffer_progress, download_rate, seeds, peers, resume_s]
+      properties:
+        id: { type: string, example: "3f2a9c" }
+        state: { $ref: "#/components/schemas/PlaybackState" }
+        buffer_progress: { type: number, format: float, minimum: 0, maximum: 100, example: 42.5 }
+        download_rate: { type: integer, format: int64, description: Bytes per second., example: 3145728 }
+        seeds: { type: integer, format: int32, example: 54 }
+        peers: { type: integer, format: int32, example: 12 }
+        resume_s:
+          type: number
+          format: double
+          nullable: true
+          description: Resume position in seconds, from Elementum's stored resume or tracker progress; null when none.
+          example: 1234.5
+        files:
+          description: Candidate files; set in `choosing_file`.
+          type: array
+          items: { $ref: "#/components/schemas/PlaybackFile" }
+        stream_url:
+          type: string
+          format: uri
+          description: Absolute signed link to `getStream`; set in `ready`.
+          example: "http://192.168.1.10:65220/api/v1/stream/3f2a9c/0?exp=1793750400&sig=..."
+        error:
+          description: Set in `error`.
+          allOf:
+            - $ref: "#/components/schemas/ErrorBody"
+    PlaybackFile:
+      type: object
+      required: [index, name, size_bytes]
+      properties:
+        index: { type: integer, example: 0 }
+        name: { type: string, example: "The.Matrix.1999.1080p.mkv" }
+        size_bytes: { type: integer, format: int64, example: 2147483648 }
+    PlaybackProgress:
+      type: object
+      required: [position_s, duration_s, paused]
+      properties:
+        position_s: { type: number, format: double, minimum: 0, example: 1234.5 }
+        duration_s: { type: number, format: double, minimum: 0, example: 8160 }
+        paused: { type: boolean, example: false }

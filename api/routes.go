@@ -5,9 +5,11 @@ import (
 	"io"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/elgatito/elementum/api/repository"
+	"github.com/elgatito/elementum/apiv1"
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/providers"
@@ -51,7 +53,7 @@ func CORS() gin.HandlerFunc {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-		c.Header("Access-Control-Allow-Methods", "POST, HEAD, PATCH, OPTIONS, GET, PUT")
+		c.Header("Access-Control-Allow-Methods", "POST, HEAD, PATCH, OPTIONS, GET, PUT, DELETE")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
@@ -65,7 +67,8 @@ func CORS() gin.HandlerFunc {
 // Auth middleware allows all external source to request data from Elementum
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if config.Args.LocalLogin == "" && config.Args.LocalPassword == "" {
+		// /api/ does its own JSON auth, see apiv1
+		if (config.Args.LocalLogin == "" && config.Args.LocalPassword == "") || strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			c.Next()
 			return
 		}
@@ -93,6 +96,8 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 	r.Use(Auth())
 
 	gin.SetMode(gin.ReleaseMode)
+
+	apiv1.Register(r)
 
 	r.GET("/", Index(s))
 	r.GET("/playtorrent", PlayTorrent)
