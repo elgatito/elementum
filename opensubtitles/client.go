@@ -102,17 +102,13 @@ func Authorize() error {
 
 func updateToken(token string) {
 	config.Get().OSDBToken = token
-	if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-		xbmcHost.SetSetting("opensubtitles_token", token)
-	}
+	config.SetSetting("opensubtitles_token", token)
 }
 
 func updateExpiry() {
 	expiry := time.Now().UTC().Add(time.Hour * 24).Unix()
 	config.Get().OSDBTokenExpiry = expiry
-	if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-		xbmcHost.SetSetting("opensubtitles_token_expiry", strconv.Itoa(int(expiry)))
-	}
+	config.SetSetting("opensubtitles_token_expiry", strconv.Itoa(int(expiry)))
 }
 
 func optionalLogin() error {

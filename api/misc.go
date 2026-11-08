@@ -299,7 +299,9 @@ func Reload(s *bittorrent.Service) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		defer perf.ScopeTimer()()
 
-		s.Reconfigure()
+		if !config.WriteBackOnlyChange() {
+			s.Reconfigure()
+		}
 		ctx.String(200, "")
 	}
 }

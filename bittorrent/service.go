@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	stdsync "sync"
 	"sync/atomic"
 	"time"
 
@@ -85,6 +86,7 @@ type Service struct {
 
 	alertsBroadcaster *broadcast.Broadcaster
 	Closer            event.Event
+	reconfiguring     stdsync.Mutex // serializes Reconfigure
 	CloserNotifier    event.Event
 	isShutdown        bool
 }
@@ -273,6 +275,9 @@ func (s *Service) Resume() {
 // Should reassemble Service configuration and restart everything.
 // For non-memory storage it should also load old torrent files.
 func (s *Service) Reconfigure() {
+	s.reconfiguring.Lock()
+	defer s.reconfiguring.Unlock()
+
 	s.stopServices()
 
 	config.Reload()

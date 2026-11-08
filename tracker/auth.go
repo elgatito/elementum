@@ -66,12 +66,10 @@ func saveCredentials(id string, c *config.TrackerCredentials) {
 		config.Get().TrackerCredentials = map[string]*config.TrackerCredentials{}
 	}
 	config.Get().TrackerCredentials[id] = c
-	if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-		xbmcHost.SetSetting(id+"_token", c.Token)
-		xbmcHost.SetSetting(id+"_refresh_token", c.RefreshToken)
-		xbmcHost.SetSetting(id+"_token_expiry", strconv.FormatInt(c.TokenExpiry, 10))
-		xbmcHost.SetSetting(id+"_username", c.Username)
-	}
+	config.SetSetting(id+"_token", c.Token)
+	config.SetSetting(id+"_refresh_token", c.RefreshToken)
+	config.SetSetting(id+"_token_expiry", strconv.FormatInt(c.TokenExpiry, 10))
+	config.SetSetting(id+"_username", c.Username)
 }
 
 func notify(format int, args ...any) {

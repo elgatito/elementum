@@ -341,6 +341,24 @@ func (e StreamRip) Valid() bool {
 	}
 }
 
+// Defines values for SystemInfoSettingsSource.
+const (
+	SystemInfoSettingsSourceFile SystemInfoSettingsSource = "file"
+	SystemInfoSettingsSourceKodi SystemInfoSettingsSource = "kodi"
+)
+
+// Valid indicates whether the value is a known member of the SystemInfoSettingsSource enum.
+func (e SystemInfoSettingsSource) Valid() bool {
+	switch e {
+	case SystemInfoSettingsSourceFile:
+		return true
+	case SystemInfoSettingsSourceKodi:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TorrentMediaType.
 const (
 	TorrentMediaTypeEpisode TorrentMediaType = "episode"
@@ -1058,10 +1076,16 @@ type SystemInfo struct {
 	// AuthRequired Example: true
 	AuthRequired bool `json:"auth_required"`
 
+	// KodiConnected Kodi answers. Without it provider search, dialogs and Kodi-launched playback are unavailable.
+	KodiConnected bool `json:"kodi_connected"`
+
 	// Language Elementum's default metadata language (ISO 639-1).
 	//
 	// Example: de
 	Language string `json:"language"`
+
+	// SettingsSource Where settings come from (`file` when Elementum runs with `-configPath`).
+	SettingsSource SystemInfoSettingsSource `json:"settings_source"`
 
 	// Tracker The tracker selected in Elementum's settings, or null when none is selected.
 	Tracker *TrackerInfo `json:"tracker"`
@@ -1069,6 +1093,9 @@ type SystemInfo struct {
 	// Version Example: 0.1.120
 	Version string `json:"version"`
 }
+
+// SystemInfoSettingsSource Where settings come from (`file` when Elementum runs with `-configPath`).
+type SystemInfoSettingsSource string
 
 // Torrent defines model for Torrent.
 type Torrent struct {

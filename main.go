@@ -140,6 +140,9 @@ func main() {
 		}
 	}
 
+	// Shared-library args are one space-joined string, so the addon passes the path in the environment instead.
+	config.ApplyEnvConfigPath()
+
 	if err := config.Init(); err != nil {
 		fmt.Printf("Error initializing config: %s", err)
 		exit.Exit(exit.ExitCodeError)
@@ -283,6 +286,10 @@ func main() {
 		handler := http.StripPrefix("/files/", http.FileServer(bittorrent.NewTorrentFS(s, r.Method)))
 		handler.ServeHTTP(w, r)
 	}))
+
+	if config.Args.ConfigPath != "" {
+		go config.WatchSettingsFile(config.Args.ConfigPath, config.SettingsPollInterval, s.Closer.C(), s.Reconfigure)
+	}
 
 	if config.Get().GreetingEnabled {
 		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {

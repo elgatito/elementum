@@ -840,7 +840,7 @@ components:
 
     SystemInfo:
       type: object
-      required: [version, auth_required, language, tracker]
+      required: [version, auth_required, language, tracker, kodi_connected, settings_source]
       properties:
         version: { type: string, example: "0.1.120" }
         auth_required: { type: boolean, example: true }
@@ -848,6 +848,13 @@ components:
           type: string
           description: Elementum's default metadata language (ISO 639-1).
           example: de
+        kodi_connected:
+          type: boolean
+          description: Kodi answers. Without it provider search, dialogs and Kodi-launched playback are unavailable.
+        settings_source:
+          type: string
+          enum: [kodi, file]
+          description: Where settings come from (`file` when Elementum runs with `-configPath`).
         tracker:
           description: The tracker selected in Elementum's settings, or null when none is selected.
           nullable: true

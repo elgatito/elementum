@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"github.com/elgatito/elementum/exit"
 	"github.com/elgatito/elementum/util"
@@ -28,9 +29,9 @@ import (
 
 var (
 	log          = logging.MustGetLogger("config")
-	privacyRegex = regexp.MustCompile(`(?i)(pass|password|token): "(.+?)"`)
+	privacyRegex = regexp.MustCompile(`(?i)(pass|password|token|login|user|key): "(.+?)"`)
 
-	isUpdating = false
+	isUpdating atomic.Bool
 )
 
 const (
@@ -355,7 +356,7 @@ var (
 
 		LogPath string `help:"Log file location path"`
 
-		ConfigPath     string `help:"Custom path to Elementum config (Yaml or JSON format)"`
+		ConfigPath     string `help:"Custom path to Elementum config (Yaml or JSON format; settings-file-v1: polled, write-back; env ELEMENTUM_CONFIG_PATH is used when this is empty)"`
 		AddonPath      string `help:"Custom path to addon folder (where Kodi stored files, coming with addon zip)"`
 		ProfilePath    string `help:"Custom path to addon files folder (where Elementum will write data)"`
 		TempPath       string `help:"Custom path to temp folder (where Elementum will write temporary files)"`
@@ -400,14 +401,10 @@ func Get() *Configuration {
 // Reload ...
 func Reload() (ret *Configuration, err error) {
 	// Avoid running multiple reloads at once.
-	if isUpdating {
+	if !isUpdating.CompareAndSwap(false, true) {
 		return config, errors.New("config is already reloading")
 	}
-
-	isUpdating = true
-	defer func() {
-		isUpdating = false
-	}()
+	defer isUpdating.Store(false)
 
 	log.Info("Reloading configuration...")
 
@@ -424,7 +421,7 @@ func Reload() (ret *Configuration, err error) {
 	}
 
 	if Args.LocalLogin != "" || Args.LocalPassword != "" {
-		log.Infof("Setting authentication for remote connections to %s:%s (login:password)", Args.LocalLogin, Args.LocalPassword)
+		log.Infof("Setting authentication for remote connections (login %q, password %s)", Args.LocalLogin, maskSecret(Args.LocalPassword))
 	}
 
 	if len(LibrarySubstitutions) > 0 {
@@ -433,6 +430,12 @@ func Reload() (ret *Configuration, err error) {
 
 	defer func() {
 		if r := recover(); r != nil {
+			// File mode: settings come from the file, so no Kodi dialog and no restart; the caller keeps the old config.
+			if Args.ConfigPath != "" {
+				log.Warningf("Settings file is not usable: %#v", r)
+				ret, err = nil, fmt.Errorf("Could not reload configuration")
+				return
+			}
 			if xbmcHost != nil && xbmcHost.Ping() {
 				log.Warningf("Addon settings not properly set, opening settings window: %#v", r)
 
@@ -481,6 +484,7 @@ func Reload() (ret *Configuration, err error) {
 	}
 
 	if Args.ExportConfig != "" {
+		configBundle.KodiBufferSize = getKodiBufferSize(xbmcHost)
 		if err := exportConfig(Args.ExportConfig, configBundle); err != nil {
 			log.Errorf("Could not export current configuration: %s", err)
 		}
@@ -542,9 +546,14 @@ func Reload() (ret *Configuration, err error) {
 		}
 	}
 
-	downloadPath := WindowsToWSLPath(TranslatePath(xbmcHost, settings.ToString("download_path")))
-	torrentsPath := WindowsToWSLPath(TranslatePath(xbmcHost, settings.ToString("torrents_path")))
-	libraryKodiPath, libraryPath := translatePath(xbmcHost, settings.ToString("library_path"))
+	// File mode never asks Kodi for paths: the file holds absolute ones.
+	pathHost := xbmcHost
+	if Args.ConfigPath != "" {
+		pathHost = nil
+	}
+	downloadPath := WindowsToWSLPath(TranslatePath(pathHost, settings.ToString("download_path")))
+	torrentsPath := WindowsToWSLPath(TranslatePath(pathHost, settings.ToString("torrents_path")))
+	libraryKodiPath, libraryPath := translatePath(pathHost, settings.ToString("library_path"))
 	libraryPath = WindowsToWSLPath(libraryPath)
 	// Kodi still needs Windows path to scan the library, so map it back unless user defined own substitution
 	if _, exists := LibrarySubstitutions[libraryKodiPath]; !exists && libraryPath != libraryKodiPath && Args.LibraryPath == "" {
@@ -584,7 +593,7 @@ func Reload() (ret *Configuration, err error) {
 	}
 	log.Infof("Using download path: %s", downloadPath)
 
-	libraryReadOnly := Args.DisableLibrarySync || isLibraryReadOnly(xbmcHost, libraryPath)
+	libraryReadOnly := Args.DisableLibrarySync || libraryIsReadOnly(xbmcHost, libraryPath)
 	if libraryReadOnly {
 		log.Info("Running in a library read-only mode")
 	} else {
@@ -971,7 +980,10 @@ func Reload() (ret *Configuration, err error) {
 
 	// Reading Kodi's advancedsettings file for MemorySize variable to avoid waiting for playback
 	// after Elementum's buffer is finished.
-	newConfig.KodiBufferSize = getKodiBufferSize(xbmcHost)
+	newConfig.KodiBufferSize = getKodiBufferSize(pathHost)
+	if Args.ConfigPath != "" {
+		newConfig.KodiBufferSize = configBundle.KodiBufferSize
+	}
 	if newConfig.AutoKodiBufferSize && newConfig.KodiBufferSize > newConfig.BufferSize {
 		newConfig.BufferSize = newConfig.KodiBufferSize
 		log.Debugf("Adjusting buffer size according to Kodi advancedsettings.xml configuration to %s", humanize.Bytes(uint64(newConfig.BufferSize)))
@@ -1018,7 +1030,7 @@ func Reload() (ret *Configuration, err error) {
 
 	// Replacing passwords with asterisks
 	configOutput := litter.Sdump(config)
-	configOutput = privacyRegex.ReplaceAllString(configOutput, `$1: "********"`)
+	configOutput = maskSecrets(configOutput)
 
 	log.Infof("Using configuration: %s", configOutput)
 
@@ -1216,19 +1228,21 @@ func exportConfig(path string, bundle *ConfigBundle) (err error) {
 		return fmt.Errorf("Configuration file %s is not of Yaml or Json format", path)
 	}
 
+	out := *bundle
+	out.Version = SettingsFileVersion
+
 	var content []byte
 	if format == JSONConfigFormat {
-		content, err = json.MarshalIndent(*bundle, "", "    ")
+		content, err = json.MarshalIndent(out, "", "    ")
 	} else if format == YamlConfigFormat {
-		content, err = yaml.Marshal(*bundle)
+		content, err = yaml.Marshal(out)
 	}
 
 	if err != nil {
 		return err
 	}
 
-	err = os.WriteFile(path, content, 0644)
-	return err
+	return writeFileAtomic(path, content)
 }
 
 func importConfig(path string) (*ConfigBundle, error) {
@@ -1250,7 +1264,13 @@ func importConfig(path string) (*ConfigBundle, error) {
 		err = yaml.Unmarshal(content, &bundle)
 	}
 
-	return &bundle, err
+	if err != nil {
+		return nil, err
+	}
+	if err := validateBundle(&bundle); err != nil {
+		return nil, fmt.Errorf("invalid configuration file %s: %w", path, err)
+	}
+	return &bundle, nil
 }
 
 func detectConfigFormat(path string) ConfigFormat {
@@ -1268,7 +1288,7 @@ func detectConfigFormat(path string) ConfigFormat {
 func fetchConfiguration(xbmcHost *xbmc.XBMCHost) (*ConfigBundle, error) {
 	// Read configuration from config file
 	if Args.ConfigPath != "" {
-		return importConfig(Args.ConfigPath)
+		return loadSettingsFile(Args.ConfigPath)
 	}
 
 	if xbmcHost == nil {
@@ -1370,6 +1390,15 @@ func GetStrmLanguage() string {
 	}
 
 	return c.Language
+}
+
+// libraryIsReadOnly asks Kodi as before. With no Kodi at all in file mode there is nobody else filling a library,
+// so Elementum's own library files are writable (in Kodi mode a nil host stays read-only, as it always was).
+func libraryIsReadOnly(xbmcHost *xbmc.XBMCHost, libraryPath string) bool {
+	if xbmcHost == nil && Args.ConfigPath != "" {
+		return false
+	}
+	return isLibraryReadOnly(xbmcHost, libraryPath)
 }
 
 // isLibraryReadOnly is checking whether we run on a Kodi that has no file sources, but having something in a library.

@@ -116,6 +116,12 @@ func ResetPath(ctx *gin.Context) {
 		return
 	}
 
+	if config.Args.ConfigPath != "" {
+		config.SetSetting("download_path", "")
+		config.SetSetting("library_path", config.TranslatePath(xbmcHost, "special://temp/elementum_library/"))
+		config.SetSetting("torrents_path", config.TranslatePath(xbmcHost, "special://temp/elementum_torrents/"))
+		return
+	}
 	xbmcHost.SetSetting("download_path", "")
 	xbmcHost.SetSetting("library_path", "special://temp/elementum_library/")
 	xbmcHost.SetSetting("torrents_path", "special://temp/elementum_torrents/")

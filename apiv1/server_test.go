@@ -100,7 +100,7 @@ func TestAuth(t *testing.T) {
 		if err := json.Unmarshal(w.Body.Bytes(), &info); err != nil {
 			t.Fatal(err)
 		}
-		if !info.AuthRequired || info.Version == "" {
+		if !info.AuthRequired || info.Version == "" || info.KodiConnected || info.SettingsSource != apiv1.SystemInfoSettingsSourceKodi {
 			t.Errorf("info = %+v", info)
 		}
 	})

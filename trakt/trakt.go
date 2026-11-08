@@ -255,11 +255,9 @@ func RefreshToken() error {
 		config.Get().TraktTokenExpiry = expiry
 		config.Get().TraktToken = token.AccessToken
 		config.Get().TraktRefreshToken = token.RefreshToken
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.SetSetting("trakt_token_expiry", strconv.Itoa(int(expiry)))
-			xbmcHost.SetSetting("trakt_token", token.AccessToken)
-			xbmcHost.SetSetting("trakt_refresh_token", token.RefreshToken)
-		}
+		config.SetSetting("trakt_token_expiry", strconv.Itoa(int(expiry)))
+		config.SetSetting("trakt_token", token.AccessToken)
+		config.SetSetting("trakt_refresh_token", token.RefreshToken)
 		log.Noticef("Token refreshed for Trakt authorization, next refresh in %s", time.Duration(token.ExpiresIn)*time.Second)
 	}
 
@@ -268,6 +266,9 @@ func RefreshToken() error {
 
 // Authorize ...
 func Authorize(fromSettings bool) error {
+	if config.Args.ConfigPath != "" && !config.KodiConnected() {
+		return errors.New("Trakt device authorization needs Kodi to show the code")
+	}
 	code, err := GetCode()
 	if err != nil || code == nil {
 		log.Errorf("Could not get authorization code from Trakt.tv: %s", err)
@@ -313,11 +314,9 @@ func Authorize(fromSettings bool) error {
 				_ = cacheStore.Set(fmt.Sprintf(cache.TraktActivitiesKey, ""), "", 1)
 
 				expiry := time.Now().Unix() + int64(token.ExpiresIn)
-				if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-					xbmcHost.SetSetting("trakt_token_expiry", strconv.Itoa(int(expiry)))
-					xbmcHost.SetSetting("trakt_token", token.AccessToken)
-					xbmcHost.SetSetting("trakt_refresh_token", token.RefreshToken)
-				}
+				config.SetSetting("trakt_token_expiry", strconv.Itoa(int(expiry)))
+				config.SetSetting("trakt_token", token.AccessToken)
+				config.SetSetting("trakt_refresh_token", token.RefreshToken)
 
 				config.Get().TraktTokenExpiry = expiry
 				config.Get().TraktToken = token.AccessToken
@@ -339,9 +338,7 @@ func Authorize(fromSettings bool) error {
 				}
 				if req.ResponseStatusCode == 200 && user != nil && user.User.Ids.Slug != "" {
 					log.Debugf("Setting Trakt Username as %s", user.User.Ids.Slug)
-					if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-						xbmcHost.SetSetting("trakt_username", user.User.Ids.Slug)
-					}
+					config.SetSetting("trakt_username", user.User.Ids.Slug)
 				}
 
 				config.Reload()
@@ -389,12 +386,11 @@ func Deauthorize(fromSettings bool) error {
 	cacheStore := cache.NewDBStore()
 	_ = cacheStore.Set(fmt.Sprintf(cache.TraktActivitiesKey, ""), "", 1)
 
+	config.SetSetting("trakt_token_expiry", "0")
+	config.SetSetting("trakt_token", "")
+	config.SetSetting("trakt_refresh_token", "")
+	config.SetSetting("trakt_username", "")
 	if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-		xbmcHost.SetSetting("trakt_token_expiry", "0")
-		xbmcHost.SetSetting("trakt_token", "")
-		xbmcHost.SetSetting("trakt_refresh_token", "")
-		xbmcHost.SetSetting("trakt_username", "")
-
 		xbmcHost.Notify("Elementum", "LOCALIZE[30652]", config.AddonIcon())
 	}
 

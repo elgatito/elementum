@@ -133,6 +133,9 @@ func (Server) GetSystemInfo(context.Context, GetSystemInfoRequestObject) (GetSys
 		Version:      ident.GetVersion(),
 		AuthRequired: config.Args.LocalLogin != "" || config.Args.LocalPassword != "",
 		Language:     config.Get().Language,
+
+		KodiConnected:  config.KodiConnected(),
+		SettingsSource: SystemInfoSettingsSource(config.SettingsSource()),
 	}
 	if p := tracker.Selected(); p != nil {
 		// Authorized() only checks stored tokens/keys for every tracker; trakt.Authorized() would start a login.
