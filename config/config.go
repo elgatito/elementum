@@ -544,8 +544,8 @@ func Reload() (ret *Configuration, err error) {
 
 	downloadPath := WindowsToWSLPath(TranslatePath(xbmcHost, settings.ToString("download_path")))
 	torrentsPath := WindowsToWSLPath(TranslatePath(xbmcHost, settings.ToString("torrents_path")))
-	libraryKodiPath := TranslatePath(xbmcHost, settings.ToString("library_path"))
-	libraryPath := WindowsToWSLPath(libraryKodiPath)
+	libraryKodiPath, libraryPath := translatePath(xbmcHost, settings.ToString("library_path"))
+	libraryPath = WindowsToWSLPath(libraryPath)
 	// Kodi still needs Windows path to scan the library, so map it back unless user defined own substitution
 	if _, exists := LibrarySubstitutions[libraryKodiPath]; !exists && libraryPath != libraryKodiPath && Args.LibraryPath == "" {
 		LibrarySubstitutions[libraryKodiPath] = libraryPath
@@ -1037,8 +1037,15 @@ func AddonResource(args ...string) string {
 
 // TranslatePath ...
 func TranslatePath(xbmcHost *xbmc.XBMCHost, path string) string {
+	_, local := translatePath(xbmcHost, path)
+	return local
+}
+
+// translatePath returns the directory as Kodi sees it and as this process can open it.
+// They differ only under WSL, where Kodi reports a Windows path.
+func translatePath(xbmcHost *xbmc.XBMCHost, path string) (kodi, local string) {
 	if xbmcHost == nil {
-		return path
+		return path, path
 	}
 
 	// Special case for temporary path in Kodi
@@ -1048,14 +1055,14 @@ func TranslatePath(xbmcHost *xbmc.XBMCHost, path string) string {
 		pathDir := filepath.Join(kodiDir, dir)
 
 		if util.PathExists(pathDir) {
-			return pathDir
+			return pathDir, pathDir
 		}
 		if err := os.MkdirAll(pathDir, 0777); err != nil {
 			log.Errorf("Could not create temporary directory: %#v", err)
-			return path
+			return path, path
 		}
 
-		return pathDir
+		return pathDir, pathDir
 	}
 
 	// Do not translate nfs/smb path
@@ -1065,7 +1072,23 @@ func TranslatePath(xbmcHost *xbmc.XBMCHost, path string) string {
 	// 	}
 	// 	return path
 	// }
-	return filepath.Dir(xbmcHost.TranslatePath(path))
+	return splitKodiDir(xbmcHost.TranslatePath(path), osExists)
+}
+
+func osExists(p string) bool {
+	_, err := os.Stat(p)
+	return err == nil
+}
+
+// splitKodiDir converts Kodi's answer before filepath.Dir (which does not understand
+// `D:\` on Linux and returns "."), and keeps the Windows dir as the key Kodi understands.
+func splitKodiDir(raw string, exists func(string) bool) (kodi, local string) {
+	w := windowsToWSLPath(raw, exists)
+	local = filepath.Dir(w)
+	if w == raw {
+		return local, local
+	}
+	return strings.TrimRight(raw, `\/`), local
 }
 
 func findExistingPath(paths []string, addon string) string {
@@ -1386,12 +1409,16 @@ func isLibraryReadOnly(xbmcHost *xbmc.XBMCHost, libraryPath string) bool {
 // WindowsToWSLPath converts Windows path, like "C:\Kodi\", to WSL mount path "/mnt/c/Kodi/",
 // for running Elementum in WSL with Kodi on Windows. Returns path unchanged if it is not available.
 func WindowsToWSLPath(path string) string {
+	return windowsToWSLPath(path, osExists)
+}
+
+func windowsToWSLPath(path string, exists func(string) bool) string {
 	if runtime.GOOS != "linux" || len(path) < 3 || path[1] != ':' || (path[2] != '\\' && path[2] != '/') {
 		return path
 	}
 
 	wslPath := "/mnt/" + strings.ToLower(path[:1]) + strings.ReplaceAll(path[2:], "\\", "/")
-	if _, err := os.Stat(wslPath); err != nil {
+	if !exists(wslPath) {
 		return path
 	}
 
