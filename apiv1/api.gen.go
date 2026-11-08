@@ -341,6 +341,69 @@ func (e StreamRip) Valid() bool {
 	}
 }
 
+// Defines values for TorrentMediaType.
+const (
+	TorrentMediaTypeEpisode TorrentMediaType = "episode"
+	TorrentMediaTypeMovie   TorrentMediaType = "movie"
+)
+
+// Valid indicates whether the value is a known member of the TorrentMediaType enum.
+func (e TorrentMediaType) Valid() bool {
+	switch e {
+	case TorrentMediaTypeEpisode:
+		return true
+	case TorrentMediaTypeMovie:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TorrentState.
+const (
+	TorrentStateAllocating  TorrentState = "allocating"
+	TorrentStateBuffering   TorrentState = "buffering"
+	TorrentStateChecking    TorrentState = "checking"
+	TorrentStateDownloading TorrentState = "downloading"
+	TorrentStateFinding     TorrentState = "finding"
+	TorrentStateFinished    TorrentState = "finished"
+	TorrentStatePaused      TorrentState = "paused"
+	TorrentStatePlaying     TorrentState = "playing"
+	TorrentStateQueued      TorrentState = "queued"
+	TorrentStateSeeding     TorrentState = "seeding"
+	TorrentStateStalled     TorrentState = "stalled"
+)
+
+// Valid indicates whether the value is a known member of the TorrentState enum.
+func (e TorrentState) Valid() bool {
+	switch e {
+	case TorrentStateAllocating:
+		return true
+	case TorrentStateBuffering:
+		return true
+	case TorrentStateChecking:
+		return true
+	case TorrentStateDownloading:
+		return true
+	case TorrentStateFinding:
+		return true
+	case TorrentStateFinished:
+		return true
+	case TorrentStatePaused:
+		return true
+	case TorrentStatePlaying:
+		return true
+	case TorrentStateQueued:
+		return true
+	case TorrentStateSeeding:
+		return true
+	case TorrentStateStalled:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TraktChartName.
 const (
 	TraktChartNameAnticipated TraktChartName = "anticipated"
@@ -703,6 +766,32 @@ type NextEpisodePage struct {
 	TotalResults *int `json:"total_results"`
 }
 
+// Person defines model for Person.
+type Person struct {
+	Biography string              `json:"biography"`
+	Birthday  *openapi_types.Date `json:"birthday"`
+	Deathday  *openapi_types.Date `json:"deathday"`
+
+	// KnownForDepartment Example: Acting
+	KnownForDepartment *string `json:"known_for_department"`
+
+	// Name Example: Keanu Reeves
+	Name         string  `json:"name"`
+	PlaceOfBirth *string `json:"place_of_birth"`
+
+	// Profile w185 image.
+	Profile *string `json:"profile"`
+
+	// TmdbId Example: 6384
+	TmdbId int `json:"tmdb_id"`
+}
+
+// PersonCredits defines model for PersonCredits.
+type PersonCredits struct {
+	Movies []MediaItem `json:"movies"`
+	Shows  []MediaItem `json:"shows"`
+}
+
 // PlaybackFile defines model for PlaybackFile.
 type PlaybackFile struct {
 	// Index Example: 0
@@ -981,6 +1070,57 @@ type SystemInfo struct {
 	Version string `json:"version"`
 }
 
+// Torrent defines model for Torrent.
+type Torrent struct {
+	// AddedAt Unix seconds.
+	AddedAt int64 `json:"added_at"`
+
+	// DownloadRate Bytes per second.
+	DownloadRate int `json:"download_rate"`
+
+	// Episode Episodes only
+	Episode *int `json:"episode,omitempty"`
+
+	// HasPlayer A Kodi or API player is attached.
+	HasPlayer bool `json:"has_player"`
+
+	// InfoHash Lower-case.
+	//
+	// Example: 08ada5a7a6183aae1e09d831df6748d566095a10
+	InfoHash string `json:"info_hash"`
+
+	// MediaType Set together with tmdb_id.
+	MediaType *TorrentMediaType `json:"media_type,omitempty"`
+
+	// Name Example: Sintel
+	Name string `json:"name"`
+
+	// Paused True when the torrent is paused, also by Kodi's session-wide pause (then `state` is `paused` too). Resuming a torrent lifts that session pause.
+	Paused   bool    `json:"paused"`
+	Peers    int     `json:"peers"`
+	Progress float64 `json:"progress"`
+
+	// Season Episodes only; 0 is specials.
+	Season *int `json:"season,omitempty"`
+	Seeds  int  `json:"seeds"`
+
+	// SizeBytes 0 until the metadata is in.
+	SizeBytes int64        `json:"size_bytes"`
+	State     TorrentState `json:"state"`
+
+	// TmdbId Set when Elementum knows what the torrent is for. For an episode it is the show's id.
+	TmdbId *int `json:"tmdb_id,omitempty"`
+
+	// UploadRate Bytes per second.
+	UploadRate int `json:"upload_rate"`
+}
+
+// TorrentMediaType Set together with tmdb_id.
+type TorrentMediaType string
+
+// TorrentState defines model for TorrentState.
+type TorrentState string
+
 // TrackerInfo defines model for TrackerInfo.
 type TrackerInfo struct {
 	// Authorized An account is linked.
@@ -1052,6 +1192,9 @@ type EpisodeParam = int
 
 // GenreParam Example: 28
 type GenreParam = int
+
+// InfoHashParam Example: 08ada5a7a6183aae1e09d831df6748d566095a10
+type InfoHashParam = string
 
 // LangParam Example: de-DE
 type LangParam = string
@@ -1156,6 +1299,20 @@ type GetMovieParams struct {
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
+// GetPersonParams defines parameters for GetPerson.
+type GetPersonParams struct {
+	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
+	// It does not affect images/logos, whose language comes from Elementum's config.
+	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
+}
+
+// GetPersonCreditsParams defines parameters for GetPersonCredits.
+type GetPersonCreditsParams struct {
+	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
+	// It does not affect images/logos, whose language comes from Elementum's config.
+	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
+}
+
 // SearchParams defines parameters for Search.
 type SearchParams struct {
 	Query string     `form:"query" json:"query"`
@@ -1214,6 +1371,12 @@ type GetStreamParams struct {
 	Exp   int64   `form:"exp" json:"exp"`
 	Sig   string  `form:"sig" json:"sig"`
 	Range *string `json:"Range,omitempty"`
+}
+
+// RemoveTorrentParams defines parameters for RemoveTorrent.
+type RemoveTorrentParams struct {
+	// DeleteFiles Also delete the downloaded data. When false the data is kept, whatever the Elementum "keep files" settings say.
+	DeleteFiles *bool `form:"delete_files,omitempty" json:"delete_files,omitempty"`
 }
 
 // ListTrackerListItemsParams defines parameters for ListTrackerListItems.
@@ -1315,6 +1478,12 @@ type ServerInterface interface {
 	// ListMovieStreams Search providers for a movie
 	// (GET /movies/{tmdb_id}/streams)
 	ListMovieStreams(c *gin.Context, tmdbId TmdbIdParam)
+	// GetPerson Person details
+	// (GET /people/{tmdb_id})
+	GetPerson(c *gin.Context, tmdbId TmdbIdParam, params GetPersonParams)
+	// GetPersonCredits Movies and shows a person appears in (cast and crew), most popular first
+	// (GET /people/{tmdb_id}/credits)
+	GetPersonCredits(c *gin.Context, tmdbId TmdbIdParam, params GetPersonCreditsParams)
 	// CreatePlayback Start a playback session
 	// (POST /playback)
 	CreatePlayback(c *gin.Context)
@@ -1351,6 +1520,18 @@ type ServerInterface interface {
 	// GetSystemInfo Server info; also the "test connection" call
 	// (GET /system/info)
 	GetSystemInfo(c *gin.Context)
+	// ListTorrents Active torrents (the same ones Kodi's torrent list shows)
+	// (GET /torrents)
+	ListTorrents(c *gin.Context)
+	// RemoveTorrent Remove a torrent, optionally with its downloaded files
+	// (DELETE /torrents/{info_hash})
+	RemoveTorrent(c *gin.Context, infoHash InfoHashParam, params RemoveTorrentParams)
+	// PauseTorrent Pause a torrent
+	// (POST /torrents/{info_hash}/pause)
+	PauseTorrent(c *gin.Context, infoHash InfoHashParam)
+	// ResumeTorrent Resume a paused torrent
+	// (POST /torrents/{info_hash}/resume)
+	ResumeTorrent(c *gin.Context, infoHash InfoHashParam)
 	// ListTrackerLists The user's custom lists on the linked tracker
 	// (GET /tracker/lists)
 	ListTrackerLists(c *gin.Context)
@@ -1694,6 +1875,78 @@ func (siw *ServerInterfaceWrapper) ListMovieStreams(c *gin.Context) {
 	}
 
 	siw.Handler.ListMovieStreams(c, tmdbId)
+}
+
+// GetPerson operation middleware
+func (siw *ServerInterfaceWrapper) GetPerson(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tmdb_id" -------------
+	var tmdbId TmdbIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tmdb_id", c.Param("tmdb_id"), &tmdbId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter tmdb_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPersonParams
+
+	// ------------- Optional query parameter "lang" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "lang", c.Request.URL.Query(), &params.Lang, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter lang: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetPerson(c, tmdbId, params)
+}
+
+// GetPersonCredits operation middleware
+func (siw *ServerInterfaceWrapper) GetPersonCredits(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tmdb_id" -------------
+	var tmdbId TmdbIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tmdb_id", c.Param("tmdb_id"), &tmdbId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter tmdb_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetPersonCreditsParams
+
+	// ------------- Optional query parameter "lang" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "lang", c.Request.URL.Query(), &params.Lang, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter lang: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetPersonCredits(c, tmdbId, params)
 }
 
 // CreatePlayback operation middleware
@@ -2149,6 +2402,105 @@ func (siw *ServerInterfaceWrapper) GetSystemInfo(c *gin.Context) {
 	siw.Handler.GetSystemInfo(c)
 }
 
+// ListTorrents operation middleware
+func (siw *ServerInterfaceWrapper) ListTorrents(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListTorrents(c)
+}
+
+// RemoveTorrent operation middleware
+func (siw *ServerInterfaceWrapper) RemoveTorrent(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "info_hash" -------------
+	var infoHash InfoHashParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "info_hash", c.Param("info_hash"), &infoHash, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter info_hash: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveTorrentParams
+
+	// ------------- Optional query parameter "delete_files" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "delete_files", c.Request.URL.Query(), &params.DeleteFiles, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter delete_files: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.RemoveTorrent(c, infoHash, params)
+}
+
+// PauseTorrent operation middleware
+func (siw *ServerInterfaceWrapper) PauseTorrent(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "info_hash" -------------
+	var infoHash InfoHashParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "info_hash", c.Param("info_hash"), &infoHash, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter info_hash: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PauseTorrent(c, infoHash)
+}
+
+// ResumeTorrent operation middleware
+func (siw *ServerInterfaceWrapper) ResumeTorrent(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "info_hash" -------------
+	var infoHash InfoHashParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "info_hash", c.Param("info_hash"), &infoHash, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter info_hash: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ResumeTorrent(c, infoHash)
+}
+
 // ListTrackerLists operation middleware
 func (siw *ServerInterfaceWrapper) ListTrackerLists(c *gin.Context) {
 
@@ -2534,6 +2886,12 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.DELETE(options.BaseURL+"/playback/:id", wrapper.DeletePlayback)
 	router.GET(options.BaseURL+"/playback/:id", wrapper.GetPlayback)
 	router.POST(options.BaseURL+"/playback/:id/progress", wrapper.ReportPlaybackProgress)
+	router.GET(options.BaseURL+"/torrents", wrapper.ListTorrents)
+	router.POST(options.BaseURL+"/torrents/:info_hash/pause", wrapper.PauseTorrent)
+	router.POST(options.BaseURL+"/torrents/:info_hash/resume", wrapper.ResumeTorrent)
+	router.DELETE(options.BaseURL+"/torrents/:info_hash", wrapper.RemoveTorrent)
+	router.GET(options.BaseURL+"/people/:tmdb_id", wrapper.GetPerson)
+	router.GET(options.BaseURL+"/people/:tmdb_id/credits", wrapper.GetPersonCredits)
 	router.GET(options.BaseURL+"/stream/:id/:file_index", wrapper.GetStream)
 }
 
@@ -3088,6 +3446,170 @@ type ListMovieStreamsdefaultJSONResponse struct {
 }
 
 func (response ListMovieStreamsdefaultJSONResponse) VisitListMovieStreamsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPersonRequestObject struct {
+	TmdbId TmdbIdParam `json:"tmdb_id"`
+	Params GetPersonParams
+}
+
+type GetPersonResponseObject interface {
+	VisitGetPersonResponse(w http.ResponseWriter) error
+}
+
+type GetPerson200JSONResponse Person
+
+func (response GetPerson200JSONResponse) VisitGetPersonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPerson400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetPerson400JSONResponse) VisitGetPersonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPerson401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetPerson401JSONResponse) VisitGetPersonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPerson404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetPerson404JSONResponse) VisitGetPersonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPersondefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response GetPersondefaultJSONResponse) VisitGetPersonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPersonCreditsRequestObject struct {
+	TmdbId TmdbIdParam `json:"tmdb_id"`
+	Params GetPersonCreditsParams
+}
+
+type GetPersonCreditsResponseObject interface {
+	VisitGetPersonCreditsResponse(w http.ResponseWriter) error
+}
+
+type GetPersonCredits200JSONResponse PersonCredits
+
+func (response GetPersonCredits200JSONResponse) VisitGetPersonCreditsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPersonCredits400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetPersonCredits400JSONResponse) VisitGetPersonCreditsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPersonCredits401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetPersonCredits401JSONResponse) VisitGetPersonCreditsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPersonCredits404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response GetPersonCredits404JSONResponse) VisitGetPersonCreditsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPersonCreditsdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response GetPersonCreditsdefaultJSONResponse) VisitGetPersonCreditsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -3949,6 +4471,284 @@ func (response GetSystemInfodefaultJSONResponse) VisitGetSystemInfoResponse(w ht
 	return err
 }
 
+type ListTorrentsRequestObject struct {
+}
+
+type ListTorrentsResponseObject interface {
+	VisitListTorrentsResponse(w http.ResponseWriter) error
+}
+
+type ListTorrents200JSONResponse []Torrent
+
+func (response ListTorrents200JSONResponse) VisitListTorrentsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTorrents401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ListTorrents401JSONResponse) VisitListTorrentsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTorrentsdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response ListTorrentsdefaultJSONResponse) VisitListTorrentsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveTorrentRequestObject struct {
+	InfoHash InfoHashParam `json:"info_hash"`
+	Params   RemoveTorrentParams
+}
+
+type RemoveTorrentResponseObject interface {
+	VisitRemoveTorrentResponse(w http.ResponseWriter) error
+}
+
+type RemoveTorrent204Response struct {
+}
+
+func (response RemoveTorrent204Response) VisitRemoveTorrentResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveTorrent400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RemoveTorrent400JSONResponse) VisitRemoveTorrentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveTorrent401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RemoveTorrent401JSONResponse) VisitRemoveTorrentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveTorrent404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response RemoveTorrent404JSONResponse) VisitRemoveTorrentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveTorrentdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response RemoveTorrentdefaultJSONResponse) VisitRemoveTorrentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PauseTorrentRequestObject struct {
+	InfoHash InfoHashParam `json:"info_hash"`
+}
+
+type PauseTorrentResponseObject interface {
+	VisitPauseTorrentResponse(w http.ResponseWriter) error
+}
+
+type PauseTorrent204Response struct {
+}
+
+func (response PauseTorrent204Response) VisitPauseTorrentResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PauseTorrent400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response PauseTorrent400JSONResponse) VisitPauseTorrentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PauseTorrent401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response PauseTorrent401JSONResponse) VisitPauseTorrentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PauseTorrent404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response PauseTorrent404JSONResponse) VisitPauseTorrentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PauseTorrentdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response PauseTorrentdefaultJSONResponse) VisitPauseTorrentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeTorrentRequestObject struct {
+	InfoHash InfoHashParam `json:"info_hash"`
+}
+
+type ResumeTorrentResponseObject interface {
+	VisitResumeTorrentResponse(w http.ResponseWriter) error
+}
+
+type ResumeTorrent204Response struct {
+}
+
+func (response ResumeTorrent204Response) VisitResumeTorrentResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ResumeTorrent400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response ResumeTorrent400JSONResponse) VisitResumeTorrentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeTorrent401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response ResumeTorrent401JSONResponse) VisitResumeTorrentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeTorrent404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response ResumeTorrent404JSONResponse) VisitResumeTorrentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResumeTorrentdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response ResumeTorrentdefaultJSONResponse) VisitResumeTorrentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListTrackerListsRequestObject struct {
 }
 
@@ -4533,6 +5333,12 @@ type StrictServerInterface interface {
 	// ListMovieStreams Search providers for a movie
 	// (GET /movies/{tmdb_id}/streams)
 	ListMovieStreams(ctx context.Context, request ListMovieStreamsRequestObject) (ListMovieStreamsResponseObject, error)
+	// GetPerson Person details
+	// (GET /people/{tmdb_id})
+	GetPerson(ctx context.Context, request GetPersonRequestObject) (GetPersonResponseObject, error)
+	// GetPersonCredits Movies and shows a person appears in (cast and crew), most popular first
+	// (GET /people/{tmdb_id}/credits)
+	GetPersonCredits(ctx context.Context, request GetPersonCreditsRequestObject) (GetPersonCreditsResponseObject, error)
 	// CreatePlayback Start a playback session
 	// (POST /playback)
 	CreatePlayback(ctx context.Context, request CreatePlaybackRequestObject) (CreatePlaybackResponseObject, error)
@@ -4569,6 +5375,18 @@ type StrictServerInterface interface {
 	// GetSystemInfo Server info; also the "test connection" call
 	// (GET /system/info)
 	GetSystemInfo(ctx context.Context, request GetSystemInfoRequestObject) (GetSystemInfoResponseObject, error)
+	// ListTorrents Active torrents (the same ones Kodi's torrent list shows)
+	// (GET /torrents)
+	ListTorrents(ctx context.Context, request ListTorrentsRequestObject) (ListTorrentsResponseObject, error)
+	// RemoveTorrent Remove a torrent, optionally with its downloaded files
+	// (DELETE /torrents/{info_hash})
+	RemoveTorrent(ctx context.Context, request RemoveTorrentRequestObject) (RemoveTorrentResponseObject, error)
+	// PauseTorrent Pause a torrent
+	// (POST /torrents/{info_hash}/pause)
+	PauseTorrent(ctx context.Context, request PauseTorrentRequestObject) (PauseTorrentResponseObject, error)
+	// ResumeTorrent Resume a paused torrent
+	// (POST /torrents/{info_hash}/resume)
+	ResumeTorrent(ctx context.Context, request ResumeTorrentRequestObject) (ResumeTorrentResponseObject, error)
 	// ListTrackerLists The user's custom lists on the linked tracker
 	// (GET /tracker/lists)
 	ListTrackerLists(ctx context.Context, request ListTrackerListsRequestObject) (ListTrackerListsResponseObject, error)
@@ -4857,6 +5675,60 @@ func (sh *strictHandler) ListMovieStreams(ctx *gin.Context, tmdbId TmdbIdParam) 
 		sh.options.HandlerErrorFunc(ctx, err)
 	} else if validResponse, ok := response.(ListMovieStreamsResponseObject); ok {
 		if err := validResponse.VisitListMovieStreamsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPerson operation middleware
+func (sh *strictHandler) GetPerson(ctx *gin.Context, tmdbId TmdbIdParam, params GetPersonParams) {
+	var request GetPersonRequestObject
+
+	request.TmdbId = tmdbId
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPerson(ctx, request.(GetPersonRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPerson")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetPersonResponseObject); ok {
+		if err := validResponse.VisitGetPersonResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPersonCredits operation middleware
+func (sh *strictHandler) GetPersonCredits(ctx *gin.Context, tmdbId TmdbIdParam, params GetPersonCreditsParams) {
+	var request GetPersonCreditsRequestObject
+
+	request.TmdbId = tmdbId
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPersonCredits(ctx, request.(GetPersonCreditsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPersonCredits")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetPersonCreditsResponseObject); ok {
+		if err := validResponse.VisitGetPersonCreditsResponse(ctx.Writer); err != nil {
 			sh.options.ResponseErrorHandlerFunc(ctx, err)
 		}
 	} else if response != nil {
@@ -5209,6 +6081,109 @@ func (sh *strictHandler) GetSystemInfo(ctx *gin.Context) {
 		sh.options.HandlerErrorFunc(ctx, err)
 	} else if validResponse, ok := response.(GetSystemInfoResponseObject); ok {
 		if err := validResponse.VisitGetSystemInfoResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListTorrents operation middleware
+func (sh *strictHandler) ListTorrents(ctx *gin.Context) {
+	var request ListTorrentsRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ListTorrents(ctx, request.(ListTorrentsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListTorrents")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(ListTorrentsResponseObject); ok {
+		if err := validResponse.VisitListTorrentsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveTorrent operation middleware
+func (sh *strictHandler) RemoveTorrent(ctx *gin.Context, infoHash InfoHashParam, params RemoveTorrentParams) {
+	var request RemoveTorrentRequestObject
+
+	request.InfoHash = infoHash
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveTorrent(ctx, request.(RemoveTorrentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveTorrent")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(RemoveTorrentResponseObject); ok {
+		if err := validResponse.VisitRemoveTorrentResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PauseTorrent operation middleware
+func (sh *strictHandler) PauseTorrent(ctx *gin.Context, infoHash InfoHashParam) {
+	var request PauseTorrentRequestObject
+
+	request.InfoHash = infoHash
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PauseTorrent(ctx, request.(PauseTorrentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PauseTorrent")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(PauseTorrentResponseObject); ok {
+		if err := validResponse.VisitPauseTorrentResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ResumeTorrent operation middleware
+func (sh *strictHandler) ResumeTorrent(ctx *gin.Context, infoHash InfoHashParam) {
+	var request ResumeTorrentRequestObject
+
+	request.InfoHash = infoHash
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.ResumeTorrent(ctx, request.(ResumeTorrentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResumeTorrent")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(ResumeTorrentResponseObject); ok {
+		if err := validResponse.VisitResumeTorrentResponse(ctx.Writer); err != nil {
 			sh.options.ResponseErrorHandlerFunc(ctx, err)
 		}
 	} else if response != nil {

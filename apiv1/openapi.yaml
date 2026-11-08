@@ -26,6 +26,8 @@ tags:
   - name: tracker
   - name: streams
   - name: playback
+  - name: torrents
+  - name: people
 
 paths:
   /system/info:
@@ -532,6 +534,108 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         default: { $ref: "#/components/responses/Error" }
 
+  /torrents:
+    get:
+      tags: [torrents]
+      operationId: listTorrents
+      summary: Active torrents (the same ones Kodi's torrent list shows)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Torrent" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /torrents/{info_hash}/pause:
+    post:
+      tags: [torrents]
+      operationId: pauseTorrent
+      summary: Pause a torrent
+      parameters:
+        - $ref: "#/components/parameters/InfoHashParam"
+      responses:
+        "204": { description: Paused }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /torrents/{info_hash}/resume:
+    post:
+      tags: [torrents]
+      operationId: resumeTorrent
+      summary: Resume a paused torrent
+      parameters:
+        - $ref: "#/components/parameters/InfoHashParam"
+      responses:
+        "204": { description: Resumed }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /torrents/{info_hash}:
+    delete:
+      tags: [torrents]
+      operationId: removeTorrent
+      summary: Remove a torrent, optionally with its downloaded files
+      description: |
+        Never asks Kodi anything. If the active playback session uses this torrent, the session is stopped too.
+      parameters:
+        - $ref: "#/components/parameters/InfoHashParam"
+        - name: delete_files
+          in: query
+          description: Also delete the downloaded data. When false the data is kept, whatever the Elementum "keep files" settings say.
+          schema: { type: boolean, default: false }
+      responses:
+        "204": { description: Removed }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /people/{tmdb_id}:
+    get:
+      tags: [people]
+      operationId: getPerson
+      summary: Person details
+      parameters:
+        - $ref: "#/components/parameters/TmdbIdParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Person" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /people/{tmdb_id}/credits:
+    get:
+      tags: [people]
+      operationId: getPersonCredits
+      summary: Movies and shows a person appears in (cast and crew), most popular first
+      parameters:
+        - $ref: "#/components/parameters/TmdbIdParam"
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PersonCredits" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        default: { $ref: "#/components/responses/Error" }
+
   /stream/{id}/{file_index}:
     get:
       tags: [playback]
@@ -621,6 +725,12 @@ components:
       in: path
       required: true
       schema: { type: string, minLength: 1, example: "3f2a9c" }
+    InfoHashParam:
+      name: info_hash
+      in: path
+      required: true
+      description: 40 hex characters, case-insensitive.
+      schema: { type: string, pattern: "^[0-9a-fA-F]{40}$", example: "08ada5a7a6183aae1e09d831df6748d566095a10" }
     MediaParam:
       name: media
       in: path
@@ -1090,3 +1200,50 @@ components:
         position_s: { type: number, format: double, minimum: 0, example: 1234.5 }
         duration_s: { type: number, format: double, minimum: 0, example: 8160 }
         paused: { type: boolean, example: false }
+
+    Torrent:
+      type: object
+      required: [info_hash, name, size_bytes, progress, download_rate, upload_rate, seeds, peers, state, paused, added_at, has_player]
+      properties:
+        info_hash: { type: string, description: Lower-case., example: "08ada5a7a6183aae1e09d831df6748d566095a10" }
+        name: { type: string, example: Sintel }
+        size_bytes: { type: integer, format: int64, description: 0 until the metadata is in. }
+        progress: { type: number, format: double, minimum: 0, maximum: 1 }
+        download_rate: { type: integer, description: Bytes per second. }
+        upload_rate: { type: integer, description: Bytes per second. }
+        seeds: { type: integer }
+        peers: { type: integer }
+        state: { $ref: "#/components/schemas/TorrentState" }
+        paused: { type: boolean, description: "True when the torrent is paused, also by Kodi's session-wide pause (then `state` is `paused` too). Resuming a torrent lifts that session pause." }
+        added_at: { type: integer, format: int64, description: Unix seconds. }
+        tmdb_id: { type: integer, description: "Set when Elementum knows what the torrent is for. For an episode it is the show's id." }
+        media_type: { type: string, enum: [movie, episode], description: Set together with tmdb_id. }
+        season: { type: integer, description: Episodes only; 0 is specials. }
+        episode: { type: integer, description: Episodes only, when known. }
+        has_player: { type: boolean, description: A Kodi or API player is attached. }
+    TorrentState:
+      type: string
+      enum: [queued, checking, finding, downloading, finished, seeding, allocating, stalled, paused, buffering, playing]
+
+    Person:
+      type: object
+      required: [tmdb_id, name, profile, biography, birthday, deathday, place_of_birth, known_for_department]
+      properties:
+        tmdb_id: { type: integer, example: 6384 }
+        name: { type: string, example: Keanu Reeves }
+        profile: { type: string, format: uri, nullable: true, description: "w185 image." }
+        biography: { type: string }
+        birthday: { type: string, format: date, nullable: true }
+        deathday: { type: string, format: date, nullable: true }
+        place_of_birth: { type: string, nullable: true }
+        known_for_department: { type: string, nullable: true, example: Acting }
+    PersonCredits:
+      type: object
+      required: [movies, shows]
+      properties:
+        movies:
+          type: array
+          items: { $ref: "#/components/schemas/MediaItem" }
+        shows:
+          type: array
+          items: { $ref: "#/components/schemas/MediaItem" }

@@ -1083,9 +1083,11 @@ func (s *Service) RemoveTorrent(xbmcHost *xbmc.XBMCHost, t *Torrent, flags Remov
 				deleteTorrentData = true
 			}
 		} else { // action came from playback
-			if flags.ForceDelete || len(t.ChosenFiles) == 0 {
+			if flags.ForceKeepTorrentData {
+				deleteTorrentData = false
+			} else if flags.ForceDelete || len(t.ChosenFiles) == 0 {
 				deleteTorrentData = true
-			} else if flags.ForceKeepTorrentData || keepSetting == 0 {
+			} else if keepSetting == 0 {
 				deleteTorrentData = false
 			} else if keepSetting == 2 || (xbmcHost != nil && xbmcHost.DialogConfirm("Elementum", fmt.Sprintf("LOCALIZE[30269];;%s", t.Name()))) {
 				deleteTorrentData = true
