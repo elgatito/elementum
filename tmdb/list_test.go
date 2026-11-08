@@ -109,3 +109,45 @@ func TestListMoviesPerPage(t *testing.T) {
 		}
 	})
 }
+
+func liteStub(t *testing.T, details, lists *atomic.Int64, kind string) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasPrefix(r.URL.Path, "/movie/"), strings.HasPrefix(r.URL.Path, "/tv/"):
+			details.Add(1)
+			fmt.Fprint(w, `{"id": 2}`)
+		case strings.HasPrefix(r.URL.Path, "/genre/"):
+			fmt.Fprint(w, `{"genres": [{"id": 7, "name": "Drama"}]}`)
+		case r.URL.Query().Get("language") == "en-US": // the fallback page
+			lists.Add(1)
+			fmt.Fprintf(w, `{"total_results": 2, "results": [{"id": 1, "overview": "en one"}, {"id": 2, "overview": "en two"}]}`)
+		default: // item 2 has no overview in this language
+			fmt.Fprintf(w, `{"total_results": 2, "results": [{"id": 1, "%s": "one", "overview": "o", "genre_ids": [7, 99]}, {"id": 2, "%s": "two"}]}`, kind, kind)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	old := reqapi.TMDBAPI.Endpoint
+	reqapi.TMDBAPI.Endpoint = srv.URL
+	t.Cleanup(func() { reqapi.TMDBAPI.Endpoint = old })
+}
+
+func TestLiteSkipsDetails(t *testing.T) {
+	var details, lists atomic.Int64
+	liteStub(t, &details, &lists, "title")
+	movies, _ := listMovies("lite", napping.Params{"language": "uk"}, 1, 2, Lite)
+	if movies[0].Title != "one" || len(movies[0].Genres) != 1 || movies[0].Genres[0].Name != "Drama" || movies[0].Overview != "o" {
+		t.Errorf("lite item: %+v", movies[0])
+	}
+	if movies[1].Title != "two" || movies[1].Overview != "en two" || details.Load() != 0 || lists.Load() != 1 {
+		t.Errorf("fallback item %+v, detail fetches %d, en-US pages %d", movies[1], details.Load(), lists.Load())
+	}
+}
+
+func TestLiteShows(t *testing.T) {
+	var details, lists atomic.Int64
+	liteStub(t, &details, &lists, "name")
+	shows, _ := listShows("lite-tv", napping.Params{"language": "uk"}, 1, 2, Lite)
+	if shows[0].Name != "one" || len(shows[0].Genres) != 1 || shows[1].Overview != "en two" || details.Load() != 0 {
+		t.Errorf("shows %+v %+v, detail fetches %d", shows[0], shows[1], details.Load())
+	}
+}

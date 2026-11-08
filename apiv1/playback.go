@@ -52,6 +52,22 @@ type session struct {
 	file   *bittorrent.File // set in ready
 	resume *float64         // set in ready
 	seen   time.Time        // last status or progress call
+	stall  stall            // buffering progress watch
+}
+
+// stall detects a buffering torrent that makes no progress: Buffer itself has no timeout once the
+// metadata is in, so a torrent without peers would stay in buffering forever.
+type stall struct {
+	progress float64
+	since    time.Time
+}
+
+// update records the latest progress and reports whether none was made for timeout.
+func (s *stall) update(progress float64, rate int, now time.Time, timeout time.Duration) bool {
+	if s.since.IsZero() || progress > s.progress || rate > 0 {
+		s.progress, s.since = progress, now
+	}
+	return now.Sub(s.since) > timeout
 }
 
 var (
@@ -146,8 +162,8 @@ func run(sess *session, reused *bittorrent.Torrent) {
 
 	sessions.Lock()
 	defer sessions.Unlock()
-	if sess.state == PlaybackStateStopped {
-		return // stop closed the player
+	if sess.state == PlaybackStateStopped || sess.state == PlaybackStateError {
+		return // stop closed the player, or the stall watchdog failed the session
 	}
 	sess.settle(err, p.ChosenFile(), files, resumePoint(p.Params()))
 	if sess.state == PlaybackStateError {
@@ -240,7 +256,38 @@ func reap(now time.Time) {
 		if now.Sub(sess.seen) > idleTimeout {
 			sess.stop()
 			delete(sessions.byID, id)
+		} else if sess.state == PlaybackStateResolving {
+			sess.checkStall(now)
 		}
+	}
+}
+
+// stallLimit is how long a buffering torrent may make no progress; 0 means do not watch (the buffer timeout is
+// off, or libtorrent is checking files, which shows no download).
+func stallLimit(bufferTimeout, torrentState int) time.Duration {
+	if bufferTimeout <= 0 || torrentState == bittorrent.StatusChecking {
+		return 0
+	}
+	return max(time.Duration(bufferTimeout)*time.Second, 60*time.Second)
+}
+
+// checkStall fails a session whose torrent has its metadata but stopped making buffering progress; sessions
+// must be locked. The closed player makes Buffer return, and the error stays. A session without a known info
+// hash (an HTTP .torrent link) can't be found before Buffer returns, so it is not watched.
+func (sess *session) checkStall(now time.Time) {
+	t := sess.torrent()
+	if t == nil || !t.HasMetadata() {
+		return
+	}
+	limit := stallLimit(config.Get().BufferTimeout, t.GetState())
+	if limit == 0 {
+		sess.stall = stall{}
+		return
+	}
+	if sess.stall.update(t.GetBufferProgress(), int(t.GetStatus().DownloadPayloadRate), now, limit) {
+		log.Warningf("Playback session %s made no buffering progress for %s", sess.id, limit)
+		sess.state = PlaybackStateError
+		go sess.player.Close()
 	}
 }
 

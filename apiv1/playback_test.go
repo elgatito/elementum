@@ -347,3 +347,40 @@ func TestResumePoint(t *testing.T) {
 		}
 	}
 }
+
+func TestStall(t *testing.T) {
+	var s stall
+	now := time.Now()
+	sec := time.Second
+	for i, tc := range []struct {
+		at       time.Duration
+		progress float64
+		rate     int
+		want     bool
+	}{
+		{0, 0, 0, false}, {30 * sec, 0, 0, false}, {50 * sec, 5, 0, false}, // progress restarts the clock
+		{100 * sec, 5, 1000, false}, // downloading restarts it too
+		{150 * sec, 5, 0, false}, {161 * sec, 5, 0, true},
+	} {
+		if got := s.update(tc.progress, tc.rate, now.Add(tc.at), 60*sec); got != tc.want {
+			t.Errorf("step %d: got %v", i, got)
+		}
+	}
+}
+
+func TestStallLimit(t *testing.T) {
+	for name, tc := range map[string]struct {
+		timeout, state int
+		want           time.Duration
+	}{
+		"off":          {0, 0, 0},
+		"checking":     {60, bittorrent.StatusChecking, 0},
+		"floor":        {10, 0, 60 * time.Second},
+		"configured":   {120, 0, 120 * time.Second},
+		"negative off": {-1, 0, 0},
+	} {
+		if got := stallLimit(tc.timeout, tc.state); got != tc.want {
+			t.Errorf("%s: %v, want %v", name, got, tc.want)
+		}
+	}
+}

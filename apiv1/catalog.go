@@ -11,7 +11,9 @@ import (
 
 	"github.com/jmcvetta/napping"
 
+	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tmdb"
 )
 
@@ -88,27 +90,27 @@ func (Server) ListMovies(_ context.Context, req ListMoviesRequestObject) (ListMo
 	var total int
 	switch req.List {
 	case MovieListNamePopular:
-		movies, total = tmdb.PopularMovies(tmdb.DiscoverFilters{}, lang, page, limit)
+		movies, total = tmdb.PopularMovies(tmdb.DiscoverFilters{}, lang, page, limit, tmdb.Lite)
 	case MovieListNameTrending:
-		movies, total = tmdb.TrendingMovies(lang, page, limit)
+		movies, total = tmdb.TrendingMovies(lang, page, limit, tmdb.Lite)
 	case MovieListNameTopRated:
-		movies, total = tmdb.TopRatedMovies("", lang, page, limit)
+		movies, total = tmdb.TopRatedMovies("", lang, page, limit, tmdb.Lite)
 	case MovieListNameNowPlaying:
-		movies, total = tmdb.RecentMovies(tmdb.DiscoverFilters{}, lang, page, limit)
+		movies, total = tmdb.RecentMovies(tmdb.DiscoverFilters{}, lang, page, limit, tmdb.Lite)
 	case MovieListNameUpcoming:
-		movies, total = tmdb.UpcomingMovies(lang, page, limit)
+		movies, total = tmdb.UpcomingMovies(lang, page, limit, tmdb.Lite)
 	case MovieListNameByGenre:
 		// Same filters as PopularMovies with a genre, plus the year.
 		params := napping.Params{"sort_by": "popularity.desc", "primary_release_date.lte": today(), "with_genres": strconv.Itoa(*p.Genre)}
 		if p.Year != nil {
 			params["primary_release_year"] = strconv.Itoa(*p.Year)
 		}
-		movies, total = tmdb.DiscoverMovies(params, lang, page, limit)
+		movies, total = tmdb.DiscoverMovies(params, lang, page, limit, tmdb.Lite)
 	}
 	if total < 0 {
 		return ListMoviesdefaultJSONResponse{Body: tmdbFailed, StatusCode: http.StatusBadGateway}, nil
 	}
-	return ListMovies200JSONResponse{MediaItemPageJSONResponse(mediaPage(movieItems(movies), total, page, limit))}, nil
+	return ListMovies200JSONResponse{MediaItemPageJSONResponse(mediaPage(annotate(movieItems(movies)), total, page, limit))}, nil
 }
 
 func (Server) ListShows(_ context.Context, req ListShowsRequestObject) (ListShowsResponseObject, error) {
@@ -129,25 +131,25 @@ func (Server) ListShows(_ context.Context, req ListShowsRequestObject) (ListShow
 	var total int
 	switch req.List {
 	case ShowListNamePopular:
-		shows, total = tmdb.PopularShows(tmdb.DiscoverFilters{}, lang, page, limit)
+		shows, total = tmdb.PopularShows(tmdb.DiscoverFilters{}, lang, page, limit, tmdb.Lite)
 	case ShowListNameTrending:
-		shows, total = tmdb.TrendingShows(lang, page, limit)
+		shows, total = tmdb.TrendingShows(lang, page, limit, tmdb.Lite)
 	case ShowListNameTopRated:
-		shows, total = tmdb.TopRatedShows("", lang, page, limit)
+		shows, total = tmdb.TopRatedShows("", lang, page, limit, tmdb.Lite)
 	case ShowListNameOnTheAir:
-		shows, total = tmdb.RecentEpisodes(tmdb.DiscoverFilters{}, lang, page, limit)
+		shows, total = tmdb.RecentEpisodes(tmdb.DiscoverFilters{}, lang, page, limit, tmdb.Lite)
 	case ShowListNameByGenre:
 		// Same filters as PopularShows with a genre, plus the year.
 		params := napping.Params{"sort_by": "popularity.desc", "first_air_date.lte": today(), "with_genres": strconv.Itoa(*p.Genre)}
 		if p.Year != nil {
 			params["first_air_date_year"] = strconv.Itoa(*p.Year)
 		}
-		shows, total = tmdb.DiscoverShows(params, lang, page, limit)
+		shows, total = tmdb.DiscoverShows(params, lang, page, limit, tmdb.Lite)
 	}
 	if total < 0 {
 		return ListShowsdefaultJSONResponse{Body: tmdbFailed, StatusCode: http.StatusBadGateway}, nil
 	}
-	return ListShows200JSONResponse{MediaItemPageJSONResponse(mediaPage(showItems(shows), total, page, limit))}, nil
+	return ListShows200JSONResponse{MediaItemPageJSONResponse(mediaPage(annotate(showItems(shows)), total, page, limit))}, nil
 }
 
 func (Server) ListMovieGenres(_ context.Context, req ListMovieGenresRequestObject) (ListMovieGenresResponseObject, error) {
@@ -183,7 +185,10 @@ func (Server) GetMovie(_ context.Context, req GetMovieRequestObject) (GetMovieRe
 	if m == nil || m.ID == 0 {
 		return GetMovie404JSONResponse{NotFoundJSONResponse(tmdbNotFound)}, nil
 	}
-	return GetMovie200JSONResponse(movieDetails(m)), nil
+	d := movieDetails(m)
+	st := annotate([]MediaItem{{Type: MediaTypeMovie, TmdbId: m.ID}})[0]
+	d.InLibrary, d.InCollection, d.InWatchlist, d.Watched, d.Progress = st.InLibrary, st.InCollection, st.InWatchlist, st.Watched, st.Progress
+	return GetMovie200JSONResponse(d), nil
 }
 
 func (Server) GetShow(_ context.Context, req GetShowRequestObject) (GetShowResponseObject, error) {
@@ -195,7 +200,13 @@ func (Server) GetShow(_ context.Context, req GetShowRequestObject) (GetShowRespo
 	if s == nil || s.ID == 0 {
 		return GetShow404JSONResponse{NotFoundJSONResponse(tmdbNotFound)}, nil
 	}
-	return GetShow200JSONResponse(showDetails(s)), nil
+	d := showDetails(s)
+	st := annotate([]MediaItem{{Type: MediaTypeShow, TmdbId: s.ID}})[0]
+	d.InLibrary, d.InCollection, d.InWatchlist, d.Watched = st.InLibrary, st.InCollection, st.InWatchlist, st.Watched
+	if watched, known := episodeWatched(s.ID); known {
+		d.setWatched(s.ID, watched)
+	}
+	return GetShow200JSONResponse(d), nil
 }
 
 func (Server) GetSeason(_ context.Context, req GetSeasonRequestObject) (GetSeasonResponseObject, error) {
@@ -208,7 +219,28 @@ func (Server) GetSeason(_ context.Context, req GetSeasonRequestObject) (GetSeaso
 	if s == nil || s.ID == 0 {
 		return GetSeason404JSONResponse{NotFoundJSONResponse(tmdbNotFound)}, nil
 	}
-	return GetSeason200JSONResponse(season(s)), nil
+	d := season(s)
+	if watched, known := episodeWatched(req.TmdbId); known {
+		for n := range d.Episodes {
+			e := &d.Episodes[n]
+			e.Watched = ptr(watched(e.SeasonNumber, e.EpisodeNumber))
+		}
+	}
+	if show, err := uid.GetShowByTMDB(req.TmdbId); err == nil && show != nil { // Kodi library resume points
+		for n := range d.Episodes {
+			e := &d.Episodes[n]
+			if le := show.GetEpisode(e.SeasonNumber, e.EpisodeNumber); le != nil && le.Resume != nil && le.Resume.Position > 0 {
+				e.ResumeS = ptr(float32(le.Resume.Position))
+			}
+		}
+	}
+	for n := range d.Episodes {
+		e := &d.Episodes[n]
+		if r := storedResume(bittorrent.TMDBResumeKey(true, req.TmdbId, e.SeasonNumber, e.EpisodeNumber)); e.ResumeS == nil && r != nil {
+			e.ResumeS = ptr(float32(r.Position))
+		}
+	}
+	return GetSeason200JSONResponse(d), nil
 }
 
 // Search pages movie or show results by limit, like the lists.
@@ -229,12 +261,12 @@ func (Server) Search(_ context.Context, req SearchRequestObject) (SearchResponse
 	var total int
 	if p.Type == SearchTypeMovie {
 		var movies tmdb.Movies
-		movies, total = tmdb.SearchMoviesPerPage(p.Query, lang, page, limit)
-		items = movieItems(movies)
+		movies, total = tmdb.SearchMoviesPerPage(p.Query, lang, page, limit, tmdb.Lite)
+		items = annotate(movieItems(movies))
 	} else {
 		var shows tmdb.Shows
-		shows, total = tmdb.SearchShowsPerPage(p.Query, lang, page, limit)
-		items = showItems(shows)
+		shows, total = tmdb.SearchShowsPerPage(p.Query, lang, page, limit, tmdb.Lite)
+		items = annotate(showItems(shows))
 	}
 	if total < 0 {
 		return SearchdefaultJSONResponse{Body: tmdbFailed, StatusCode: http.StatusBadGateway}, nil

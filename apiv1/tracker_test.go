@@ -8,15 +8,18 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/elgatito/elementum/apiv1"
+	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/database"
 	"github.com/elgatito/elementum/library"
+	"github.com/elgatito/elementum/library/playcount"
 	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/util/reqapi"
 	"github.com/elgatito/elementum/xbmc"
@@ -257,5 +260,107 @@ func TestLibrary(t *testing.T) {
 	}
 	if got := titles(getPage(t, "/api/v1/library/shows").Items); !reflect.DeepEqual(got, []string{"1396:s1396"}) {
 		t.Errorf("shows = %v", got)
+	}
+}
+
+func TestItemState(t *testing.T) {
+	setCreds(t, "", "")
+	stubTMDB(t)
+	li := database.LibraryItem{ID: 21, MediaType: library.MovieType, State: library.StateActive}
+	li.Key = database.LibraryItemKey(li.MediaType, li.ID)
+	if err := database.GetStormDB().Save(&li); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { database.GetStormDB().DeleteStruct(&li) })
+	playcount.Set(playcount.MovieType, true, 22)
+	t.Cleanup(func() { playcount.Set(playcount.MovieType, false, 22) })
+
+	got := map[int]apiv1.MediaItem{}
+	for _, i := range getPage(t, "/api/v1/library/movies").Items {
+		got[i.TmdbId] = i
+	}
+	if i := got[21]; i.InLibrary == nil || !*i.InLibrary || i.InCollection != nil || i.InWatchlist != nil || i.Watched != nil {
+		t.Errorf("library movie without a tracker: %+v", i)
+	}
+	// An item in the Kodi library's watched state is watched, whatever the tracker.
+	w := do(newEngine(), request{path: "/api/v1/movies/22"})
+	var d apiv1.MovieDetails
+	if err := json.Unmarshal(w.Body.Bytes(), &d); err != nil || d.InLibrary == nil || *d.InLibrary || d.Watched == nil || !*d.Watched {
+		t.Errorf("details %d: %+v, %v", w.Code, d, err)
+	}
+}
+
+func TestActions(t *testing.T) {
+	setCreds(t, "", "")
+	stubTMDB(t)
+	e := newEngine()
+	before := fmt.Sprint(playcountSnapshot())
+	for name, tc := range map[string]struct {
+		method, path, body string
+		want               int
+	}{
+		"bad kind":              {"POST", "/api/v1/watched/series", `{"tmdb_id":1}`, 400},
+		"no body fields":        {"POST", "/api/v1/watched/movie", `{}`, 400},
+		"season needs season":   {"POST", "/api/v1/watched/season", `{"tmdb_id":1}`, 400},
+		"episode needs episode": {"DELETE", "/api/v1/watched/episode", `{"tmdb_id":1,"season":1}`, 400},
+		"no tracker, no Kodi":   {"POST", "/api/v1/watched/movie", `{"tmdb_id":603}`, 409},
+		"unwatch, same":         {"DELETE", "/api/v1/watched/show", `{"tmdb_id":1396}`, 409},
+		"bad media":             {"POST", "/api/v1/library/songs/1", ``, 400},
+		"bad id":                {"DELETE", "/api/v1/library/movies/0", ``, 400},
+		"remove when absent":    {"DELETE", "/api/v1/library/movies/9999", ``, 204},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if w := do(e, request{method: tc.method, path: tc.path, body: tc.body}); w.Code != tc.want {
+				t.Errorf("%d: %s", w.Code, w.Body)
+			}
+		})
+	}
+	if after := fmt.Sprint(playcountSnapshot()); after != before {
+		t.Errorf("a refused action changed the watched map:\n%s\n%s", before, after)
+	}
+}
+
+func playcountSnapshot() []uint64 {
+	playcount.Mu.RLock()
+	defer playcount.Mu.RUnlock()
+	keys := []uint64{}
+	for k := range playcount.Watched {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+	return keys
+}
+
+func TestStoredResume(t *testing.T) {
+	setCreds(t, "", "")
+	stubTMDB(t)
+	database.GetCache().SetCachedObject(database.CommonBucket, 3600, bittorrent.TMDBResumeKey(false, 31, 0, 0), map[string]float64{"position": 300, "total": 1200})
+	t.Cleanup(func() { database.GetCache().Delete(database.CommonBucket, bittorrent.TMDBResumeKey(false, 31, 0, 0)) })
+	w := do(newEngine(), request{path: "/api/v1/movies/31"})
+	var d apiv1.MovieDetails
+	if err := json.Unmarshal(w.Body.Bytes(), &d); err != nil || d.Progress == nil || *d.Progress != 0.25 {
+		t.Errorf("progress %d: %+v, %v", w.Code, d.Progress, err)
+	}
+}
+
+func TestLibraryAddRemoveAdd(t *testing.T) {
+	setCreds(t, "", "")
+	stubTMDB(t)
+	conf := config.Get()
+	oldPath, oldInfo := conf.LibraryPath, conf.Info
+	conf.LibraryPath, conf.Info = t.TempDir(), &xbmc.AddonInfo{ID: "plugin.video.elementum", Profile: t.TempDir()}
+	t.Cleanup(func() {
+		conf.LibraryPath, conf.Info = oldPath, oldInfo
+		library.RemoveMovie(41, false)
+		database.GetStormDB().Drop(&database.LibraryItem{})
+	})
+	e := newEngine()
+	for i, step := range []struct{ method string }{{"POST"}, {"POST"}, {"DELETE"}, {"POST"}} {
+		if w := do(e, request{method: step.method, path: "/api/v1/library/movies/41"}); w.Code != 204 {
+			t.Fatalf("step %d %s: %d %s", i, step.method, w.Code, w.Body)
+		}
+		if want := step.method == "POST"; library.IsInLibrary(41, library.MovieType) != want {
+			t.Fatalf("step %d %s: in library = %v", i, step.method, !want)
+		}
 	}
 }

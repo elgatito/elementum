@@ -12,8 +12,6 @@ import (
 	"github.com/elgatito/elementum/bittorrent"
 )
 
-func ptr[T any](v T) *T { return &v }
-
 func TestToStream(t *testing.T) {
 	for name, tc := range map[string]struct {
 		in   bittorrent.TorrentFile

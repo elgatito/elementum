@@ -275,6 +275,77 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         default: { $ref: "#/components/responses/Error" }
 
+  /library/{media}/{tmdb_id}:
+    post:
+      tags: [library]
+      operationId: addToLibrary
+      summary: Add a movie or show to the Elementum library
+      description: |
+        Writes the library files like the Kodi "add to library" action (a movie removed earlier is added again), and syncs the linked tracker
+        when Elementum's settings ask for that. Adding an item that is already there is a no-op.
+        Kodi's library scan is not triggered; an Elementum-only library does not need it.
+      parameters:
+        - $ref: "#/components/parameters/MediaParam"
+        - $ref: "#/components/parameters/TmdbIdParam"
+      responses:
+        "204": { description: Added }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/AlreadyInLibrary" }
+        default: { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [library]
+      operationId: removeFromLibrary
+      summary: Remove a movie or show from the Elementum library
+      parameters:
+        - $ref: "#/components/parameters/MediaParam"
+        - $ref: "#/components/parameters/TmdbIdParam"
+      responses:
+        "204": { description: Removed }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /watched/{kind}:
+    post:
+      tags: [library]
+      operationId: markWatched
+      summary: Mark a movie, show, season or episode watched
+      description: |
+        Sets Elementum's local watched state and the linked tracker's, like the Kodi context menu.
+        `season` is required for `season` and `episode`, `episode` for `episode`.
+      parameters:
+        - $ref: "#/components/parameters/WatchedKindParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WatchedRequest" }
+      responses:
+        "204": { description: Marked }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/TrackerUnavailable" }
+        default: { $ref: "#/components/responses/Error" }
+    delete:
+      tags: [library]
+      operationId: markUnwatched
+      summary: Mark a movie, show, season or episode unwatched
+      parameters:
+        - $ref: "#/components/parameters/WatchedKindParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WatchedRequest" }
+      responses:
+        "204": { description: Marked }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/TrackerUnavailable" }
+        default: { $ref: "#/components/responses/Error" }
+
   /trakt/{media}/lists/{list}:
     get:
       tags: [trakt]
@@ -555,6 +626,11 @@ components:
       in: path
       required: true
       schema: { $ref: "#/components/schemas/MediaKind" }
+    WatchedKindParam:
+      name: kind
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/WatchedKind" }
     GenreParam:
       name: genre
       in: query
@@ -606,6 +682,12 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
           example: { error: { code: tracker_not_authorized, message: "no tracker account is linked" } }
+    AlreadyInLibrary:
+      description: The item is already in the Kodi library, outside Elementum's own (`already_in_library`). Adding it again would duplicate it.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+          example: { error: { code: already_in_library, message: "already in the Kodi library" } }
     ProvidersUnavailable:
       description: Kodi or the search providers can't be reached (`providers_unavailable`)
       content:
@@ -639,6 +721,7 @@ components:
         - forbidden
         - not_found
         - tracker_not_authorized
+        - already_in_library
         - tracker_unsupported
         - providers_unavailable
         - playback_failed
@@ -674,6 +757,16 @@ components:
     MediaType:
       type: string
       enum: [movie, show]
+    WatchedKind:
+      type: string
+      enum: [movie, show, season, episode]
+    WatchedRequest:
+      type: object
+      required: [tmdb_id]
+      properties:
+        tmdb_id: { type: integer, minimum: 1, description: "The movie's or the show's TMDB id.", example: 1396 }
+        season: { type: integer, minimum: 0, description: "Required for `season` and `episode`.", example: 1 }
+        episode: { type: integer, minimum: 1, description: "Required for `episode`.", example: 1 }
     MovieListName:
       type: string
       description: |
@@ -707,6 +800,11 @@ components:
           type: array
           items: { type: string }
           example: [Action, Science Fiction]
+        in_library: { type: boolean, nullable: true, description: "In the Elementum library." }
+        in_collection: { type: boolean, nullable: true, description: "In the tracker collection. Null without a synced tracker." }
+        in_watchlist: { type: boolean, nullable: true, description: "In the tracker watchlist. Null without a synced tracker." }
+        watched: { type: boolean, nullable: true, description: "Watched (a show: all of it). Null when unknown." }
+        progress: { type: number, format: float, minimum: 0, maximum: 1, nullable: true, description: "Resume point as a fraction of the runtime. Null when there is none." }
     MediaItemPage:
       type: object
       required: [items, page, limit, total_pages, total_results]
@@ -823,6 +921,8 @@ components:
         episode_count: { type: integer, example: 7 }
         air_date: { type: string, format: date, nullable: true, example: "2008-01-20" }
         poster: { type: string, format: uri, nullable: true }
+        watched: { type: boolean, nullable: true, description: "All `episode_count` episodes are watched, aired or not, so a running season stays false. Null when unknown." }
+        watched_episodes: { type: integer, nullable: true, description: "Count of watched episodes. Null when unknown." }
     Season:
       type: object
       required: [season_number, name, overview, air_date, poster, episodes]
@@ -846,6 +946,8 @@ components:
         still: { type: string, format: uri, nullable: true }
         runtime: { type: integer, nullable: true, description: Minutes., example: 58 }
         rating: { type: number, format: float, minimum: 0, maximum: 10, example: 8.3 }
+        watched: { type: boolean, nullable: true, description: "Null when unknown." }
+        resume_s: { type: number, format: float, nullable: true, description: "Resume position in seconds, null when there is none." }
 
     NextEpisode:
       type: object
@@ -933,8 +1035,8 @@ components:
           minimum: 1
           description: Movie id, or the show id for an episode.
           example: 603
-        season: { type: integer, minimum: 0, description: Required when `type` is `episode`. }
-        episode: { type: integer, minimum: 1, description: Required when `type` is `episode`. }
+        season: { type: integer, minimum: 0, description: "Required when `type` is `episode`." }
+        episode: { type: integer, minimum: 1, description: "Required when `type` is `episode`." }
         file_index:
           type: integer
           minimum: 0

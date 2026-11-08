@@ -104,6 +104,7 @@ type Episode struct {
 type Entity struct {
 	BackdropPath     string    `json:"backdrop_path"`
 	FirstAirDate     string    `json:"first_air_date"`
+	GenreIDs         []int     `json:"genre_ids,omitempty"` // list responses only
 	Genres           []*IDName `json:"genres"`
 	ID               int       `json:"id"`
 	IsAdult          bool      `json:"adult"`

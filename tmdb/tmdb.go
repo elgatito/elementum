@@ -3,11 +3,13 @@ package tmdb
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"math/rand/v2"
 	"net/url"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
@@ -516,6 +518,80 @@ func SetTrailer(entity *Entity, item *xbmc.ListItem) {
 				item.Info.Trailer = util.TrailerURL(trailer.Key)
 				break
 			}
+		}
+	}
+}
+
+// ListOption changes how the list fetchers build their items; the Kodi callers pass none.
+type ListOption int
+
+// Lite builds items from the list response alone, without a detail fetch per item. They carry only what
+// the list gives: ids, titles, overview, images, rating and genres. Overviews missing in the
+// requested language are filled from the same list page in en-US (one more cached request per page). This is best-effort: search pages can rank differently in en-US,
+// so some overviews may stay empty.
+const Lite ListOption = 1
+
+// liteGenres returns the genre names by id when opts has Lite, else nil.
+func liteGenres(opts []ListOption, fetch func() []*Genre) map[int]string {
+	if !slices.Contains(opts, Lite) {
+		return nil
+	}
+	gs := fetch()
+	if gs == nil { // genres unavailable: fall back to detail fetches
+		return nil
+	}
+	names := map[int]string{}
+	for _, g := range gs {
+		if g != nil {
+			names[g.ID] = g.Name
+		}
+	}
+	return names
+}
+
+// lite copies a list entry, replacing its genre ids with named genres.
+func (e *Entity) lite(names map[int]string) *Entity {
+	c := *e
+	c.Genres = nil
+	for _, id := range e.GenreIDs {
+		if n, ok := names[id]; ok {
+			c.Genres = append(c.Genres, &IDName{ID: id, Name: n})
+		}
+	}
+	c.GenreIDs = nil
+	return &c
+}
+
+// fillOverviews fills empty overviews of a list page from the same page in en-US, as the detail mapping falls back
+// to the English translation. It makes one cached request, and only when something is missing.
+func fillOverviews(endpoint string, pageParams napping.Params, entities []*Entity, expire time.Duration) {
+	missing := false
+	for _, e := range entities {
+		missing = missing || (e != nil && e.Overview == "")
+	}
+	if !missing || strings.HasPrefix(pageParams["language"], "en") {
+		return
+	}
+	en := napping.Params{"language": "en-US"}
+	maps.Copy(en, pageParams)
+	en["language"] = "en-US"
+	var results *EntityList
+	req := reqapi.Request{
+		API: reqapi.TMDBAPI, URL: fmt.Sprintf("/%s", endpoint), Params: en.AsUrlValues(), Result: &results,
+		Description: "list overviews", Cache: true, CacheExpire: expire,
+	}
+	if err := req.Do(); err != nil || results == nil {
+		return
+	}
+	byID := map[int]string{}
+	for _, e := range results.Results {
+		if e != nil {
+			byID[e.ID] = e.Overview
+		}
+	}
+	for _, e := range entities {
+		if e != nil && e.Overview == "" {
+			e.Overview = byID[e.ID]
 		}
 	}
 }

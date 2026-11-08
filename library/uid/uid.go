@@ -120,7 +120,13 @@ func HasMovies() bool {
 }
 
 func HasShows() bool {
-	return l != nil && len(l.Shows) > 0
+	if l == nil {
+		return false
+	}
+	mu := l.GetMutex(ShowsMutex)
+	mu.RLock()
+	defer mu.RUnlock()
+	return len(l.Shows) > 0
 }
 
 // GetUIDsFromKodi returns UIDs object for provided Kodi ID

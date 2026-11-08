@@ -19,6 +19,7 @@ import (
 
 // Defines values for ErrorCode.
 const (
+	ErrorCodeAlreadyInLibrary     ErrorCode = "already_in_library"
 	ErrorCodeBadRequest           ErrorCode = "bad_request"
 	ErrorCodeForbidden            ErrorCode = "forbidden"
 	ErrorCodeInternalError        ErrorCode = "internal_error"
@@ -34,6 +35,8 @@ const (
 // Valid indicates whether the value is a known member of the ErrorCode enum.
 func (e ErrorCode) Valid() bool {
 	switch e {
+	case ErrorCodeAlreadyInLibrary:
+		return true
 	case ErrorCodeBadRequest:
 		return true
 	case ErrorCodeForbidden:
@@ -365,6 +368,30 @@ func (e TraktChartName) Valid() bool {
 	}
 }
 
+// Defines values for WatchedKind.
+const (
+	WatchedKindEpisode WatchedKind = "episode"
+	WatchedKindMovie   WatchedKind = "movie"
+	WatchedKindSeason  WatchedKind = "season"
+	WatchedKindShow    WatchedKind = "show"
+)
+
+// Valid indicates whether the value is a known member of the WatchedKind enum.
+func (e WatchedKind) Valid() bool {
+	switch e {
+	case WatchedKindEpisode:
+		return true
+	case WatchedKindMovie:
+		return true
+	case WatchedKindSeason:
+		return true
+	case WatchedKindShow:
+		return true
+	default:
+		return false
+	}
+}
+
 // CastMember defines model for CastMember.
 type CastMember struct {
 	// Character Example: Neo
@@ -424,6 +451,9 @@ type Episode struct {
 	// Rating Example: 8.3
 	Rating float32 `json:"rating"`
 
+	// ResumeS Resume position in seconds, null when there is none.
+	ResumeS *float32 `json:"resume_s,omitempty"`
+
 	// Runtime Minutes.
 	//
 	// Example: 58
@@ -435,6 +465,9 @@ type Episode struct {
 
 	// TmdbId Example: 62085
 	TmdbId int `json:"tmdb_id"`
+
+	// Watched Null when unknown.
+	Watched *bool `json:"watched,omitempty"`
 }
 
 // Error defines model for Error.
@@ -497,11 +530,23 @@ type MediaItem struct {
 	// Genres Example: ["Action","Science Fiction"]
 	Genres []string `json:"genres"`
 
+	// InCollection In the tracker collection. Null without a synced tracker.
+	InCollection *bool `json:"in_collection,omitempty"`
+
+	// InLibrary In the Elementum library.
+	InLibrary *bool `json:"in_library,omitempty"`
+
+	// InWatchlist In the tracker watchlist. Null without a synced tracker.
+	InWatchlist *bool `json:"in_watchlist,omitempty"`
+
 	// Overview Example: Set in the 22nd century, ...
 	Overview string `json:"overview"`
 
 	// Poster Example: https://image.tmdb.org/t/p/w342/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg
 	Poster *string `json:"poster"`
+
+	// Progress Resume point as a fraction of the runtime. Null when there is none.
+	Progress *float32 `json:"progress,omitempty"`
 
 	// Rating Example: 8.2
 	Rating float32 `json:"rating"`
@@ -512,6 +557,9 @@ type MediaItem struct {
 	// TmdbId Example: 603
 	TmdbId int       `json:"tmdb_id"`
 	Type   MediaType `json:"type"`
+
+	// Watched Watched (a show: all of it). Null when unknown.
+	Watched *bool `json:"watched,omitempty"`
 
 	// Year Example: 1999
 	Year *int `json:"year"`
@@ -559,6 +607,15 @@ type MovieDetails struct {
 	Genres []string `json:"genres"`
 	Images Images   `json:"images"`
 
+	// InCollection In the tracker collection. Null without a synced tracker.
+	InCollection *bool `json:"in_collection,omitempty"`
+
+	// InLibrary In the Elementum library.
+	InLibrary *bool `json:"in_library,omitempty"`
+
+	// InWatchlist In the tracker watchlist. Null without a synced tracker.
+	InWatchlist *bool `json:"in_watchlist,omitempty"`
+
 	// OriginalTitle Example: The Matrix
 	OriginalTitle string `json:"original_title"`
 
@@ -567,6 +624,9 @@ type MovieDetails struct {
 
 	// Poster Example: https://image.tmdb.org/t/p/w342/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg
 	Poster *string `json:"poster"`
+
+	// Progress Resume point as a fraction of the runtime. Null when there is none.
+	Progress *float32 `json:"progress,omitempty"`
 
 	// Rating Example: 8.2
 	Rating float32 `json:"rating"`
@@ -589,6 +649,9 @@ type MovieDetails struct {
 	TmdbId int       `json:"tmdb_id"`
 	Type   MediaType `json:"type"`
 	Videos []Video   `json:"videos"`
+
+	// Watched Watched (a show: all of it). Null when unknown.
+	Watched *bool `json:"watched,omitempty"`
 
 	// Year Example: 1999
 	Year *int `json:"year"`
@@ -760,6 +823,12 @@ type SeasonSummary struct {
 
 	// SeasonNumber Example: 1
 	SeasonNumber int `json:"season_number"`
+
+	// Watched All `episode_count` episodes are watched, aired or not, so a running season stays false. Null when unknown.
+	Watched *bool `json:"watched,omitempty"`
+
+	// WatchedEpisodes Count of watched episodes. Null when unknown.
+	WatchedEpisodes *int `json:"watched_episodes,omitempty"`
 }
 
 // ShowDetails defines model for ShowDetails.
@@ -782,6 +851,15 @@ type ShowDetails struct {
 	Genres []string `json:"genres"`
 	Images Images   `json:"images"`
 
+	// InCollection In the tracker collection. Null without a synced tracker.
+	InCollection *bool `json:"in_collection,omitempty"`
+
+	// InLibrary In the Elementum library.
+	InLibrary *bool `json:"in_library,omitempty"`
+
+	// InWatchlist In the tracker watchlist. Null without a synced tracker.
+	InWatchlist *bool `json:"in_watchlist,omitempty"`
+
 	// NumberOfEpisodes Example: 62
 	NumberOfEpisodes int `json:"number_of_episodes"`
 
@@ -796,6 +874,9 @@ type ShowDetails struct {
 
 	// Poster Example: https://image.tmdb.org/t/p/w342/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg
 	Poster *string `json:"poster"`
+
+	// Progress Resume point as a fraction of the runtime. Null when there is none.
+	Progress *float32 `json:"progress,omitempty"`
 
 	// Rating Example: 8.2
 	Rating  float32         `json:"rating"`
@@ -814,6 +895,9 @@ type ShowDetails struct {
 	TmdbId int       `json:"tmdb_id"`
 	Type   MediaType `json:"type"`
 	Videos []Video   `json:"videos"`
+
+	// Watched Watched (a show: all of it). Null when unknown.
+	Watched *bool `json:"watched,omitempty"`
 
 	// Year Example: 1999
 	Year *int `json:"year"`
@@ -942,6 +1026,27 @@ type Video struct {
 	Type string `json:"type"`
 }
 
+// WatchedKind defines model for WatchedKind.
+type WatchedKind string
+
+// WatchedRequest defines model for WatchedRequest.
+type WatchedRequest struct {
+	// Episode Required for `episode`.
+	//
+	// Example: 1
+	Episode *int `json:"episode,omitempty"`
+
+	// Season Required for `season` and `episode`.
+	//
+	// Example: 1
+	Season *int `json:"season,omitempty"`
+
+	// TmdbId The movie's or the show's TMDB id.
+	//
+	// Example: 1396
+	TmdbId int `json:"tmdb_id"`
+}
+
 // EpisodeParam Example: 1
 type EpisodeParam = int
 
@@ -969,8 +1074,14 @@ type SessionIdParam = string
 // TmdbIdParam Example: 603
 type TmdbIdParam = int
 
+// WatchedKindParam defines model for WatchedKindParam.
+type WatchedKindParam = WatchedKind
+
 // YearParam Example: 1999
 type YearParam = int
+
+// AlreadyInLibrary defines model for AlreadyInLibrary.
+type AlreadyInLibrary = Error
 
 // BadRequest defines model for BadRequest.
 type BadRequest = Error
@@ -1172,6 +1283,12 @@ type CreatePlaybackJSONRequestBody = PlaybackRequest
 // ReportPlaybackProgressJSONRequestBody defines body for ReportPlaybackProgress for application/json ContentType.
 type ReportPlaybackProgressJSONRequestBody = PlaybackProgress
 
+// MarkUnwatchedJSONRequestBody defines body for MarkUnwatched for application/json ContentType.
+type MarkUnwatchedJSONRequestBody = WatchedRequest
+
+// MarkWatchedJSONRequestBody defines body for MarkWatched for application/json ContentType.
+type MarkWatchedJSONRequestBody = WatchedRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// ListLibraryMovies Movies in the Elementum library
@@ -1180,6 +1297,12 @@ type ServerInterface interface {
 	// ListLibraryShows Shows in the Elementum library
 	// (GET /library/shows)
 	ListLibraryShows(c *gin.Context, params ListLibraryShowsParams)
+	// RemoveFromLibrary Remove a movie or show from the Elementum library
+	// (DELETE /library/{media}/{tmdb_id})
+	RemoveFromLibrary(c *gin.Context, media MediaParam, tmdbId TmdbIdParam)
+	// AddToLibrary Add a movie or show to the Elementum library
+	// (POST /library/{media}/{tmdb_id})
+	AddToLibrary(c *gin.Context, media MediaParam, tmdbId TmdbIdParam)
 	// ListMovieGenres Movie genres
 	// (GET /movies/genres)
 	ListMovieGenres(c *gin.Context, params ListMovieGenresParams)
@@ -1246,6 +1369,12 @@ type ServerInterface interface {
 	// ListTraktChart Public Trakt chart (no Trakt account needed)
 	// (GET /trakt/{media}/lists/{list})
 	ListTraktChart(c *gin.Context, media MediaParam, list TraktChartName, params ListTraktChartParams)
+	// MarkUnwatched Mark a movie, show, season or episode unwatched
+	// (DELETE /watched/{kind})
+	MarkUnwatched(c *gin.Context, kind WatchedKindParam)
+	// MarkWatched Mark a movie, show, season or episode watched
+	// (POST /watched/{kind})
+	MarkWatched(c *gin.Context, kind WatchedKindParam)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -1341,6 +1470,74 @@ func (siw *ServerInterfaceWrapper) ListLibraryShows(c *gin.Context) {
 	}
 
 	siw.Handler.ListLibraryShows(c, params)
+}
+
+// RemoveFromLibrary operation middleware
+func (siw *ServerInterfaceWrapper) RemoveFromLibrary(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "media" -------------
+	var media MediaParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "media", c.Param("media"), &media, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter media: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "tmdb_id" -------------
+	var tmdbId TmdbIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tmdb_id", c.Param("tmdb_id"), &tmdbId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter tmdb_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.RemoveFromLibrary(c, media, tmdbId)
+}
+
+// AddToLibrary operation middleware
+func (siw *ServerInterfaceWrapper) AddToLibrary(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "media" -------------
+	var media MediaParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "media", c.Param("media"), &media, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter media: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Path parameter "tmdb_id" -------------
+	var tmdbId TmdbIdParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tmdb_id", c.Param("tmdb_id"), &tmdbId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter tmdb_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.AddToLibrary(c, media, tmdbId)
 }
 
 // ListMovieGenres operation middleware
@@ -2233,6 +2430,56 @@ func (siw *ServerInterfaceWrapper) ListTraktChart(c *gin.Context) {
 	siw.Handler.ListTraktChart(c, media, list, params)
 }
 
+// MarkUnwatched operation middleware
+func (siw *ServerInterfaceWrapper) MarkUnwatched(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "kind" -------------
+	var kind WatchedKindParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "kind", c.Param("kind"), &kind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter kind: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.MarkUnwatched(c, kind)
+}
+
+// MarkWatched operation middleware
+func (siw *ServerInterfaceWrapper) MarkWatched(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "kind" -------------
+	var kind WatchedKindParam
+
+	err = runtime.BindStyledParameterWithOptions("simple", "kind", c.Param("kind"), &kind, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter kind: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.MarkWatched(c, kind)
+}
+
 // GinServerOptions provides options for the Gin server.
 type GinServerOptions struct {
 	BaseURL      string
@@ -2273,6 +2520,10 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/search", wrapper.Search)
 	router.GET(options.BaseURL+"/library/movies", wrapper.ListLibraryMovies)
 	router.GET(options.BaseURL+"/library/shows", wrapper.ListLibraryShows)
+	router.DELETE(options.BaseURL+"/library/:media/:tmdb_id", wrapper.RemoveFromLibrary)
+	router.POST(options.BaseURL+"/library/:media/:tmdb_id", wrapper.AddToLibrary)
+	router.DELETE(options.BaseURL+"/watched/:kind", wrapper.MarkUnwatched)
+	router.POST(options.BaseURL+"/watched/:kind", wrapper.MarkWatched)
 	router.GET(options.BaseURL+"/trakt/:media/lists/:list", wrapper.ListTraktChart)
 	router.GET(options.BaseURL+"/tracker/:media/watchlist", wrapper.ListTrackerWatchlist)
 	router.GET(options.BaseURL+"/tracker/:media/collection", wrapper.ListTrackerCollection)
@@ -2285,6 +2536,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/playback/:id/progress", wrapper.ReportPlaybackProgress)
 	router.GET(options.BaseURL+"/stream/:id/:file_index", wrapper.GetStream)
 }
+
+type AlreadyInLibraryJSONResponse Error
 
 type BadRequestJSONResponse Error
 
@@ -2397,6 +2650,158 @@ type ListLibraryShowsdefaultJSONResponse struct {
 }
 
 func (response ListLibraryShowsdefaultJSONResponse) VisitListLibraryShowsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveFromLibraryRequestObject struct {
+	Media  MediaParam  `json:"media"`
+	TmdbId TmdbIdParam `json:"tmdb_id"`
+}
+
+type RemoveFromLibraryResponseObject interface {
+	VisitRemoveFromLibraryResponse(w http.ResponseWriter) error
+}
+
+type RemoveFromLibrary204Response struct {
+}
+
+func (response RemoveFromLibrary204Response) VisitRemoveFromLibraryResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveFromLibrary400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response RemoveFromLibrary400JSONResponse) VisitRemoveFromLibraryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveFromLibrary401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response RemoveFromLibrary401JSONResponse) VisitRemoveFromLibraryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveFromLibrarydefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response RemoveFromLibrarydefaultJSONResponse) VisitRemoveFromLibraryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddToLibraryRequestObject struct {
+	Media  MediaParam  `json:"media"`
+	TmdbId TmdbIdParam `json:"tmdb_id"`
+}
+
+type AddToLibraryResponseObject interface {
+	VisitAddToLibraryResponse(w http.ResponseWriter) error
+}
+
+type AddToLibrary204Response struct {
+}
+
+func (response AddToLibrary204Response) VisitAddToLibraryResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AddToLibrary400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AddToLibrary400JSONResponse) VisitAddToLibraryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddToLibrary401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response AddToLibrary401JSONResponse) VisitAddToLibraryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddToLibrary404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AddToLibrary404JSONResponse) VisitAddToLibraryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddToLibrary409JSONResponse struct{ AlreadyInLibraryJSONResponse }
+
+func (response AddToLibrary409JSONResponse) VisitAddToLibraryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddToLibrarydefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response AddToLibrarydefaultJSONResponse) VisitAddToLibraryResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -3950,6 +4355,158 @@ func (response ListTraktChartdefaultJSONResponse) VisitListTraktChartResponse(w 
 	return err
 }
 
+type MarkUnwatchedRequestObject struct {
+	Kind WatchedKindParam `json:"kind"`
+	Body *MarkUnwatchedJSONRequestBody
+}
+
+type MarkUnwatchedResponseObject interface {
+	VisitMarkUnwatchedResponse(w http.ResponseWriter) error
+}
+
+type MarkUnwatched204Response struct {
+}
+
+func (response MarkUnwatched204Response) VisitMarkUnwatchedResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type MarkUnwatched400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response MarkUnwatched400JSONResponse) VisitMarkUnwatchedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkUnwatched401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response MarkUnwatched401JSONResponse) VisitMarkUnwatchedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkUnwatched409JSONResponse struct{ TrackerUnavailableJSONResponse }
+
+func (response MarkUnwatched409JSONResponse) VisitMarkUnwatchedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkUnwatcheddefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response MarkUnwatcheddefaultJSONResponse) VisitMarkUnwatchedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkWatchedRequestObject struct {
+	Kind WatchedKindParam `json:"kind"`
+	Body *MarkWatchedJSONRequestBody
+}
+
+type MarkWatchedResponseObject interface {
+	VisitMarkWatchedResponse(w http.ResponseWriter) error
+}
+
+type MarkWatched204Response struct {
+}
+
+func (response MarkWatched204Response) VisitMarkWatchedResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type MarkWatched400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response MarkWatched400JSONResponse) VisitMarkWatchedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkWatched401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response MarkWatched401JSONResponse) VisitMarkWatchedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkWatched409JSONResponse struct{ TrackerUnavailableJSONResponse }
+
+func (response MarkWatched409JSONResponse) VisitMarkWatchedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type MarkWatcheddefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response MarkWatcheddefaultJSONResponse) VisitMarkWatchedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// ListLibraryMovies Movies in the Elementum library
@@ -3958,6 +4515,12 @@ type StrictServerInterface interface {
 	// ListLibraryShows Shows in the Elementum library
 	// (GET /library/shows)
 	ListLibraryShows(ctx context.Context, request ListLibraryShowsRequestObject) (ListLibraryShowsResponseObject, error)
+	// RemoveFromLibrary Remove a movie or show from the Elementum library
+	// (DELETE /library/{media}/{tmdb_id})
+	RemoveFromLibrary(ctx context.Context, request RemoveFromLibraryRequestObject) (RemoveFromLibraryResponseObject, error)
+	// AddToLibrary Add a movie or show to the Elementum library
+	// (POST /library/{media}/{tmdb_id})
+	AddToLibrary(ctx context.Context, request AddToLibraryRequestObject) (AddToLibraryResponseObject, error)
 	// ListMovieGenres Movie genres
 	// (GET /movies/genres)
 	ListMovieGenres(ctx context.Context, request ListMovieGenresRequestObject) (ListMovieGenresResponseObject, error)
@@ -4024,6 +4587,12 @@ type StrictServerInterface interface {
 	// ListTraktChart Public Trakt chart (no Trakt account needed)
 	// (GET /trakt/{media}/lists/{list})
 	ListTraktChart(ctx context.Context, request ListTraktChartRequestObject) (ListTraktChartResponseObject, error)
+	// MarkUnwatched Mark a movie, show, season or episode unwatched
+	// (DELETE /watched/{kind})
+	MarkUnwatched(ctx context.Context, request MarkUnwatchedRequestObject) (MarkUnwatchedResponseObject, error)
+	// MarkWatched Mark a movie, show, season or episode watched
+	// (POST /watched/{kind})
+	MarkWatched(ctx context.Context, request MarkWatchedRequestObject) (MarkWatchedResponseObject, error)
 }
 
 type StrictHandlerFunc func(ctx *gin.Context, request any) (any, error)
@@ -4128,6 +4697,60 @@ func (sh *strictHandler) ListLibraryShows(ctx *gin.Context, params ListLibrarySh
 		sh.options.HandlerErrorFunc(ctx, err)
 	} else if validResponse, ok := response.(ListLibraryShowsResponseObject); ok {
 		if err := validResponse.VisitListLibraryShowsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveFromLibrary operation middleware
+func (sh *strictHandler) RemoveFromLibrary(ctx *gin.Context, media MediaParam, tmdbId TmdbIdParam) {
+	var request RemoveFromLibraryRequestObject
+
+	request.Media = media
+	request.TmdbId = tmdbId
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveFromLibrary(ctx, request.(RemoveFromLibraryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveFromLibrary")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(RemoveFromLibraryResponseObject); ok {
+		if err := validResponse.VisitRemoveFromLibraryResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddToLibrary operation middleware
+func (sh *strictHandler) AddToLibrary(ctx *gin.Context, media MediaParam, tmdbId TmdbIdParam) {
+	var request AddToLibraryRequestObject
+
+	request.Media = media
+	request.TmdbId = tmdbId
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AddToLibrary(ctx, request.(AddToLibraryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddToLibrary")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(AddToLibraryResponseObject); ok {
+		if err := validResponse.VisitAddToLibraryResponse(ctx.Writer); err != nil {
 			sh.options.ResponseErrorHandlerFunc(ctx, err)
 		}
 	} else if response != nil {
@@ -4745,6 +5368,94 @@ func (sh *strictHandler) ListTraktChart(ctx *gin.Context, media MediaParam, list
 		sh.options.HandlerErrorFunc(ctx, err)
 	} else if validResponse, ok := response.(ListTraktChartResponseObject); ok {
 		if err := validResponse.VisitListTraktChartResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// MarkUnwatched operation middleware
+func (sh *strictHandler) MarkUnwatched(ctx *gin.Context, kind WatchedKindParam) {
+	var request MarkUnwatchedRequestObject
+
+	request.Kind = kind
+
+	var body MarkUnwatchedJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.MarkUnwatched(ctx, request.(MarkUnwatchedRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "MarkUnwatched")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(MarkUnwatchedResponseObject); ok {
+		if err := validResponse.VisitMarkUnwatchedResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// MarkWatched operation middleware
+func (sh *strictHandler) MarkWatched(ctx *gin.Context, kind WatchedKindParam) {
+	var request MarkWatchedRequestObject
+
+	request.Kind = kind
+
+	var body MarkWatchedJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.MarkWatched(ctx, request.(MarkWatchedRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "MarkWatched")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(MarkWatchedResponseObject); ok {
+		if err := validResponse.VisitMarkWatchedResponse(ctx.Writer); err != nil {
 			sh.options.ResponseErrorHandlerFunc(ctx, err)
 		}
 	} else if response != nil {

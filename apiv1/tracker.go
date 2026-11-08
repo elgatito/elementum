@@ -127,7 +127,7 @@ func mediaItems(refs []ref, movies bool, lang string) []MediaItem {
 			items = append(items, *i)
 		}
 	}
-	return items
+	return annotate(items)
 }
 
 func (Server) ListLibraryMovies(_ context.Context, req ListLibraryMoviesRequestObject) (ListLibraryMoviesResponseObject, error) {

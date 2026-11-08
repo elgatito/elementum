@@ -1398,6 +1398,31 @@ func (btp *Player) FetchStoredResume() {
 	}
 
 	database.GetCache().GetCachedObject(database.CommonBucket, key, btp.p.StoredResume)
+	if k := btp.tmdbResumeKey(); k != "" && btp.p.StoredResume.Position == 0 {
+		database.GetCache().GetCachedObject(database.CommonBucket, k, btp.p.StoredResume)
+	}
+}
+
+// TMDBResumeKey is the stored-resume key of a movie, or of a show's episode, by TMDB id. API sessions keep it
+// next to the per-file key, so a client can find a resume point without knowing the torrent.
+func TMDBResumeKey(episode bool, id, season, ep int) string {
+	if episode {
+		return fmt.Sprintf("stored.resume.tmdb.s%d_%d_%d", id, season, ep)
+	}
+	return fmt.Sprintf("stored.resume.tmdb.m%d", id)
+}
+
+// tmdbResumeKey is the player's TMDBResumeKey, "" outside External mode (Kodi keeps only the per-file key).
+func (btp *Player) tmdbResumeKey() string {
+	switch {
+	case !btp.p.External:
+		return ""
+	case btp.p.ContentType == episodeType && btp.p.ShowID != 0:
+		return TMDBResumeKey(true, btp.p.ShowID, btp.p.Season, btp.p.Episode)
+	case btp.p.ContentType == movieType && btp.p.TMDBId != 0:
+		return TMDBResumeKey(false, btp.p.TMDBId, 0, 0)
+	}
+	return ""
 }
 
 // SaveStoredResume ...
@@ -1415,8 +1440,14 @@ func (btp *Player) SaveStoredResume() {
 		return
 	} else if btp.IsWatched() || btp.p.StoredResume.Position < 180 {
 		database.GetCache().Delete(database.CommonBucket, key)
+		if k := btp.tmdbResumeKey(); k != "" {
+			database.GetCache().Delete(database.CommonBucket, k)
+		}
 	} else {
 		database.GetCache().SetCachedObject(database.CommonBucket, storedResumeExpiration, key, btp.p.StoredResume)
+		if k := btp.tmdbResumeKey(); k != "" {
+			database.GetCache().SetCachedObject(database.CommonBucket, storedResumeExpiration, k, btp.p.StoredResume)
+		}
 	}
 }
 

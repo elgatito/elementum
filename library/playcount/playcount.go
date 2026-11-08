@@ -116,3 +116,20 @@ func (w WatchedState) Int() (r int) {
 
 	return
 }
+
+// Set marks an item watched or unwatched in the in-memory state; the next library refresh rebuilds it from
+// the Kodi library and the tracker's watched lists. Keys have the same shape as the Get* lookups.
+// ids: a movie or show has its TMDB id; a season adds the season; an episode adds season and episode.
+func Set(mediaType int, watched bool, ids ...int) {
+	format := fmt.Sprintf("%d_%d", mediaType, TMDBScraper)
+	for _, id := range ids {
+		format += fmt.Sprintf("_%d", id)
+	}
+	Mu.Lock()
+	defer Mu.Unlock()
+	if watched {
+		Watched[xxhash.Sum64String(format)] = true
+	} else {
+		delete(Watched, xxhash.Sum64String(format))
+	}
+}
