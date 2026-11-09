@@ -25,7 +25,7 @@ func GetEpisode(showID int, seasonNumber int, episodeNumber int, language string
 	defer perf.ScopeTimer()()
 
 	var episode *Episode
-	languagesList := GetUserLanguages()
+	languagesList := GetUserLanguages(language)
 
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,

@@ -490,16 +490,21 @@ func SetLocalizedArt(video *Entity, item *xbmc.ListItem) {
 	}
 }
 
-// GetUserLanguages returns list of user languages to be used with include_*_language query parameters
-func GetUserLanguages() (languagesList string) {
-	// Always use user's language
-	languagesList = config.Get().Language
+// GetUserLanguages returns list of languages to be used with include_*_language query parameters.
+// language is the requested one (Kodi passes the configured language, the API the caller's lang).
+func GetUserLanguages(language string) (languagesList string) {
+	// TMDB image languages are ISO 639-1, drop a region like in "de-DE" or "de_DE"
+	language, _, _ = strings.Cut(strings.ReplaceAll(language, "_", "-"), "-")
+	if language == "" {
+		language = config.Get().Language
+	}
+	languagesList = language
 	// Add second language as fallback
-	if config.Get().SecondLanguage != "" {
-		languagesList = fmt.Sprintf("%s,%s", languagesList, config.Get().SecondLanguage)
+	if s := config.Get().SecondLanguage; s != "" && s != language {
+		languagesList = fmt.Sprintf("%s,%s", languagesList, s)
 	}
 	// Add English as fallback
-	if config.Get().Language != "en" && config.Get().SecondLanguage != "en" {
+	if language != "en" && config.Get().SecondLanguage != "en" {
 		languagesList = fmt.Sprintf("%s,en", languagesList)
 	}
 	// Always add "no text" images

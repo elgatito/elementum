@@ -37,11 +37,11 @@ func LogError(err error) {
 }
 
 // GetShowImages ...
-func GetShowImages(showID int) *Images {
+func GetShowImages(showID int, language string) *Images {
 	defer perf.ScopeTimer()()
 
 	var images *Images
-	languagesList := GetUserLanguages()
+	languagesList := GetUserLanguages(language)
 
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
@@ -63,11 +63,11 @@ func GetShowImages(showID int) *Images {
 }
 
 // GetSeasonImages ...
-func GetSeasonImages(showID int, season int) *Images {
+func GetSeasonImages(showID int, season int, language string) *Images {
 	defer perf.ScopeTimer()()
 
 	var images *Images
-	languagesList := GetUserLanguages()
+	languagesList := GetUserLanguages(language)
 
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
@@ -89,11 +89,11 @@ func GetSeasonImages(showID int, season int) *Images {
 }
 
 // GetEpisodeImages ...
-func GetEpisodeImages(showID, season, episode int) *Images {
+func GetEpisodeImages(showID, season, episode int, language string) *Images {
 	defer perf.ScopeTimer()()
 
 	var images *Images
-	languagesList := GetUserLanguages()
+	languagesList := GetUserLanguages(language)
 
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
@@ -128,7 +128,7 @@ func GetShow(showID int, language string) (show *Show) {
 
 	defer perf.ScopeTimer()()
 
-	languagesList := GetUserLanguages()
+	languagesList := GetUserLanguages(language)
 
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,

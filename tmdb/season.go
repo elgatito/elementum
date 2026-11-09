@@ -28,7 +28,7 @@ func GetSeason(showID int, seasonNumber int, language string, seasonsCount int, 
 	defer perf.ScopeTimer()()
 
 	var season *Season
-	languagesList := GetUserLanguages()
+	languagesList := GetUserLanguages(language)
 
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,

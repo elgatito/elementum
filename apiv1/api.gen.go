@@ -1377,7 +1377,8 @@ type ListLibraryMoviesParams struct {
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
@@ -1389,14 +1390,16 @@ type ListLibraryShowsParams struct {
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
 // ListMovieGenresParams defines parameters for ListMovieGenres.
 type ListMovieGenresParams struct {
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
@@ -1413,28 +1416,32 @@ type ListMoviesParams struct {
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
 // GetMovieParams defines parameters for GetMovie.
 type GetMovieParams struct {
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
 // GetPersonParams defines parameters for GetPerson.
 type GetPersonParams struct {
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
 // GetPersonCreditsParams defines parameters for GetPersonCredits.
 type GetPersonCreditsParams struct {
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
@@ -1448,14 +1455,16 @@ type SearchParams struct {
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
 // ListShowGenresParams defines parameters for ListShowGenres.
 type ListShowGenresParams struct {
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
@@ -1472,21 +1481,24 @@ type ListShowsParams struct {
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
 // GetShowParams defines parameters for GetShow.
 type GetShowParams struct {
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
 // GetSeasonParams defines parameters for GetSeason.
 type GetSeasonParams struct {
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
@@ -1513,7 +1525,8 @@ type ListTrackerListItemsParams struct {
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
@@ -1525,7 +1538,8 @@ type ListTrackerProgressParams struct {
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
@@ -1537,7 +1551,8 @@ type ListTrackerCollectionParams struct {
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
@@ -1549,7 +1564,8 @@ type ListTrackerWatchlistParams struct {
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
@@ -1561,7 +1577,8 @@ type ListTraktChartParams struct {
 	Limit *LimitParam `form:"limit,omitempty" json:"limit,omitempty"`
 
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
@@ -1577,7 +1594,8 @@ type GetUiEventsParams struct {
 	Wait *int `form:"wait,omitempty" json:"wait,omitempty"`
 
 	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-	// It does not affect images/logos, whose language comes from Elementum's config.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 

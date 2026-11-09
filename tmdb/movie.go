@@ -26,11 +26,11 @@ import (
 )
 
 // GetImages ...
-func GetImages(movieID int) *Images {
+func GetImages(movieID int, language string) *Images {
 	defer perf.ScopeTimer()()
 
 	var images *Images
-	languagesList := GetUserLanguages()
+	languagesList := GetUserLanguages(language)
 
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,
@@ -62,7 +62,7 @@ func GetMovieByID(movieID string, language string) *Movie {
 	defer perf.ScopeTimer()()
 
 	var movie *Movie
-	languagesList := GetUserLanguages()
+	languagesList := GetUserLanguages(language)
 
 	req := reqapi.Request{
 		API: reqapi.TMDBAPI,

@@ -785,7 +785,8 @@ components:
       in: query
       description: |
         Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
-        It does not affect images/logos, whose language comes from Elementum's config.
+        Images, logos and videos are also requested in this language first, then Elementum's second
+        language, English, and no language.
       schema: { type: string, pattern: "^[a-zA-Z]{2}([-_][a-zA-Z]{2})?$", example: "de-DE" }
     TmdbIdParam:
       name: tmdb_id
