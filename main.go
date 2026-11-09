@@ -321,7 +321,7 @@ func main() {
 		}
 	}()
 
-	go func() {
+	kodiStartup := func() {
 		xbmcHost, _ := xbmc.GetLocalXBMCHost()
 		if xbmcHost == nil || !xbmcHost.Ping() {
 			return
@@ -344,7 +344,30 @@ func main() {
 
 		xbmcHost.DialogProgressBGCleanup()
 		xbmcHost.ResetRPC()
-	}()
+	}
+	go kodiStartup()
+
+	// File mode can start before Kodi: wait for it once, then run the Kodi-dependent startup that was skipped.
+	if h, _ := xbmc.GetLocalXBMCHost(); h == nil && config.Args.ConfigPath != "" {
+		go func() {
+			for {
+				select {
+				case <-s.Closer.C():
+					return
+				case <-time.After(10 * time.Second):
+				}
+				// Kodi opens JSON-RPC before the add-on service: wait for both.
+				xbmc.ProbeLocalHost()
+				if !config.KodiConnected() {
+					continue
+				}
+				log.Info("Kodi appeared, running Kodi startup")
+				go kodiStartup() // its ping has no deadline, it must not hold up the library
+				library.InitKodi()
+				return
+			}
+		}()
+	}
 
 	tracker.Register(trakt.NewProvider())
 	tracker.Register(simkl.NewProvider())

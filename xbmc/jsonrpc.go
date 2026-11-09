@@ -41,25 +41,49 @@ var (
 
 func Init(externalIP string) {
 	mu.Lock()
-	defer mu.Unlock()
-
 	BehindNAT = externalIP != ""
-
 	XBMCHosts = []*XBMCHost{}
+	XBMCLocalHost = nil
+	mu.Unlock()
+
+	ProbeLocalHost()
+}
+
+// ProbeLocalHost registers the local Kodi as XBMCLocalHost if its JSON-RPC port answers.
+// Idempotent and safe to call repeatedly: does nothing when a local host is already known, so it also
+// picks up a Kodi that started after Elementum.
+func ProbeLocalHost() {
+	if h, _ := GetLocalXBMCHost(); h != nil {
+		return
+	}
+
 	for _, host := range []string{
 		"127.0.0.1",
 		"::1",
 	} {
-		if conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, XBMCJSONRPCPort), time.Second*3); err == nil {
-			XBMCLocalHost = &XBMCHost{host}
-			XBMCHosts = append(XBMCHosts, XBMCLocalHost)
-			conn.Close()
-			log.Debugf("Adding local host %s", host)
-			// Both loopbacks are the same Kodi, keep only the first one that answers
-			break
-		} else {
+		conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, XBMCJSONRPCPort), time.Second*3)
+		if err != nil {
 			log.Debugf("Could not connect to the host %s: %s", host, err)
+			continue
 		}
+		conn.Close()
+
+		mu.Lock()
+		defer mu.Unlock()
+		if XBMCLocalHost != nil { // lost the race to another prober
+			return
+		}
+		log.Debugf("Adding local host %s", host)
+		for _, h := range XBMCHosts { // the addon may have been registered already by its client IP
+			if h != nil && sameHost(h.Host, host) {
+				XBMCLocalHost = h
+				return
+			}
+		}
+		XBMCLocalHost = &XBMCHost{host}
+		XBMCHosts = append(XBMCHosts, XBMCLocalHost)
+		// Both loopbacks are the same Kodi, keep only the first one that answers
+		return
 	}
 }
 
@@ -104,7 +128,9 @@ func GetXBMCHosts() []*XBMCHost {
 
 func AddLocalXBMCHost(host string) (*XBMCHost, error) {
 	h, err := AddXBMCHost(host)
+	mu.Lock()
 	XBMCLocalHost = h
+	mu.Unlock()
 
 	return h, err
 }

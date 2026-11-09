@@ -1,11 +1,14 @@
 package providers
 
 import (
+	"net"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/tmdb"
+	"github.com/elgatito/elementum/xbmc"
 )
 
 type fakeEpisodeSearcher struct{ results []*bittorrent.TorrentFile }
@@ -48,5 +51,34 @@ func TestSearchEpisodeSilent(t *testing.T) {
 	}
 	if got[0].Multi || !got[1].Multi || got[1].Seeds != 7 {
 		t.Errorf("merge flags wrong: %+v %+v", got[0], got[1])
+	}
+}
+
+// Non-silent run with an unreachable Kodi (nil dialog): the progress reader used to stop and block the resolvers.
+func TestProcessLinksNonSilentNoHang(t *testing.T) {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Skip(err)
+	}
+	port := strconv.Itoa(l.Addr().(*net.TCPAddr).Port)
+	l.Close()
+	old := xbmc.XBMCExJSONRPCPort
+	xbmc.XBMCExJSONRPCPort = port
+	defer func() { xbmc.XBMCExJSONRPCPort = old }()
+
+	ch := make(chan *bittorrent.TorrentFile, 5)
+	for i := 0; i < 5; i++ {
+		ch <- &bittorrent.TorrentFile{URI: "magnet:?xt=urn:btih:012345678901234567890123456789012345678" + strconv.Itoa(i)}
+	}
+	close(ch)
+	done := make(chan struct{})
+	go func() {
+		processLinks(&xbmc.XBMCHost{Host: "127.0.0.1"}, ch, SortMovies, false)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(20 * time.Second):
+		t.Fatal("processLinks hung")
 	}
 }

@@ -21,11 +21,12 @@ type KodiHost struct {
 // KodiHosts lists connected Kodi instances, so Web UI can choose which one to use
 func KodiHosts(ctx *gin.Context) {
 	hosts := xbmc.GetXBMCHosts()
+	local, _ := xbmc.GetLocalXBMCHost()
 	ret := make([]KodiHost, len(hosts))
 
 	var wg sync.WaitGroup
 	for i, h := range hosts {
-		ret[i] = KodiHost{Host: h.Host, Local: h == xbmc.XBMCLocalHost}
+		ret[i] = KodiHost{Host: h.Host, Local: h == local}
 		// Unreachable Kodi delays the response by connection timeout, so ask all at once
 		wg.Go(func() {
 			ret[i].Name = h.InfoLabel("System.FriendlyName")

@@ -5,6 +5,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/anacrolix/sync"
@@ -14,7 +15,6 @@ import (
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/tmdb"
-	"github.com/elgatito/elementum/util/event"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -176,16 +176,9 @@ func processLinks(xbmcHost *xbmc.XBMCHost, torrentsChan chan *bittorrent.Torrent
 	torrents := make([]*bittorrent.TorrentFile, 0)
 
 	log.Info("Resolving torrent files...")
-	progress := 0
+	var progress atomic.Int32
 	progressTotal := 1
 	progressUpdate := make(chan string)
-	closed := event.Event{}
-
-	defer func() {
-		log.Debug("Closing progressupdate")
-		closed.Set()
-		close(progressUpdate)
-	}()
 
 	wg := sync.WaitGroup{}
 	for torrent := range torrentsChan {
@@ -215,12 +208,8 @@ func processLinks(xbmcHost *xbmc.XBMCHost, torrentsChan chan *bittorrent.Torrent
 				case <-failed:
 					return
 				case <-resolved:
-					if closed.IsSet() {
-						return
-					}
-
 					if !strings.HasPrefix(torrent.URI, "magnet") {
-						progress++
+						progress.Add(1)
 						progressUpdate <- "LOCALIZE[30117]"
 					} else {
 						progressUpdate <- "skip"
@@ -233,38 +222,26 @@ func processLinks(xbmcHost *xbmc.XBMCHost, torrentsChan chan *bittorrent.Torrent
 	}
 
 	var dialogProgressBG *xbmc.DialogProgressBG
-	if isSilent {
-		// Nothing shows progress, but the resolve goroutines still send to it.
-		go func() {
-			for range progressUpdate {
-			}
-		}()
-	} else {
+	if !isSilent {
 		dialogProgressBG = xbmcHost.NewDialogProgressBG("Elementum", "LOCALIZE[30117]", "LOCALIZE[30117]", "LOCALIZE[30118]")
-		go func() {
-			for {
-				select {
-				case <-time.After(trackerTimeout * 2):
-					return
-				case msg, ok := <-progressUpdate:
-					if !ok {
-						return
-					}
-					if dialogProgressBG != nil {
-						if msg != "skip" {
-							dialogProgressBG.Update(progress*100/progressTotal, "Elementum", msg)
-						}
-					} else {
-						return
-					}
-				}
-			}
-		}()
 	}
+	// Drain until closed so resolvers never block on send; the dialog is optional.
+	readerDone := make(chan struct{})
+	go func(dialog *xbmc.DialogProgressBG) {
+		defer close(readerDone)
+		for msg := range progressUpdate {
+			if dialog != nil && msg != "skip" {
+				dialog.Update(int(progress.Load())*100/progressTotal, "Elementum", msg)
+			}
+		}
+	}(dialogProgressBG)
 
 	wg.Wait()
+	// All senders are done, so closing is safe; wait for the reader before touching the dialog.
+	close(progressUpdate)
+	<-readerDone
 
-	if !isSilent && dialogProgressBG != nil {
+	if dialogProgressBG != nil {
 		dialogProgressBG.Update(100, "Elementum", "LOCALIZE[30117]")
 	}
 

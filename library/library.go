@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/anacrolix/missinggo/perf"
@@ -132,12 +133,24 @@ func InitDB() {
 
 // Init makes preparations on program start
 func Init() {
+	kodiInitDone.Store(false) // shared-library mode can start again in the same process
 	removedEpisodes = make(chan *removedEpisode)
 
 	InitDB()
 
+	// Started before the Kodi check, so RemoveEpisode never blocks on the unbuffered channel.
+	go removedEpisodesDebouncer()
+
+	InitKodi()
+}
+
+var kodiInitDone atomic.Bool
+
+// InitKodi runs the Kodi-dependent part of Init once; it is a no-op without a local Kodi,
+// so it can be called again when Kodi shows up later.
+func InitKodi() {
 	xbmcHost, _ := xbmc.GetLocalXBMCHost()
-	if xbmcHost == nil {
+	if xbmcHost == nil || !kodiInitDone.CompareAndSwap(false, true) {
 		return
 	}
 
@@ -165,92 +178,6 @@ func Init() {
 		RefreshLocal()
 		Refresh()
 		initialized = true
-	}()
-
-	// Removed episodes debouncer
-	go func() {
-		var episodes []*removedEpisode
-
-		closing := closer.C()
-		timer := time.NewTicker(3 * time.Second)
-		defer timer.Stop()
-		defer close(removedEpisodes)
-
-		for {
-			select {
-			case <-closing:
-				return
-
-			case <-timer.C:
-				if len(episodes) == 0 {
-					break
-				}
-
-				shows := make(map[string][]*removedEpisode, 0)
-				for _, episode := range episodes {
-					shows[episode.ShowName] = append(shows[episode.ShowName], episode)
-				}
-
-				var label string
-				var labels []string
-				if len(episodes) > 1 {
-					for showName, showEpisodes := range shows {
-						var libraryTotal int
-						if !uid.HasShows() {
-							break
-						}
-						show, err := uid.GetShowByTMDB(showEpisodes[0].ShowID)
-						if show != nil && err == nil {
-							libraryTotal = len(show.Episodes)
-						}
-						if libraryTotal == 0 {
-							break
-						}
-						if len(showEpisodes) == libraryTotal {
-							ID := strconv.Itoa(showEpisodes[0].ShowID)
-							if _, _, err := RemoveShow(ID, false); err != nil {
-								log.Error("Unable to remove show after removing all episodes...")
-							}
-						} else {
-							labels = append(labels, fmt.Sprintf("%d episodes of %s", len(showEpisodes), showName))
-						}
-
-						// Add single episodes to removed prefix
-						var tmdbIDs []int
-						for _, showEpisode := range showEpisodes {
-							tmdbIDs = append(tmdbIDs, showEpisode.ID)
-						}
-						if err := updateBatchDBItem(tmdbIDs, StateDeleted, EpisodeType, showEpisodes[0].ShowID); err != nil {
-							log.Error(err)
-						}
-					}
-					if len(labels) > 0 {
-						label = strings.Join(labels, ", ")
-						if xbmcHost != nil && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30278];;%s", label)) {
-							xbmcHost.VideoLibraryClean()
-						}
-					}
-				} else {
-					for showName, episode := range shows {
-						label = fmt.Sprintf("%s S%02dE%02d", showName, episode[0].Season, episode[0].Episode)
-						if err := updateDBItem(episode[0].ID, StateDeleted, EpisodeType, episode[0].ShowID); err != nil {
-							log.Error(err)
-						}
-					}
-					if xbmcHost != nil && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30278];;%s", label)) {
-						xbmcHost.VideoLibraryClean()
-					}
-				}
-
-				episodes = make([]*removedEpisode, 0)
-
-			case episode, ok := <-removedEpisodes:
-				if !ok {
-					break
-				}
-				episodes = append(episodes, episode)
-			}
-		}
 	}()
 
 	updateDelay := config.Get().UpdateDelay
@@ -1830,4 +1757,91 @@ func removeEpisodeDuplicates(xbmcHost *xbmc.XBMCHost) (int, error) {
 	}
 
 	return count, nil
+}
+
+// removedEpisodesDebouncer batches removed episodes and offers to clean the Kodi library.
+func removedEpisodesDebouncer() {
+	var episodes []*removedEpisode
+
+	closing := closer.C()
+	timer := time.NewTicker(3 * time.Second)
+	defer timer.Stop()
+	defer close(removedEpisodes)
+
+	for {
+		select {
+		case <-closing:
+			return
+
+		case <-timer.C:
+			if len(episodes) == 0 {
+				break
+			}
+
+			shows := make(map[string][]*removedEpisode, 0)
+			for _, episode := range episodes {
+				shows[episode.ShowName] = append(shows[episode.ShowName], episode)
+			}
+
+			xbmcHost, _ := xbmc.GetLocalXBMCHost()
+			var label string
+			var labels []string
+			if len(episodes) > 1 {
+				for showName, showEpisodes := range shows {
+					var libraryTotal int
+					if !uid.HasShows() {
+						break
+					}
+					show, err := uid.GetShowByTMDB(showEpisodes[0].ShowID)
+					if show != nil && err == nil {
+						libraryTotal = len(show.Episodes)
+					}
+					if libraryTotal == 0 {
+						break
+					}
+					if len(showEpisodes) == libraryTotal {
+						ID := strconv.Itoa(showEpisodes[0].ShowID)
+						if _, _, err := RemoveShow(ID, false); err != nil {
+							log.Error("Unable to remove show after removing all episodes...")
+						}
+					} else {
+						labels = append(labels, fmt.Sprintf("%d episodes of %s", len(showEpisodes), showName))
+					}
+
+					// Add single episodes to removed prefix
+					var tmdbIDs []int
+					for _, showEpisode := range showEpisodes {
+						tmdbIDs = append(tmdbIDs, showEpisode.ID)
+					}
+					if err := updateBatchDBItem(tmdbIDs, StateDeleted, EpisodeType, showEpisodes[0].ShowID); err != nil {
+						log.Error(err)
+					}
+				}
+				if len(labels) > 0 {
+					label = strings.Join(labels, ", ")
+					if xbmcHost != nil && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30278];;%s", label)) {
+						xbmcHost.VideoLibraryClean()
+					}
+				}
+			} else {
+				for showName, episode := range shows {
+					label = fmt.Sprintf("%s S%02dE%02d", showName, episode[0].Season, episode[0].Episode)
+					if err := updateDBItem(episode[0].ID, StateDeleted, EpisodeType, episode[0].ShowID); err != nil {
+						log.Error(err)
+					}
+				}
+				if xbmcHost != nil && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30278];;%s", label)) {
+					xbmcHost.VideoLibraryClean()
+				}
+			}
+
+			episodes = make([]*removedEpisode, 0)
+
+		case episode, ok := <-removedEpisodes:
+			if !ok {
+				break
+			}
+			episodes = append(episodes, episode)
+		}
+	}
 }
