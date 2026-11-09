@@ -181,6 +181,7 @@ By default Elementum reads its settings from Kodi. With `-configPath=<file>` (or
 - The API login does not come from the settings file: use `-localLogin` / `-localPassword` (in Kodi, the addon's Authorization "Remote host login/password", ids `remote_login` / `remote_password`, passed to the binary as those flags).
 - The file is JSON (`.json`) or YAML. A JSON file has a `"Version": 1` field (`settings-file-v1`); a newer version is rejected. `Info.ID`, `Info.Profile`, `Platform` and `Settings` are required.
 - If the file does not exist, a default one is created (mode `0600`) and a warning is logged. The addon writes the file for you when it starts the binary (plugin.video.elementum 0.1.120 and later).
+- Developers: the defaults without `-addonPath` come from `config/default_settings.xml`, a copy of the addon's `resources/settings.xml`. Refresh it with `ELEMENTUM_ADDON_PATH=<addon checkout> go generate ./config` (default `../plugin.video.elementum`); it is not run by the Makefile or Docker builds.
 - The file is polled every 2 s. A valid change reloads the settings; an invalid file is logged and the previous settings are kept. `GET /reload` re-reads it at once.
 - Write-back: tokens and other values Elementum changes at runtime (Trakt and OpenSubtitles tokens, expiries) are written into the file atomically (`.json` only), and into Kodi when it is connected. A change that only touches such keys does not restart services.
 - `GET /api/v1/system/info` reports `settings_source` (`file` or `kodi`) and `kodi_connected`.

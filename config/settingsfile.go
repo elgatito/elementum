@@ -453,6 +453,8 @@ func castDefault(typ, opt, def string) any {
 }
 
 // embeddedSettingsXML is a snapshot of the addon's resources/settings.xml, the fallback source of default settings.
+// Refresh it with `go generate ./config` (addon checkout from ELEMENTUM_ADDON_PATH, default ../plugin.video.elementum, next to the repo root).
 //
+//go:generate go run gen_settings.go
 //go:embed default_settings.xml
 var embeddedSettingsXML []byte
