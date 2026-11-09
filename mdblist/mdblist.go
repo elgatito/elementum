@@ -54,7 +54,10 @@ func (p *Provider) Authorized() bool {
 	return config.Get().MDBListAPIKey != "" || tracker.Credentials(p.ID()).Token != ""
 }
 
-func (p *Provider) Authorize() error   { return tracker.RunDeviceAuth(p, p.device) }
+func (p *Provider) Authorize() error { return tracker.RunDeviceAuth(p, p.device) }
+func (p *Provider) StartAuth() (*tracker.DeviceCode, error) {
+	return tracker.StartDeviceAuth(p, p.device)
+}
 func (p *Provider) Deauthorize() error { return tracker.DeauthorizeDevice(p, p.device) }
 
 // RefreshToken renews the 30-day OAuth token a day before expiry. API keys do not expire.

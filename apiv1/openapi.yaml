@@ -419,6 +419,41 @@ paths:
         "409": { $ref: "#/components/responses/TrackerUnavailable" }
         default: { $ref: "#/components/responses/Error" }
 
+  /tracker/authorize:
+    post:
+      tags: [tracker]
+      operationId: startTrackerAuth
+      summary: Start linking the tracker account selected in settings
+      description: |
+        Starts the tracker's device-code login without Kodi. The client shows `user_code` and `verification_url`
+        to the user, who approves it on another device. The server keeps polling the tracker for up to
+        `expires_in` seconds and saves the token; the outcome is also sent as a `notify` event.
+        The client learns the result by polling `GET /system/info` until `tracker.authorized` is true.
+        Allowed while already linked: a successful login replaces the token. A newer login cancels
+        the polling of the previous one; that includes one started from Kodi, such as Elementum's automatic
+        Trakt prompt when Kodi browses Trakt menus while unlinked.
+        409 `tracker_unsupported` also when Elementum runs with a settings file that is not JSON,
+        as the token could not be saved.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TrackerAuthCode" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409":
+          description: No tracker is selected, or it has no device-code login (`tracker_unsupported`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: { code: tracker_unsupported, message: "the selected tracker has no device-code login" } }
+        "502":
+          description: The tracker could not issue a code (`internal_error`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        default: { $ref: "#/components/responses/Error" }
+
   /tracker/lists:
     get:
       tags: [tracker]
@@ -1003,6 +1038,16 @@ components:
         id: { type: string, example: trakt }
         name: { type: string, example: Trakt }
         authorized: { type: boolean, description: An account is linked. }
+
+    TrackerAuthCode:
+      type: object
+      required: [tracker, user_code, verification_url, expires_in, interval]
+      properties:
+        tracker: { $ref: "#/components/schemas/TrackerInfo" }
+        user_code: { type: string, example: "A1B2C3D4" }
+        verification_url: { type: string, example: "https://trakt.tv/activate" }
+        expires_in: { type: integer, example: 600, description: Seconds until the code expires. }
+        interval: { type: integer, example: 5, description: Seconds between the server's polls of the tracker. }
 
     MediaKind:
       type: string

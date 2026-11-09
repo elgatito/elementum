@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/elgatito/elementum/broadcast"
@@ -81,18 +82,55 @@ func notify(format int, args ...any) {
 	ui.Toast(msg)
 }
 
-// RunDeviceAuth shows the device code to the user and polls for the token in background.
-// It returns after the dialog is closed; success or failure is notified when polling ends.
-func RunDeviceAuth(p Provider, f DeviceFlow) error {
+// DeviceAuthStarter is implemented by trackers that can start a device-code login without Kodi.
+// The returned code is for the user to enter; the token is saved in background once approved.
+type DeviceAuthStarter interface {
+	StartAuth() (*DeviceCode, error)
+}
+
+// minPollInterval is a var for tests.
+var minPollInterval = 5 * time.Second
+
+var (
+	authMu  sync.Mutex
+	authGen = map[string]uint64{}
+)
+
+// BeginAuth marks a new login of the tracker and returns a func telling whether it is still the latest,
+// so a poller of an earlier login can stop.
+func BeginAuth(id string) (current func() bool) {
+	authMu.Lock()
+	defer authMu.Unlock()
+	authGen[id]++
+	gen := authGen[id]
+	return func() bool {
+		authMu.Lock()
+		defer authMu.Unlock()
+		return authGen[id] == gen
+	}
+}
+
+// StartDeviceAuth requests a code and polls for the token in background; success or failure is notified when polling ends.
+func StartDeviceAuth(p Provider, f DeviceFlow) (*DeviceCode, error) {
 	code, err := f.RequestCode()
 	if err != nil {
 		log.Errorf("Could not get authorization code from %s: %s", p.Name(), err)
 		notify(strAuthFailed, p.Name())
-		return err
+		return nil, err
 	}
 	log.Noticef("Got %s code for %s: %s", p.Name(), code.VerificationURL, code.UserCode)
 
-	go pollDeviceToken(p, f, code)
+	go pollDeviceToken(p, f, code, BeginAuth(p.ID()))
+	return code, nil
+}
+
+// RunDeviceAuth shows the device code to the user and polls for the token in background.
+// It returns after the dialog is closed; success or failure is notified when polling ends.
+func RunDeviceAuth(p Provider, f DeviceFlow) error {
+	code, err := StartDeviceAuth(p, f)
+	if err != nil {
+		return err
+	}
 
 	if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
 		if !xbmcHost.Dialog(xbmcHost.GetLocalizedString(strAuthorizeTitle), fmt.Sprintf(xbmcHost.GetLocalizedString(strAuthorizeSteps), p.Name(), code.VerificationURL, code.UserCode)) {
@@ -102,8 +140,8 @@ func RunDeviceAuth(p Provider, f DeviceFlow) error {
 	return nil
 }
 
-func pollDeviceToken(p Provider, f DeviceFlow, code *DeviceCode) {
-	interval := time.Duration(max(code.Interval, 5)) * time.Second
+func pollDeviceToken(p Provider, f DeviceFlow, code *DeviceCode, current func() bool) {
+	interval := max(time.Duration(code.Interval)*time.Second, minPollInterval)
 	deadline := time.Now().Add(time.Duration(max(code.ExpiresIn, 60)) * time.Second)
 	closer := broadcast.Closer.C()
 
@@ -114,6 +152,9 @@ func pollDeviceToken(p Provider, f DeviceFlow, code *DeviceCode) {
 		case <-time.After(interval):
 		}
 
+		if !current() { // replaced by a newer login
+			return
+		}
 		token, err := f.PollToken(code)
 		if errors.Is(err, ErrSlowDown) {
 			interval += 5 * time.Second

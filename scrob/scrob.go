@@ -54,13 +54,21 @@ func (p *Provider) Authorized() bool {
 }
 
 func (p *Provider) Authorize() error {
+	p.refreshURL()
+	return tracker.RunDeviceAuth(p, p.flow())
+}
+
+func (p *Provider) StartAuth() (*tracker.DeviceCode, error) {
+	return tracker.StartDeviceAuth(p, p.flow())
+}
+
+func (p *Provider) refreshURL() {
 	// the address may have just been typed in settings, before the daemon reloaded them
 	if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
 		if u := strings.TrimSpace(xbmcHost.GetSettingString("scrob_url")); u != "" {
 			config.Get().ScrobURL = u
 		}
 	}
-	return tracker.RunDeviceAuth(p, p.flow())
 }
 
 func (p *Provider) Deauthorize() error { return tracker.DeauthorizeDevice(p, p.flow()) }

@@ -15,6 +15,7 @@ import (
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/library/uid"
+	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util/ident"
 	"github.com/elgatito/elementum/util/reqapi"
@@ -130,17 +131,26 @@ func GetCode() (code *Code, err error) {
 	return
 }
 
-// PollToken ...
-func PollToken(code *Code) (token *Token, err error) {
+// errSuperseded is returned by PollToken when a newer login replaced this one or the app is closing.
+var errSuperseded = errors.New("authorization superseded")
+
+// PollToken polls until the code is approved, fails, expires or current() turns false.
+func PollToken(code *Code, current func() bool) (token *Token, err error) {
 	startInterval := code.Interval
 	interval := time.NewTicker(time.Duration(startInterval) * time.Second)
 	defer interval.Stop()
 	expired := time.NewTicker(time.Duration(code.ExpiresIn) * time.Second)
 	defer expired.Stop()
 
+	closer := broadcast.Closer.C()
 	for {
 		select {
+		case <-closer:
+			return nil, errSuperseded
 		case <-interval.C:
+			if !current() {
+				return nil, errSuperseded
+			}
 			req := reqapi.Request{
 				API:         reqapi.TraktAPI,
 				Method:      "POST",
@@ -263,95 +273,83 @@ func RefreshToken() error {
 	return nil
 }
 
-// Authorize ...
-func Authorize(fromSettings bool) error {
-	if config.Args.ConfigPath != "" && !config.KodiConnected() {
-		return errors.New("Trakt device authorization needs Kodi to show the code")
-	}
+// StartAuthorize requests a device code and polls for the token in background, without needing Kodi.
+func StartAuthorize() (*Code, error) {
 	code, err := GetCode()
 	if err != nil || code == nil {
 		log.Errorf("Could not get authorization code from Trakt.tv: %s", err)
 		if err != nil {
 			ui.Toast(err.Error())
+			return nil, err
 		}
-		return err
+		return nil, errors.New("no authorization code")
 	}
 	log.Noticef("Got code for %s: %s", code.VerificationURL, code.UserCode)
 
+	current := tracker.BeginAuth("trakt")
 	go func(code *Code) {
-		cl := broadcast.Closer.C()
-		tick := time.NewTicker(time.Duration(5) * time.Second)
-		defer tick.Stop()
-
-		attempts := 0
-
-		for {
-			select {
-			case <-cl:
-				log.Error("Cancelling authorization due to closing application state")
-				return
-
-			case <-tick.C:
-				attempts++
-
-				if attempts > 30 {
-					ui.Toast("LOCALIZE[30651]")
-					return
-				}
-
-				token, err := PollToken(code)
-				log.Debugf("Received token: %#v, error: %v", token, err)
-
-				if err != nil {
-					continue
-				}
-
-				// Cleanup last activities to force requesting again
-				cacheStore := cache.NewDBStore()
-				_ = cacheStore.Set(fmt.Sprintf(cache.TraktActivitiesKey, ""), "", 1)
-
-				expiry := time.Now().Unix() + int64(token.ExpiresIn)
-				config.SetSetting("trakt_token_expiry", strconv.Itoa(int(expiry)))
-				config.SetSetting("trakt_token", token.AccessToken)
-				config.SetSetting("trakt_refresh_token", token.RefreshToken)
-
-				config.Get().TraktTokenExpiry = expiry
-				config.Get().TraktToken = token.AccessToken
-				config.Get().TraktRefreshToken = token.RefreshToken
-
-				// Getting username for currently authorized user
-				user := &UserSettings{}
-				req := reqapi.Request{
-					API:         reqapi.TraktAPI,
-					URL:         "users/settings",
-					Header:      GetAuthenticatedHeader(),
-					Params:      napping.Params{}.AsUrlValues(),
-					Result:      &user,
-					Description: "user settings",
-				}
-
-				if err = req.Do(); err != nil {
-					return
-				}
-				if req.ResponseStatusCode == 200 && user != nil && user.User.Ids.Slug != "" {
-					log.Debugf("Setting Trakt Username as %s", user.User.Ids.Slug)
-					config.SetSetting("trakt_username", user.User.Ids.Slug)
-				}
-
-				config.Reload()
-
-				ui.Toast("LOCALIZE[30650]")
-				return
-			}
+		token, err := PollToken(code, current)
+		if errors.Is(err, errSuperseded) {
+			return
+		} else if err != nil {
+			log.Warningf("Trakt authorization failed: %s", err)
+			ui.Toast("LOCALIZE[30651]")
+			return
 		}
+		log.Debugf("Received Trakt token")
+
+		// Cleanup last activities to force requesting again
+		cacheStore := cache.NewDBStore()
+		_ = cacheStore.Set(fmt.Sprintf(cache.TraktActivitiesKey, ""), "", 1)
+
+		expiry := time.Now().Unix() + int64(token.ExpiresIn)
+		config.SetSetting("trakt_token_expiry", strconv.Itoa(int(expiry)))
+		config.SetSetting("trakt_token", token.AccessToken)
+		config.SetSetting("trakt_refresh_token", token.RefreshToken)
+
+		config.Get().TraktTokenExpiry = expiry
+		config.Get().TraktToken = token.AccessToken
+		config.Get().TraktRefreshToken = token.RefreshToken
+
+		// Getting username for currently authorized user
+		user := &UserSettings{}
+		req := reqapi.Request{
+			API:         reqapi.TraktAPI,
+			URL:         "users/settings",
+			Header:      GetAuthenticatedHeader(),
+			Params:      napping.Params{}.AsUrlValues(),
+			Result:      &user,
+			Description: "user settings",
+		}
+
+		if err = req.Do(); err != nil {
+			return
+		}
+		if req.ResponseStatusCode == 200 && user != nil && user.User.Ids.Slug != "" {
+			log.Debugf("Setting Trakt Username as %s", user.User.Ids.Slug)
+			config.SetSetting("trakt_username", user.User.Ids.Slug)
+		}
+
+		config.Reload()
+
+		ui.Toast("LOCALIZE[30650]")
+		return
 	}(code)
+	return code, nil
+}
+
+// Authorize ...
+func Authorize(fromSettings bool) error {
+	if config.Args.ConfigPath != "" && !config.KodiConnected() {
+		return errors.New("Trakt device authorization needs Kodi to show the code")
+	}
+	code, err := StartAuthorize()
+	if err != nil {
+		return err
+	}
 
 	if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-		if code != nil {
-			if !xbmcHost.Dialog(xbmcHost.GetLocalizedString(30646), fmt.Sprintf(xbmcHost.GetLocalizedString(30649), code.VerificationURL, code.UserCode)) {
-				return errors.New("Authentication canceled")
-			}
-		} else {
+		if !xbmcHost.Dialog(xbmcHost.GetLocalizedString(30646), fmt.Sprintf(xbmcHost.GetLocalizedString(30649), code.VerificationURL, code.UserCode)) {
 			return errors.New("Authentication canceled")
 		}
 	}

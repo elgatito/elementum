@@ -20,7 +20,14 @@ func (p *Provider) Name() string                   { return "Trakt" }
 func (p *Provider) MinSyncInterval() time.Duration { return time.Minute }
 func (p *Provider) Authorized() bool               { return config.Get().TraktToken != "" }
 func (p *Provider) Authorize() error               { return Authorize(true) }
-func (p *Provider) Deauthorize() error             { return Deauthorize(true) }
+func (p *Provider) StartAuth() (*tracker.DeviceCode, error) {
+	c, err := StartAuthorize()
+	if err != nil {
+		return nil, err
+	}
+	return &tracker.DeviceCode{DeviceCode: c.DeviceCode, UserCode: c.UserCode, VerificationURL: c.VerificationURL, ExpiresIn: c.ExpiresIn, Interval: c.Interval}, nil
+}
+func (p *Provider) Deauthorize() error { return Deauthorize(true) }
 
 // RefreshToken renews the token 90 minutes before its 24h expiry, see https://github.com/trakt/api-help/discussions/495
 func (p *Provider) RefreshToken() error {

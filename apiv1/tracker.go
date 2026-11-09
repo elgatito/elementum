@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/library"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/tracker"
@@ -20,12 +21,13 @@ import (
 // stop them.
 
 var (
-	notLinked   = failure{http.StatusConflict, newError(ErrorCodeTrackerNotAuthorized, "no tracker account is linked")}
-	unsupported = failure{http.StatusConflict, newError(ErrorCodeTrackerUnsupported, "the linked tracker has no such list")}
-	paidOnly    = failure{http.StatusConflict, newError(ErrorCodeTrackerUnsupported, "the linked tracker offers this to paid accounts only")}
-	listMissing = failure{http.StatusNotFound, newError(ErrorCodeNotFound, "list not found")}
-	trackerDown = failure{http.StatusBadGateway, newError(ErrorCodeInternalError, "tracker request failed")}
-	badListID   = failure{http.StatusBadRequest, newError(ErrorCodeBadRequest, "invalid list_id")}
+	notLinked    = failure{http.StatusConflict, newError(ErrorCodeTrackerNotAuthorized, "no tracker account is linked")}
+	unsupported  = failure{http.StatusConflict, newError(ErrorCodeTrackerUnsupported, "the linked tracker has no such list")}
+	noDeviceAuth = failure{http.StatusConflict, newError(ErrorCodeTrackerUnsupported, "the selected tracker has no device-code login")}
+	paidOnly     = failure{http.StatusConflict, newError(ErrorCodeTrackerUnsupported, "the linked tracker offers this to paid accounts only")}
+	listMissing  = failure{http.StatusNotFound, newError(ErrorCodeNotFound, "list not found")}
+	trackerDown  = failure{http.StatusBadGateway, newError(ErrorCodeInternalError, "tracker request failed")}
+	badListID    = failure{http.StatusBadRequest, newError(ErrorCodeBadRequest, "invalid list_id")}
 
 	// list ids go into tracker URL paths
 	listIDRe = regexp.MustCompile(`^[A-Za-z0-9_:-]{1,64}$`) // Simkl uses status:watching etc.
@@ -333,4 +335,27 @@ func (Server) ListTrackerProgress(_ context.Context, req ListTrackerProgressRequ
 		}
 	}
 	return ListTrackerProgress200JSONResponse(out), nil
+}
+
+func (Server) StartTrackerAuth(_ context.Context, _ StartTrackerAuthRequestObject) (StartTrackerAuthResponseObject, error) {
+	if !config.SettingsWritable() { // the token could not be saved
+		return StartTrackerAuth409JSONResponse(newError(ErrorCodeTrackerUnsupported, "linking needs a JSON settings file")), nil
+	}
+	p := tracker.Selected() // an unlinked tracker is the one to link
+	s, ok := p.(tracker.DeviceAuthStarter)
+	if !ok {
+		return StartTrackerAuth409JSONResponse(noDeviceAuth.body), nil
+	}
+	code, err := s.StartAuth()
+	if err != nil {
+		log.Warningf("%s authorization failed: %v", p.Name(), err)
+		return StartTrackerAuth502JSONResponse(trackerDown.body), nil
+	}
+	return StartTrackerAuth200JSONResponse{
+		Tracker:         TrackerInfo{Id: p.ID(), Name: p.Name(), Authorized: p.Authorized()},
+		UserCode:        code.UserCode,
+		VerificationUrl: code.VerificationURL,
+		ExpiresIn:       code.ExpiresIn,
+		Interval:        code.Interval,
+	}, nil
 }

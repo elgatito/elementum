@@ -69,7 +69,10 @@ func (p *Provider) Name() string                   { return "Simkl" }
 func (p *Provider) MinSyncInterval() time.Duration { return 15 * time.Minute }
 func (p *Provider) Authorized() bool               { return tracker.Credentials(p.ID()).Token != "" }
 func (p *Provider) Authorize() error               { return tracker.RunDeviceAuth(p, p.device) }
-func (p *Provider) Deauthorize() error             { return tracker.DeauthorizeDevice(p, p.device) }
+func (p *Provider) StartAuth() (*tracker.DeviceCode, error) {
+	return tracker.StartDeviceAuth(p, p.device)
+}
+func (p *Provider) Deauthorize() error { return tracker.DeauthorizeDevice(p, p.device) }
 
 // RefreshToken renews the 7-day token a day before expiry.
 func (p *Provider) RefreshToken() error {

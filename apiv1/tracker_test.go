@@ -386,3 +386,57 @@ func TestLibraryAddRemoveAdd(t *testing.T) {
 		}
 	}
 }
+
+type authTracker struct {
+	fakeTracker
+	err error
+}
+
+func (a authTracker) StartAuth() (*tracker.DeviceCode, error) {
+	if a.err != nil {
+		return nil, a.err
+	}
+	return &tracker.DeviceCode{UserCode: "ABCD", VerificationURL: "https://x/activate", ExpiresIn: 600, Interval: 5}, nil
+}
+
+func TestStartTrackerAuth(t *testing.T) {
+	setCreds(t, "", "")
+	post := request{method: http.MethodPost, path: "/api/v1/tracker/authorize"}
+
+	useTracker(t, authTracker{})
+	w := do(newEngine(), post)
+	var got apiv1.TrackerAuthCode
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || w.Code != http.StatusOK ||
+		got.UserCode != "ABCD" || got.VerificationUrl != "https://x/activate" || got.ExpiresIn != 600 || got.Interval != 5 || got.Tracker.Id != "fake" {
+		t.Errorf("status %d: %s", w.Code, w.Body)
+	}
+
+	useTracker(t, fakeTracker{}) // no StartAuth
+	w = do(newEngine(), post)
+	if w.Code != http.StatusConflict || errorCode(t, w) != apiv1.ErrorCodeTrackerUnsupported {
+		t.Errorf("unsupported: status %d: %s", w.Code, w.Body)
+	}
+
+	useTracker(t, authTracker{err: errors.New("down")})
+	if w = do(newEngine(), post); w.Code != http.StatusBadGateway {
+		t.Errorf("failing: status %d: %s", w.Code, w.Body)
+	}
+
+	config.Get().TrackerProvider = "" // none selected
+	w = do(newEngine(), post)
+	if w.Code != http.StatusConflict || errorCode(t, w) != apiv1.ErrorCodeTrackerUnsupported {
+		t.Errorf("none: status %d: %s", w.Code, w.Body)
+	}
+}
+
+func TestStartTrackerAuthYAMLSettings(t *testing.T) {
+	setCreds(t, "", "")
+	useTracker(t, authTracker{})
+	old := config.Args.ConfigPath
+	t.Cleanup(func() { config.Args.ConfigPath = old })
+	config.Args.ConfigPath = "settings.yaml"
+	w := do(newEngine(), request{method: http.MethodPost, path: "/api/v1/tracker/authorize"})
+	if w.Code != http.StatusConflict || errorCode(t, w) != apiv1.ErrorCodeTrackerUnsupported {
+		t.Errorf("status %d: %s", w.Code, w.Body)
+	}
+}

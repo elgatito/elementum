@@ -290,6 +290,11 @@ func SetSetting(key string, value any) {
 	}
 }
 
+// SettingsWritable reports whether SetSetting can persist: always with Kodi settings, with a settings file only if JSON.
+func SettingsWritable() bool {
+	return Args.ConfigPath == "" || detectConfigFormat(Args.ConfigPath) == JSONConfigFormat
+}
+
 func updateSettingsFile(path, key string, value any) error {
 	fileMu.Lock()
 	defer fileMu.Unlock()

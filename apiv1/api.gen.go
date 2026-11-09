@@ -1184,6 +1184,26 @@ type TorrentMediaType string
 // TorrentState defines model for TorrentState.
 type TorrentState string
 
+// TrackerAuthCode defines model for TrackerAuthCode.
+type TrackerAuthCode struct {
+	// ExpiresIn Seconds until the code expires.
+	//
+	// Example: 600
+	ExpiresIn int `json:"expires_in"`
+
+	// Interval Seconds between the server's polls of the tracker.
+	//
+	// Example: 5
+	Interval int         `json:"interval"`
+	Tracker  TrackerInfo `json:"tracker"`
+
+	// UserCode Example: A1B2C3D4
+	UserCode string `json:"user_code"`
+
+	// VerificationUrl Example: https://trakt.tv/activate
+	VerificationUrl string `json:"verification_url"`
+}
+
 // TrackerInfo defines model for TrackerInfo.
 type TrackerInfo struct {
 	// Authorized An account is linked.
@@ -1694,6 +1714,9 @@ type ServerInterface interface {
 	// ResumeTorrent Resume a paused torrent
 	// (POST /torrents/{info_hash}/resume)
 	ResumeTorrent(c *gin.Context, infoHash InfoHashParam)
+	// StartTrackerAuth Start linking the tracker account selected in settings
+	// (POST /tracker/authorize)
+	StartTrackerAuth(c *gin.Context)
 	// ListTrackerLists The user's custom lists on the linked tracker
 	// (GET /tracker/lists)
 	ListTrackerLists(c *gin.Context)
@@ -2669,6 +2692,19 @@ func (siw *ServerInterfaceWrapper) ResumeTorrent(c *gin.Context) {
 	siw.Handler.ResumeTorrent(c, infoHash)
 }
 
+// StartTrackerAuth operation middleware
+func (siw *ServerInterfaceWrapper) StartTrackerAuth(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.StartTrackerAuth(c)
+}
+
 // ListTrackerLists operation middleware
 func (siw *ServerInterfaceWrapper) ListTrackerLists(c *gin.Context) {
 
@@ -3132,6 +3168,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/tracker/:media/watchlist", wrapper.ListTrackerWatchlist)
 	router.GET(options.BaseURL+"/tracker/:media/collection", wrapper.ListTrackerCollection)
 	router.GET(options.BaseURL+"/tracker/shows/progress", wrapper.ListTrackerProgress)
+	router.POST(options.BaseURL+"/tracker/authorize", wrapper.StartTrackerAuth)
 	router.GET(options.BaseURL+"/tracker/lists", wrapper.ListTrackerLists)
 	router.GET(options.BaseURL+"/tracker/lists/:list_id/items", wrapper.ListTrackerListItems)
 	router.POST(options.BaseURL+"/playback", wrapper.CreatePlayback)
@@ -5003,6 +5040,86 @@ func (response ResumeTorrentdefaultJSONResponse) VisitResumeTorrentResponse(w ht
 	return err
 }
 
+type StartTrackerAuthRequestObject struct {
+}
+
+type StartTrackerAuthResponseObject interface {
+	VisitStartTrackerAuthResponse(w http.ResponseWriter) error
+}
+
+type StartTrackerAuth200JSONResponse TrackerAuthCode
+
+func (response StartTrackerAuth200JSONResponse) VisitStartTrackerAuthResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartTrackerAuth401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response StartTrackerAuth401JSONResponse) VisitStartTrackerAuthResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartTrackerAuth409JSONResponse Error
+
+func (response StartTrackerAuth409JSONResponse) VisitStartTrackerAuthResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartTrackerAuth502JSONResponse Error
+
+func (response StartTrackerAuth502JSONResponse) VisitStartTrackerAuthResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(502)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartTrackerAuthdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response StartTrackerAuthdefaultJSONResponse) VisitStartTrackerAuthResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListTrackerListsRequestObject struct {
 }
 
@@ -5824,6 +5941,9 @@ type StrictServerInterface interface {
 	// ResumeTorrent Resume a paused torrent
 	// (POST /torrents/{info_hash}/resume)
 	ResumeTorrent(ctx context.Context, request ResumeTorrentRequestObject) (ResumeTorrentResponseObject, error)
+	// StartTrackerAuth Start linking the tracker account selected in settings
+	// (POST /tracker/authorize)
+	StartTrackerAuth(ctx context.Context, request StartTrackerAuthRequestObject) (StartTrackerAuthResponseObject, error)
 	// ListTrackerLists The user's custom lists on the linked tracker
 	// (GET /tracker/lists)
 	ListTrackerLists(ctx context.Context, request ListTrackerListsRequestObject) (ListTrackerListsResponseObject, error)
@@ -6627,6 +6747,30 @@ func (sh *strictHandler) ResumeTorrent(ctx *gin.Context, infoHash InfoHashParam)
 		sh.options.HandlerErrorFunc(ctx, err)
 	} else if validResponse, ok := response.(ResumeTorrentResponseObject); ok {
 		if err := validResponse.VisitResumeTorrentResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartTrackerAuth operation middleware
+func (sh *strictHandler) StartTrackerAuth(ctx *gin.Context) {
+	var request StartTrackerAuthRequestObject
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.StartTrackerAuth(ctx, request.(StartTrackerAuthRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartTrackerAuth")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(StartTrackerAuthResponseObject); ok {
+		if err := validResponse.VisitStartTrackerAuthResponse(ctx.Writer); err != nil {
 			sh.options.ResponseErrorHandlerFunc(ctx, err)
 		}
 	} else if response != nil {
