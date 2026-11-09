@@ -94,7 +94,22 @@ var minPollInterval = 5 * time.Second
 var (
 	authMu  sync.Mutex
 	authGen = map[string]uint64{}
+	logins  = map[string]int64{}
 )
+
+// LoggedIn counts a finished login of the tracker, so a client re-linking an account can tell it is done.
+func LoggedIn(id string) {
+	authMu.Lock()
+	defer authMu.Unlock()
+	logins[id]++
+}
+
+// Logins is the number of logins of the tracker finished since Elementum started.
+func Logins(id string) int64 {
+	authMu.Lock()
+	defer authMu.Unlock()
+	return logins[id]
+}
 
 // BeginAuth marks a new login of the tracker and returns a func telling whether it is still the latest,
 // so a poller of an earlier login can stop.
@@ -178,6 +193,7 @@ func pollDeviceToken(p Provider, f DeviceFlow, code *DeviceCode, current func() 
 
 		ClearState(p.ID())
 		saveCredentials(p.ID(), c)
+		LoggedIn(p.ID())
 		notify(strAuthorized, p.Name())
 		return
 	}

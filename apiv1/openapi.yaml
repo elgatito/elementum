@@ -428,7 +428,8 @@ paths:
         Starts the tracker's device-code login without Kodi. The client shows `user_code` and `verification_url`
         to the user, who approves it on another device. The server keeps polling the tracker for up to
         `expires_in` seconds and saves the token; the outcome is also sent as a `notify` event.
-        The client learns the result by polling `GET /system/info` until `tracker.authorized` is true.
+        The client learns the result by polling `GET /system/info` until `tracker.logins` grows past the value
+        returned here (for a first link, `tracker.authorized` turning true says the same).
         Allowed while already linked: a successful login replaces the token. A newer login cancels
         the polling of the previous one; that includes one started from Kodi, such as Elementum's automatic
         Trakt prompt when Kodi browses Trakt menus while unlinked.
@@ -1033,11 +1034,15 @@ components:
             - $ref: "#/components/schemas/TrackerInfo"
     TrackerInfo:
       type: object
-      required: [id, name, authorized]
+      required: [id, name, authorized, logins]
       properties:
         id: { type: string, example: trakt }
         name: { type: string, example: Trakt }
         authorized: { type: boolean, description: An account is linked. }
+        logins:
+          type: integer
+          format: int64
+          description: Logins finished since Elementum started. A client re-linking an already linked account waits for this to grow.
 
     TrackerAuthCode:
       type: object

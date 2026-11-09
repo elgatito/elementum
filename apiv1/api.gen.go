@@ -1212,6 +1212,9 @@ type TrackerInfo struct {
 	// Id Example: trakt
 	Id string `json:"id"`
 
+	// Logins Logins finished since Elementum started. A client re-linking an already linked account waits for this to grow.
+	Logins int64 `json:"logins"`
+
 	// Name Example: Trakt
 	Name string `json:"name"`
 }

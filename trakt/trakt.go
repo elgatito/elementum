@@ -331,6 +331,7 @@ func StartAuthorize() (*Code, error) {
 		}
 
 		config.Reload()
+		tracker.LoggedIn("trakt")
 
 		ui.Toast("LOCALIZE[30650]")
 		return

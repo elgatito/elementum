@@ -139,7 +139,7 @@ func (Server) GetSystemInfo(context.Context, GetSystemInfoRequestObject) (GetSys
 	}
 	if p := tracker.Selected(); p != nil {
 		// Authorized() only checks stored tokens/keys for every tracker; trakt.Authorized() would start a login.
-		info.Tracker = &TrackerInfo{Id: p.ID(), Name: p.Name(), Authorized: p.Authorized()}
+		info.Tracker = &TrackerInfo{Id: p.ID(), Name: p.Name(), Authorized: p.Authorized(), Logins: tracker.Logins(p.ID())}
 	}
 	return info, nil
 }

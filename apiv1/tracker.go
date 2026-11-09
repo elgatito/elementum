@@ -352,7 +352,7 @@ func (Server) StartTrackerAuth(_ context.Context, _ StartTrackerAuthRequestObjec
 		return StartTrackerAuth502JSONResponse(trackerDown.body), nil
 	}
 	return StartTrackerAuth200JSONResponse{
-		Tracker:         TrackerInfo{Id: p.ID(), Name: p.Name(), Authorized: p.Authorized()},
+		Tracker:         TrackerInfo{Id: p.ID(), Name: p.Name(), Authorized: p.Authorized(), Logins: tracker.Logins(p.ID())},
 		UserCode:        code.UserCode,
 		VerificationUrl: code.VerificationURL,
 		ExpiresIn:       code.ExpiresIn,

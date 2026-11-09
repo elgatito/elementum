@@ -57,6 +57,11 @@ func TestStartDeviceAuth(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("token not accepted")
 	}
+	for start := time.Now(); Logins(fakeProvider{}.ID()) != 1; time.Sleep(10 * time.Millisecond) {
+		if time.Since(start) > 5*time.Second {
+			t.Fatal("login not counted")
+		}
+	}
 }
 
 func TestBeginAuthSupersedes(t *testing.T) {
