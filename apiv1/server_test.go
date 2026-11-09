@@ -183,6 +183,9 @@ func TestCORSPreflight(t *testing.T) {
 	if m := w.Header().Get("Access-Control-Allow-Methods"); !strings.Contains(m, "DELETE") {
 		t.Errorf("Allow-Methods = %q", m)
 	}
+	if e := w.Header().Get("Access-Control-Expose-Headers"); !strings.Contains(e, "X-UI-Epoch") {
+		t.Errorf("Expose-Headers = %q", e)
+	}
 	if h := w.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(h, "Authorization") {
 		t.Errorf("Allow-Headers = %q", h)
 	}
