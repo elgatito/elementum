@@ -48,6 +48,7 @@ type personCredit struct {
 	Entity
 	MediaType  string  `json:"media_type"`
 	Popularity float64 `json:"popularity"`
+	Character  string  `json:"character"`
 }
 
 type combinedCredits struct {
@@ -116,9 +117,20 @@ func fillCreditOverviews(dst, en *combinedCredits) {
 	}
 }
 
-// TV talk and news shows are mostly guest appearances as themselves (as in PersonShows).
+// TV talk, news and reality shows are mostly guest appearances as themselves (as in PersonShows).
 func isTalkOrNews(ids []int) bool {
-	return slices.ContainsFunc(ids, func(g int) bool { return g == 10767 || g == 10763 })
+	return slices.ContainsFunc(ids, func(g int) bool { return g == 10767 || g == 10763 || g == 10764 })
+}
+
+// isSelf reports a cast character like "Self", "Himself - Guest" (crew entries have no character).
+func isSelf(character string) bool {
+	c := strings.ToLower(strings.TrimSpace(character))
+	for _, p := range []string{"self", "himself", "herself", "themselves"} {
+		if c == p || strings.HasPrefix(c, p+" -") || strings.HasPrefix(c, p+" (") {
+			return true
+		}
+	}
+	return false
 }
 
 // splitCredits skips adult titles, de-duplicates by media type and id (cast wins over crew) and sorts each
@@ -133,7 +145,7 @@ func splitCredits(c *combinedCredits, movieGenres, showGenres map[int]string) (M
 	seen := map[string]bool{}
 	movies, shows := Movies{}, Shows{}
 	for _, c := range append(cast, crew...) {
-		if c == nil || c.ID == 0 || c.IsAdult || seen[fmt.Sprint(c.MediaType, c.ID)] {
+		if c == nil || c.ID == 0 || c.IsAdult || isSelf(c.Character) || seen[fmt.Sprint(c.MediaType, c.ID)] {
 			continue
 		}
 		seen[fmt.Sprint(c.MediaType, c.ID)] = true
@@ -141,7 +153,7 @@ func splitCredits(c *combinedCredits, movieGenres, showGenres map[int]string) (M
 		case "movie":
 			movies = append(movies, &Movie{Entity: *c.Entity.lite(movieGenres)})
 		case "tv":
-			if !isTalkOrNews(c.GenreIDs) {
+			if len(c.GenreIDs) > 0 && !isTalkOrNews(c.GenreIDs) {
 				shows = append(shows, &Show{Entity: *c.Entity.lite(showGenres)})
 			}
 		}

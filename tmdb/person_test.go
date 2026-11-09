@@ -27,8 +27,12 @@ func TestSplitCredits(t *testing.T) {
 	if len(movies[0].Genres) != 2 || movies[0].Genres[0].Name != "Action" || movies[0].GenreIDs != nil {
 		t.Fatalf("genres not named: %+v", movies[0].Genres)
 	}
-	if len(shows) != 1 || shows[0].ID != 101 {
-		t.Fatalf("shows %+v, want only 101 (talk shows dropped)", shows)
+	var sids []int
+	for _, s := range shows {
+		sids = append(sids, s.ID)
+	}
+	if len(sids) != 3 || sids[0] != 101 || sids[1] != 105 || sids[2] != 106 {
+		t.Fatalf("shows %v, want [101 105 106] (talk, reality, self and genreless dropped; voice and crew kept)", sids)
 	}
 }
 

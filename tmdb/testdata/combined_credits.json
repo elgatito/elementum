@@ -3,7 +3,13 @@
  {"id":100,"media_type":"tv","name":"Talk Show","popularity":10,"vote_count":5,"genre_ids":[10767],"first_air_date":"2000-01-01"},
  {"id":101,"media_type":"tv","name":"Drama","popularity":9,"vote_count":5,"genre_ids":[18]},
  {"id":999,"media_type":"movie","title":"Adult","adult":true,"popularity":999,"vote_count":9,"genre_ids":[]},
+ {"id":102,"media_type":"tv","name":"Reality","popularity":8,"vote_count":5,"genre_ids":[10764]},
+ {"id":103,"media_type":"tv","name":"Self Show","popularity":8,"vote_count":5,"genre_ids":[18],"character":"Self - Guest"},
+ {"id":104,"media_type":"tv","name":"No Genres","popularity":8,"vote_count":5,"genre_ids":[]},
+ {"id":105,"media_type":"tv","name":"Cartoon","popularity":8,"vote_count":5,"genre_ids":[16],"character":"Bob (voice)"},
+ {"id":606,"media_type":"movie","title":"Documentary","popularity":1,"vote_count":1,"genre_ids":[99],"character":" Himself "},
  {"id":604,"media_type":"movie","title":"Reloaded","popularity":50,"vote_count":100,"genre_ids":[28]}],
  "crew":[
  {"id":603,"media_type":"movie","title":"The Matrix","popularity":80.5,"vote_count":24000,"genre_ids":[28,878]},
+ {"id":106,"media_type":"tv","name":"Directed","popularity":1,"vote_count":1,"genre_ids":[18]},
  {"id":605,"media_type":"movie","title":"Revolutions","popularity":50,"vote_count":900,"genre_ids":[]}]}
