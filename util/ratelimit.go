@@ -31,6 +31,8 @@ type RateLimiter struct {
 var (
 	ErrExceeded = errors.New("Rate-Limit Exceeded")
 	ErrNotFound = errors.New("Not Found")
+	// ErrUnauthorized is returned for an HTTP 401: credentials are missing, expired or revoked.
+	ErrUnauthorized = errors.New("Unauthorized")
 )
 
 // NewRateLimiter creates a new rate limiter for the limit and interval.

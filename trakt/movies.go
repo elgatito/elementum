@@ -13,6 +13,7 @@ import (
 	"github.com/elgatito/elementum/library/playcount"
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tmdb"
+	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/reqapi"
@@ -282,13 +283,12 @@ func CollectionMovies(isUpdateNeeded bool) (movies []*Movies, err error) {
 }
 
 // Userlists ...
-func Userlists() (lists []*List) {
+func Userlists() (lists []*List, err error) {
 	defer perf.ScopeTimer()()
 
 	traktUsername := config.Get().TraktUsername
 	if traktUsername == "" || config.Get().TraktToken == "" || !config.Get().TraktAuthorized {
-		ui.Toast("LOCALIZE[30149]")
-		return lists
+		return nil, tracker.ErrNotAuthorized
 	}
 	endPoint := fmt.Sprintf("users/%s/lists", traktUsername)
 
@@ -301,17 +301,15 @@ func Userlists() (lists []*List) {
 		Description: "user list movies",
 	}
 
-	if err := req.Do(); err != nil {
-		ui.Toast(err.Error())
-		log.Error(err)
-		return lists
+	if err = req.Do(); err != nil {
+		return nil, err
 	}
 
 	slices.SortFunc(lists, func(a, b *List) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
-	return lists
+	return lists, nil
 }
 
 // Likedlists ...

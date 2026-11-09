@@ -13,6 +13,7 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/trakt"
+	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -148,6 +149,8 @@ func notifyTrackerError(xbmcHost *xbmc.XBMCHost, p tracker.Provider, err error) 
 	msg := err.Error()
 	if errors.Is(err, tracker.ErrPaidAccount) {
 		msg = fmt.Sprintf(xbmcHost.GetLocalizedString(30806), p.Name())
+	} else if errors.Is(err, tracker.ErrNotAuthorized) || errors.Is(err, util.ErrUnauthorized) {
+		msg = "LOCALIZE[30149]"
 	}
 	xbmcHost.Notify("Elementum", msg, config.AddonIcon())
 }

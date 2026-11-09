@@ -56,7 +56,7 @@ func activeTracker() (tracker.Provider, *failure) {
 // trackerFailure maps a tracker error; upstream messages are only logged.
 func trackerFailure(p tracker.Provider, err error) *failure {
 	switch {
-	case errors.Is(err, tracker.ErrNotAuthorized):
+	case errors.Is(err, tracker.ErrNotAuthorized), errors.Is(err, util.ErrUnauthorized):
 		return &notLinked
 	case errors.Is(err, tracker.ErrUnsupported):
 		return &unsupported

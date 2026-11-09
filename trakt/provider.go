@@ -141,7 +141,10 @@ func (p *Provider) Paused(t tracker.MediaType, refresh bool) ([]*tracker.PausedI
 }
 
 func (p *Provider) Lists() ([]*tracker.List, error) {
-	lists := Userlists()
+	lists, err := Userlists()
+	if err != nil {
+		return nil, err
+	}
 	ret := make([]*tracker.List, 0, len(lists))
 	for _, l := range lists {
 		if l == nil || l.IDs == nil {

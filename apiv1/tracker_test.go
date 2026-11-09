@@ -21,6 +21,7 @@ import (
 	"github.com/elgatito/elementum/library"
 	"github.com/elgatito/elementum/library/playcount"
 	"github.com/elgatito/elementum/tracker"
+	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/reqapi"
 	"github.com/elgatito/elementum/xbmc"
 )
@@ -219,6 +220,27 @@ func TestTracker(t *testing.T) {
 		if strings.Contains(w.Body.String(), "secret") {
 			t.Errorf("%s: upstream error leaked: %s", path, w.Body)
 		}
+	}
+}
+
+// expiredTracker fails every list call as a revoked token does.
+type expiredTracker struct{ fakeTracker }
+
+func (expiredTracker) Lists() ([]*tracker.List, error) {
+	return nil, fmt.Errorf("upstream: %w", util.ErrUnauthorized)
+}
+
+// ListItems completes tracker.ListReader.
+func (expiredTracker) ListItems(string, tracker.MediaType, bool) ([]*tracker.Item, error) {
+	return nil, util.ErrUnauthorized
+}
+
+func TestTrackerTokenRevoked(t *testing.T) {
+	setCreds(t, "", "")
+	useTracker(t, expiredTracker{fakeTracker{authorized: true}})
+	w := do(newEngine(), request{path: "/api/v1/tracker/lists"})
+	if w.Code != http.StatusConflict || errorCode(t, w) != apiv1.ErrorCodeTrackerNotAuthorized {
+		t.Errorf("status %d: %s", w.Code, w.Body)
 	}
 }
 

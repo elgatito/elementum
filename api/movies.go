@@ -2,6 +2,7 @@ package api
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"slices"
@@ -19,7 +20,9 @@ import (
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/providers"
 	"github.com/elgatito/elementum/tmdb"
+	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/trakt"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
 )
@@ -279,7 +282,15 @@ func MoviesTraktLists(ctx *gin.Context) {
 	defer perf.ScopeTimer()()
 
 	items := xbmc.ListItems{}
-	lists := trakt.Userlists()
+	lists, err := trakt.Userlists()
+	if err != nil {
+		log.Error(err)
+		if errors.Is(err, tracker.ErrNotAuthorized) {
+			ui.Toast("LOCALIZE[30149]")
+		} else {
+			ui.Toast(err.Error())
+		}
+	}
 	lists = append(lists, trakt.Likedlists()...)
 
 	slices.SortFunc(lists, func(a, b *trakt.List) int {
