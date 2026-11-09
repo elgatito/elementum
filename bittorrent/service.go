@@ -60,6 +60,8 @@ type Service struct {
 	mu     sync.Mutex
 	wg     sync.WaitGroup
 
+	muRemove sync.Mutex // serialises find+delete+drop in RemoveTorrent
+
 	Session       lt.SessionHandle
 	SessionGlobal lt.Session
 	PackSettings  lt.SettingsPack
@@ -1102,6 +1104,13 @@ func (s *Service) RemoveTorrent(xbmcHost *xbmc.XBMCHost, t *Torrent, flags Remov
 	}
 
 	if !keepDownloading {
+		// Lock only now, dialogs above may wait for the user. Re-check: a concurrent removal may have won.
+		s.muRemove.Lock()
+		defer s.muRemove.Unlock()
+		if s.q.FindByHash(t.InfoHash()) != t {
+			return false
+		}
+
 		defer func() {
 			database.GetStorm().DeleteBTItem(t.InfoHash())
 		}()

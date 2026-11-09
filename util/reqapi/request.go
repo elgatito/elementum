@@ -160,15 +160,21 @@ func (r *Request) Do() (err error) {
 			// Marshal before returning, as caller can modify Result after Do()
 			data, errMarshal := r.MarshalCache()
 			r.Stage("CacheWriteMarshal")
+			r.Error(errMarshal)
+			r.LogStatus()
+			// The goroutine must not touch r: callers may reuse or read it once Do() returns.
+			key, expire, locker := r.CacheKey, r.CacheExpire, r.locker
+			if expire == 0 {
+				expire = cache.CacheExpireMedium
+			}
 			go func() {
-				err = errMarshal
-				if err == nil {
-					err = r.CacheWrite(data)
+				defer locker.Unlock()
+				if errMarshal != nil {
+					return
 				}
-				r.Error(err)
-				r.Stage("CacheWrite")
-				r.Unlock()
-				r.LogStatus()
+				if werr := cache.NewDBStore().SetBytes(key, data, expire); werr != nil {
+					log.Warningf("Cache write failed for %s: %s", key, werr)
+				}
 			}()
 		} else {
 			r.Error(err)

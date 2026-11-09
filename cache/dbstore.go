@@ -36,15 +36,9 @@ var (
 		}}
 )
 
-var dbStore *DBStore
-
-// NewDBStore Returns instance of BoltDB backed cache store
+// NewDBStore Returns BoltDB backed cache store. The wrapper is stateless, so no shared singleton is kept.
 func NewDBStore() *DBStore {
-	if dbStore == nil {
-		dbStore = &DBStore{database.GetCache()}
-	}
-
-	return dbStore
+	return &DBStore{database.GetCache()}
 }
 
 // SetBytes stores []byte into cache instance

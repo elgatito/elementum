@@ -480,7 +480,7 @@ func GetTVGenres(language string) []*Genre {
 	// That is a special case, when language in on TMDB, but it results empty names.
 	//   example of this: Catalan language.
 	if err = req.Do(); err == nil && len(genres.Genres) > 0 && genres.Genres[0].Name == "" {
-		req = reqapi.Request{
+		req2 := reqapi.Request{
 			API: reqapi.TMDBAPI,
 			URL: "/genre/tv/list",
 			Params: napping.Params{
@@ -494,7 +494,7 @@ func GetTVGenres(language string) []*Genre {
 			CacheExpire: cache.CacheExpireLong,
 		}
 
-		err = req.Do()
+		err = req2.Do()
 	}
 
 	if err == nil && len(genres.Genres) > 0 {

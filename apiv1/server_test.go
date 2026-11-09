@@ -25,8 +25,8 @@ func newEngine() *gin.Engine {
 }
 
 func setCreds(t *testing.T, login, password string) {
-	old := config.Args
-	t.Cleanup(func() { config.Args = old })
+	oldLogin, oldPassword := config.Args.LocalLogin, config.Args.LocalPassword
+	t.Cleanup(func() { config.Args.LocalLogin, config.Args.LocalPassword = oldLogin, oldPassword })
 	config.Args.LocalLogin, config.Args.LocalPassword = login, password
 }
 

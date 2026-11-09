@@ -258,9 +258,9 @@ func TestStreamLink(t *testing.T) {
 	t.Cleanup(func() { streamFS = oldFS })
 
 	// Basic auth is on, the stream must not need it.
-	oldArgs := config.Args
+	oldLogin, oldPassword := config.Args.LocalLogin, config.Args.LocalPassword
 	config.Args.LocalLogin, config.Args.LocalPassword = "user", "pass"
-	t.Cleanup(func() { config.Args = oldArgs })
+	t.Cleanup(func() { config.Args.LocalLogin, config.Args.LocalPassword = oldLogin, oldPassword })
 
 	r := playbackEngine()
 	sess := addSession("SID", PlaybackStateReady)

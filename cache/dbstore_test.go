@@ -3,6 +3,7 @@ package cache_test
 import (
 	"os"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -102,4 +103,13 @@ func TestDBStoreReadsOldEntry(t *testing.T) {
 	if err := store.Get("old", &cached); err != nil || len(cached) != 2 || cached[0].Movie.Title != "Fight Club" || !cached[0].LastWatchedAt.Equal(movies[0].LastWatchedAt) {
 		t.Fatalf("bad old entry (%v): %+v", err, cached)
 	}
+}
+
+func TestNewDBStoreConcurrent(t *testing.T) {
+	var wg sync.WaitGroup
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func() { defer wg.Done(); _ = cache.NewDBStore() }()
+	}
+	wg.Wait()
 }
