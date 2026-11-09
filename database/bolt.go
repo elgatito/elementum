@@ -16,8 +16,8 @@ import (
 
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/exit"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util"
-	"github.com/elgatito/elementum/xbmc"
 )
 
 // GetBolt returns common database
@@ -61,9 +61,7 @@ func InitCacheDB(conf *config.Configuration) (*BoltDatabase, error) {
 
 	for _, bucket := range CacheBuckets {
 		if err = CheckBucket(cacheDatabase.db, bucket); err != nil {
-			if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-				xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-			}
+			ui.Toast(err.Error())
 			log.Error(err)
 			return cacheDatabase, err
 		}

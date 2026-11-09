@@ -13,6 +13,7 @@ import (
 	"github.com/elgatito/elementum/library/playcount"
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tmdb"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/reqapi"
 	"github.com/elgatito/elementum/xbmc"
@@ -41,9 +42,7 @@ func GetMovie(ID string) (movie *Movie) {
 
 	if err := req.Do(); err != nil {
 		log.Error(err)
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", fmt.Sprintf("Failed getting Trakt movie (%s), check your logs.", ID), config.AddonIcon())
-		}
+		ui.Toast(fmt.Sprintf("Failed getting Trakt movie (%s), check your logs.", ID))
 		return
 	}
 
@@ -69,9 +68,7 @@ func GetMovieByTMDB(tmdbID string) (movie *Movie) {
 
 	if err := req.Do(); err != nil {
 		log.Error(err)
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", "Failed getting Trakt movie using TMDB ID, check your logs.", config.AddonIcon())
-		}
+		ui.Toast("Failed getting Trakt movie using TMDB ID, check your logs.")
 		return
 	}
 
@@ -290,9 +287,7 @@ func Userlists() (lists []*List) {
 
 	traktUsername := config.Get().TraktUsername
 	if traktUsername == "" || config.Get().TraktToken == "" || !config.Get().TraktAuthorized {
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", "LOCALIZE[30149]", config.AddonIcon())
-		}
+		ui.Toast("LOCALIZE[30149]")
 		return lists
 	}
 	endPoint := fmt.Sprintf("users/%s/lists", traktUsername)
@@ -307,9 +302,7 @@ func Userlists() (lists []*List) {
 	}
 
 	if err := req.Do(); err != nil {
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-		}
+		ui.Toast(err.Error())
 		log.Error(err)
 		return lists
 	}
@@ -327,9 +320,7 @@ func Likedlists() (lists []*List) {
 
 	traktUsername := config.Get().TraktUsername
 	if traktUsername == "" || config.Get().TraktToken == "" {
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", "LOCALIZE[30149]", config.AddonIcon())
-		}
+		ui.Toast("LOCALIZE[30149]")
 		return lists
 	}
 
@@ -344,9 +335,7 @@ func Likedlists() (lists []*List) {
 	}
 
 	if err := req.Do(); err != nil {
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-		}
+		ui.Toast(err.Error())
 		log.Error(err)
 		return lists
 	}
@@ -381,9 +370,7 @@ func TopLists(page string) (lists []*ListContainer, hasNext bool) {
 	}
 
 	if err := req.Do(); err != nil {
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-		}
+		ui.Toast(err.Error())
 		log.Error(err)
 		return lists, hasNext
 	}

@@ -28,6 +28,7 @@ tags:
   - name: playback
   - name: torrents
   - name: people
+  - name: ui
 
 paths:
   /system/info:
@@ -636,6 +637,87 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         default: { $ref: "#/components/responses/Error" }
 
+  /ui/events:
+    get:
+      tags: [ui]
+      operationId: getUiEvents
+      summary: Long-poll for UI events (toasts, questions, progress)
+      description: |
+        Elementum's notifications, confirmations, lists, text prompts and progress dialogs, for clients that
+        have no Kodi. The client picks a `client_id` and keeps one request open at a time: the call returns
+        as soon as an event is queued, or 204 after `wait` seconds. Pass the last `seq` as `since` on the next call;
+        events up to it are dropped from the queue. A client that was away for more than 60 s is forgotten;
+        with `since` set it still gets the last 50 events newer than `since`, and open questions are always re-sent.
+        Without `since`, the queue is emptied by each call.
+        A question is sent to every connected client and the first answer wins; the others receive a
+        `cancelled` event with the same `id`. A `since` from before a restart is treated as 0. Elementum asks Kodi only when no client is connected.
+        Texts come already translated into `lang` (the addon's strings; English when missing).
+      parameters:
+        - name: client_id
+          in: query
+          required: true
+          schema: { type: string, pattern: "^[A-Za-z0-9_-]{1,64}$", example: "living-room-tv" }
+        - name: since
+          in: query
+          schema: { type: integer, format: int64, minimum: 0 }
+        - name: epoch
+          in: query
+          description: The `X-UI-Epoch` the client last saw. When it differs from the server's, Elementum restarted; `since` is then treated as 0 and the last 50 events are replayed.
+          schema: { type: string, pattern: "^[0-9a-f]{32}$" }
+        - name: wait
+          in: query
+          description: Seconds to hold the request open.
+          schema: { type: integer, minimum: 0, maximum: 60, default: 25 }
+        - $ref: "#/components/parameters/LangParam"
+      responses:
+        "200":
+          description: One or more events
+          headers:
+            X-UI-Epoch: { $ref: "#/components/headers/UIEpoch" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UIEventBatch" }
+        "204":
+          description: Nothing happened within `wait`
+          headers:
+            X-UI-Epoch: { $ref: "#/components/headers/UIEpoch" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /ui/requests/{id}:
+    post:
+      tags: [ui]
+      operationId: answerUiRequest
+      summary: Answer a question, or cancel a progress dialog
+      description: |
+        `yes` answers a `confirm`, `selected` a `select`, `text` an `input`; `cancel` dismisses a question
+        (the server then uses its default) or stops a `progress`. `text` events are closed with any answer.
+        400 also covers an invalid answer (index out of range, no index, text too long); the question stays open.
+        410 means another client answered first, or the request timed out.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, pattern: "^[0-9a-f]{32}$" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UIAnswer" }
+      responses:
+        "204": { description: Accepted }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "410":
+          description: Already answered or expired (`ui_request_expired`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              example: { error: { code: ui_request_expired, message: "request is closed" } }
+        default: { $ref: "#/components/responses/Error" }
+
   /stream/{id}/{file_index}:
     get:
       tags: [playback]
@@ -752,6 +834,11 @@ components:
       description: Release (movies) or first-air (shows) year. Used by `by_genre` only.
       schema: { type: integer, minimum: 1870, maximum: 2100, example: 1999 }
 
+  headers:
+    UIEpoch:
+      description: Random id of the Elementum process. When it changes Elementum restarted; drop `since` and start from 0.
+      schema: { type: string }
+
   # Array bodies are declared inline per operation, never as $ref'd responses: oapi-codegen would wrap
   # them in a struct and encode {"XJSONResponse": [...]} instead of [...].
   responses:
@@ -837,6 +924,54 @@ components:
         - playback_failed
         - not_implemented
         - internal_error
+        - ui_request_expired
+
+    UIEventBatch:
+      type: object
+      required: [seq, epoch, events]
+      properties:
+        seq: { type: integer, format: int64, description: Use as `since` on the next call. }
+        epoch: { type: string, description: Same as the `X-UI-Epoch` header. }
+        events:
+          type: array
+          items: { $ref: "#/components/schemas/UIEvent" }
+    UIEvent:
+      type: object
+      required: [id, seq, kind, title, message]
+      properties:
+        id: { type: string, description: Request id for questions and progress; use it in the answer URL. }
+        seq: { type: integer, format: int64 }
+        kind:
+          type: string
+          enum: [notify, confirm, select, input, text, progress, cancelled]
+          description: "`cancelled` closes the dialog with this `id` (answered elsewhere, expired or dismissed)."
+        title: { type: string }
+        message: { type: string }
+        options: { type: array, items: { type: string }, description: Choices of a `select`. }
+        preselect: { type: array, items: { type: integer }, description: Pre-checked option indexes of a `select`. }
+        multi: { type: boolean, description: A `select` answered with several indexes. }
+        default: { description: "What Elementum assumes on timeout: a boolean for `confirm`, the initial text of an `input`. Free-form." }
+        hidden: { type: boolean, description: An `input` is a password. }
+        timeout_s: { type: integer, description: Seconds until the question expires. }
+        progress: { $ref: "#/components/schemas/UIProgress" }
+    UIProgress:
+      type: object
+      required: [id, percent, heading, line, done]
+      properties:
+        id: { type: string }
+        percent: { type: integer, minimum: 0, maximum: 100 }
+        heading: { type: string }
+        line: { type: string }
+        done: { type: boolean }
+    UIAnswer:
+      type: object
+      required: [client_id]
+      properties:
+        client_id: { type: string, pattern: "^[A-Za-z0-9_-]{1,64}$" }
+        yes: { type: boolean }
+        selected: { type: array, items: { type: integer, minimum: 0 } }
+        text: { type: string }
+        cancel: { type: boolean }
 
     SystemInfo:
       type: object

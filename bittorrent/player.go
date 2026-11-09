@@ -31,6 +31,7 @@ import (
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/tvdb"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/upnext"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/event"
@@ -717,7 +718,7 @@ func (btp *Player) updateBufferDialog() (bool, error) {
 
 			cmdName := "unrar"
 			cmdArgs := []string{"e", archivePath, destPath}
-			if platform := btp.xbmcHost.GetPlatform(); platform.OS == "windows" {
+			if btp.xbmcHost != nil && btp.xbmcHost.GetPlatform().OS == "windows" { // nil in API sessions
 				cmdName = "unrar.exe"
 			}
 			cmd := exec.Command(cmdName, cmdArgs...)
@@ -726,7 +727,7 @@ func (btp *Player) updateBufferDialog() (bool, error) {
 			if err != nil {
 				log.Error(err)
 				btp.bufferEvents.Broadcast(err)
-				btp.xbmcHost.Notify("Elementum", "LOCALIZE[30304]", config.AddonIcon())
+				ui.ToastOn(ui.For(btp.xbmcHost), "LOCALIZE[30304]")
 				return false, err
 			}
 
@@ -741,7 +742,7 @@ func (btp *Player) updateBufferDialog() (bool, error) {
 			if err != nil {
 				log.Error(err)
 				btp.bufferEvents.Broadcast(err)
-				btp.xbmcHost.Notify("Elementum", "LOCALIZE[30305]", config.AddonIcon())
+				ui.ToastOn(ui.For(btp.xbmcHost), "LOCALIZE[30305]")
 				return false, err
 			}
 
@@ -749,7 +750,7 @@ func (btp *Player) updateBufferDialog() (bool, error) {
 			if err != nil {
 				log.Error(err)
 				btp.bufferEvents.Broadcast(err)
-				btp.xbmcHost.Notify("Elementum", "LOCALIZE[30306]", config.AddonIcon())
+				ui.ToastOn(ui.For(btp.xbmcHost), "LOCALIZE[30306]")
 				return false, err
 			}
 
@@ -778,7 +779,7 @@ func (btp *Player) findExtracted(destPath string) {
 	if err != nil {
 		log.Error(err)
 		btp.bufferEvents.Broadcast(err)
-		btp.xbmcHost.Notify("Elementum", "LOCALIZE[30307]", config.AddonIcon())
+		ui.ToastOn(ui.For(btp.xbmcHost), "LOCALIZE[30307]")
 		return
 	}
 	if len(files) == 1 {

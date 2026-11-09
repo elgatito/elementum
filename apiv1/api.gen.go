@@ -29,6 +29,7 @@ const (
 	ErrorCodeProvidersUnavailable ErrorCode = "providers_unavailable"
 	ErrorCodeTrackerNotAuthorized ErrorCode = "tracker_not_authorized"
 	ErrorCodeTrackerUnsupported   ErrorCode = "tracker_unsupported"
+	ErrorCodeUiRequestExpired     ErrorCode = "ui_request_expired"
 	ErrorCodeUnauthorized         ErrorCode = "unauthorized"
 )
 
@@ -54,6 +55,8 @@ func (e ErrorCode) Valid() bool {
 	case ErrorCodeTrackerNotAuthorized:
 		return true
 	case ErrorCodeTrackerUnsupported:
+		return true
+	case ErrorCodeUiRequestExpired:
 		return true
 	case ErrorCodeUnauthorized:
 		return true
@@ -443,6 +446,39 @@ func (e TraktChartName) Valid() bool {
 	case TraktChartNameTrending:
 		return true
 	case TraktChartNameWatched:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for UIEventKind.
+const (
+	UIEventKindCancelled UIEventKind = "cancelled"
+	UIEventKindConfirm   UIEventKind = "confirm"
+	UIEventKindInput     UIEventKind = "input"
+	UIEventKindNotify    UIEventKind = "notify"
+	UIEventKindProgress  UIEventKind = "progress"
+	UIEventKindSelect    UIEventKind = "select"
+	UIEventKindText      UIEventKind = "text"
+)
+
+// Valid indicates whether the value is a known member of the UIEventKind enum.
+func (e UIEventKind) Valid() bool {
+	switch e {
+	case UIEventKindCancelled:
+		return true
+	case UIEventKindConfirm:
+		return true
+	case UIEventKindInput:
+		return true
+	case UIEventKindNotify:
+		return true
+	case UIEventKindProgress:
+		return true
+	case UIEventKindSelect:
+		return true
+	case UIEventKindText:
 		return true
 	default:
 		return false
@@ -1175,6 +1211,68 @@ type TrackerList struct {
 // TraktChartName defines model for TraktChartName.
 type TraktChartName string
 
+// UIAnswer defines model for UIAnswer.
+type UIAnswer struct {
+	Cancel   *bool   `json:"cancel,omitempty"`
+	ClientId string  `json:"client_id"`
+	Selected *[]int  `json:"selected,omitempty"`
+	Text     *string `json:"text,omitempty"`
+	Yes      *bool   `json:"yes,omitempty"`
+}
+
+// UIEvent defines model for UIEvent.
+type UIEvent struct {
+	// Default What Elementum assumes on timeout: a boolean for `confirm`, the initial text of an `input`. Free-form.
+	Default interface{} `json:"default,omitempty"`
+
+	// Hidden An `input` is a password.
+	Hidden *bool `json:"hidden,omitempty"`
+
+	// Id Request id for questions and progress; use it in the answer URL.
+	Id string `json:"id"`
+
+	// Kind `cancelled` closes the dialog with this `id` (answered elsewhere, expired or dismissed).
+	Kind    UIEventKind `json:"kind"`
+	Message string      `json:"message"`
+
+	// Multi A `select` answered with several indexes.
+	Multi *bool `json:"multi,omitempty"`
+
+	// Options Choices of a `select`.
+	Options *[]string `json:"options,omitempty"`
+
+	// Preselect Pre-checked option indexes of a `select`.
+	Preselect *[]int      `json:"preselect,omitempty"`
+	Progress  *UIProgress `json:"progress,omitempty"`
+	Seq       int64       `json:"seq"`
+
+	// TimeoutS Seconds until the question expires.
+	TimeoutS *int   `json:"timeout_s,omitempty"`
+	Title    string `json:"title"`
+}
+
+// UIEventKind `cancelled` closes the dialog with this `id` (answered elsewhere, expired or dismissed).
+type UIEventKind string
+
+// UIEventBatch defines model for UIEventBatch.
+type UIEventBatch struct {
+	// Epoch Same as the `X-UI-Epoch` header.
+	Epoch  string    `json:"epoch"`
+	Events []UIEvent `json:"events"`
+
+	// Seq Use as `since` on the next call.
+	Seq int64 `json:"seq"`
+}
+
+// UIProgress defines model for UIProgress.
+type UIProgress struct {
+	Done    bool   `json:"done"`
+	Heading string `json:"heading"`
+	Id      string `json:"id"`
+	Line    string `json:"line"`
+	Percent int    `json:"percent"`
+}
+
 // Video defines model for Video.
 type Video struct {
 	// Key Example: vKQi3bBA1y8
@@ -1467,11 +1565,30 @@ type ListTraktChartParams struct {
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
+// GetUiEventsParams defines parameters for GetUiEvents.
+type GetUiEventsParams struct {
+	ClientId string `form:"client_id" json:"client_id"`
+	Since    *int64 `form:"since,omitempty" json:"since,omitempty"`
+
+	// Epoch The `X-UI-Epoch` the client last saw. When it differs from the server's, Elementum restarted; `since` is then treated as 0 and the last 50 events are replayed.
+	Epoch *string `form:"epoch,omitempty" json:"epoch,omitempty"`
+
+	// Wait Seconds to hold the request open.
+	Wait *int `form:"wait,omitempty" json:"wait,omitempty"`
+
+	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
+	// It does not affect images/logos, whose language comes from Elementum's config.
+	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
+}
+
 // CreatePlaybackJSONRequestBody defines body for CreatePlayback for application/json ContentType.
 type CreatePlaybackJSONRequestBody = PlaybackRequest
 
 // ReportPlaybackProgressJSONRequestBody defines body for ReportPlaybackProgress for application/json ContentType.
 type ReportPlaybackProgressJSONRequestBody = PlaybackProgress
+
+// AnswerUiRequestJSONRequestBody defines body for AnswerUiRequest for application/json ContentType.
+type AnswerUiRequestJSONRequestBody = UIAnswer
 
 // MarkUnwatchedJSONRequestBody defines body for MarkUnwatched for application/json ContentType.
 type MarkUnwatchedJSONRequestBody = WatchedRequest
@@ -1577,6 +1694,12 @@ type ServerInterface interface {
 	// ListTraktChart Public Trakt chart (no Trakt account needed)
 	// (GET /trakt/{media}/lists/{list})
 	ListTraktChart(c *gin.Context, media MediaParam, list TraktChartName, params ListTraktChartParams)
+	// GetUiEvents Long-poll for UI events (toasts, questions, progress)
+	// (GET /ui/events)
+	GetUiEvents(c *gin.Context, params GetUiEventsParams)
+	// AnswerUiRequest Answer a question, or cancel a progress dialog
+	// (POST /ui/requests/{id})
+	AnswerUiRequest(c *gin.Context, id string)
 	// MarkUnwatched Mark a movie, show, season or episode unwatched
 	// (DELETE /watched/{kind})
 	MarkUnwatched(c *gin.Context, kind WatchedKindParam)
@@ -2809,6 +2932,90 @@ func (siw *ServerInterfaceWrapper) ListTraktChart(c *gin.Context) {
 	siw.Handler.ListTraktChart(c, media, list, params)
 }
 
+// GetUiEvents operation middleware
+func (siw *ServerInterfaceWrapper) GetUiEvents(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetUiEventsParams
+
+	// ------------- Required query parameter "client_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "client_id", c.Request.URL.Query(), &params.ClientId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter client_id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "since" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "since", c.Request.URL.Query(), &params.Since, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter since: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "epoch" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "epoch", c.Request.URL.Query(), &params.Epoch, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter epoch: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "wait" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "wait", c.Request.URL.Query(), &params.Wait, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter wait: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "lang" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "lang", c.Request.URL.Query(), &params.Lang, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter lang: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetUiEvents(c, params)
+}
+
+// AnswerUiRequest operation middleware
+func (siw *ServerInterfaceWrapper) AnswerUiRequest(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.AnswerUiRequest(c, id)
+}
+
 // MarkUnwatched operation middleware
 func (siw *ServerInterfaceWrapper) MarkUnwatched(c *gin.Context) {
 
@@ -2919,6 +3126,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.DELETE(options.BaseURL+"/torrents/:info_hash", wrapper.RemoveTorrent)
 	router.GET(options.BaseURL+"/people/:tmdb_id", wrapper.GetPerson)
 	router.GET(options.BaseURL+"/people/:tmdb_id/credits", wrapper.GetPersonCredits)
+	router.GET(options.BaseURL+"/ui/events", wrapper.GetUiEvents)
+	router.POST(options.BaseURL+"/ui/requests/:id", wrapper.AnswerUiRequest)
 	router.GET(options.BaseURL+"/stream/:id/:file_index", wrapper.GetStream)
 }
 
@@ -5182,6 +5391,189 @@ func (response ListTraktChartdefaultJSONResponse) VisitListTraktChartResponse(w 
 	return err
 }
 
+type GetUiEventsRequestObject struct {
+	Params GetUiEventsParams
+}
+
+type GetUiEventsResponseObject interface {
+	VisitGetUiEventsResponse(w http.ResponseWriter) error
+}
+
+type GetUiEvents200ResponseHeaders struct {
+	XUIEpoch *string
+}
+
+type GetUiEvents200JSONResponse struct {
+	Body    UIEventBatch
+	Headers GetUiEvents200ResponseHeaders
+}
+
+func (response GetUiEvents200JSONResponse) VisitGetUiEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.XUIEpoch != nil {
+		w.Header().Set("X-UI-Epoch", fmt.Sprint(*response.Headers.XUIEpoch))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUiEvents204ResponseHeaders struct {
+	XUIEpoch *string
+}
+
+type GetUiEvents204Response struct {
+	Headers GetUiEvents204ResponseHeaders
+}
+
+func (response GetUiEvents204Response) VisitGetUiEventsResponse(w http.ResponseWriter) error {
+	if response.Headers.XUIEpoch != nil {
+		w.Header().Set("X-UI-Epoch", fmt.Sprint(*response.Headers.XUIEpoch))
+	}
+	w.WriteHeader(204)
+	return nil
+}
+
+type GetUiEvents400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetUiEvents400JSONResponse) VisitGetUiEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUiEvents401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetUiEvents401JSONResponse) VisitGetUiEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUiEventsdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response GetUiEventsdefaultJSONResponse) VisitGetUiEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AnswerUiRequestRequestObject struct {
+	Id   string `json:"id"`
+	Body *AnswerUiRequestJSONRequestBody
+}
+
+type AnswerUiRequestResponseObject interface {
+	VisitAnswerUiRequestResponse(w http.ResponseWriter) error
+}
+
+type AnswerUiRequest204Response struct {
+}
+
+func (response AnswerUiRequest204Response) VisitAnswerUiRequestResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type AnswerUiRequest400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response AnswerUiRequest400JSONResponse) VisitAnswerUiRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AnswerUiRequest401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response AnswerUiRequest401JSONResponse) VisitAnswerUiRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AnswerUiRequest404JSONResponse struct{ NotFoundJSONResponse }
+
+func (response AnswerUiRequest404JSONResponse) VisitAnswerUiRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AnswerUiRequest410JSONResponse Error
+
+func (response AnswerUiRequest410JSONResponse) VisitAnswerUiRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(410)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AnswerUiRequestdefaultJSONResponse struct {
+	Body       Error
+	StatusCode int
+}
+
+func (response AnswerUiRequestdefaultJSONResponse) VisitAnswerUiRequestResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type MarkUnwatchedRequestObject struct {
 	Kind WatchedKindParam `json:"kind"`
 	Body *MarkUnwatchedJSONRequestBody
@@ -5432,6 +5824,12 @@ type StrictServerInterface interface {
 	// ListTraktChart Public Trakt chart (no Trakt account needed)
 	// (GET /trakt/{media}/lists/{list})
 	ListTraktChart(ctx context.Context, request ListTraktChartRequestObject) (ListTraktChartResponseObject, error)
+	// GetUiEvents Long-poll for UI events (toasts, questions, progress)
+	// (GET /ui/events)
+	GetUiEvents(ctx context.Context, request GetUiEventsRequestObject) (GetUiEventsResponseObject, error)
+	// AnswerUiRequest Answer a question, or cancel a progress dialog
+	// (POST /ui/requests/{id})
+	AnswerUiRequest(ctx context.Context, request AnswerUiRequestRequestObject) (AnswerUiRequestResponseObject, error)
 	// MarkUnwatched Mark a movie, show, season or episode unwatched
 	// (DELETE /watched/{kind})
 	MarkUnwatched(ctx context.Context, request MarkUnwatchedRequestObject) (MarkUnwatchedResponseObject, error)
@@ -6370,6 +6768,76 @@ func (sh *strictHandler) ListTraktChart(ctx *gin.Context, media MediaParam, list
 		sh.options.HandlerErrorFunc(ctx, err)
 	} else if validResponse, ok := response.(ListTraktChartResponseObject); ok {
 		if err := validResponse.VisitListTraktChartResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetUiEvents operation middleware
+func (sh *strictHandler) GetUiEvents(ctx *gin.Context, params GetUiEventsParams) {
+	var request GetUiEventsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUiEvents(ctx, request.(GetUiEventsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUiEvents")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(GetUiEventsResponseObject); ok {
+		if err := validResponse.VisitGetUiEventsResponse(ctx.Writer); err != nil {
+			sh.options.ResponseErrorHandlerFunc(ctx, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(ctx, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AnswerUiRequest operation middleware
+func (sh *strictHandler) AnswerUiRequest(ctx *gin.Context, id string) {
+	var request AnswerUiRequestRequestObject
+
+	request.Id = id
+
+	var body AnswerUiRequestJSONRequestBody
+	var err error
+	// A request validator built on kin-openapi's openapi3filter with
+	// KeepValidatedValue leaves the value it validated on the body. Bind
+	// that value, matching member names exactly, so the handler receives
+	// what was validated instead of a second, case-insensitive decode.
+	if vb, ok := ctx.Request.Body.(interface{ ValidatedValue() any }); !ok || runtime.BindJSONValue(vb.ValidatedValue(), &body) != nil {
+		err = ctx.ShouldBindJSON(&body)
+	} else if binding.Validator != nil {
+		// ShouldBindJSON runs the struct validator after decoding; keep that.
+		err = binding.Validator.ValidateStruct(&body)
+	}
+	if err != nil {
+		sh.options.RequestErrorHandlerFunc(ctx, err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.AnswerUiRequest(ctx, request.(AnswerUiRequestRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AnswerUiRequest")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		sh.options.HandlerErrorFunc(ctx, err)
+	} else if validResponse, ok := response.(AnswerUiRequestResponseObject); ok {
+		if err := validResponse.VisitAnswerUiRequestResponse(ctx.Writer); err != nil {
 			sh.options.ResponseErrorHandlerFunc(ctx, err)
 		}
 	} else if response != nil {

@@ -68,6 +68,17 @@ func TestWriteFileAtomic(t *testing.T) {
 }
 
 func TestPollingReload(t *testing.T) {
+	// Other tests leave globals behind: with a leaked Args.ConfigPath/appliedNorm, WriteBackOnlyChange could
+	// swallow the reload. Start from a clean state and restore it afterwards.
+	fileMu.Lock()
+	oldPath, oldNorm, oldStamp := Args.ConfigPath, appliedNorm, lastStamp
+	Args.ConfigPath, appliedNorm = "", nil
+	fileMu.Unlock()
+	t.Cleanup(func() {
+		fileMu.Lock()
+		Args.ConfigPath, appliedNorm, lastStamp = oldPath, oldNorm, oldStamp
+		fileMu.Unlock()
+	})
 	p := filepath.Join(t.TempDir(), "settings.json")
 	write(t, p, validFile)
 	if _, err := loadSettingsFile(p); err != nil {
@@ -75,12 +86,13 @@ func TestPollingReload(t *testing.T) {
 	}
 	var reloads atomic.Int32
 	done := make(chan struct{})
-	defer close(done)
-	go WatchSettingsFile(p, 10*time.Millisecond, done, func() { reloads.Add(1) })
+	stopped := make(chan struct{})
+	go func() { WatchSettingsFile(p, 10*time.Millisecond, done, func() { reloads.Add(1) }); close(stopped) }()
+	t.Cleanup(func() { close(done); <-stopped }) // runs before the state restore above
 
 	wait := func(n int32) bool {
 		for i := 0; i < 100; i++ {
-			if reloads.Load() == n {
+			if reloads.Load() >= n {
 				return true
 			}
 			time.Sleep(10 * time.Millisecond)
@@ -91,17 +103,30 @@ func TestPollingReload(t *testing.T) {
 	if reloads.Load() != 0 {
 		t.Fatal("reload without a change")
 	}
-	write(t, p, strings.Replace(validFile, `"en"`, `"de"`, 1))
+	write(t, p, strings.Replace(validFile, `"en"`, `"de-DE"`, 1))
 	if !wait(1) {
 		t.Fatal("change not picked up")
 	}
+	// settle: a non-atomic write can be seen twice, so wait until the count stops moving
+	settle := func() int32 {
+		last, same := reloads.Load(), 0
+		for same < 8 {
+			time.Sleep(10 * time.Millisecond)
+			if n := reloads.Load(); n != last {
+				last, same = n, 0
+			} else {
+				same++
+			}
+		}
+		return last
+	}
+	before := settle()
 	write(t, p, `{garbage`)
-	time.Sleep(100 * time.Millisecond)
-	if reloads.Load() != 1 {
-		t.Fatal("bad file triggered a reload")
+	if after := settle(); after != before {
+		t.Fatalf("bad file triggered a reload (%d -> %d)", before, after)
 	}
 	write(t, p, validFile+" ") // fixed (and a different size)
-	if !wait(2) {
+	if !wait(before + 1) {
 		t.Fatal("fixed file not picked up")
 	}
 }

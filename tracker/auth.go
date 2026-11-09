@@ -8,6 +8,7 @@ import (
 
 	"github.com/elgatito/elementum/broadcast"
 	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -73,9 +74,11 @@ func saveCredentials(id string, c *config.TrackerCredentials) {
 }
 
 func notify(format int, args ...any) {
-	if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-		xbmcHost.Notify("Elementum", fmt.Sprintf(xbmcHost.GetLocalizedString(format), args...), config.AddonIcon())
+	msg := fmt.Sprintf("LOCALIZE[%d]", format)
+	for _, a := range args {
+		msg += fmt.Sprintf(";;%v", a)
 	}
+	ui.Toast(msg)
 }
 
 // RunDeviceAuth shows the device code to the user and polls for the token in background.

@@ -1,0 +1,20 @@
+msgid ""
+msgstr ""
+"Language: en\n"
+
+msgctxt "#30287"
+msgid "%s added to the library"
+msgstr ""
+
+msgctxt "#30684"
+msgid "Library updated: %s movies, %s shows"
+msgstr "Library updated: %s movies, "
+"%s shows"
+
+msgctxt "#30204"
+msgid "No results"
+msgstr ""
+
+msgctxt "#30999"
+msgid "Only in English"
+msgstr ""

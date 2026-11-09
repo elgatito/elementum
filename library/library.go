@@ -26,6 +26,7 @@ import (
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/trakt"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/event"
 	"github.com/elgatito/elementum/xbmc"
@@ -141,15 +142,11 @@ func Init() {
 	}
 
 	if err := checkMoviesPath(); err != nil {
-		if xbmcHost != nil {
-			xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-		}
+		ui.Toast(err.Error())
 		return
 	}
 	if err := checkShowsPath(); err != nil {
-		if xbmcHost != nil {
-			xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-		}
+		ui.Toast(err.Error())
 		return
 	}
 
@@ -1392,9 +1389,7 @@ func AddMovie(tmdbID string, force bool) (*tmdb.Movie, error) {
 	}
 
 	if !force && uid.IsDuplicateMovie(tmdbID) {
-		if xbmcHost, err := xbmc.GetLocalXBMCHost(); xbmcHost != nil && err == nil {
-			xbmcHost.Notify("Elementum", fmt.Sprintf("LOCALIZE[30287];;%s", movie.GetTitle()), config.AddonIcon())
-		}
+		ui.Toast(fmt.Sprintf("LOCALIZE[30287];;%s", movie.GetTitle()))
 		return nil, fmt.Errorf("Movie already added")
 	}
 
@@ -1421,8 +1416,8 @@ func AddShow(tmdbID string, force bool) (*tmdb.Show, error) {
 	show := tmdb.GetShowByID(tmdbID, config.Get().Language)
 
 	if !force && uid.IsDuplicateShow(tmdbID) {
-		if xbmcHost, err := xbmc.GetLocalXBMCHost(); xbmcHost != nil && err == nil && show != nil {
-			xbmcHost.Notify("Elementum", fmt.Sprintf("LOCALIZE[30287];;%s", show.GetName()), config.AddonIcon())
+		if show != nil {
+			ui.Toast(fmt.Sprintf("LOCALIZE[30287];;%s", show.GetName()))
 		}
 		return show, fmt.Errorf("Show already added")
 	}
@@ -1737,7 +1732,7 @@ func RemoveDuplicates() error {
 		log.Debugf("Removed duplicate stats. Movies: %d, Shows: %d, Episodes: %d", movies, shows, episodes)
 		PlanOverallUpdate()
 
-		xbmcHost.Notify("Elementum", fmt.Sprintf("LOCALIZE[30684];;%d;;%d;;%d", movies, shows, episodes), config.AddonIcon())
+		ui.Toast(fmt.Sprintf("LOCALIZE[30684];;%d;;%d;;%d", movies, shows, episodes))
 	}
 
 	return nil

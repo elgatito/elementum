@@ -36,6 +36,7 @@ import (
 	"github.com/elgatito/elementum/simkl"
 	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/trakt"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/ident"
 	"github.com/elgatito/elementum/util/ip"
@@ -292,9 +293,7 @@ func main() {
 	}
 
 	if config.Get().GreetingEnabled {
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", "LOCALIZE[30208]", config.AddonIcon())
-		}
+		ui.Toast("LOCALIZE[30208]")
 	}
 
 	sigc := make(chan os.Signal, 2)

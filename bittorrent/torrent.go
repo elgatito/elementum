@@ -30,6 +30,7 @@ import (
 	"github.com/elgatito/elementum/database"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/tvdb"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/event"
 	"github.com/elgatito/elementum/xbmc"
@@ -1894,8 +1895,8 @@ func (t *Torrent) SelectDownloadFiles(btp *Player) {
 		return
 	} else if availableSpace < sizeLeft+extraSize {
 		log.Errorf("Not selecting more files for download, unsufficient free space on %s. Has %d, needs %d.", config.Get().DownloadPath, availableSpace, sizeLeft+extraSize)
-		if btp != nil && btp.xbmcHost != nil {
-			btp.xbmcHost.Notify("Elementum", "LOCALIZE[30207]", config.AddonIcon())
+		if btp != nil {
+			ui.ToastOn(ui.For(btp.xbmcHost), "LOCALIZE[30207]")
 		}
 		return
 	}
@@ -2007,9 +2008,7 @@ func (t *Torrent) ChooseFile(btp *Player, xbmcHost *xbmc.XBMCHost) (*File, int, 
 		// Automatic selection above still has priority and existing behavior
 		// remains unchanged unless this option is requested.
 		if btp != nil && btp.p.SkipFileDialog {
-			if xbmcHost != nil {
-				xbmcHost.Notify("Elementum", "No matching file was found in this torrent.", config.AddonIcon())
-			}
+			ui.ToastOn(ui.For(xbmcHost), "No matching file was found in this torrent.")
 			return nil, -1, fmt.Errorf("automatic file selection failed and file dialog is disabled")
 		}
 
@@ -2306,9 +2305,7 @@ func (t *Torrent) AlertFinished() {
 		return
 	}
 
-	if xbmcHost, err := xbmc.GetLocalXBMCHost(); xbmcHost != nil && err == nil {
-		xbmcHost.Notify("Elementum", "LOCALIZE[30618];;"+t.Name(), config.AddonIcon())
-	}
+	ui.Toast("LOCALIZE[30618];;" + t.Name())
 }
 
 // UpdateTorrentMetadata updates metadata for specific TMDB id

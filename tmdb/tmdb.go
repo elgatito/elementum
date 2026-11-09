@@ -13,6 +13,7 @@ import (
 
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/event"
 	"github.com/elgatito/elementum/util/reqapi"
@@ -58,9 +59,7 @@ func CheckAPIKey() {
 
 	if !tmdbCheckDomain() {
 		log.Error("No valid TMDB API endpoint found")
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", "LOCALIZE[30705]", config.AddonIcon())
-		}
+		ui.Toast("LOCALIZE[30705]")
 
 		return
 	}
@@ -94,9 +93,7 @@ func CheckAPIKey() {
 
 	if !result {
 		log.Error("No valid TMDB API key found")
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", "LOCALIZE[30704]", config.AddonIcon())
-		}
+		ui.Toast("LOCALIZE[30704]")
 	}
 }
 

@@ -39,6 +39,7 @@ import (
 	"github.com/elgatito/elementum/proxy"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/trakt"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/event"
 	"github.com/elgatito/elementum/util/ident"
@@ -736,9 +737,7 @@ func (s *Service) checkAvailableSpace(xbmcHost *xbmc.XBMCHost, t *Torrent) bool 
 
 	if availableSpace < sizeLeft {
 		log.Errorf("Unsufficient free space on %s. Has %d, needs %d.", config.Get().DownloadPath, availableSpace, sizeLeft)
-		if xbmcHost != nil {
-			xbmcHost.Notify("Elementum", "LOCALIZE[30207]", config.AddonIcon())
-		}
+		ui.ToastOn(ui.For(xbmcHost), "LOCALIZE[30207]")
 
 		log.Infof("Pausing torrent %s", t.Name())
 		t.Pause()
@@ -819,9 +818,7 @@ func (s *Service) AddTorrent(xbmcHost *xbmc.XBMCHost, options AddOptions) (_ *To
 
 	if options.DownloadStorage != config.StorageMemory && s.config.DownloadPath == "." {
 		log.Warningf("Cannot add torrent since download path is not set")
-		if xbmcHost != nil {
-			xbmcHost.Notify("Elementum", "LOCALIZE[30113]", config.AddonIcon())
-		}
+		ui.ToastOn(ui.For(xbmcHost), "LOCALIZE[30113]")
 		return nil, fmt.Errorf("Download path empty")
 	}
 

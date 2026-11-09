@@ -18,6 +18,7 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/proxy"
 	"github.com/elgatito/elementum/tmdb"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/util/ident"
 	"github.com/elgatito/elementum/util/reqapi"
@@ -130,9 +131,7 @@ func ensureLogin() error {
 	err := Authorize()
 	if err != nil {
 		log.Error("Could not authorize on Opensubtitles: %s", err)
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-		}
+		ui.Toast(err.Error())
 	}
 
 	return err
@@ -249,15 +248,12 @@ func DoSearch(payloads []SearchPayload, preferredLanguage string) ([]SearchRespo
 
 func checkError(req *reqapi.Request) {
 	if req.ResponseStatusCode == 406 {
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			resp := &DownloadErrorResponse{}
-			req.Result = resp
-			translated := xbmcHost.GetLocalizedString(30702)
-			if err := req.Unmarshal(req.ResponseBody); err == nil {
-				xbmcHost.Notify("Elementum", fmt.Sprintf("%s: %s", translated, resp.Message), config.AddonIcon())
-			} else {
-				xbmcHost.Notify("Elementum", translated, config.AddonIcon())
-			}
+		resp := &DownloadErrorResponse{}
+		req.Result = resp
+		if err := req.Unmarshal(req.ResponseBody); err == nil {
+			ui.Toast(fmt.Sprintf("LOCALIZE[30702]: %s", resp.Message))
+		} else {
+			ui.Toast("LOCALIZE[30702]")
 		}
 	}
 }

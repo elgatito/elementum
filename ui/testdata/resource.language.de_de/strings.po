@@ -1,0 +1,11 @@
+msgid ""
+msgstr ""
+"Language: de\n"
+
+msgctxt "#30287"
+msgid "%s added to the library"
+msgstr "%s zur Bibliothek hinzugefügt"
+
+msgctxt "#30204"
+msgid "No results"
+msgstr "Keine \"Ergebnisse\""

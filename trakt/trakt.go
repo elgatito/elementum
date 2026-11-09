@@ -15,6 +15,7 @@ import (
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/library/uid"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util/ident"
 	"github.com/elgatito/elementum/util/reqapi"
 	"github.com/elgatito/elementum/xbmc"
@@ -244,9 +245,7 @@ func RefreshToken() error {
 			notifyMessage = "LOCALIZE[30576]"
 		}
 		log.Errorf("Failed to refresh Trakt token: %s", err)
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-			xbmcHost.Notify("Elementum", notifyMessage, config.AddonIcon())
-		}
+		ui.Toast(notifyMessage)
 		return err
 	}
 
@@ -272,8 +271,8 @@ func Authorize(fromSettings bool) error {
 	code, err := GetCode()
 	if err != nil || code == nil {
 		log.Errorf("Could not get authorization code from Trakt.tv: %s", err)
-		if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil && err != nil {
-			xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
+		if err != nil {
+			ui.Toast(err.Error())
 		}
 		return err
 	}
@@ -296,9 +295,7 @@ func Authorize(fromSettings bool) error {
 				attempts++
 
 				if attempts > 30 {
-					if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-						xbmcHost.Notify("Elementum", "LOCALIZE[30651]", config.AddonIcon())
-					}
+					ui.Toast("LOCALIZE[30651]")
 					return
 				}
 
@@ -343,9 +340,7 @@ func Authorize(fromSettings bool) error {
 
 				config.Reload()
 
-				if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-					xbmcHost.Notify("Elementum", "LOCALIZE[30650]", config.AddonIcon())
-				}
+				ui.Toast("LOCALIZE[30650]")
 				return
 			}
 		}
@@ -390,9 +385,7 @@ func Deauthorize(fromSettings bool) error {
 	config.SetSetting("trakt_token", "")
 	config.SetSetting("trakt_refresh_token", "")
 	config.SetSetting("trakt_username", "")
-	if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-		xbmcHost.Notify("Elementum", "LOCALIZE[30652]", config.AddonIcon())
-	}
+	ui.Toast("LOCALIZE[30652]")
 
 	return nil
 }
