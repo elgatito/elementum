@@ -1486,7 +1486,7 @@ func (btp *Player) processUpNextPayload() {
 func (btp *Player) processUpNextShow() (upnext.Payload, error) {
 	res := upnext.Payload{}
 
-	show, season, episode, err := getShowSeasonEpisode(btp.p.ShowID, btp.p.Season, btp.p.Episode)
+	show, season, episode, err := tmdb.GetShowSeasonEpisode(btp.p.ShowID, btp.p.Season, btp.p.Episode, config.Get().Language)
 	if err != nil {
 		log.Warningf("Cannot prepare current UpNext item: %s", err)
 		return res, err
@@ -1627,28 +1627,6 @@ func contextPlayURL(f string, title string, forced bool) string {
 	return fmt.Sprintf(f, action, url.PathEscape(title))
 }
 
-func getShowSeasonEpisode(showID, seasonNumber, episodeNumber int) (*tmdb.Show, *tmdb.Season, *tmdb.Episode, error) {
-	if episodeNumber <= 0 {
-		return nil, nil, nil, errors.New("Wrong episode number")
-	}
-
-	show := tmdb.GetShow(showID, config.Get().Language)
-	if show == nil {
-		return nil, nil, nil, errors.New("Unable to find show")
-	}
-
-	season := tmdb.GetSeason(showID, seasonNumber, config.Get().Language, len(show.Seasons), true)
-	if season == nil {
-		return nil, nil, nil, errors.New("Unable to find season")
-	}
-
-	if !season.HasEpisode(episodeNumber) {
-		return nil, nil, nil, errors.New("Unable to find episode")
-	}
-
-	return show, season, season.GetEpisode(episodeNumber), nil
-}
-
 func getNextShowSeasonEpisode(showID, seasonNumber, episodeNumber int) (*tmdb.Show, *tmdb.Season, *tmdb.Episode, error) {
 	show := tmdb.GetShow(showID, config.Get().Language)
 	if show == nil {
@@ -1662,7 +1640,7 @@ func getNextShowSeasonEpisode(showID, seasonNumber, episodeNumber int) (*tmdb.Sh
 
 	episodeNumber++
 	if !season.HasEpisode(episodeNumber) {
-		return getShowSeasonEpisode(showID, seasonNumber+1, 1)
+		return tmdb.GetShowSeasonEpisode(showID, seasonNumber+1, 1, config.Get().Language)
 	}
 
 	return show, season, season.GetEpisode(episodeNumber), nil

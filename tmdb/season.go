@@ -2,6 +2,7 @@ package tmdb
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"math/rand/v2"
 	"slices"
@@ -488,4 +489,28 @@ func (season *Season) GetFirstEpisodeNumber() int {
 	}
 
 	return season.Episodes[0].EpisodeNumber
+}
+
+// GetShowSeasonEpisode loads a show with one of its seasons and a numbered episode, failing when any is missing.
+func GetShowSeasonEpisode(showID, seasonNumber, episodeNumber int, language string) (*Show, *Season, *Episode, error) {
+	if episodeNumber <= 0 {
+		return nil, nil, nil, errors.New("Wrong episode number")
+	}
+
+	show := GetShow(showID, language)
+	if show == nil {
+		return nil, nil, nil, errors.New("Unable to find show")
+	}
+
+	season := GetSeason(showID, seasonNumber, language, len(show.Seasons), true)
+	if season == nil {
+		return nil, nil, nil, errors.New("Unable to find season")
+	}
+
+	episode := season.GetEpisode(episodeNumber)
+	if episode == nil {
+		return nil, nil, nil, errors.New("Unable to find episode")
+	}
+
+	return show, season, episode, nil
 }

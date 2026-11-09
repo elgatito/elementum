@@ -19,6 +19,7 @@ import (
 	"github.com/elgatito/elementum/util/reqapi"
 	"github.com/elgatito/elementum/xbmc"
 
+	"github.com/anacrolix/missinggo/perf"
 	"github.com/anacrolix/sync"
 	"github.com/jmcvetta/napping"
 	"github.com/op/go-logging"
@@ -233,6 +234,22 @@ func Find(externalID string, externalSource string) *FindResult {
 	req.Do()
 
 	return result
+}
+
+// FindID returns the TMDB id of the first movie (or show) matching an IMDB id, 0 when none.
+func FindID(imdbID string, movie bool) int {
+	res := Find(imdbID, "imdb_id")
+	if res == nil {
+		return 0
+	}
+	found := res.TVResults
+	if movie {
+		found = res.MovieResults
+	}
+	if len(found) > 0 && found[0] != nil {
+		return found[0].ID
+	}
+	return 0
 }
 
 // GetCountries ...
@@ -596,4 +613,81 @@ func fillOverviews(endpoint string, pageParams napping.Params, entities []*Entit
 			e.Overview = byID[e.ID]
 		}
 	}
+}
+
+// listEntities fetches a discover/list endpoint page range, as lite items when ListOption asks for it, else full details.
+func listEntities[T any](endpoint string, params napping.Params, page int, perPage int, desc string, expire time.Duration,
+	genreList func(string) []*Genre, get func(int, string) *T, lite func(*Entity, map[int]string) *T, opts []ListOption) ([]*T, int) {
+	defer perf.ScopeTimer()()
+
+	params["api_key"] = apiKey
+	totalResults := -1
+	var totalOnce sync.Once // pages are fetched concurrently; the first one sets the total
+
+	requestLimitStart := (page - 1) * perPage
+	requestLimitEnd := page*perPage - 1
+
+	pageStart := requestLimitStart / TMDBResultsPerPage
+	pageEnd := min(requestLimitEnd/TMDBResultsPerPage, TMDBMaxPages-1)
+
+	items := make([]*T, perPage)
+	genres := liteGenres(opts, func() []*Genre { return genreList(params["language"]) })
+
+	wg := sync.WaitGroup{}
+	for p := pageStart; p <= pageEnd; p++ {
+		wg.Add(1)
+		go func(currentPage int) {
+			defer wg.Done()
+			var results *EntityList
+			pageParams := napping.Params{
+				"page": strconv.Itoa(currentPage + 1),
+			}
+			maps.Copy(pageParams, params)
+
+			req := reqapi.Request{
+				API:         reqapi.TMDBAPI,
+				URL:         fmt.Sprintf("/%s", endpoint),
+				Params:      pageParams.AsUrlValues(),
+				Result:      &results,
+				Description: desc,
+
+				Cache:       true,
+				CacheExpire: expire,
+			}
+
+			if err := req.Do(); err != nil || results == nil {
+				return
+			}
+
+			totalOnce.Do(func() { totalResults = results.TotalResults })
+			if genres != nil {
+				fillOverviews(endpoint, pageParams, results.Results, expire)
+			}
+
+			var wgItems sync.WaitGroup
+			wgItems.Add(len(results.Results))
+			for i, entity := range results.Results {
+				rindex := currentPage*TMDBResultsPerPage - requestLimitStart + i
+				if entity == nil || rindex >= len(items) || rindex < 0 {
+					wgItems.Done()
+					continue
+				}
+
+				if genres != nil {
+					items[rindex] = lite(entity, genres)
+					wgItems.Done()
+					continue
+				}
+
+				go func(rindex int, tmdbId int) {
+					defer wgItems.Done()
+					items[rindex] = get(tmdbId, params["language"])
+				}(rindex, entity.ID)
+			}
+			wgItems.Wait()
+		}(p)
+	}
+	wg.Wait()
+
+	return items, totalResults
 }

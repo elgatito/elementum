@@ -1099,10 +1099,7 @@ func SyncMoviesListAdded(movies []*tracker.Item, updating, isUpdateNeeded bool, 
 		title := movie.Title
 		// Try to resolve TMDB id through IMDB id, if provided
 		if movie.IDs.TMDB == 0 && len(movie.IDs.IMDB) > 0 {
-			r := tmdb.Find(movie.IDs.IMDB, "imdb_id")
-			if r != nil && len(r.MovieResults) > 0 {
-				movie.IDs.TMDB = r.MovieResults[0].ID
-			}
+			movie.IDs.TMDB = tmdb.FindID(movie.IDs.IMDB, true)
 		}
 
 		if movie.IDs.TMDB == 0 {
@@ -1211,10 +1208,7 @@ func SyncShowsListAdded(shows []*tracker.Item, updating, isUpdateNeeded bool, la
 		// Try to resolve TMDB id through IMDB id, if provided
 		if show.IDs.TMDB == 0 {
 			if len(show.IDs.IMDB) > 0 {
-				r := tmdb.Find(show.IDs.IMDB, "imdb_id")
-				if r != nil && len(r.TVResults) > 0 {
-					show.IDs.TMDB = r.TVResults[0].ID
-				}
+				show.IDs.TMDB = tmdb.FindID(show.IDs.IMDB, false)
 			}
 			if show.IDs.TMDB == 0 && show.IDs.TVDB != 0 {
 				r := tmdb.Find(strconv.Itoa(show.IDs.TVDB), "tvdb_id")

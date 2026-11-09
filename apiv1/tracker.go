@@ -82,16 +82,7 @@ func tmdbID(r ref, movie bool) int {
 	if r.tmdb != 0 || r.imdb == "" {
 		return r.tmdb
 	}
-	if res := tmdb.Find(r.imdb, "imdb_id"); res != nil {
-		found := res.TVResults
-		if movie {
-			found = res.MovieResults
-		}
-		if len(found) > 0 && found[0] != nil {
-			return found[0].ID
-		}
-	}
-	return 0
+	return tmdb.FindID(r.imdb, movie)
 }
 
 // mediaItems resolves and fetches refs concurrently, in order, skipping those TMDB doesn't know.

@@ -685,11 +685,11 @@ func (z *Crew) Msgsize() (s int) {
 }
 
 // MarshalMsg implements msgp.Marshaler
-func (z DiscoverFilters) MarshalMsg(b []byte) (o []byte, err error) {
+func (z *DiscoverFilters) MarshalMsg(b []byte) (o []byte, err error) {
 	o = msgp.Require(b, z.Msgsize())
-	// map header, size 3
+	// map header, size 4
 	// string "Genre"
-	o = append(o, 0x83, 0xa5, 0x47, 0x65, 0x6e, 0x72, 0x65)
+	o = append(o, 0x84, 0xa5, 0x47, 0x65, 0x6e, 0x72, 0x65)
 	o = msgp.AppendString(o, z.Genre)
 	// string "Country"
 	o = append(o, 0xa7, 0x43, 0x6f, 0x75, 0x6e, 0x74, 0x72, 0x79)
@@ -697,6 +697,9 @@ func (z DiscoverFilters) MarshalMsg(b []byte) (o []byte, err error) {
 	// string "Language"
 	o = append(o, 0xa8, 0x4c, 0x61, 0x6e, 0x67, 0x75, 0x61, 0x67, 0x65)
 	o = msgp.AppendString(o, z.Language)
+	// string "Year"
+	o = append(o, 0xa4, 0x59, 0x65, 0x61, 0x72)
+	o = msgp.AppendString(o, z.Year)
 	return
 }
 
@@ -736,6 +739,12 @@ func (z *DiscoverFilters) UnmarshalMsg(bts []byte) (o []byte, err error) {
 				err = msgp.WrapError(err, "Language")
 				return
 			}
+		case "Year":
+			z.Year, bts, err = msgp.ReadStringBytes(bts)
+			if err != nil {
+				err = msgp.WrapError(err, "Year")
+				return
+			}
 		default:
 			bts, err = msgp.Skip(bts)
 			if err != nil {
@@ -749,8 +758,8 @@ func (z *DiscoverFilters) UnmarshalMsg(bts []byte) (o []byte, err error) {
 }
 
 // Msgsize returns an upper bound estimate of the number of bytes occupied by the serialized message
-func (z DiscoverFilters) Msgsize() (s int) {
-	s = 1 + 6 + msgp.StringPrefixSize + len(z.Genre) + 8 + msgp.StringPrefixSize + len(z.Country) + 9 + msgp.StringPrefixSize + len(z.Language)
+func (z *DiscoverFilters) Msgsize() (s int) {
+	s = 1 + 6 + msgp.StringPrefixSize + len(z.Genre) + 8 + msgp.StringPrefixSize + len(z.Country) + 9 + msgp.StringPrefixSize + len(z.Language) + 5 + msgp.StringPrefixSize + len(z.Year)
 	return
 }
 

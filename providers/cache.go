@@ -12,6 +12,11 @@ import (
 	"github.com/elgatito/elementum/database"
 )
 
+// EpisodeCacheKey is the search-cache key of an episode, shared by the Kodi routes and the API.
+func EpisodeCacheKey(show, season, episode int) string {
+	return fmt.Sprintf("%d_%d_%d", show, season, episode)
+}
+
 // GetCachedTorrents searches for torrent entries in the cache
 func GetCachedTorrents(tmdbID string) ([]*bittorrent.TorrentFile, error) {
 	defer perf.ScopeTimer()()

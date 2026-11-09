@@ -54,109 +54,54 @@ var (
 
 // Search ...
 func Search(xbmcHost *xbmc.XBMCHost, searchers []Searcher, query string) []*bittorrent.TorrentFile {
-	torrentsChan := make(chan *bittorrent.TorrentFile)
-	go func() {
-		wg := sync.WaitGroup{}
-		for _, searcher := range searchers {
-			wg.Add(1)
-			go func(searcher Searcher) {
-				defer wg.Done()
-				for _, torrent := range searcher.SearchLinks(query) {
-					torrentsChan <- torrent
-				}
-			}(searcher)
-		}
-		wg.Wait()
-		close(torrentsChan)
-	}()
-
-	return processLinks(xbmcHost, torrentsChan, SortMovies, false)
+	return searchAll(xbmcHost, searchers, SortMovies, false, func(s Searcher) []*bittorrent.TorrentFile {
+		return s.SearchLinks(query)
+	})
 }
 
 // SearchMovie ...
 func SearchMovie(xbmcHost *xbmc.XBMCHost, searchers []MovieSearcher, movie *tmdb.Movie) []*bittorrent.TorrentFile {
-	torrentsChan := make(chan *bittorrent.TorrentFile)
-	go func() {
-		wg := sync.WaitGroup{}
-		for _, searcher := range searchers {
-			wg.Add(1)
-			go func(searcher MovieSearcher) {
-				defer wg.Done()
-				for _, torrent := range searcher.SearchMovieLinks(movie) {
-					torrentsChan <- torrent
-				}
-			}(searcher)
-		}
-		wg.Wait()
-		close(torrentsChan)
-	}()
-
-	return processLinks(xbmcHost, torrentsChan, SortMovies, false)
+	return searchAll(xbmcHost, searchers, SortMovies, false, func(s MovieSearcher) []*bittorrent.TorrentFile {
+		return s.SearchMovieLinks(movie)
+	})
 }
 
 // SearchMovieSilent ...
 func SearchMovieSilent(xbmcHost *xbmc.XBMCHost, searchers []MovieSearcher, movie *tmdb.Movie, withAuth bool) []*bittorrent.TorrentFile {
-	torrentsChan := make(chan *bittorrent.TorrentFile)
-	go func() {
-		wg := sync.WaitGroup{}
-		for _, searcher := range searchers {
-			wg.Add(1)
-			go func(searcher MovieSearcher) {
-				defer wg.Done()
-				for _, torrent := range searcher.SearchMovieLinksSilent(movie, withAuth) {
-					torrentsChan <- torrent
-				}
-			}(searcher)
-		}
-		wg.Wait()
-		close(torrentsChan)
-	}()
-
-	return processLinks(xbmcHost, torrentsChan, SortMovies, true)
+	return searchAll(xbmcHost, searchers, SortMovies, true, func(s MovieSearcher) []*bittorrent.TorrentFile {
+		return s.SearchMovieLinksSilent(movie, withAuth)
+	})
 }
 
 // SearchSeason ...
 func SearchSeason(xbmcHost *xbmc.XBMCHost, searchers []SeasonSearcher, show *tmdb.Show, season *tmdb.Season) []*bittorrent.TorrentFile {
-	torrentsChan := make(chan *bittorrent.TorrentFile)
-	go func() {
-		wg := sync.WaitGroup{}
-		for _, searcher := range searchers {
-			wg.Add(1)
-			go func(searcher SeasonSearcher) {
-				defer wg.Done()
-				for _, torrent := range searcher.SearchSeasonLinks(show, season) {
-					torrentsChan <- torrent
-				}
-			}(searcher)
-		}
-		wg.Wait()
-		close(torrentsChan)
-	}()
-
-	return processLinks(xbmcHost, torrentsChan, SortShows, false)
+	return searchAll(xbmcHost, searchers, SortShows, false, func(s SeasonSearcher) []*bittorrent.TorrentFile {
+		return s.SearchSeasonLinks(show, season)
+	})
 }
 
 // SearchEpisode ...
 func SearchEpisode(xbmcHost *xbmc.XBMCHost, searchers []EpisodeSearcher, show *tmdb.Show, season *tmdb.Season, episode *tmdb.Episode) []*bittorrent.TorrentFile {
-	return searchEpisode(xbmcHost, searchers, false, func(searcher EpisodeSearcher) []*bittorrent.TorrentFile {
-		return searcher.SearchEpisodeLinks(show, season, episode)
+	return searchAll(xbmcHost, searchers, SortShows, false, func(s EpisodeSearcher) []*bittorrent.TorrentFile {
+		return s.SearchEpisodeLinks(show, season, episode)
 	})
 }
 
 // SearchEpisodeSilent is SearchEpisode without Kodi dialogs, in Elementum and in the providers.
 func SearchEpisodeSilent(xbmcHost *xbmc.XBMCHost, searchers []EpisodeSearcher, show *tmdb.Show, season *tmdb.Season, episode *tmdb.Episode, withAuth bool) []*bittorrent.TorrentFile {
-	return searchEpisode(xbmcHost, searchers, true, func(searcher EpisodeSearcher) []*bittorrent.TorrentFile {
-		return searcher.SearchEpisodeLinksSilent(show, season, episode, withAuth)
+	return searchAll(xbmcHost, searchers, SortShows, true, func(s EpisodeSearcher) []*bittorrent.TorrentFile {
+		return s.SearchEpisodeLinksSilent(show, season, episode, withAuth)
 	})
 }
 
-func searchEpisode(xbmcHost *xbmc.XBMCHost, searchers []EpisodeSearcher, isSilent bool, search func(EpisodeSearcher) []*bittorrent.TorrentFile) []*bittorrent.TorrentFile {
+// searchAll runs search on every searcher concurrently and resolves the merged links.
+func searchAll[S any](xbmcHost *xbmc.XBMCHost, searchers []S, sortType int, isSilent bool, search func(S) []*bittorrent.TorrentFile) []*bittorrent.TorrentFile {
 	torrentsChan := make(chan *bittorrent.TorrentFile)
 	go func() {
 		wg := sync.WaitGroup{}
 		for _, searcher := range searchers {
 			wg.Add(1)
-			go func(searcher EpisodeSearcher) {
+			go func(searcher S) {
 				defer wg.Done()
 				for _, torrent := range search(searcher) {
 					torrentsChan <- torrent
@@ -167,7 +112,7 @@ func searchEpisode(xbmcHost *xbmc.XBMCHost, searchers []EpisodeSearcher, isSilen
 		close(torrentsChan)
 	}()
 
-	return processLinks(xbmcHost, torrentsChan, SortShows, isSilent)
+	return processLinks(xbmcHost, torrentsChan, sortType, isSilent)
 }
 
 func processLinks(xbmcHost *xbmc.XBMCHost, torrentsChan chan *bittorrent.TorrentFile, sortType int, isSilent bool) []*bittorrent.TorrentFile {

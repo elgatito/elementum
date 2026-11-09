@@ -2,7 +2,6 @@ package apiv1
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"strconv"
 
@@ -62,7 +61,7 @@ func (Server) ListEpisodeStreams(ctx context.Context, req ListEpisodeStreamsRequ
 		return ListEpisodeStreams400JSONResponse{BadRequestJSONResponse(badPathID)}, nil
 	}
 	c := ctx.(*gin.Context)
-	key := fmt.Sprintf("%d_%d_%d", req.TmdbId, req.Season, req.Episode)
+	key := providers.EpisodeCacheKey(req.TmdbId, req.Season, req.Episode)
 	if cached := cachedStreams(key); cached != nil {
 		return ListEpisodeStreams200JSONResponse(cached), nil
 	}
@@ -71,19 +70,9 @@ func (Server) ListEpisodeStreams(ctx context.Context, req ListEpisodeStreamsRequ
 		return ListEpisodeStreams502JSONResponse{ProvidersUnavailableJSONResponse(providersUnavailable)}, nil
 	}
 
-	notFound := ListEpisodeStreams404JSONResponse{NotFoundJSONResponse(newError(ErrorCodeNotFound, "episode not found"))}
-	lang := config.Get().Language
-	show := tmdb.GetShow(req.TmdbId, lang)
-	if show == nil {
-		return notFound, nil
-	}
-	season := tmdb.GetSeason(req.TmdbId, req.Season, lang, len(show.Seasons), true)
-	if season == nil {
-		return notFound, nil
-	}
-	episode := season.GetEpisode(req.Episode)
-	if episode == nil {
-		return notFound, nil
+	show, season, episode, err := tmdb.GetShowSeasonEpisode(req.TmdbId, req.Season, req.Episode, config.Get().Language)
+	if err != nil {
+		return ListEpisodeStreams404JSONResponse{NotFoundJSONResponse(newError(ErrorCodeNotFound, "episode not found"))}, nil
 	}
 	searchers := providers.GetEpisodeSearchers(xbmcHost, providers.CallbackHost(c, xbmcHost))
 	if len(searchers) == 0 {

@@ -7,9 +7,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/jmcvetta/napping"
 
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
@@ -70,8 +67,6 @@ func genreArgs(genre, year *int) *Error {
 
 func badRequest(e *Error) BadRequestJSONResponse { return BadRequestJSONResponse(*e) }
 
-func today() string { return time.Now().UTC().Format(time.DateOnly) }
-
 func (Server) ListMovies(_ context.Context, req ListMoviesRequestObject) (ListMoviesResponseObject, error) {
 	p := req.Params
 	page, limit, lang, e := args(p.Page, p.Limit, p.Lang, req.List)
@@ -100,12 +95,11 @@ func (Server) ListMovies(_ context.Context, req ListMoviesRequestObject) (ListMo
 	case MovieListNameUpcoming:
 		movies, total = tmdb.UpcomingMovies(lang, page, limit, tmdb.Lite)
 	case MovieListNameByGenre:
-		// Same filters as PopularMovies with a genre, plus the year.
-		params := napping.Params{"sort_by": "popularity.desc", "primary_release_date.lte": today(), "with_genres": strconv.Itoa(*p.Genre)}
+		f := tmdb.DiscoverFilters{Genre: strconv.Itoa(*p.Genre)}
 		if p.Year != nil {
-			params["primary_release_year"] = strconv.Itoa(*p.Year)
+			f.Year = strconv.Itoa(*p.Year)
 		}
-		movies, total = tmdb.DiscoverMovies(params, lang, page, limit, tmdb.Lite)
+		movies, total = tmdb.PopularMovies(f, lang, page, limit, tmdb.Lite)
 	}
 	if total < 0 {
 		return ListMoviesdefaultJSONResponse{Body: tmdbFailed, StatusCode: http.StatusBadGateway}, nil
@@ -139,12 +133,11 @@ func (Server) ListShows(_ context.Context, req ListShowsRequestObject) (ListShow
 	case ShowListNameOnTheAir:
 		shows, total = tmdb.RecentEpisodes(tmdb.DiscoverFilters{}, lang, page, limit, tmdb.Lite)
 	case ShowListNameByGenre:
-		// Same filters as PopularShows with a genre, plus the year.
-		params := napping.Params{"sort_by": "popularity.desc", "first_air_date.lte": today(), "with_genres": strconv.Itoa(*p.Genre)}
+		f := tmdb.DiscoverFilters{Genre: strconv.Itoa(*p.Genre)}
 		if p.Year != nil {
-			params["first_air_date_year"] = strconv.Itoa(*p.Year)
+			f.Year = strconv.Itoa(*p.Year)
 		}
-		shows, total = tmdb.DiscoverShows(params, lang, page, limit, tmdb.Lite)
+		shows, total = tmdb.PopularShows(f, lang, page, limit, tmdb.Lite)
 	}
 	if total < 0 {
 		return ListShowsdefaultJSONResponse{Body: tmdbFailed, StatusCode: http.StatusBadGateway}, nil

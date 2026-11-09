@@ -24,7 +24,6 @@ import (
 	xlanguage "golang.org/x/text/language"
 
 	"github.com/anacrolix/missinggo/perf"
-	"github.com/anacrolix/sync"
 	"github.com/jmcvetta/napping"
 )
 
@@ -34,84 +33,6 @@ func LogError(err error) {
 		pc, fn, line, _ := runtime.Caller(1)
 		log.Errorf("in %s[%s:%d] %#v: %v)", runtime.FuncForPC(pc).Name(), fn, line, err, err)
 	}
-}
-
-// GetShowImages ...
-func GetShowImages(showID int, language string) *Images {
-	defer perf.ScopeTimer()()
-
-	var images *Images
-	languagesList := GetUserLanguages(language)
-
-	req := reqapi.Request{
-		API: reqapi.TMDBAPI,
-		URL: fmt.Sprintf("/tv/%d/images", showID),
-		Params: napping.Params{
-			"api_key":                apiKey,
-			"include_image_language": languagesList,
-			"include_video_language": languagesList,
-		}.AsUrlValues(),
-		Result:      &images,
-		Description: "show images",
-
-		Cache:       true,
-		CacheExpire: cache.CacheExpireLong,
-	}
-
-	req.Do()
-	return images
-}
-
-// GetSeasonImages ...
-func GetSeasonImages(showID int, season int, language string) *Images {
-	defer perf.ScopeTimer()()
-
-	var images *Images
-	languagesList := GetUserLanguages(language)
-
-	req := reqapi.Request{
-		API: reqapi.TMDBAPI,
-		URL: fmt.Sprintf("/tv/%d/season/%d/images", showID, season),
-		Params: napping.Params{
-			"api_key":                apiKey,
-			"include_image_language": languagesList,
-			"include_video_language": languagesList,
-		}.AsUrlValues(),
-		Result:      &images,
-		Description: "season images",
-
-		Cache:       true,
-		CacheExpire: cache.CacheExpireLong,
-	}
-
-	req.Do()
-	return images
-}
-
-// GetEpisodeImages ...
-func GetEpisodeImages(showID, season, episode int, language string) *Images {
-	defer perf.ScopeTimer()()
-
-	var images *Images
-	languagesList := GetUserLanguages(language)
-
-	req := reqapi.Request{
-		API: reqapi.TMDBAPI,
-		URL: fmt.Sprintf("/tv/%d/season/%d/episode/%d/images", showID, season, episode),
-		Params: napping.Params{
-			"api_key":                apiKey,
-			"include_image_language": languagesList,
-			"include_video_language": languagesList,
-		}.AsUrlValues(),
-		Result:      &images,
-		Description: "episode images",
-
-		Cache:       true,
-		CacheExpire: cache.CacheExpireLong,
-	}
-
-	req.Do()
-	return images
 }
 
 // GetShowByID ...
@@ -205,78 +126,8 @@ func SearchShowsPerPage(query string, language string, page int, perPage int, op
 }
 
 func listShows(endpoint string, params napping.Params, page int, perPage int, opts ...ListOption) (Shows, int) {
-	defer perf.ScopeTimer()()
-
-	params["api_key"] = apiKey
-	totalResults := -1
-	var totalOnce sync.Once // pages are fetched concurrently; the first one sets the total
-
-	requestLimitStart := (page - 1) * perPage
-	requestLimitEnd := page*perPage - 1
-
-	pageStart := requestLimitStart / TMDBResultsPerPage
-	pageEnd := min(requestLimitEnd/TMDBResultsPerPage, TMDBMaxPages-1)
-
-	shows := make(Shows, perPage)
-	genres := liteGenres(opts, func() []*Genre { return GetTVGenres(params["language"]) })
-
-	wg := sync.WaitGroup{}
-	for p := pageStart; p <= pageEnd; p++ {
-		wg.Add(1)
-		go func(currentPage int) {
-			defer wg.Done()
-			var results *EntityList
-			pageParams := napping.Params{
-				"page": strconv.Itoa(currentPage + 1),
-			}
-			maps.Copy(pageParams, params)
-
-			req := reqapi.Request{
-				API:         reqapi.TMDBAPI,
-				URL:         fmt.Sprintf("/%s", endpoint),
-				Params:      pageParams.AsUrlValues(),
-				Result:      &results,
-				Description: "list shows",
-
-				Cache:       true,
-				CacheExpire: cache.CacheExpireMedium,
-			}
-
-			if err := req.Do(); err != nil || results == nil {
-				return
-			}
-
-			totalOnce.Do(func() { totalResults = results.TotalResults })
-			if genres != nil {
-				fillOverviews(endpoint, pageParams, results.Results, cache.CacheExpireMedium)
-			}
-
-			var wgItems sync.WaitGroup
-			wgItems.Add(len(results.Results))
-			for s, show := range results.Results {
-				rindex := currentPage*TMDBResultsPerPage - requestLimitStart + s
-				if show == nil || rindex >= len(shows) || rindex < 0 {
-					wgItems.Done()
-					continue
-				}
-
-				if genres != nil {
-					shows[rindex] = &Show{Entity: *show.lite(genres)}
-					wgItems.Done()
-					continue
-				}
-
-				go func(rindex int, tmdbId int) {
-					defer wgItems.Done()
-					shows[rindex] = GetShow(tmdbId, params["language"])
-				}(rindex, show.ID)
-			}
-			wgItems.Wait()
-		}(p)
-	}
-	wg.Wait()
-
-	return shows, totalResults
+	return listEntities(endpoint, params, page, perPage, "list shows", cache.CacheExpireMedium, GetTVGenres, GetShow,
+		func(e *Entity, g map[int]string) *Show { return &Show{Entity: *e.lite(g)} }, opts)
 }
 
 // PopularShows ...
@@ -309,6 +160,10 @@ func PopularShows(params DiscoverFilters, language string, page int, perPage int
 			"sort_by":            "popularity.desc",
 			"first_air_date.lte": time.Now().UTC().Format(time.DateOnly),
 		}
+	}
+
+	if params.Year != "" {
+		p["first_air_date_year"] = params.Year
 	}
 
 	return listShows("discover/tv", p, page, perPage, opts...)
@@ -455,7 +310,7 @@ func MostVotedShows(genre string, language string, page int, perPage int, opts .
 		"sort_by":            "vote_count.desc",
 		"first_air_date.lte": time.Now().UTC().Format(time.DateOnly),
 		"with_genres":        genre,
-	}, page, perPage)
+	}, page, perPage, opts...)
 }
 
 // GetTVGenres ...

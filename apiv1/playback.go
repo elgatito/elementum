@@ -103,7 +103,7 @@ func (Server) CreatePlayback(ctx context.Context, req CreatePlaybackRequestObjec
 		if b.Season == nil || b.Episode == nil || *b.Season < 0 || *b.Episode < 1 {
 			return bad("season (0 or more) and episode (1 or more) are required for an episode")
 		}
-		cacheKey = fmt.Sprintf("%d_%d_%d", b.TmdbId, *b.Season, *b.Episode)
+		cacheKey = providers.EpisodeCacheKey(b.TmdbId, *b.Season, *b.Episode)
 		params.ShowID, params.Season, params.Episode = b.TmdbId, *b.Season, *b.Episode
 	}
 	if b.FileIndex != nil {

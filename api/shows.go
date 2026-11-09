@@ -904,18 +904,8 @@ func ShowSeasonLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 func showEpisodeLinks(xbmcHost *xbmc.XBMCHost, callbackHost string, showID int, seasonNumber int, episodeNumber int) []*bittorrent.TorrentFile {
 	log.Info("Searching links for TMDB Id: ", showID)
 
-	show := tmdb.GetShow(showID, config.Get().Language)
-	if show == nil {
-		return nil
-	}
-
-	season := tmdb.GetSeason(showID, seasonNumber, config.Get().Language, len(show.Seasons), true)
-	if season == nil {
-		return nil
-	}
-
-	episode := season.GetEpisode(episodeNumber)
-	if episode == nil {
+	show, season, episode, err := tmdb.GetShowSeasonEpisode(showID, seasonNumber, episodeNumber, config.Get().Language)
+	if err != nil {
 		return nil
 	}
 	log.Infof("Resolved %d to %s", showID, show.GetName())
@@ -990,7 +980,7 @@ func ShowEpisodeLinks(action string, s *bittorrent.Service) gin.HandlerFunc {
 			return
 		}
 
-		fakeTmdbID := strconv.Itoa(showID) + "_" + strconv.Itoa(seasonNumber) + "_" + strconv.Itoa(episodeNumber)
+		fakeTmdbID := providers.EpisodeCacheKey(showID, seasonNumber, episodeNumber)
 		if torrent := InTorrentsMap(xbmcHost, strconv.Itoa(episode.ID), fakeTmdbID); torrent != nil && !listMode {
 			rURL := URLQuery(URLForXBMC("%s", runAction),
 				"doresume", doresume,

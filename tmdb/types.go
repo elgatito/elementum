@@ -322,6 +322,7 @@ type DiscoverFilters struct {
 	Genre    string
 	Country  string
 	Language string
+	Year     string // API-only: narrows to one release/first-air year
 }
 
 // APIRequest ...

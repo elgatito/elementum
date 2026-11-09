@@ -3,7 +3,6 @@ package tmdb
 import (
 	"cmp"
 	"fmt"
-	"maps"
 	"math/rand/v2"
 	"slices"
 	"strconv"
@@ -21,36 +20,8 @@ import (
 	xlanguage "golang.org/x/text/language"
 
 	"github.com/anacrolix/missinggo/perf"
-	"github.com/anacrolix/sync"
 	"github.com/jmcvetta/napping"
 )
-
-// GetImages ...
-func GetImages(movieID int, language string) *Images {
-	defer perf.ScopeTimer()()
-
-	var images *Images
-	languagesList := GetUserLanguages(language)
-
-	req := reqapi.Request{
-		API: reqapi.TMDBAPI,
-		URL: fmt.Sprintf("/movie/%d/images", movieID),
-		Params: napping.Params{
-			"api_key":                apiKey,
-			"include_image_language": languagesList,
-			"include_video_language": languagesList,
-		}.AsUrlValues(),
-		Result:      &images,
-		Description: "movie images",
-
-		Cache:       true,
-		CacheExpire: cache.CacheExpireLong,
-	}
-
-	req.Do()
-
-	return images
-}
 
 // GetMovie ...
 func GetMovie(tmdbID int, language string) *Movie {
@@ -233,78 +204,8 @@ func GetIMDBList(listID string, language string, page int) (movies Movies, total
 }
 
 func listMovies(endpoint string, params napping.Params, page int, perPage int, opts ...ListOption) (Movies, int) {
-	defer perf.ScopeTimer()()
-
-	params["api_key"] = apiKey
-	totalResults := -1
-	var totalOnce sync.Once // pages are fetched concurrently; the first one sets the total
-
-	requestLimitStart := (page - 1) * perPage
-	requestLimitEnd := page*perPage - 1
-
-	pageStart := requestLimitStart / TMDBResultsPerPage
-	pageEnd := min(requestLimitEnd/TMDBResultsPerPage, TMDBMaxPages-1)
-
-	movies := make(Movies, perPage)
-	genres := liteGenres(opts, func() []*Genre { return GetMovieGenres(params["language"]) })
-
-	wg := sync.WaitGroup{}
-	for p := pageStart; p <= pageEnd; p++ {
-		wg.Add(1)
-		go func(currentPage int) {
-			defer wg.Done()
-			var results *EntityList
-			pageParams := napping.Params{
-				"page": strconv.Itoa(currentPage + 1),
-			}
-			maps.Copy(pageParams, params)
-
-			req := reqapi.Request{
-				API:         reqapi.TMDBAPI,
-				URL:         fmt.Sprintf("/%s", endpoint),
-				Params:      pageParams.AsUrlValues(),
-				Result:      &results,
-				Description: "list movies",
-
-				Cache:       true,
-				CacheExpire: cache.CacheExpireShort,
-			}
-
-			if err := req.Do(); err != nil || results == nil {
-				return
-			}
-
-			totalOnce.Do(func() { totalResults = results.TotalResults })
-			if genres != nil {
-				fillOverviews(endpoint, pageParams, results.Results, cache.CacheExpireShort)
-			}
-
-			var wgItems sync.WaitGroup
-			wgItems.Add(len(results.Results))
-			for m, movie := range results.Results {
-				rindex := currentPage*TMDBResultsPerPage - requestLimitStart + m
-				if movie == nil || rindex >= len(movies) || rindex < 0 {
-					wgItems.Done()
-					continue
-				}
-
-				if genres != nil {
-					movies[rindex] = &Movie{Entity: *movie.lite(genres)}
-					wgItems.Done()
-					continue
-				}
-
-				go func(rindex int, tmdbId int) {
-					defer wgItems.Done()
-					movies[rindex] = GetMovie(tmdbId, params["language"])
-				}(rindex, movie.ID)
-			}
-			wgItems.Wait()
-		}(p)
-	}
-	wg.Wait()
-
-	return movies, totalResults
+	return listEntities(endpoint, params, page, perPage, "list movies", cache.CacheExpireShort, GetMovieGenres, GetMovie,
+		func(e *Entity, g map[int]string) *Movie { return &Movie{Entity: *e.lite(g)} }, opts)
 }
 
 // PopularMovies ...
@@ -337,6 +238,10 @@ func PopularMovies(params DiscoverFilters, language string, page int, perPage in
 			"sort_by":                  "popularity.desc",
 			"primary_release_date.lte": time.Now().UTC().Format(time.DateOnly),
 		}
+	}
+
+	if params.Year != "" {
+		p["primary_release_year"] = params.Year
 	}
 
 	return listMovies("discover/movie", p, page, perPage, opts...)
