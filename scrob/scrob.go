@@ -131,7 +131,8 @@ func (p *Provider) username(token string) (string, error) {
 		Result:      &u,
 		Description: "scrob profile",
 	}
-	return u.DisplayName, req.Do()
+	err := req.Do()
+	return u.DisplayName, err
 }
 
 // request calls the API with the API key or the device token. Status codes in ignore count as success.

@@ -1,4 +1,4 @@
-package apiv1
+package jsonapi
 
 import (
 	"encoding/json"
@@ -36,6 +36,10 @@ func TestToStream(t *testing.T) {
 		"unknowns are null": {
 			in:   bittorrent.TorrentFile{URI: "/tmp/x.torrent", Name: "x", Provider: "P"},
 			want: Stream{Uri: "/tmp/x.torrent", Name: "x", Provider: "P"},
+		},
+		"shared Kodi markup": {
+			in:   bittorrent.TorrentFile{Provider: "[LIGHT][UPPERCASE]YTS[/UPPERCASE][/LIGHT][CR][I]P[/I] [keep]"},
+			want: Stream{Provider: "YTS\nP [keep]"},
 		},
 		"out of range and wrong-kind codes are null": {
 			in:   bittorrent.TorrentFile{Resolution: 99, RipType: -1, VideoCodec: bittorrent.CodecAAC, AudioCodec: bittorrent.CodecH265},
@@ -91,13 +95,13 @@ func TestStreamErrors(t *testing.T) {
 	Register(r, nil)
 
 	for path, want := range map[string]int{
-		"/api/v1/movies/0/streams":                        http.StatusBadRequest,
-		"/api/v1/shows/1/seasons/-1/episodes/1/streams":   http.StatusBadRequest,
-		"/api/v1/shows/1/seasons/1/episodes/0/streams":    http.StatusBadRequest,
-		"/api/v1/movies/603/streams":                      http.StatusBadGateway,
-		"/api/v1/shows/1399/seasons/0/episodes/1/streams": http.StatusBadGateway,
-		"/api/v1/shows/1399/seasons/1/episodes/1/streams": http.StatusBadGateway,
-		"/api/v1/shows/1399/seasons/x/episodes/1/streams": http.StatusBadRequest,
+		"/api/movies/0/streams":                        http.StatusBadRequest,
+		"/api/shows/1/seasons/-1/episodes/1/streams":   http.StatusBadRequest,
+		"/api/shows/1/seasons/1/episodes/0/streams":    http.StatusBadRequest,
+		"/api/movies/603/streams":                      http.StatusBadGateway,
+		"/api/shows/1399/seasons/0/episodes/1/streams": http.StatusBadGateway,
+		"/api/shows/1399/seasons/1/episodes/1/streams": http.StatusBadGateway,
+		"/api/shows/1399/seasons/x/episodes/1/streams": http.StatusBadRequest,
 	} {
 		t.Run(path, func(t *testing.T) {
 			w := httptest.NewRecorder()

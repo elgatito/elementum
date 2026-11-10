@@ -1,4 +1,4 @@
-package apiv1_test
+package jsonapi_test
 
 import (
 	"encoding/json"
@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/elgatito/elementum/api"
-	"github.com/elgatito/elementum/apiv1"
+	"github.com/elgatito/elementum/api/json"
 	"github.com/elgatito/elementum/config"
 )
 
@@ -20,7 +20,7 @@ func newEngine() *gin.Engine {
 	r := gin.New()
 	r.Use(api.CORS(), api.Auth())
 	r.GET("/status", func(c *gin.Context) { c.String(http.StatusOK, "ok") }) // stands in for a Kodi route
-	apiv1.Register(r, nil)
+	jsonapi.Register(r, nil)
 	return r
 }
 
@@ -55,9 +55,9 @@ func do(r *gin.Engine, req request) *httptest.ResponseRecorder {
 	return w
 }
 
-func errorCode(t *testing.T, w *httptest.ResponseRecorder) apiv1.ErrorCode {
+func errorCode(t *testing.T, w *httptest.ResponseRecorder) jsonapi.ErrorCode {
 	t.Helper()
-	var e apiv1.Error
+	var e jsonapi.Error
 	if err := json.Unmarshal(w.Body.Bytes(), &e); err != nil {
 		t.Fatalf("body is not an Error: %v: %q", err, w.Body.String())
 	}
@@ -72,10 +72,10 @@ func TestAuth(t *testing.T) {
 	r := newEngine()
 
 	for name, req := range map[string]request{
-		"no credentials":    {path: "/api/v1/system/info"},
-		"wrong password":    {path: "/api/v1/system/info", user: "user", pass: "nope"},
-		"wrong user":        {path: "/api/v1/system/info", user: "nope", pass: "secret"},
-		"before param errs": {path: "/api/v1/movies/lists/popular?page=x"},
+		"no credentials":    {path: "/api/system/info"},
+		"wrong password":    {path: "/api/system/info", user: "user", pass: "nope"},
+		"wrong user":        {path: "/api/system/info", user: "nope", pass: "secret"},
+		"before param errs": {path: "/api/movies/lists/popular?page=x"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			w := do(r, req)
@@ -85,35 +85,35 @@ func TestAuth(t *testing.T) {
 			if h := w.Header().Get("WWW-Authenticate"); h != "" {
 				t.Errorf("WWW-Authenticate = %q, want none", h)
 			}
-			if code := errorCode(t, w); code != apiv1.ErrorCodeUnauthorized {
+			if code := errorCode(t, w); code != jsonapi.ErrorCodeUnauthorized {
 				t.Errorf("code %q", code)
 			}
 		})
 	}
 
 	t.Run("valid credentials", func(t *testing.T) {
-		w := do(r, request{path: "/api/v1/system/info", user: "user", pass: "secret"})
+		w := do(r, request{path: "/api/system/info", user: "user", pass: "secret"})
 		if w.Code != http.StatusOK {
 			t.Fatalf("status %d: %s", w.Code, w.Body)
 		}
-		var info apiv1.SystemInfo
+		var info jsonapi.SystemInfo
 		if err := json.Unmarshal(w.Body.Bytes(), &info); err != nil {
 			t.Fatal(err)
 		}
-		if !info.AuthRequired || info.Version == "" || info.KodiConnected || info.SettingsSource != apiv1.SystemInfoSettingsSourceKodi {
+		if !info.AuthRequired || info.Version == "" || info.KodiConnected || info.SettingsSource != jsonapi.SystemInfoSettingsSourceKodi {
 			t.Errorf("info = %+v", info)
 		}
 	})
 
 	t.Run("stream skips Basic", func(t *testing.T) {
-		w := do(r, request{path: "/api/v1/stream/abc/0?exp=1&sig=" + strings.Repeat("0", 64)})
+		w := do(r, request{path: "/api/stream/abc/0?exp=1&sig=" + strings.Repeat("0", 64)})
 		if w.Code == http.StatusUnauthorized {
 			t.Fatalf("stream asked for Basic auth")
 		}
 	})
 
 	t.Run("docs and spec are public", func(t *testing.T) {
-		for _, path := range []string{"/api/docs", "/api/v1/openapi.yaml"} {
+		for _, path := range []string{"/api/docs", "/api/openapi.yaml"} {
 			if w := do(r, request{path: path}); w.Code != http.StatusOK {
 				t.Errorf("%s: status %d", path, w.Code)
 			}
@@ -133,7 +133,7 @@ func TestAuth(t *testing.T) {
 
 func TestAuthDisabled(t *testing.T) {
 	setCreds(t, "", "")
-	w := do(newEngine(), request{path: "/api/v1/system/info"})
+	w := do(newEngine(), request{path: "/api/system/info"})
 	if w.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", w.Code, w.Body)
 	}
@@ -161,7 +161,7 @@ func TestAuthPasswordOnly(t *testing.T) {
 		{"user", "secret", http.StatusUnauthorized},
 		{"", "secret", http.StatusOK},
 	} {
-		if w := do(r, request{path: "/api/v1/system/info", user: tc.user, pass: tc.pass}); w.Code != tc.status {
+		if w := do(r, request{path: "/api/system/info", user: tc.user, pass: tc.pass}); w.Code != tc.status {
 			t.Errorf("%q:%q: status %d, want %d", tc.user, tc.pass, w.Code, tc.status)
 		}
 	}
@@ -169,7 +169,7 @@ func TestAuthPasswordOnly(t *testing.T) {
 
 func TestCORSPreflight(t *testing.T) {
 	setCreds(t, "user", "secret")
-	w := do(newEngine(), request{method: http.MethodOptions, path: "/api/v1/playback/abc", headers: map[string]string{
+	w := do(newEngine(), request{method: http.MethodOptions, path: "/api/playback/abc", headers: map[string]string{
 		"Origin":                         "http://tv.local",
 		"Access-Control-Request-Method":  "DELETE",
 		"Access-Control-Request-Headers": "Authorization",
@@ -198,50 +198,50 @@ func TestErrors(t *testing.T) {
 	for _, tc := range []struct {
 		req    request
 		status int
-		code   apiv1.ErrorCode
+		code   jsonapi.ErrorCode
 	}{
 		// no tracker selected; static and param siblings in the same tree must both resolve
-		{request{path: "/api/v1/tracker/shows/watchlist"}, http.StatusConflict, apiv1.ErrorCodeTrackerNotAuthorized},
-		{request{path: "/api/v1/tracker/shows/progress"}, http.StatusConflict, apiv1.ErrorCodeTrackerNotAuthorized},
-		{request{path: "/api/v1/tracker/lists"}, http.StatusConflict, apiv1.ErrorCodeTrackerNotAuthorized},
+		{request{path: "/api/tracker/shows/watchlist"}, http.StatusConflict, jsonapi.ErrorCodeTrackerNotAuthorized},
+		{request{path: "/api/tracker/shows/progress"}, http.StatusConflict, jsonapi.ErrorCodeTrackerNotAuthorized},
+		{request{path: "/api/tracker/lists"}, http.StatusConflict, jsonapi.ErrorCodeTrackerNotAuthorized},
 		// library, Trakt and tracker: bad enums and params are rejected before any fetch
-		{request{path: "/api/v1/library/movies?page=0"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/library/shows?lang=deu"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/trakt/films/lists/trending"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/trakt/movies/lists/boxoffice"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/trakt/shows/lists/trending?limit=0"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/tracker/films/watchlist"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/tracker/films/collection"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/tracker/shows/progress?page=0"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/tracker/lists/42/items?media=films"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/tracker/lists/42/items"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/tracker/lists/a..b/items?media=movies"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/movies/genres?lang=deu"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/movies/603?lang=deu"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/library/movies?page=0"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/library/shows?lang=deu"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/trakt/films/lists/trending"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/trakt/movies/lists/boxoffice"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/trakt/shows/lists/trending?limit=0"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/tracker/films/watchlist"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/tracker/films/collection"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/tracker/shows/progress?page=0"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/tracker/lists/42/items?media=films"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/tracker/lists/42/items"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/tracker/lists/a..b/items?media=movies"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/movies/genres?lang=deu"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/movies/603?lang=deu"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
 		// catalog: bad enums and params are rejected before any TMDB call
-		{request{path: "/api/v1/movies/lists/nope"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/movies/lists/by_genre"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/movies/lists/popular?page=0"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/movies/lists/popular?limit=101"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/shows/lists/now_playing"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/shows/lists/by_genre?year=2000"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/shows/genres?lang=de-"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/shows/1396?lang=1"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/shows/1396/seasons/1?lang=1"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/search?query=matrix&type=person"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/search?query=%20&type=movie"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/search?query=matrix&type=multi"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/search?query=matrix"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/movies/lists/by_genre?genre=0"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/shows/lists/by_genre?genre=18&year=1869"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/movies/lists/by_genre?genre=28&year=2101"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/search"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{method: http.MethodDelete, path: "/api/v1/playback/abc"}, http.StatusNotFound, apiv1.ErrorCodeNotFound},
-		{request{path: "/api/v1/nope"}, http.StatusNotFound, apiv1.ErrorCodeNotFound},
-		{request{path: "/api/nope"}, http.StatusNotFound, apiv1.ErrorCodeNotFound},
-		{request{path: "/api/v1/movies/lists/popular?page=x"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{path: "/api/v1/movies/abc"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
-		{request{method: http.MethodPost, path: "/api/v1/playback", body: "{"}, http.StatusBadRequest, apiv1.ErrorCodeBadRequest},
+		{request{path: "/api/movies/lists/nope"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/movies/lists/by_genre"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/movies/lists/popular?page=0"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/movies/lists/popular?limit=101"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/shows/lists/now_playing"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/shows/lists/by_genre?year=2000"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/shows/genres?lang=de-"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/shows/1396?lang=1"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/shows/1396/seasons/1?lang=1"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/search?query=matrix&type=person"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/search?query=%20&type=movie"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/search?query=matrix&type=multi"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/search?query=matrix"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/movies/lists/by_genre?genre=0"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/shows/lists/by_genre?genre=18&year=1869"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/movies/lists/by_genre?genre=28&year=2101"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/search"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{method: http.MethodDelete, path: "/api/playback/abc"}, http.StatusNotFound, jsonapi.ErrorCodeNotFound},
+		{request{path: "/api/nope"}, http.StatusNotFound, jsonapi.ErrorCodeNotFound},
+		{request{path: "/api/nope"}, http.StatusNotFound, jsonapi.ErrorCodeNotFound},
+		{request{path: "/api/movies/lists/popular?page=x"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{path: "/api/movies/abc"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
+		{request{method: http.MethodPost, path: "/api/playback", body: "{"}, http.StatusBadRequest, jsonapi.ErrorCodeBadRequest},
 	} {
 		t.Run(tc.req.method+" "+tc.req.path, func(t *testing.T) {
 			tc.req.user, tc.req.pass = "user", "secret"
@@ -271,12 +271,12 @@ func TestPastLastPage(t *testing.T) {
 	setCreds(t, "", "")
 	r := newEngine()
 	for _, path := range []string{
-		"/api/v1/movies/lists/popular?page=501&limit=20",
-		"/api/v1/shows/lists/by_genre?genre=18&page=335&limit=30",
-		"/api/v1/search?query=matrix&type=show&page=9223372036854775807&limit=100",
+		"/api/movies/lists/popular?page=501&limit=20",
+		"/api/shows/lists/by_genre?genre=18&page=335&limit=30",
+		"/api/search?query=matrix&type=show&page=9223372036854775807&limit=100",
 	} {
 		w := do(r, request{path: path})
-		var page apiv1.MediaItemPage
+		var page jsonapi.MediaItemPage
 		if err := json.Unmarshal(w.Body.Bytes(), &page); err != nil || w.Code != http.StatusOK {
 			t.Fatalf("%s: status %d, %v: %s", path, w.Code, err, w.Body)
 		}

@@ -472,7 +472,7 @@ func TestClientCap(t *testing.T) {
 func TestPlainMarkup(t *testing.T) {
 	useFixture(t)
 	in := "[B]Bold[/B][CR][COLOR red]red[/COLOR] [I]it[/I] [UPPERCASE]up[/UPPERCASE] [keep]"
-	if got := plain(in); got != "Bold\nred it up [keep]" {
+	if got := Plain(in); got != "Bold\nred it up [keep]" {
 		t.Errorf("got %q", got)
 	}
 	if got := (Event{Message: in}).Translated("en").Message; got != "Bold\nred it up [keep]" {

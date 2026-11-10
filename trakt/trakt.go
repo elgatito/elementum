@@ -11,12 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elgatito/elementum/broadcast"
 	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tracker"
-	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util/ident"
 	"github.com/elgatito/elementum/util/reqapi"
 	"github.com/elgatito/elementum/xbmc"
@@ -114,288 +112,106 @@ func GetAvailableHeader() http.Header {
 	return GetHeader()
 }
 
-// GetCode ...
-func GetCode() (code *Code, err error) {
-	req := reqapi.Request{
+// deviceFlow is the Trakt OAuth device-code protocol for tracker.RunDeviceAuth.
+type deviceFlow struct{}
+
+// authURL is a var for tests.
+var authURL = AuthURL
+
+func (deviceFlow) oauth(url, payload, description string, result any) (*reqapi.Request, error) {
+	req := &reqapi.Request{
 		API:         reqapi.TraktAPI,
 		Method:      "POST",
-		URL:         AuthURL + "/oauth/device/code",
+		URL:         authURL + url,
 		Header:      GetHeader(),
 		Params:      napping.Params{}.AsUrlValues(),
-		Payload:     bytes.NewBufferString(fmt.Sprintf(`{"client_id": %q}`, config.TraktAPIClientID)),
-		Result:      &code,
-		Description: "oauth device code",
+		Payload:     bytes.NewBufferString(payload),
+		Result:      result,
+		Description: description,
 	}
-
-	err = req.Do()
-	return
+	return req, req.Do()
 }
 
-// errSuperseded is returned by PollToken when a newer login replaced this one or the app is closing.
-var errSuperseded = errors.New("authorization superseded")
-
-// PollToken polls until the code is approved, fails, expires or current() turns false.
-func PollToken(code *Code, current func() bool) (token *Token, err error) {
-	startInterval := code.Interval
-	interval := time.NewTicker(time.Duration(startInterval) * time.Second)
-	defer interval.Stop()
-	expired := time.NewTicker(time.Duration(code.ExpiresIn) * time.Second)
-	defer expired.Stop()
-
-	closer := broadcast.Closer.C()
-	for {
-		select {
-		case <-closer:
-			return nil, errSuperseded
-		case <-interval.C:
-			if !current() {
-				return nil, errSuperseded
-			}
-			req := reqapi.Request{
-				API:         reqapi.TraktAPI,
-				Method:      "POST",
-				URL:         AuthURL + "/oauth/device/token",
-				Header:      GetHeader(),
-				Params:      napping.Params{}.AsUrlValues(),
-				Payload:     bytes.NewBufferString(fmt.Sprintf(`{"code": %q, "client_id": %q, "client_secret": %q}`, code.DeviceCode, config.TraktAPIClientID, config.TraktAPIClientSecret)),
-				Result:      &token,
-				Description: "oauth device token",
-			}
-
-			req.Do()
-			// if errGet := req.Do(); errGet != nil {
-			// 	return nil, errGet
-			// }
-
-			if req.ResponseStatusCode == 200 {
-				return token, err
-			} else if req.ResponseStatusCode == 400 {
-				break
-			} else if req.ResponseStatusCode == 404 {
-				err = errors.New("Invalid device code")
-				return nil, err
-			} else if req.ResponseStatusCode == 409 {
-				err = errors.New("Code already used")
-				return nil, err
-			} else if req.ResponseStatusCode == 410 {
-				err = errors.New("Code expired")
-				return nil, err
-			} else if req.ResponseStatusCode == 418 {
-				err = errors.New("Code denied")
-				return nil, err
-			} else if req.ResponseStatusCode == 429 {
-				// err = errors.New("Polling too quickly.")
-				interval.Stop()
-				interval = time.NewTicker(time.Duration(startInterval+5) * time.Second)
-				break
-			}
-
-		case <-expired.C:
-			err = errors.New("Code expired, please try again")
-			return nil, err
-		}
-	}
+func toTracker(t *Token) *tracker.Token {
+	return &tracker.Token{AccessToken: t.AccessToken, RefreshToken: t.RefreshToken, ExpiresIn: t.ExpiresIn}
 }
 
-// TokenRefreshHandler refreshes token on timer if it is already expired or near to its expiration
-func TokenRefreshHandler() {
-	if config.Get().TraktToken == "" {
-		return
-	}
-
-	// current expiration time of token is 24h, so we try to refresh 90 minutes before expiration.
-	// see https://github.com/trakt/api-help/discussions/495
-	expirationAhead := 90 * 60
-
-	// Refresh token on elementum start, if needed
-	if time.Now().Unix() > int64(config.Get().TraktTokenExpiry)-int64(expirationAhead) {
-		RefreshToken()
-	}
-
-	ticker := time.NewTicker(1 * time.Hour)
-	closer := broadcast.Closer.C()
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-closer:
-			return
-		case <-ticker.C:
-			// Refresh token on timer
-			if time.Now().Unix() > int64(config.Get().TraktTokenExpiry)-int64(expirationAhead) {
-				RefreshToken()
-			}
-		}
-	}
-}
-
-// RefreshToken refreshes Trakt token
-func RefreshToken() error {
-	var token *Token
-
-	req := reqapi.Request{
-		API:         reqapi.TraktAPI,
-		Method:      "POST",
-		URL:         AuthURL + "/oauth/token",
-		Header:      GetHeader(),
-		Params:      napping.Params{}.AsUrlValues(),
-		Payload:     bytes.NewBufferString(fmt.Sprintf(`{"refresh_token": %q, "client_id": %q, "client_secret": %q, "redirect_uri": "urn:ietf:wg:oauth:2.0:oob", "grant_type": "refresh_token"}`, config.Get().TraktRefreshToken, config.TraktAPIClientID, config.TraktAPIClientSecret)),
-		Result:      &token,
-		Description: "oauth token",
-	}
-
-	err := req.Do()
-	if err != nil || token == nil {
-		notifyMessage := "Token not refreshed for Trakt authorization, please, re-authorize Trakt"
-		if err != nil {
-			notifyMessage = err.Error()
-		}
-		if req.ResponseStatusCode == 400 || req.ResponseStatusCode == 401 {
-			err = fmt.Errorf("Trakt refresh_token is invalid, please, re-authorize Trakt")
-			notifyMessage = "LOCALIZE[30576]"
-		}
-		log.Errorf("Failed to refresh Trakt token: %s", err)
-		ui.Toast(notifyMessage)
-		return err
-	}
-
-	if req.ResponseStatusCode == 200 {
-		expiry := time.Now().Unix() + int64(token.ExpiresIn)
-		config.Get().TraktTokenExpiry = expiry
-		config.Get().TraktToken = token.AccessToken
-		config.Get().TraktRefreshToken = token.RefreshToken
-		config.SetSetting("trakt_token_expiry", strconv.Itoa(int(expiry)))
-		config.SetSetting("trakt_token", token.AccessToken)
-		config.SetSetting("trakt_refresh_token", token.RefreshToken)
-		log.Noticef("Token refreshed for Trakt authorization, next refresh in %s", time.Duration(token.ExpiresIn)*time.Second)
-	}
-
-	return nil
-}
-
-// StartAuthorize requests a device code and polls for the token in background, without needing Kodi.
-func StartAuthorize() (*Code, error) {
-	code, err := GetCode()
-	if err != nil || code == nil {
-		log.Errorf("Could not get authorization code from Trakt.tv: %s", err)
-		if err != nil {
-			ui.Toast(err.Error())
-			return nil, err
-		}
+func (f deviceFlow) RequestCode() (*tracker.DeviceCode, error) {
+	var code *Code
+	if _, err := f.oauth("/oauth/device/code", fmt.Sprintf(`{"client_id": %q}`, config.TraktAPIClientID), "oauth device code", &code); err != nil {
+		return nil, err
+	} else if code == nil {
 		return nil, errors.New("no authorization code")
 	}
-	log.Noticef("Got code for %s: %s", code.VerificationURL, code.UserCode)
-
-	current := tracker.BeginAuth("trakt")
-	go func(code *Code) {
-		token, err := PollToken(code, current)
-		if errors.Is(err, errSuperseded) {
-			return
-		} else if err != nil {
-			log.Warningf("Trakt authorization failed: %s", err)
-			ui.Toast("LOCALIZE[30651]")
-			return
-		}
-		log.Debugf("Received Trakt token")
-
-		// Cleanup last activities to force requesting again
-		cacheStore := cache.NewDBStore()
-		_ = cacheStore.Set(fmt.Sprintf(cache.TraktActivitiesKey, ""), "", 1)
-
-		expiry := time.Now().Unix() + int64(token.ExpiresIn)
-		config.SetSetting("trakt_token_expiry", strconv.Itoa(int(expiry)))
-		config.SetSetting("trakt_token", token.AccessToken)
-		config.SetSetting("trakt_refresh_token", token.RefreshToken)
-
-		config.Get().TraktTokenExpiry = expiry
-		config.Get().TraktToken = token.AccessToken
-		config.Get().TraktRefreshToken = token.RefreshToken
-
-		// Getting username for currently authorized user
-		user := &UserSettings{}
-		req := reqapi.Request{
-			API:         reqapi.TraktAPI,
-			URL:         "users/settings",
-			Header:      GetAuthenticatedHeader(),
-			Params:      napping.Params{}.AsUrlValues(),
-			Result:      &user,
-			Description: "user settings",
-		}
-
-		if err = req.Do(); err != nil {
-			return
-		}
-		if req.ResponseStatusCode == 200 && user != nil && user.User.Ids.Slug != "" {
-			log.Debugf("Setting Trakt Username as %s", user.User.Ids.Slug)
-			config.SetSetting("trakt_username", user.User.Ids.Slug)
-		}
-
-		config.Reload()
-		tracker.LoggedIn("trakt")
-
-		ui.Toast("LOCALIZE[30650]")
-		return
-	}(code)
-	return code, nil
+	return (*tracker.DeviceCode)(code), nil
 }
 
-// Authorize ...
-func Authorize(fromSettings bool) error {
-	if config.Args.ConfigPath != "" && !config.KodiConnected() {
-		return errors.New("Trakt device authorization needs Kodi to show the code")
-	}
-	code, err := StartAuthorize()
-	if err != nil {
-		return err
-	}
-
-	if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-		if !xbmcHost.Dialog(xbmcHost.GetLocalizedString(30646), fmt.Sprintf(xbmcHost.GetLocalizedString(30649), code.VerificationURL, code.UserCode)) {
-			return errors.New("Authentication canceled")
+func (f deviceFlow) PollToken(code *tracker.DeviceCode) (*tracker.Token, error) {
+	var token *Token
+	req, _ := f.oauth("/oauth/device/token", fmt.Sprintf(`{"code": %q, "client_id": %q, "client_secret": %q}`, code.DeviceCode, config.TraktAPIClientID, config.TraktAPIClientSecret), "oauth device token", &token)
+	switch req.ResponseStatusCode {
+	case 200:
+		if token == nil {
+			return nil, errors.New("empty token")
 		}
+		return toTracker(token), nil
+	case 404:
+		return nil, errors.New("Invalid device code")
+	case 409:
+		return nil, errors.New("Code already used")
+	case 410:
+		return nil, errors.New("Code expired")
+	case 418:
+		return nil, errors.New("Code denied")
+	case 429:
+		return nil, tracker.ErrSlowDown
 	}
-
-	return nil
+	return nil, tracker.ErrAuthPending // 400 and transient errors: keep polling
 }
 
-// Deauthorize ...
-func Deauthorize(fromSettings bool) error {
+func (f deviceFlow) RefreshToken(refreshToken string) (*tracker.Token, error) {
+	var token *Token
+	req, err := f.oauth("/oauth/token", fmt.Sprintf(`{"refresh_token": %q, "client_id": %q, "client_secret": %q, "redirect_uri": "urn:ietf:wg:oauth:2.0:oob", "grant_type": "refresh_token"}`, refreshToken, config.TraktAPIClientID, config.TraktAPIClientSecret), "oauth token", &token)
+	if req.ResponseStatusCode == 400 || req.ResponseStatusCode == 401 {
+		return nil, errors.New("Trakt refresh_token is invalid, please, re-authorize Trakt")
+	} else if err != nil {
+		return nil, err
+	} else if token == nil {
+		return nil, errors.New("Token not refreshed for Trakt authorization, please, re-authorize Trakt")
+	}
+	return toTracker(token), nil
+}
+
+func (f deviceFlow) Revoke(accessToken string) error {
+	_, err := f.oauth("/oauth/revoke", fmt.Sprintf(`{"token": %q, "client_id": %q, "client_secret": %q}`, accessToken, config.TraktAPIClientID, config.TraktAPIClientSecret), "oauth revoke", nil)
+	return err
+}
+
+func (deviceFlow) Username(accessToken string) (string, error) {
+	user := &UserSettings{}
+	header := GetHeader()
+	header.Set("Authorization", "Bearer "+accessToken)
 	req := reqapi.Request{
 		API:         reqapi.TraktAPI,
-		Method:      "POST",
-		URL:         AuthURL + "/oauth/revoke",
-		Header:      GetHeader(),
+		URL:         "users/settings",
+		Header:      header,
 		Params:      napping.Params{}.AsUrlValues(),
-		Payload:     bytes.NewBufferString(fmt.Sprintf(`{"token": %q, "client_id": %q, "client_secret": %q}`, config.Get().TraktToken, config.TraktAPIClientID, config.TraktAPIClientSecret)),
-		Result:      nil,
-		Description: "oauth revoke",
+		Result:      &user,
+		Description: "user settings",
 	}
-	err := req.Do()
-	// This is not optional step so we do not care if it fails
-	if err != nil {
-		log.Debugf("Failed to revoke token: %s", err)
+	if err := req.Do(); err != nil {
+		return "", err
 	}
-
-	// Cleanup last activities to force requesting again
-	cacheStore := cache.NewDBStore()
-	_ = cacheStore.Set(fmt.Sprintf(cache.TraktActivitiesKey, ""), "", 1)
-
-	config.SetSetting("trakt_token_expiry", "0")
-	config.SetSetting("trakt_token", "")
-	config.SetSetting("trakt_refresh_token", "")
-	config.SetSetting("trakt_username", "")
-	ui.Toast("LOCALIZE[30652]")
-
-	return nil
+	if user == nil || strings.TrimSpace(user.User.Ids.Slug) == "" {
+		return "", errors.New("empty user settings")
+	}
+	return user.User.Ids.Slug, nil
 }
 
 // Authorized ...
 func Authorized() error {
 	if config.Get().TraktToken == "" {
-		err := Authorize(false)
-		if err != nil {
-			return err
-		}
+		return NewProvider().Authorize()
 	}
 	return nil
 }

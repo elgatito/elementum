@@ -54,6 +54,20 @@ const (
 // TrackerProviders maps tracker_provider enum index to tracker id; new trackers are appended, never inserted.
 var TrackerProviders = []string{"none", "trakt", "simkl", "mdblist", "scrob"}
 
+// deviceTrackers are the trackers logging in with a device code; their credentials are in TrackerCredentials.
+var deviceTrackers = []string{"trakt", "simkl", "mdblist", "scrob"}
+
+func loadTrackerCredentials(s XbmcSettings, dst map[string]*TrackerCredentials) {
+	for _, id := range deviceTrackers {
+		dst[id] = &TrackerCredentials{
+			Token:        s.ToString(id + "_token"),
+			RefreshToken: s.ToString(id + "_refresh_token"),
+			TokenExpiry:  s.ToInt64(id + "_token_expiry"),
+			Username:     s.ToString(id + "_username"),
+		}
+	}
+}
+
 // TrackerCredentials holds OAuth credentials of a tracker, stored in <id>_token, <id>_refresh_token, <id>_token_expiry, <id>_username settings.
 type TrackerCredentials struct {
 	Token        string
@@ -945,14 +959,7 @@ func Reload() (ret *Configuration, err error) {
 		}
 	}
 
-	for _, id := range []string{"simkl", "mdblist", "scrob"} {
-		newConfig.TrackerCredentials[id] = &TrackerCredentials{
-			Token:        settings.ToString(id + "_token"),
-			RefreshToken: settings.ToString(id + "_refresh_token"),
-			TokenExpiry:  settings.ToInt64(id + "_token_expiry"),
-			Username:     settings.ToString(id + "_username"),
-		}
-	}
+	loadTrackerCredentials(settings, newConfig.TrackerCredentials)
 
 	// Set default Trakt Frequency
 	if newConfig.TraktToken != "" && newConfig.TraktSyncFrequencyMin == 0 {
@@ -1314,35 +1321,7 @@ func fetchConfiguration(xbmcHost *xbmc.XBMCHost) (*ConfigBundle, error) {
 	xbmcSettings := xbmcHost.GetAllSettings()
 	settings := XbmcSettings{}
 	for _, setting := range xbmcSettings {
-		switch setting.Type {
-		case "enum":
-			fallthrough
-		case "number":
-			value, _ := strconv.Atoi(setting.Value)
-			settings[setting.Key] = value
-		case "slider":
-			var valueInt int
-			var valueFloat float32
-			switch setting.Option {
-			case "percent":
-				fallthrough
-			case "int":
-				floated, _ := strconv.ParseFloat(setting.Value, 32)
-				valueInt = int(floated)
-			case "float":
-				floated, _ := strconv.ParseFloat(setting.Value, 32)
-				valueFloat = float32(floated)
-			}
-			if valueFloat > 0 {
-				settings[setting.Key] = valueFloat
-			} else {
-				settings[setting.Key] = valueInt
-			}
-		case "bool":
-			settings[setting.Key] = (setting.Value == "true")
-		default:
-			settings[setting.Key] = setting.Value
-		}
+		settings[setting.Key] = castDefault(setting.Type, setting.Option, setting.Value)
 	}
 
 	language, secondLanguage := getLanguages(xbmcHost, settings)

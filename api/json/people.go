@@ -1,4 +1,4 @@
-package apiv1
+package jsonapi
 
 import (
 	"context"
@@ -9,11 +9,6 @@ import (
 	"github.com/elgatito/elementum/util"
 )
 
-func personArgs(lang *string) (string, *Error) {
-	_, _, l, e := args(nil, nil, lang)
-	return l, e
-}
-
 func toPerson(p *tmdb.Person) Person {
 	return Person{
 		TmdbId: p.ID, Name: p.Name, Profile: imageURL(p.ProfilePath, profileSize), Biography: p.Biography,
@@ -23,7 +18,10 @@ func toPerson(p *tmdb.Person) Person {
 }
 
 func (Server) GetPerson(_ context.Context, req GetPersonRequestObject) (GetPersonResponseObject, error) {
-	lang, e := personArgs(req.Params.Lang)
+	if req.TmdbId < 1 {
+		return GetPerson400JSONResponse{BadRequestJSONResponse(badDetailID)}, nil
+	}
+	lang, e := langArg(req.Params.Lang)
 	if e != nil {
 		return GetPerson400JSONResponse{badRequest(e)}, nil
 	}
@@ -35,7 +33,10 @@ func (Server) GetPerson(_ context.Context, req GetPersonRequestObject) (GetPerso
 }
 
 func (Server) GetPersonCredits(_ context.Context, req GetPersonCreditsRequestObject) (GetPersonCreditsResponseObject, error) {
-	lang, e := personArgs(req.Params.Lang)
+	if req.TmdbId < 1 {
+		return GetPersonCredits400JSONResponse{BadRequestJSONResponse(badDetailID)}, nil
+	}
+	lang, e := langArg(req.Params.Lang)
 	if e != nil {
 		return GetPersonCredits400JSONResponse{badRequest(e)}, nil
 	}

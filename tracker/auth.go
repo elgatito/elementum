@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,15 +21,35 @@ var (
 	ErrSlowDown = errors.New("polling too fast")
 )
 
-// Localized strings shared by device-code trackers.
-const (
-	strAuthorizeTitle = 30786
-	strAuthorizeSteps = 30788
-	strAuthorized     = 30789
-	strAuthFailed     = 30790
-	strDeauthorized   = 30791
-	strReauthorize    = 30794
-)
+// AuthStrings are the Kodi string ids a device-code login shows. NoName leaves the tracker name out of the arguments.
+type AuthStrings struct {
+	Title, Steps, Authorized, Failed, Deauthorized, Reauthorize int
+	NoName                                                      bool
+}
+
+var defaultAuthStrings = AuthStrings{Title: 30786, Steps: 30788, Authorized: 30789, Failed: 30790, Deauthorized: 30791, Reauthorize: 30794}
+
+// AuthCustomizer is optionally implemented by a Provider that shows its own strings
+// or reacts to credential changes (refresh is true when only the token was renewed).
+type AuthCustomizer interface {
+	AuthStrings() AuthStrings
+	AuthChanged(c *config.TrackerCredentials, refresh bool)
+}
+
+func authStrings(p Provider) AuthStrings {
+	if c, ok := p.(AuthCustomizer); ok {
+		return c.AuthStrings()
+	}
+	return defaultAuthStrings
+}
+
+func (s AuthStrings) toast(id int, p Provider) {
+	msg := fmt.Sprintf("LOCALIZE[%d]", id)
+	if !s.NoName {
+		msg += ";;" + p.Name()
+	}
+	ui.Toast(msg)
+}
 
 // DeviceCode is the code the user enters on the tracker website.
 type DeviceCode struct {
@@ -63,7 +84,8 @@ func Credentials(id string) *config.TrackerCredentials {
 	return &config.TrackerCredentials{}
 }
 
-func saveCredentials(id string, c *config.TrackerCredentials) {
+func saveCredentials(p Provider, c *config.TrackerCredentials, refresh bool) {
+	id := p.ID()
 	if config.Get().TrackerCredentials == nil {
 		config.Get().TrackerCredentials = map[string]*config.TrackerCredentials{}
 	}
@@ -71,15 +93,12 @@ func saveCredentials(id string, c *config.TrackerCredentials) {
 	config.SetSetting(id+"_token", c.Token)
 	config.SetSetting(id+"_refresh_token", c.RefreshToken)
 	config.SetSetting(id+"_token_expiry", strconv.FormatInt(c.TokenExpiry, 10))
-	config.SetSetting(id+"_username", c.Username)
-}
-
-func notify(format int, args ...any) {
-	msg := fmt.Sprintf("LOCALIZE[%d]", format)
-	for _, a := range args {
-		msg += fmt.Sprintf(";;%v", a)
+	if !refresh { // a refresh writes only the token keys, as Kodi reloads on any other setting change
+		config.SetSetting(id+"_username", c.Username)
 	}
-	ui.Toast(msg)
+	if h, ok := p.(AuthCustomizer); ok {
+		h.AuthChanged(c, refresh)
+	}
 }
 
 // DeviceAuthStarter is implemented by trackers that can start a device-code login without Kodi.
@@ -92,9 +111,11 @@ type DeviceAuthStarter interface {
 var minPollInterval = 5 * time.Second
 
 var (
-	authMu  sync.Mutex
-	authGen = map[string]uint64{}
-	logins  = map[string]int64{}
+	// Serialize generation changes with credential commits, including persistence and provider hooks.
+	authCommitMu sync.Mutex
+	authMu       sync.Mutex
+	authGen      = map[string]uint64{}
+	logins       = map[string]int64{}
 )
 
 // LoggedIn counts a finished login of the tracker, so a client re-linking an account can tell it is done.
@@ -114,6 +135,8 @@ func Logins(id string) int64 {
 // BeginAuth marks a new login of the tracker and returns a func telling whether it is still the latest,
 // so a poller of an earlier login can stop.
 func BeginAuth(id string) (current func() bool) {
+	authCommitMu.Lock()
+	defer authCommitMu.Unlock()
 	authMu.Lock()
 	defer authMu.Unlock()
 	authGen[id]++
@@ -127,15 +150,19 @@ func BeginAuth(id string) (current func() bool) {
 
 // StartDeviceAuth requests a code and polls for the token in background; success or failure is notified when polling ends.
 func StartDeviceAuth(p Provider, f DeviceFlow) (*DeviceCode, error) {
+	current := BeginAuth(p.ID())
 	code, err := f.RequestCode()
+	if err == nil && (code == nil || code.DeviceCode == "") {
+		err = errors.New("empty device code")
+	}
 	if err != nil {
 		log.Errorf("Could not get authorization code from %s: %s", p.Name(), err)
-		notify(strAuthFailed, p.Name())
+		authStrings(p).toast(authStrings(p).Failed, p)
 		return nil, err
 	}
 	log.Noticef("Got %s code for %s: %s", p.Name(), code.VerificationURL, code.UserCode)
 
-	go pollDeviceToken(p, f, code, BeginAuth(p.ID()))
+	go pollDeviceToken(p, f, code, current)
 	return code, nil
 }
 
@@ -148,7 +175,12 @@ func RunDeviceAuth(p Provider, f DeviceFlow) error {
 	}
 
 	if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-		if !xbmcHost.Dialog(xbmcHost.GetLocalizedString(strAuthorizeTitle), fmt.Sprintf(xbmcHost.GetLocalizedString(strAuthorizeSteps), p.Name(), code.VerificationURL, code.UserCode)) {
+		str := authStrings(p)
+		args := []any{p.Name(), code.VerificationURL, code.UserCode}
+		if str.NoName {
+			args = args[1:]
+		}
+		if !xbmcHost.Dialog(xbmcHost.GetLocalizedString(str.Title), fmt.Sprintf(xbmcHost.GetLocalizedString(str.Steps), args...)) {
 			return errors.New("Authentication canceled")
 		}
 	}
@@ -171,6 +203,9 @@ func pollDeviceToken(p Provider, f DeviceFlow, code *DeviceCode, current func() 
 			return
 		}
 		token, err := f.PollToken(code)
+		if !current() {
+			return
+		}
 		if errors.Is(err, ErrSlowDown) {
 			interval += 5 * time.Second
 			continue
@@ -178,27 +213,45 @@ func pollDeviceToken(p Provider, f DeviceFlow, code *DeviceCode, current func() 
 			continue
 		} else if err != nil {
 			log.Warningf("%s authorization failed: %s", p.Name(), err)
-			notify(strAuthFailed, p.Name())
+			authStrings(p).toast(authStrings(p).Failed, p)
 			return
 		}
 
+		if token == nil || token.AccessToken == "" {
+			authStrings(p).toast(authStrings(p).Failed, p)
+			return
+		}
 		c := &config.TrackerCredentials{
 			Token:        token.AccessToken,
 			RefreshToken: token.RefreshToken,
 			TokenExpiry:  expiry(token),
 		}
-		if c.Username, err = f.Username(token.AccessToken); err != nil {
+		c.Username, err = f.Username(token.AccessToken)
+		if !current() {
+			return
+		}
+		if err == nil && strings.TrimSpace(c.Username) == "" {
+			err = errors.New("empty username")
+		}
+		if err != nil {
 			log.Warningf("Could not get %s username: %s", p.Name(), err)
+			authStrings(p).toast(authStrings(p).Failed, p)
+			return
 		}
 
+		authCommitMu.Lock()
+		defer authCommitMu.Unlock()
+		if !current() {
+			return
+		}
 		ClearState(p.ID())
-		saveCredentials(p.ID(), c)
+		saveCredentials(p, c, false)
 		LoggedIn(p.ID())
-		notify(strAuthorized, p.Name())
+		authStrings(p).toast(authStrings(p).Authorized, p)
 		return
 	}
 
-	notify(strAuthFailed, p.Name())
+	authStrings(p).toast(authStrings(p).Failed, p)
 }
 
 func expiry(t *Token) int64 {
@@ -210,41 +263,71 @@ func expiry(t *Token) int64 {
 
 // DeauthorizeDevice revokes the token when the tracker allows it and clears stored credentials.
 func DeauthorizeDevice(p Provider, f DeviceFlow) error {
-	if c := Credentials(p.ID()); c.Token != "" {
-		if err := f.Revoke(c.Token); err != nil {
+	current := BeginAuth(p.ID())
+	authCommitMu.Lock()
+	if !current() {
+		authCommitMu.Unlock()
+		return nil
+	}
+	token := Credentials(p.ID()).Token
+	authCommitMu.Unlock()
+	if token != "" {
+		if err := f.Revoke(token); err != nil {
 			log.Debugf("Failed to revoke %s token: %s", p.Name(), err)
 		}
 	}
 
+	authCommitMu.Lock()
+	defer authCommitMu.Unlock()
+	if !current() {
+		return nil
+	}
 	ClearState(p.ID())
-	saveCredentials(p.ID(), &config.TrackerCredentials{})
-	notify(strDeauthorized, p.Name())
+	saveCredentials(p, &config.TrackerCredentials{}, false)
+	authStrings(p).toast(authStrings(p).Deauthorized, p)
 	return nil
 }
 
 // RefreshDeviceToken renews the token of a device-code tracker when it expires within ahead.
 func RefreshDeviceToken(p Provider, f DeviceFlow, ahead time.Duration) error {
+	authCommitMu.Lock()
 	c := Credentials(p.ID())
+	authMu.Lock()
+	gen := authGen[p.ID()]
+	authMu.Unlock()
+	authCommitMu.Unlock()
 	if c.Token == "" || c.RefreshToken == "" || c.TokenExpiry == 0 || time.Now().Add(ahead).Unix() < c.TokenExpiry {
 		return nil
 	}
 
 	token, err := f.RefreshToken(c.RefreshToken)
+	authCommitMu.Lock()
+	defer authCommitMu.Unlock()
+	authMu.Lock()
+	current := authGen[p.ID()] == gen
+	authMu.Unlock()
+	if !current || Credentials(p.ID()) != c {
+		return nil
+	}
 	if err != nil {
 		log.Errorf("Failed to refresh %s token: %s", p.Name(), err)
-		notify(strReauthorize, p.Name())
+		authStrings(p).toast(authStrings(p).Reauthorize, p)
 		return err
+	}
+	if token == nil || token.AccessToken == "" {
+		authStrings(p).toast(authStrings(p).Reauthorize, p)
+		return errors.New("empty refreshed access token")
 	}
 
 	if token.RefreshToken == "" {
 		token.RefreshToken = c.RefreshToken
 	}
-	saveCredentials(p.ID(), &config.TrackerCredentials{
+	saveCredentials(p, &config.TrackerCredentials{
 		Token:        token.AccessToken,
 		RefreshToken: token.RefreshToken,
 		TokenExpiry:  expiry(token),
 		Username:     c.Username,
-	})
+	}, true)
 	log.Noticef("%s token refreshed", p.Name())
 	return nil
 }

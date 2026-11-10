@@ -1,14 +1,12 @@
-package apiv1
+package jsonapi
 
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/ui"
 )
 
@@ -25,16 +23,9 @@ func (Server) GetUiEvents(ctx context.Context, req GetUiEventsRequestObject) (Ge
 	if wait < 0 || wait > 60 || (p.Since != nil && *p.Since < 0) {
 		return GetUiEvents400JSONResponse{BadRequestJSONResponse(newError(ErrorCodeBadRequest, "wait must be 0-60 and since 0 or more"))}, nil
 	}
-	lang := config.Get().Language
-	if p.Lang != nil {
-		m := langRe.FindStringSubmatch(*p.Lang)
-		if m == nil {
-			return GetUiEvents400JSONResponse{BadRequestJSONResponse(newError(ErrorCodeBadRequest, "lang must look like de or de-DE"))}, nil
-		}
-		lang = strings.ToLower(m[1])
-		if m[2] != "" {
-			lang += "-" + strings.ToUpper(m[2])
-		}
+	lang, e := langArg(p.Lang)
+	if e != nil {
+		return GetUiEvents400JSONResponse{BadRequestJSONResponse(*e)}, nil
 	}
 	// The strict server's ctx is the *gin.Context, which is not cancelled with the request.
 	reqCtx := ctx.(*gin.Context).Request.Context()

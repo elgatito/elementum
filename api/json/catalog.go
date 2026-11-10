@@ -1,4 +1,4 @@
-package apiv1
+package jsonapi
 
 import (
 	"cmp"
@@ -24,30 +24,41 @@ var (
 	genreRequired = newError(ErrorCodeBadRequest, "genre is required for by_genre")
 	badGenre      = newError(ErrorCodeBadRequest, "genre must be 1 or more")
 	badYear       = newError(ErrorCodeBadRequest, "year must be between 1870 and 2100")
+	badDetailID   = newError(ErrorCodeBadRequest, "tmdb_id must be 1 or more")
+	badSeason     = newError(ErrorCodeBadRequest, "season must be 0 or more")
 )
 
-// args validates the common query params and fills their defaults. lang becomes TMDB's "de" or "de-DE".
+// langArg validates lang and returns TMDB's "de" or "de-DE", the configured language when unset.
+func langArg(lang *string) (string, *Error) {
+	if lang == nil {
+		return config.Get().Language, nil
+	}
+	m := langRe.FindStringSubmatch(*lang)
+	if m == nil {
+		err := newError(ErrorCodeBadRequest, "lang must look like de or de-DE")
+		return "", &err
+	}
+	lng := strings.ToLower(m[1])
+	if m[2] != "" {
+		lng += "-" + strings.ToUpper(m[2])
+	}
+	return lng, nil
+}
+
+// args validates the common query params and fills their defaults.
 func args(page, limit *int, lang *string, enums ...interface{ Valid() bool }) (pg, lim int, lng string, e *Error) {
 	if e = checkParams(page, limit, enums...); e != nil {
 		return
 	}
-	pg, lim, lng = 1, min(max(cmp.Or(config.Get().ResultsPerPage, tmdb.TMDBResultsPerPage), 1), 100), config.Get().Language
+	if lng, e = langArg(lang); e != nil {
+		return 0, 0, "", e
+	}
+	pg, lim = 1, min(max(cmp.Or(config.Get().ResultsPerPage, tmdb.TMDBResultsPerPage), 1), 100)
 	if page != nil {
 		pg = *page
 	}
 	if limit != nil {
 		lim = *limit
-	}
-	if lang != nil {
-		m := langRe.FindStringSubmatch(*lang)
-		if m == nil {
-			err := newError(ErrorCodeBadRequest, "lang must look like de or de-DE")
-			return 0, 0, "", &err
-		}
-		lng = strings.ToLower(m[1])
-		if m[2] != "" {
-			lng += "-" + strings.ToUpper(m[2])
-		}
 	}
 	return
 }
@@ -146,7 +157,7 @@ func (Server) ListShows(_ context.Context, req ListShowsRequestObject) (ListShow
 }
 
 func (Server) ListMovieGenres(_ context.Context, req ListMovieGenresRequestObject) (ListMovieGenresResponseObject, error) {
-	_, _, lang, e := args(nil, nil, req.Params.Lang)
+	lang, e := langArg(req.Params.Lang)
 	if e != nil {
 		return ListMovieGenresdefaultJSONResponse{Body: *e, StatusCode: http.StatusBadRequest}, nil
 	}
@@ -158,7 +169,7 @@ func (Server) ListMovieGenres(_ context.Context, req ListMovieGenresRequestObjec
 }
 
 func (Server) ListShowGenres(_ context.Context, req ListShowGenresRequestObject) (ListShowGenresResponseObject, error) {
-	_, _, lang, e := args(nil, nil, req.Params.Lang)
+	lang, e := langArg(req.Params.Lang)
 	if e != nil {
 		return ListShowGenresdefaultJSONResponse{Body: *e, StatusCode: http.StatusBadRequest}, nil
 	}
@@ -170,7 +181,10 @@ func (Server) ListShowGenres(_ context.Context, req ListShowGenresRequestObject)
 }
 
 func (Server) GetMovie(_ context.Context, req GetMovieRequestObject) (GetMovieResponseObject, error) {
-	_, _, lang, e := args(nil, nil, req.Params.Lang)
+	if req.TmdbId < 1 {
+		return GetMoviedefaultJSONResponse{Body: badDetailID, StatusCode: http.StatusBadRequest}, nil
+	}
+	lang, e := langArg(req.Params.Lang)
 	if e != nil {
 		return GetMoviedefaultJSONResponse{Body: *e, StatusCode: http.StatusBadRequest}, nil
 	}
@@ -185,7 +199,10 @@ func (Server) GetMovie(_ context.Context, req GetMovieRequestObject) (GetMovieRe
 }
 
 func (Server) GetShow(_ context.Context, req GetShowRequestObject) (GetShowResponseObject, error) {
-	_, _, lang, e := args(nil, nil, req.Params.Lang)
+	if req.TmdbId < 1 {
+		return GetShowdefaultJSONResponse{Body: badDetailID, StatusCode: http.StatusBadRequest}, nil
+	}
+	lang, e := langArg(req.Params.Lang)
 	if e != nil {
 		return GetShowdefaultJSONResponse{Body: *e, StatusCode: http.StatusBadRequest}, nil
 	}
@@ -203,7 +220,13 @@ func (Server) GetShow(_ context.Context, req GetShowRequestObject) (GetShowRespo
 }
 
 func (Server) GetSeason(_ context.Context, req GetSeasonRequestObject) (GetSeasonResponseObject, error) {
-	_, _, lang, e := args(nil, nil, req.Params.Lang)
+	if req.TmdbId < 1 {
+		return GetSeasondefaultJSONResponse{Body: badDetailID, StatusCode: http.StatusBadRequest}, nil
+	}
+	if req.Season < 0 {
+		return GetSeasondefaultJSONResponse{Body: badSeason, StatusCode: http.StatusBadRequest}, nil
+	}
+	lang, e := langArg(req.Params.Lang)
 	if e != nil {
 		return GetSeasondefaultJSONResponse{Body: *e, StatusCode: http.StatusBadRequest}, nil
 	}
@@ -213,22 +236,18 @@ func (Server) GetSeason(_ context.Context, req GetSeasonRequestObject) (GetSeaso
 		return GetSeason404JSONResponse{NotFoundJSONResponse(tmdbNotFound)}, nil
 	}
 	d := season(s)
-	if watched, known := episodeWatched(req.TmdbId); known {
-		for n := range d.Episodes {
-			e := &d.Episodes[n]
+	watched, known := episodeWatched(req.TmdbId)
+	show, err := uid.GetShowByTMDB(req.TmdbId) // Kodi library resume points
+	for n := range d.Episodes {
+		e := &d.Episodes[n]
+		if known {
 			e.Watched = ptr(watched(e.SeasonNumber, e.EpisodeNumber))
 		}
-	}
-	if show, err := uid.GetShowByTMDB(req.TmdbId); err == nil && show != nil { // Kodi library resume points
-		for n := range d.Episodes {
-			e := &d.Episodes[n]
+		if err == nil && show != nil {
 			if le := show.GetEpisode(e.SeasonNumber, e.EpisodeNumber); le != nil && le.Resume != nil && le.Resume.Position > 0 {
 				e.ResumeS = ptr(float32(le.Resume.Position))
 			}
 		}
-	}
-	for n := range d.Episodes {
-		e := &d.Episodes[n]
 		if r := storedResume(bittorrent.TMDBResumeKey(true, req.TmdbId, e.SeasonNumber, e.EpisodeNumber)); e.ResumeS == nil && r != nil {
 			e.ResumeS = ptr(float32(r.Position))
 		}

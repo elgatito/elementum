@@ -70,7 +70,7 @@ type ProgressEvent struct {
 
 // Translated returns a copy with every text resolved in lang.
 func (e Event) Translated(lang string) Event {
-	tr := func(s string) string { return plain(Translate(lang, s)) }
+	tr := func(s string) string { return Plain(Translate(lang, s)) }
 	e.Title, e.Message = tr(e.Title), tr(e.Message)
 	if e.Options != nil {
 		o := make([]string, len(e.Options))
@@ -441,7 +441,7 @@ func (b *Broker) Answer(id string, a Answer) error {
 // HTTPHost is the Host that serves HTTP clients through a Broker.
 type HTTPHost struct{ B *Broker }
 
-// Default is the broker behind /api/v1/ui and Background().
+// Default is the broker behind /api/ui and Background().
 var Default = NewBroker()
 
 func (h HTTPHost) Connected() bool { return h.B.Connected() }

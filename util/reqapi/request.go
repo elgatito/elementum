@@ -138,18 +138,6 @@ func (r *Request) readCache(data []byte) error {
 	return err
 }
 
-func (r *Request) CacheWrite(data []byte) (err error) {
-	cacheExpire := r.CacheExpire
-	if cacheExpire == 0 {
-		cacheExpire = cache.CacheExpireMedium
-	}
-
-	cacheStore := cache.NewDBStore()
-	err = cacheStore.SetBytes(r.CacheKey, data, cacheExpire)
-	r.Stage("CacheWriteBytes")
-	return err
-}
-
 func (r *Request) Do() (err error) {
 	defer perf.ScopeTimer()()
 

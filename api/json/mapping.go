@@ -1,4 +1,4 @@
-package apiv1
+package jsonapi
 
 import (
 	"strconv"
@@ -99,11 +99,11 @@ func showItem(s *tmdb.Show) MediaItem {
 	return mediaItem(MediaTypeShow, &s.Entity, s.Name, s.FirstAirDate)
 }
 
-// movieItems skips the nil entries that list fetchers leave for missing or failed items.
+// movieItems skips the nil or id-less entries that list fetchers leave for missing or failed items.
 func movieItems(movies tmdb.Movies) []MediaItem {
 	items := make([]MediaItem, 0, len(movies))
 	for _, m := range movies {
-		if m != nil {
+		if m != nil && m.ID != 0 {
 			items = append(items, movieItem(m))
 		}
 	}
@@ -113,7 +113,7 @@ func movieItems(movies tmdb.Movies) []MediaItem {
 func showItems(shows tmdb.Shows) []MediaItem {
 	items := make([]MediaItem, 0, len(shows))
 	for _, s := range shows {
-		if s != nil {
+		if s != nil && s.ID != 0 {
 			items = append(items, showItem(s))
 		}
 	}

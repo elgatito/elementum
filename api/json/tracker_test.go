@@ -1,4 +1,4 @@
-package apiv1_test
+package jsonapi_test
 
 import (
 	"encoding/json"
@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/elgatito/elementum/apiv1"
+	"github.com/elgatito/elementum/api/json"
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/database"
@@ -28,7 +28,7 @@ import (
 
 // TestMain opens real cache and library DBs: cached TMDB/Trakt requests, tracker activities and the library need them.
 func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "apiv1-test")
+	dir, err := os.MkdirTemp("", "jsonapi-test")
 	if err != nil {
 		panic(err)
 	}
@@ -79,17 +79,17 @@ func stubTMDB(t *testing.T) {
 	})
 }
 
-func getPage(t *testing.T, path string) apiv1.MediaItemPage {
+func getPage(t *testing.T, path string) jsonapi.MediaItemPage {
 	t.Helper()
 	w := do(newEngine(), request{path: path})
-	var page apiv1.MediaItemPage
+	var page jsonapi.MediaItemPage
 	if err := json.Unmarshal(w.Body.Bytes(), &page); err != nil || w.Code != http.StatusOK {
 		t.Fatalf("%s: status %d, %v: %s", path, w.Code, err, w.Body)
 	}
 	return page
 }
 
-func titles(items []apiv1.MediaItem) (out []string) {
+func titles(items []jsonapi.MediaItem) (out []string) {
 	for _, i := range items {
 		out = append(out, fmt.Sprintf("%d:%s", i.TmdbId, i.Title))
 	}
@@ -115,21 +115,21 @@ func TestTraktChart(t *testing.T) {
 		fmt.Fprintf(w, "[%s]", strings.Join(items, ","))
 	})
 
-	p := getPage(t, "/api/v1/trakt/movies/lists/trending?page=2&limit=7")
-	if len(p.Items) != 7 || p.Items[0].TmdbId != 200 || p.Items[0].Title != "m200" || p.Items[0].Type != apiv1.MediaTypeMovie {
+	p := getPage(t, "/api/trakt/movies/lists/trending?page=2&limit=7")
+	if len(p.Items) != 7 || p.Items[0].TmdbId != 200 || p.Items[0].Title != "m200" || p.Items[0].Type != jsonapi.MediaTypeMovie {
 		t.Errorf("items = %v", titles(p.Items))
 	}
 	if p.Page != 2 || p.Limit != 7 || p.TotalPages != 5 || p.TotalResults == nil || *p.TotalResults != 30 {
 		t.Errorf("page = %+v", p)
 	}
 	// Another limit must not be served from the first one's cache entry; the same one must.
-	getPage(t, "/api/v1/trakt/movies/lists/trending?page=2&limit=5")
-	getPage(t, "/api/v1/trakt/movies/lists/trending?page=2&limit=7")
+	getPage(t, "/api/trakt/movies/lists/trending?page=2&limit=5")
+	getPage(t, "/api/trakt/movies/lists/trending?page=2&limit=7")
 	if got, want := seen(), []string{"/movies/trending?page=2&limit=7", "/movies/trending?page=2&limit=5"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("Trakt requests = %v, want %v", got, want)
 	}
 
-	if w := do(newEngine(), request{path: "/api/v1/trakt/shows/lists/popular"}); w.Code != http.StatusBadGateway {
+	if w := do(newEngine(), request{path: "/api/trakt/shows/lists/popular"}); w.Code != http.StatusBadGateway {
 		t.Errorf("failed Trakt request: status %d: %s", w.Code, w.Body)
 	} else if strings.Contains(w.Body.String(), "127.0.0.1") {
 		t.Errorf("upstream error leaked: %s", w.Body)
@@ -179,22 +179,22 @@ func TestTracker(t *testing.T) {
 	stubTMDB(t)
 	useTracker(t, fakeTracker{authorized: true})
 
-	p := getPage(t, "/api/v1/tracker/movies/watchlist?page=1&limit=2")
+	p := getPage(t, "/api/tracker/movies/watchlist?page=1&limit=2")
 	if got := titles(p.Items); !reflect.DeepEqual(got, []string{"11:m11", "12:m12"}) { // 12 resolved by IMDB id
 		t.Errorf("page 1 = %v", got)
 	}
 	if p.TotalPages != 3 || p.TotalResults == nil || *p.TotalResults != 5 {
 		t.Errorf("page 1 = %+v", p)
 	}
-	if got := titles(getPage(t, "/api/v1/tracker/movies/watchlist?page=3&limit=2").Items); !reflect.DeepEqual(got, []string{"15:m15"}) {
+	if got := titles(getPage(t, "/api/tracker/movies/watchlist?page=3&limit=2").Items); !reflect.DeepEqual(got, []string{"15:m15"}) {
 		t.Errorf("page 3 = %v", got)
 	}
-	if p := getPage(t, "/api/v1/tracker/movies/watchlist?page=9223372036854775807&limit=2"); p.Items == nil || len(p.Items) != 0 {
+	if p := getPage(t, "/api/tracker/movies/watchlist?page=9223372036854775807&limit=2"); p.Items == nil || len(p.Items) != 0 {
 		t.Errorf("past the end = %+v", p)
 	}
 
-	w := do(newEngine(), request{path: "/api/v1/tracker/shows/progress?lang=de-DE"})
-	var np apiv1.NextEpisodePage
+	w := do(newEngine(), request{path: "/api/tracker/shows/progress?lang=de-DE"})
+	var np jsonapi.NextEpisodePage
 	if err := json.Unmarshal(w.Body.Bytes(), &np); err != nil || w.Code != http.StatusOK || len(np.Items) != 1 {
 		t.Fatalf("progress: status %d, %v: %s", w.Code, err, w.Body)
 	}
@@ -205,13 +205,13 @@ func TestTracker(t *testing.T) {
 
 	for path, want := range map[string]struct {
 		status int
-		code   apiv1.ErrorCode
+		code   jsonapi.ErrorCode
 	}{
-		"/api/v1/tracker/movies/collection":                       {http.StatusConflict, apiv1.ErrorCodeTrackerUnsupported},
-		"/api/v1/tracker/lists":                                   {http.StatusConflict, apiv1.ErrorCodeTrackerUnsupported},
-		"/api/v1/tracker/lists/42/items?media=movies":             {http.StatusConflict, apiv1.ErrorCodeTrackerUnsupported},
-		"/api/v1/tracker/lists/status:watching/items?media=shows": {http.StatusConflict, apiv1.ErrorCodeTrackerUnsupported}, // a valid Simkl id
-		"/api/v1/tracker/shows/watchlist":                         {http.StatusBadGateway, apiv1.ErrorCodeInternalError},
+		"/api/tracker/movies/collection":                       {http.StatusConflict, jsonapi.ErrorCodeTrackerUnsupported},
+		"/api/tracker/lists":                                   {http.StatusConflict, jsonapi.ErrorCodeTrackerUnsupported},
+		"/api/tracker/lists/42/items?media=movies":             {http.StatusConflict, jsonapi.ErrorCodeTrackerUnsupported},
+		"/api/tracker/lists/status:watching/items?media=shows": {http.StatusConflict, jsonapi.ErrorCodeTrackerUnsupported}, // a valid Simkl id
+		"/api/tracker/shows/watchlist":                         {http.StatusBadGateway, jsonapi.ErrorCodeInternalError},
 	} {
 		w := do(newEngine(), request{path: path})
 		if w.Code != want.status || errorCode(t, w) != want.code {
@@ -238,8 +238,8 @@ func (expiredTracker) ListItems(string, tracker.MediaType, bool) ([]*tracker.Ite
 func TestTrackerTokenRevoked(t *testing.T) {
 	setCreds(t, "", "")
 	useTracker(t, expiredTracker{fakeTracker{authorized: true}})
-	w := do(newEngine(), request{path: "/api/v1/tracker/lists"})
-	if w.Code != http.StatusConflict || errorCode(t, w) != apiv1.ErrorCodeTrackerNotAuthorized {
+	w := do(newEngine(), request{path: "/api/tracker/lists"})
+	if w.Code != http.StatusConflict || errorCode(t, w) != jsonapi.ErrorCodeTrackerNotAuthorized {
 		t.Errorf("status %d: %s", w.Code, w.Body)
 	}
 }
@@ -248,14 +248,14 @@ func TestTrackerNotLinked(t *testing.T) {
 	setCreds(t, "", "")
 	useTracker(t, fakeTracker{authorized: false})
 	for _, path := range []string{
-		"/api/v1/tracker/movies/watchlist",
-		"/api/v1/tracker/shows/collection",
-		"/api/v1/tracker/shows/progress",
-		"/api/v1/tracker/lists",
-		"/api/v1/tracker/lists/42/items?media=shows",
+		"/api/tracker/movies/watchlist",
+		"/api/tracker/shows/collection",
+		"/api/tracker/shows/progress",
+		"/api/tracker/lists",
+		"/api/tracker/lists/42/items?media=shows",
 	} {
 		w := do(newEngine(), request{path: path})
-		if w.Code != http.StatusConflict || errorCode(t, w) != apiv1.ErrorCodeTrackerNotAuthorized {
+		if w.Code != http.StatusConflict || errorCode(t, w) != jsonapi.ErrorCodeTrackerNotAuthorized {
 			t.Errorf("%s: status %d: %s", path, w.Code, w.Body)
 		}
 	}
@@ -276,11 +276,11 @@ func TestLibrary(t *testing.T) {
 		}
 	}
 
-	p := getPage(t, "/api/v1/library/movies?page=2&limit=1")
+	p := getPage(t, "/api/library/movies?page=2&limit=1")
 	if got := titles(p.Items); !reflect.DeepEqual(got, []string{"13:m13"}) || p.TotalPages != 2 || *p.TotalResults != 2 {
 		t.Errorf("movies = %v, %+v", got, p)
 	}
-	if got := titles(getPage(t, "/api/v1/library/shows").Items); !reflect.DeepEqual(got, []string{"1396:s1396"}) {
+	if got := titles(getPage(t, "/api/library/shows").Items); !reflect.DeepEqual(got, []string{"1396:s1396"}) {
 		t.Errorf("shows = %v", got)
 	}
 }
@@ -297,16 +297,16 @@ func TestItemState(t *testing.T) {
 	playcount.Set(playcount.MovieType, true, 22)
 	t.Cleanup(func() { playcount.Set(playcount.MovieType, false, 22) })
 
-	got := map[int]apiv1.MediaItem{}
-	for _, i := range getPage(t, "/api/v1/library/movies").Items {
+	got := map[int]jsonapi.MediaItem{}
+	for _, i := range getPage(t, "/api/library/movies").Items {
 		got[i.TmdbId] = i
 	}
 	if i := got[21]; i.InLibrary == nil || !*i.InLibrary || i.InCollection != nil || i.InWatchlist != nil || i.Watched != nil {
 		t.Errorf("library movie without a tracker: %+v", i)
 	}
 	// An item in the Kodi library's watched state is watched, whatever the tracker.
-	w := do(newEngine(), request{path: "/api/v1/movies/22"})
-	var d apiv1.MovieDetails
+	w := do(newEngine(), request{path: "/api/movies/22"})
+	var d jsonapi.MovieDetails
 	if err := json.Unmarshal(w.Body.Bytes(), &d); err != nil || d.InLibrary == nil || *d.InLibrary || d.Watched == nil || !*d.Watched {
 		t.Errorf("details %d: %+v, %v", w.Code, d, err)
 	}
@@ -321,15 +321,15 @@ func TestActions(t *testing.T) {
 		method, path, body string
 		want               int
 	}{
-		"bad kind":              {"POST", "/api/v1/watched/series", `{"tmdb_id":1}`, 400},
-		"no body fields":        {"POST", "/api/v1/watched/movie", `{}`, 400},
-		"season needs season":   {"POST", "/api/v1/watched/season", `{"tmdb_id":1}`, 400},
-		"episode needs episode": {"DELETE", "/api/v1/watched/episode", `{"tmdb_id":1,"season":1}`, 400},
-		"no tracker, no Kodi":   {"POST", "/api/v1/watched/movie", `{"tmdb_id":603}`, 409},
-		"unwatch, same":         {"DELETE", "/api/v1/watched/show", `{"tmdb_id":1396}`, 409},
-		"bad media":             {"POST", "/api/v1/library/songs/1", ``, 400},
-		"bad id":                {"DELETE", "/api/v1/library/movies/0", ``, 400},
-		"remove when absent":    {"DELETE", "/api/v1/library/movies/9999", ``, 204},
+		"bad kind":              {"POST", "/api/watched/series", `{"tmdb_id":1}`, 400},
+		"no body fields":        {"POST", "/api/watched/movie", `{}`, 400},
+		"season needs season":   {"POST", "/api/watched/season", `{"tmdb_id":1}`, 400},
+		"episode needs episode": {"DELETE", "/api/watched/episode", `{"tmdb_id":1,"season":1}`, 400},
+		"no tracker, no Kodi":   {"POST", "/api/watched/movie", `{"tmdb_id":603}`, 409},
+		"unwatch, same":         {"DELETE", "/api/watched/show", `{"tmdb_id":1396}`, 409},
+		"bad media":             {"POST", "/api/library/songs/1", ``, 400},
+		"bad id":                {"DELETE", "/api/library/movies/0", ``, 400},
+		"remove when absent":    {"DELETE", "/api/library/movies/9999", ``, 204},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if w := do(e, request{method: tc.method, path: tc.path, body: tc.body}); w.Code != tc.want {
@@ -358,8 +358,8 @@ func TestStoredResume(t *testing.T) {
 	stubTMDB(t)
 	database.GetCache().SetCachedObject(database.CommonBucket, 3600, bittorrent.TMDBResumeKey(false, 31, 0, 0), map[string]float64{"position": 300, "total": 1200})
 	t.Cleanup(func() { database.GetCache().Delete(database.CommonBucket, bittorrent.TMDBResumeKey(false, 31, 0, 0)) })
-	w := do(newEngine(), request{path: "/api/v1/movies/31"})
-	var d apiv1.MovieDetails
+	w := do(newEngine(), request{path: "/api/movies/31"})
+	var d jsonapi.MovieDetails
 	if err := json.Unmarshal(w.Body.Bytes(), &d); err != nil || d.Progress == nil || *d.Progress != 0.25 {
 		t.Errorf("progress %d: %+v, %v", w.Code, d.Progress, err)
 	}
@@ -378,7 +378,7 @@ func TestLibraryAddRemoveAdd(t *testing.T) {
 	})
 	e := newEngine()
 	for i, step := range []struct{ method string }{{"POST"}, {"POST"}, {"DELETE"}, {"POST"}} {
-		if w := do(e, request{method: step.method, path: "/api/v1/library/movies/41"}); w.Code != 204 {
+		if w := do(e, request{method: step.method, path: "/api/library/movies/41"}); w.Code != 204 {
 			t.Fatalf("step %d %s: %d %s", i, step.method, w.Code, w.Body)
 		}
 		if want := step.method == "POST"; library.IsInLibrary(41, library.MovieType) != want {
@@ -401,11 +401,11 @@ func (a authTracker) StartAuth() (*tracker.DeviceCode, error) {
 
 func TestStartTrackerAuth(t *testing.T) {
 	setCreds(t, "", "")
-	post := request{method: http.MethodPost, path: "/api/v1/tracker/authorize"}
+	post := request{method: http.MethodPost, path: "/api/tracker/authorize"}
 
 	useTracker(t, authTracker{})
 	w := do(newEngine(), post)
-	var got apiv1.TrackerAuthCode
+	var got jsonapi.TrackerAuthCode
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || w.Code != http.StatusOK ||
 		got.UserCode != "ABCD" || got.VerificationUrl != "https://x/activate" || got.ExpiresIn != 600 || got.Interval != 5 || got.Tracker.Id != "fake" {
 		t.Errorf("status %d: %s", w.Code, w.Body)
@@ -413,7 +413,7 @@ func TestStartTrackerAuth(t *testing.T) {
 
 	useTracker(t, fakeTracker{}) // no StartAuth
 	w = do(newEngine(), post)
-	if w.Code != http.StatusConflict || errorCode(t, w) != apiv1.ErrorCodeTrackerUnsupported {
+	if w.Code != http.StatusConflict || errorCode(t, w) != jsonapi.ErrorCodeTrackerUnsupported {
 		t.Errorf("unsupported: status %d: %s", w.Code, w.Body)
 	}
 
@@ -424,7 +424,7 @@ func TestStartTrackerAuth(t *testing.T) {
 
 	config.Get().TrackerProvider = "" // none selected
 	w = do(newEngine(), post)
-	if w.Code != http.StatusConflict || errorCode(t, w) != apiv1.ErrorCodeTrackerUnsupported {
+	if w.Code != http.StatusConflict || errorCode(t, w) != jsonapi.ErrorCodeTrackerUnsupported {
 		t.Errorf("none: status %d: %s", w.Code, w.Body)
 	}
 }
@@ -435,8 +435,8 @@ func TestStartTrackerAuthYAMLSettings(t *testing.T) {
 	old := config.Args.ConfigPath
 	t.Cleanup(func() { config.Args.ConfigPath = old })
 	config.Args.ConfigPath = "settings.yaml"
-	w := do(newEngine(), request{method: http.MethodPost, path: "/api/v1/tracker/authorize"})
-	if w.Code != http.StatusConflict || errorCode(t, w) != apiv1.ErrorCodeTrackerUnsupported {
+	w := do(newEngine(), request{method: http.MethodPost, path: "/api/tracker/authorize"})
+	if w.Code != http.StatusConflict || errorCode(t, w) != jsonapi.ErrorCodeTrackerUnsupported {
 		t.Errorf("status %d: %s", w.Code, w.Body)
 	}
 }

@@ -1,4 +1,4 @@
-package apiv1
+package jsonapi
 
 import (
 	"context"
@@ -207,15 +207,11 @@ func resumePoint(p *bittorrent.PlayerParams) *float64 {
 	if config.Get().PlayResumeAction == 0 || p.ResumePlayback == bittorrent.ResumeNo {
 		return nil
 	}
-	if r := p.StoredResume; r != nil && r.Position > 0 {
-		v := r.Position
-		return &v
+	v := p.ResumePosition()
+	if v < 0 {
+		return nil
 	}
-	if r := p.Resume; r != nil && r.Position > 0 {
-		v := r.Position
-		return &v
-	}
-	return nil
+	return &v
 }
 
 // activate makes sess the one active session, stopping the previous one; sessions must be locked.
@@ -383,7 +379,7 @@ func sign(id string, fileIndex int, exp int64) string {
 
 // streamURL is the signed getStream link on the host the client used to reach the API.
 func streamURL(host, id string, fileIndex int, exp int64) string {
-	return fmt.Sprintf("http://%s/api/v1/stream/%s/%d?exp=%d&sig=%s", host, id, fileIndex, exp, sign(id, fileIndex, exp))
+	return fmt.Sprintf("http://%s/api/stream/%s/%d?exp=%d&sig=%s", host, id, fileIndex, exp, sign(id, fileIndex, exp))
 }
 
 // GetStream serves the session's chosen file to a valid signed link. Every rejection is the same 403.

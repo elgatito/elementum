@@ -1,5 +1,5 @@
-// Package apiv1 is the JSON API under /api/v1. openapi.yaml is the contract; api.gen.go is generated from it.
-package apiv1
+// Package jsonapi is the JSON API under /api. openapi.yaml is the contract; api.gen.go is generated from it.
+package jsonapi
 
 //go:generate go tool oapi-codegen -config oapi-codegen.yaml openapi.yaml
 
@@ -21,7 +21,7 @@ import (
 	"github.com/elgatito/elementum/util/ident"
 )
 
-var log = logging.MustGetLogger("apiv1")
+var log = logging.MustGetLogger("jsonapi")
 
 var (
 	//go:embed openapi.yaml
@@ -37,11 +37,11 @@ var (
 // http.ServeContent.
 type Server struct{}
 
-// Register mounts /api/v1, the spec and /api/docs on the engine. Playback runs its torrents on s.
+// Register mounts /api, the spec and /api/docs on the engine. Playback runs its torrents on s.
 func Register(r *gin.Engine, s *bittorrent.Service) {
 	sessions.bts = s
 	r.GET("/api/docs", func(c *gin.Context) { c.Data(http.StatusOK, "text/html; charset=utf-8", docs) })
-	r.GET("/api/v1/openapi.yaml", func(c *gin.Context) { c.Data(http.StatusOK, "application/yaml", spec) })
+	r.GET("/api/openapi.yaml", func(c *gin.Context) { c.Data(http.StatusOK, "application/yaml", spec) })
 
 	badRequest := func(c *gin.Context, err error) { abort(c, http.StatusBadRequest, ErrorCodeBadRequest, err.Error()) }
 	// Upstream errors can hold URLs with api keys, so they are only logged.
@@ -59,9 +59,9 @@ func Register(r *gin.Engine, s *bittorrent.Service) {
 		log.Errorf("panic in %s %s: %v", c.Request.Method, c.Request.URL.Path, err)
 		abort(c, http.StatusInternalServerError, ErrorCodeInternalError, "internal error")
 	})
-	group := r.Group("/api/v1", recovery, basicAuth)
+	group := r.Group("/api", recovery, basicAuth)
 	paramError := func(c *gin.Context, err error, status int) {
-		if strings.HasPrefix(c.FullPath(), "/api/v1/stream/") {
+		if strings.HasPrefix(c.FullPath(), "/api/stream/") {
 			c.AbortWithStatusJSON(http.StatusForbidden, forbidden) // every stream link rejection looks the same
 			return
 		}
@@ -83,7 +83,7 @@ func Register(r *gin.Engine, s *bittorrent.Service) {
 // no WWW-Authenticate header, so browsers show no login popup. /stream is authorized by its signed link.
 func basicAuth(c *gin.Context) {
 	login, password := config.Args.LocalLogin, config.Args.LocalPassword
-	if (login == "" && password == "") || strings.HasPrefix(c.FullPath(), "/api/v1/stream/") {
+	if (login == "" && password == "") || strings.HasPrefix(c.FullPath(), "/api/stream/") {
 		c.Next()
 		return
 	}

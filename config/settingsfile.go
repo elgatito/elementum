@@ -168,7 +168,7 @@ func loadSettingsFile(path string) (*ConfigBundle, error) {
 
 // isWriteBackKey tells the settings that config.SetSetting changes at runtime (tokens, expiries, usernames).
 func isWriteBackKey(k string) bool {
-	for _, id := range []string{"trakt", "opensubtitles", "simkl", "mdblist", "scrob"} {
+	for _, id := range append([]string{"opensubtitles"}, deviceTrackers...) {
 		switch strings.TrimPrefix(k, id) {
 		case "_token", "_refresh_token", "_token_expiry", "_username":
 			if strings.HasPrefix(k, id) {
@@ -219,14 +219,7 @@ func applyWriteBack(s XbmcSettings, c *Configuration) {
 	if c.TrackerCredentials == nil {
 		c.TrackerCredentials = map[string]*TrackerCredentials{}
 	}
-	for _, id := range []string{"simkl", "mdblist", "scrob"} {
-		c.TrackerCredentials[id] = &TrackerCredentials{
-			Token:        s.ToString(id + "_token"),
-			RefreshToken: s.ToString(id + "_refresh_token"),
-			TokenExpiry:  s.ToInt64(id + "_token_expiry"),
-			Username:     s.ToString(id + "_username"),
-		}
-	}
+	loadTrackerCredentials(s, c.TrackerCredentials)
 }
 
 // WatchSettingsFile polls the settings file and calls reload when it changed to a valid one.
@@ -447,10 +440,15 @@ func castDefault(typ, opt, def string) any {
 		return v
 	case "slider":
 		f, _ := strconv.ParseFloat(def, 32)
-		if opt == "float" && f > 0 {
-			return float32(f)
+		switch opt {
+		case "float":
+			if f > 0 {
+				return float32(f)
+			}
+		case "int", "percent":
+			return int(f)
 		}
-		return int(f)
+		return 0
 	case "bool":
 		return def == "true"
 	}

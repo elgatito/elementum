@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Elementum API
-  version: 1.0.0
+  version: unversioned
   description: |
     JSON API for non-Kodi clients (e.g. the Elementum TV app).
 
@@ -12,7 +12,7 @@ info:
     * Language: `lang` accepts `de` or `de-DE` and defaults to Elementum's language setting.
       Image URLs are absolute.
 servers:
-  - url: /api/v1
+  - url: /api
 security:
   - basicAuth: []
 
@@ -1374,7 +1374,7 @@ components:
           type: string
           format: uri
           description: Absolute signed link to `getStream`; set in `ready`.
-          example: "http://192.168.1.10:65220/api/v1/stream/3f2a9c/0?exp=1793750400&sig=..."
+          example: "http://192.168.1.10:65220/api/stream/3f2a9c/0?exp=1793750400&sig=..."
         error:
           description: Set in `error`.
           allOf:
@@ -1412,7 +1412,7 @@ components:
         tmdb_id: { type: integer, description: "Set when Elementum knows what the torrent is for. For an episode it is the show's id." }
         media_type: { type: string, enum: [movie, episode], description: Set together with tmdb_id. }
         season: { type: integer, description: Episodes only; 0 is specials. }
-        episode: { type: integer, description: Episodes only, when known. }
+        episode: { type: integer, description: "Episodes only, when known." }
         has_player: { type: boolean, description: A Kodi or API player is attached. }
     TorrentState:
       type: string

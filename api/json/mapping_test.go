@@ -1,4 +1,4 @@
-package apiv1
+package jsonapi
 
 import (
 	"encoding/json"
@@ -119,11 +119,11 @@ func TestSeason(t *testing.T) {
 	eq(t, "e2 runtime", e2.Runtime, nil)
 }
 
-func TestItemsSkipNil(t *testing.T) {
+func TestItemsSkipNilAndZeroID(t *testing.T) {
 	m := load[tmdb.Movie](t, "movie_603_de-DE.json")
 	s := load[tmdb.Show](t, "show_1396_de-DE.json")
-	eq(t, "movies", movieItems(tmdb.Movies{nil, m, nil}), []MediaItem{movieItem(m)})
-	eq(t, "shows", showItems(tmdb.Shows{s, nil}), []MediaItem{showItem(s)})
+	eq(t, "movies", movieItems(tmdb.Movies{nil, m, {}, nil}), []MediaItem{movieItem(m)})
+	eq(t, "shows", showItems(tmdb.Shows{{}, s, nil}), []MediaItem{showItem(s)})
 }
 
 // Array bodies must encode as bare arrays, also when empty (see the note on responses in openapi.yaml).

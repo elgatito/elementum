@@ -34,8 +34,8 @@ jobs:
 
       - name: Check generated API code
         run: |
-          go generate ./apiv1/...
-          git diff --exit-code -- apiv1/ || { echo "::error::Run 'go generate ./apiv1/...' and commit the result"; exit 1; }
+          go generate ./api/json/...
+          git diff --exit-code -- api/json/ || { echo "::error::Run 'go generate ./api/json/...' and commit the result"; exit 1; }
 
   test:
     name: Test

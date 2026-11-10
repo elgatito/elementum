@@ -1,4 +1,4 @@
-package apiv1
+package jsonapi
 
 import (
 	"github.com/elgatito/elementum/bittorrent"
@@ -33,15 +33,6 @@ func syncKnown() bool {
 		}
 	}
 	return false
-}
-
-// Note: the API's playcount.Set (watched actions) also changes the Kodi list overlays until the next refresh. That is intended.
-
-func inContainer(c uid.ContainerType, mediaType uid.MediaItemType, id int) bool {
-	container := uid.Get().GetContainer(c)
-	container.Mu.RLock()
-	defer container.Mu.RUnlock()
-	return container.HasWithType(mediaType, uid.TMDBScraper, id)
 }
 
 func ptr[T any](v T) *T { return &v }
@@ -84,11 +75,15 @@ func annotate(items []MediaItem) []MediaItem {
 
 func (i *MediaItem) setState(sync bool, mediaType uid.MediaItemType, watchlist, collection uid.ContainerType, watched playcount.WatchedState) {
 	if sync {
-		i.InWatchlist = ptr(inContainer(watchlist, mediaType, i.TmdbId))
-		i.InCollection = ptr(inContainer(collection, mediaType, i.TmdbId))
+		i.InWatchlist = ptr(uid.InContainer(watchlist, mediaType, i.TmdbId))
+		i.InCollection = ptr(uid.InContainer(collection, mediaType, i.TmdbId))
+	}
+	kind := playcount.MovieType
+	if i.Type == MediaTypeShow {
+		kind = playcount.ShowType
+	}
+	if sync || bool(watched) || playcount.Known(kind, i.TmdbId) {
 		i.Watched = ptr(bool(watched))
-	} else if watched {
-		i.Watched = ptr(true) // known from the Kodi library
 	}
 }
 
@@ -116,7 +111,7 @@ func storedResume(key string) *uid.Resume {
 func episodeWatched(showID int) (watched func(season, episode int) bool, known bool) {
 	return func(season, episode int) bool {
 		return bool(playcount.GetWatchedEpisodeByTMDB(showID, season, episode))
-	}, syncKnown() || uid.HasShows()
+	}, syncKnown() || uid.HasShows() || playcount.Known(playcount.ShowType, showID)
 }
 
 // setWatched fills a season summary's flags from the episode lookup. episode_count includes episodes that have

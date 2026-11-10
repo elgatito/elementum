@@ -33,8 +33,8 @@ var (
 
 const maxLangCache = 64
 
-// plain turns Kodi label markup into plain text for HTTP clients.
-func plain(s string) string {
+// Plain turns Kodi label markup into plain text for HTTP clients.
+func Plain(s string) string {
 	if !strings.Contains(s, "[") {
 		return s
 	}

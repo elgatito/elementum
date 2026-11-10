@@ -1,4 +1,4 @@
-package apiv1
+package jsonapi
 
 import (
 	"strings"

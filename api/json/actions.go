@@ -1,4 +1,4 @@
-package apiv1
+package jsonapi
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/library"
-	"github.com/elgatito/elementum/library/playcount"
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/tracker"
@@ -176,61 +175,34 @@ func setWatched(kind WatchedKind, b *WatchedRequest, watched bool) *failure {
 		count = 1
 	}
 	host, _ := xbmc.GetLocalXBMCHost()
-	var show *uid.Show
-	if kind != WatchedKindMovie {
-		show, _ = uid.GetShowByTMDB(b.TmdbId)
-	}
-	// What is applied once the tracker call has succeeded: the Kodi library and the shared in-memory state.
-	var kodi func(*xbmc.XBMCHost)
-	var mem []int
-	memType := playcount.MovieType
 	switch kind {
 	case WatchedKindMovie:
-		item.Type, mem = tracker.MovieType, []int{b.TmdbId}
-		if m, err := uid.GetMovieByTMDB(b.TmdbId); err == nil && m != nil {
-			kodi = func(h *xbmc.XBMCHost) { h.SetMovieWatched(m.ID, count, 0, 0) }
-		}
+		item.Type = tracker.MovieType
 	case WatchedKindShow:
-		item.Type, mem, memType = tracker.ShowType, []int{b.TmdbId}, playcount.ShowType
-		if show != nil {
-			kodi = func(h *xbmc.XBMCHost) { h.SetShowWatched(show.ID, count) }
-		}
+		item.Type = tracker.ShowType
 	case WatchedKindSeason:
-		item.Type, item.Season, mem, memType = tracker.SeasonType, *b.Season, []int{b.TmdbId, *b.Season}, playcount.SeasonType
-		if se := seasonOf(show, *b.Season); se != nil {
-			kodi = func(h *xbmc.XBMCHost) { h.SetSeasonWatched(se.ID, count) }
-		}
+		item.Type, item.Season = tracker.SeasonType, *b.Season
 	case WatchedKindEpisode:
 		item.Type, item.Season, item.Episode = tracker.EpisodeType, *b.Season, *b.Episode
-		mem, memType = []int{b.TmdbId, *b.Season, *b.Episode}, playcount.EpisodeType
-		if show != nil {
-			if e := show.GetEpisode(*b.Season, *b.Episode); e != nil {
-				kodi = func(h *xbmc.XBMCHost) { h.SetEpisodeWatched(e.ID, count, 0, 0) }
-			}
-		}
 	}
+	kodi := library.KodiWatchedSetter(item)
 
 	// Decide first: a failure changes nothing, because Kodi's list overlays read the same playcount map.
 	p := tracker.Active()
 	if p == nil && (kodi == nil || host == nil) {
 		return &notLinked
 	}
-	if p != nil {
-		if err := tracker.SetWatched([]*tracker.WatchedItem{{Item: item}}, watched); err != nil {
+	if err := library.SetWatched(item, watched); err != nil {
+		if errors.Is(err, library.ErrWatchedMetadata) {
+			return &failure{http.StatusBadGateway, tmdbFailed}
+		}
+		if p != nil {
 			return trackerFailure(p, err)
 		}
+		return &trackerDown
 	}
 	if kodi != nil && host != nil {
-		kodi(host)
+		kodi(host, count)
 	}
-	// This also changes the Kodi list overlays until the next library refresh rebuilds the map (intended).
-	playcount.Set(memType, watched, mem...)
 	return nil
-}
-
-func seasonOf(show *uid.Show, season int) *uid.Season {
-	if show == nil {
-		return nil
-	}
-	return show.GetSeason(season)
 }

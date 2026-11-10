@@ -121,15 +121,24 @@ func (w WatchedState) Int() (r int) {
 // the Kodi library and the tracker's watched lists. Keys have the same shape as the Get* lookups.
 // ids: a movie or show has its TMDB id; a season adds the season; an episode adds season and episode.
 func Set(mediaType int, watched bool, ids ...int) {
-	format := fmt.Sprintf("%d_%d", mediaType, TMDBScraper)
-	for _, id := range ids {
-		format += fmt.Sprintf("_%d", id)
-	}
 	Mu.Lock()
 	defer Mu.Unlock()
-	if watched {
-		Watched[xxhash.Sum64String(format)] = true
-	} else {
-		delete(Watched, xxhash.Sum64String(format))
+	// False is retained to distinguish a successful unwatch from unknown state.
+	Watched[tmdbKey(mediaType, ids...)] = WatchedState(watched)
+}
+
+// Known reports whether the local map has a value, including an explicit unwatch.
+func Known(mediaType int, ids ...int) bool {
+	Mu.RLock()
+	defer Mu.RUnlock()
+	_, ok := Watched[tmdbKey(mediaType, ids...)]
+	return ok
+}
+
+func tmdbKey(mediaType int, ids ...int) uint64 {
+	key := fmt.Sprintf("%d_%d", mediaType, TMDBScraper)
+	for _, id := range ids {
+		key += fmt.Sprintf("_%d", id)
 	}
+	return xxhash.Sum64String(key)
 }

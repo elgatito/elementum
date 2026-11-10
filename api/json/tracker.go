@@ -1,4 +1,4 @@
-package apiv1
+package jsonapi
 
 import (
 	"context"
@@ -87,38 +87,24 @@ func tmdbID(r ref, movie bool) int {
 
 // mediaItems resolves and fetches refs concurrently, in order, skipping those TMDB doesn't know.
 func mediaItems(refs []ref, movies bool, lang string) []MediaItem {
-	found := make([]*MediaItem, len(refs))
+	resolved := make([]int, len(refs))
 	var wg sync.WaitGroup
 	for n, r := range refs {
-		wg.Go(func() {
-			id := tmdbID(r, movies)
-			if id == 0 {
-				return
-			}
-			var item MediaItem
-			if movies {
-				m := tmdb.GetMovie(id, lang)
-				if m == nil || m.ID == 0 {
-					return
-				}
-				item = movieItem(m)
-			} else {
-				s := tmdb.GetShow(id, lang)
-				if s == nil || s.ID == 0 {
-					return
-				}
-				item = showItem(s)
-			}
-			found[n] = &item
-		})
+		wg.Go(func() { resolved[n] = tmdbID(r, movies) })
 	}
 	wg.Wait()
 
-	items := []MediaItem{}
-	for _, i := range found {
-		if i != nil {
-			items = append(items, *i)
+	ids := make([]int, 0, len(refs))
+	for _, id := range resolved {
+		if id != 0 {
+			ids = append(ids, id)
 		}
+	}
+	var items []MediaItem
+	if movies {
+		items = movieItems(tmdb.GetMovies(ids, lang))
+	} else {
+		items = showItems(tmdb.GetShows(ids, lang))
 	}
 	return annotate(items)
 }

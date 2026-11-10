@@ -117,7 +117,8 @@ func (p *Provider) username(token string) (string, error) {
 		Result:      &u,
 		Description: "mdblist user",
 	}
-	return u.Username, req.Do()
+	err := req.Do()
+	return u.Username, err
 }
 
 // ids is the id object MDBList sends and accepts.

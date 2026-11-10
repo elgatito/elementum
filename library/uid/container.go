@@ -93,3 +93,14 @@ func (c *LibraryContainer) GetKeys(media MediaItemType, traktID int, tmdbID int,
 
 	return
 }
+
+// InContainer reports whether the TMDB ID of the given type is in the container.
+func InContainer(c ContainerType, t MediaItemType, tmdbID int) bool {
+	container := Get().GetContainer(c)
+	if container == nil {
+		return false
+	}
+	container.Mu.RLock()
+	defer container.Mu.RUnlock()
+	return container.HasWithType(t, TMDBScraper, tmdbID)
+}

@@ -24,76 +24,24 @@ import (
 	"github.com/elgatito/elementum/xbmc"
 )
 
+func trackerSynced() bool {
+	return tracker.Active() != nil && config.Get().TraktSyncEnabled
+}
+
 func inMoviesWatchlist(tmdbID int) bool {
-	if tracker.Active() == nil || !config.Get().TraktSyncEnabled {
-		return false
-	}
-
-	defer perf.ScopeTimer()()
-
-	container := uid.Get().GetContainer(uid.WatchlistedMoviesContainer)
-	if container == nil {
-		return false
-	}
-
-	container.Mu.RLock()
-	defer container.Mu.RUnlock()
-
-	return container.HasWithType(library.MovieType, library.TMDBScraper, tmdbID)
+	return trackerSynced() && uid.InContainer(uid.WatchlistedMoviesContainer, library.MovieType, tmdbID)
 }
 
 func inShowsWatchlist(tmdbID int) bool {
-	if tracker.Active() == nil || !config.Get().TraktSyncEnabled {
-		return false
-	}
-
-	defer perf.ScopeTimer()()
-
-	container := uid.Get().GetContainer(uid.WatchlistedShowsContainer)
-	if container == nil {
-		return false
-	}
-
-	container.Mu.RLock()
-	defer container.Mu.RUnlock()
-
-	return container.HasWithType(library.ShowType, library.TMDBScraper, tmdbID)
+	return trackerSynced() && uid.InContainer(uid.WatchlistedShowsContainer, library.ShowType, tmdbID)
 }
 
 func inMoviesCollection(tmdbID int) bool {
-	if tracker.Active() == nil || !config.Get().TraktSyncEnabled {
-		return false
-	}
-
-	defer perf.ScopeTimer()()
-
-	container := uid.Get().GetContainer(uid.CollectedMoviesContainer)
-	if container == nil {
-		return false
-	}
-
-	container.Mu.RLock()
-	defer container.Mu.RUnlock()
-
-	return container.HasWithType(library.MovieType, library.TMDBScraper, tmdbID)
+	return trackerSynced() && uid.InContainer(uid.CollectedMoviesContainer, library.MovieType, tmdbID)
 }
 
 func inShowsCollection(tmdbID int) bool {
-	if tracker.Active() == nil || !config.Get().TraktSyncEnabled {
-		return false
-	}
-
-	defer perf.ScopeTimer()()
-
-	container := uid.Get().GetContainer(uid.CollectedShowsContainer)
-	if container == nil {
-		return false
-	}
-
-	container.Mu.RLock()
-	defer container.Mu.RUnlock()
-
-	return container.HasWithType(library.ShowType, library.TMDBScraper, tmdbID)
+	return trackerSynced() && uid.InContainer(uid.CollectedShowsContainer, library.ShowType, tmdbID)
 }
 
 //
@@ -1807,92 +1755,40 @@ func ToggleWatched(media string, setWatched bool) gin.HandlerFunc {
 			return
 		}
 
-		var watched *tracker.WatchedItem
-		var foundInLibrary bool
-
-		// TODO: Make use of Playcount, possibly increment when Watched, use old value if in progress
-		if media == movieType {
+		var item tracker.Item
+		showID, _ := strconv.Atoi(ctx.Params.ByName("showId"))
+		seasonNumber, _ := strconv.Atoi(ctx.Params.ByName("season"))
+		episodeNumber, _ := strconv.Atoi(ctx.Params.ByName("episode"))
+		switch media {
+		case movieType:
 			movieID, _ := strconv.Atoi(ctx.Params.ByName("tmdbId"))
-
-			watched = &tracker.WatchedItem{Item: tracker.Item{Type: tracker.MovieType, IDs: tracker.IDs{TMDB: movieID}}}
-
-			movie, err := uid.GetMovieByTMDB(movieID)
-			if err == nil {
-				foundInLibrary = true
-
-				playcount := 1
-				if !setWatched {
-					playcount = 0
-				}
-
-				log.Debugf("Toggle Kodi library watched for: %#v", movie)
-				xbmcHost.SetMovieWatched(movie.ID, playcount, 0, 0)
-			}
-		} else if media == episodeType {
-			showID, _ := strconv.Atoi(ctx.Params.ByName("showId"))
-			seasonNumber, _ := strconv.Atoi(ctx.Params.ByName("season"))
-			episodeNumber, _ := strconv.Atoi(ctx.Params.ByName("episode"))
-
-			watched = &tracker.WatchedItem{Item: tracker.Item{Type: tracker.EpisodeType, IDs: tracker.IDs{TMDB: showID}, Season: seasonNumber, Episode: episodeNumber}}
-
-			show, err := uid.GetShowByTMDB(showID)
-			if err == nil {
-				foundInLibrary = true
-
-				playcount := 1
-				if !setWatched {
-					playcount = 0
-				}
-
-				episode := show.GetEpisode(seasonNumber, episodeNumber)
-				log.Debugf("Toggle Kodi library watched for: %#v", episode)
-				xbmcHost.SetEpisodeWatched(episode.ID, playcount, 0, 0)
-			}
-		} else if media == seasonType {
-			showID, _ := strconv.Atoi(ctx.Params.ByName("showId"))
-			seasonNumber, _ := strconv.Atoi(ctx.Params.ByName("season"))
-
-			watched = &tracker.WatchedItem{Item: tracker.Item{Type: tracker.SeasonType, IDs: tracker.IDs{TMDB: showID}, Season: seasonNumber}}
-
-			show, err := uid.GetShowByTMDB(showID)
-			if err == nil {
-				foundInLibrary = true
-
-				playcount := 1
-				if !setWatched {
-					playcount = 0
-				}
-
-				season := show.GetSeason(seasonNumber)
-				log.Debugf("Set Kodi library watched to %t for: %#v", setWatched, season)
-				xbmcHost.SetSeasonWatched(season.ID, playcount)
-			}
-		} else if media == showType {
-			showID, _ := strconv.Atoi(ctx.Params.ByName("showId"))
-
-			watched = &tracker.WatchedItem{Item: tracker.Item{Type: tracker.ShowType, IDs: tracker.IDs{TMDB: showID}}}
-
-			show, err := uid.GetShowByTMDB(showID)
-			if err == nil {
-				foundInLibrary = true
-
-				playcount := 1
-				if !setWatched {
-					playcount = 0
-				}
-
-				log.Debugf("Toggle Kodi library watched for: %#v", show)
-				xbmcHost.SetShowWatched(show.ID, playcount)
-			}
+			item = tracker.Item{Type: tracker.MovieType, IDs: tracker.IDs{TMDB: movieID}}
+		case episodeType:
+			item = tracker.Item{Type: tracker.EpisodeType, IDs: tracker.IDs{TMDB: showID}, Season: seasonNumber, Episode: episodeNumber}
+		case seasonType:
+			item = tracker.Item{Type: tracker.SeasonType, IDs: tracker.IDs{TMDB: showID}, Season: seasonNumber}
+		case showType:
+			item = tracker.Item{Type: tracker.ShowType, IDs: tracker.IDs{TMDB: showID}}
+		default:
+			return
 		}
+		setter := library.KodiWatchedSetter(item)
 
-		if watched != nil && tracker.Active() != nil {
-			log.Debugf("Set tracker watched to %t for: %#v", setWatched, watched)
-			go tracker.SetWatched([]*tracker.WatchedItem{watched}, setWatched)
-		}
-
-		if !foundInLibrary {
+		if setter != nil {
+			playcount := 1
+			if !setWatched {
+				playcount = 0
+			}
+			setter(xbmcHost, playcount)
+		} else {
 			xbmcHost.ToggleWatched()
+		}
+		if setter != nil || tracker.Active() != nil {
+			go func() {
+				if err := library.SetWatched(item, setWatched); err != nil {
+					log.Warningf("Could not set watched state: %s", err)
+				}
+			}()
 		}
 	}
 }

@@ -1,8 +1,7 @@
-package apiv1
+package jsonapi
 
 import (
 	"context"
-	"regexp"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -11,6 +10,7 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/providers"
 	"github.com/elgatito/elementum/tmdb"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -108,14 +108,11 @@ func toStreams(torrents []*bittorrent.TorrentFile) []Stream {
 	return streams
 }
 
-// kodiTags matches Kodi label formatting; Burst sends provider names like "[COLOR FFF14E13]YTS[/COLOR]".
-var kodiTags = regexp.MustCompile(`\[/?(COLOR[^\]]*|B|I)\]`)
-
 func toStream(t *bittorrent.TorrentFile) Stream {
 	s := Stream{
 		Uri:           t.URI,
 		Name:          t.Name,
-		Provider:      kodiTags.ReplaceAllString(t.Provider, ""),
+		Provider:      ui.Plain(t.Provider),
 		Seeds:         int32(t.Seeds),
 		Peers:         int32(t.Peers),
 		MultiProvider: t.Multi,

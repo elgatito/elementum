@@ -136,22 +136,14 @@ func Notification(s *bittorrent.Service) gin.HandlerFunc {
 			log.Infof("OnPlay. Resume check. Resume: %#v, StoredResume: %#v", p.Params().Resume, p.Params().StoredResume)
 
 			p.Params().WasSeeked = true
-			resumePosition := float64(-1)
+			resumePosition := p.Params().ResumePosition()
 
 			if p.Params().ResumePlayback == bittorrent.ResumeNo {
 				// If we don't need to Seek, then make sure Kodi will start from the beginning and not resume on it's own
 				resumePosition = 0
-			} else if p.Params().StoredResume != nil && p.Params().StoredResume.Position > 0 {
-				resumePosition = p.Params().StoredResume.Position
-			} else if p.Params().Resume != nil && p.Params().Resume.Position > 0 {
-				resumePosition = p.Params().Resume.Position
-			}
-
-			if config.Get().PlayResumeBack > 0 {
-				resumePosition -= float64(config.Get().PlayResumeBack)
-				if resumePosition < 0 {
-					resumePosition = 0
-				}
+			} else if resumePosition < 0 && config.Get().PlayResumeBack > 0 {
+				// Kodi also seeks to zero when rewind is enabled without a resume point.
+				resumePosition = 0
 			}
 
 			if resumePosition > -1 {

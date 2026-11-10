@@ -87,6 +87,25 @@ const (
 	KindList       ListKind = "list"
 )
 
+// readList reads one list kind from the provider; ErrUnsupported when it lacks the kind.
+func readList(p Provider, kind ListKind, listID string, t MediaType, refresh bool) ([]*Item, error) {
+	switch kind {
+	case KindWatchlist:
+		return p.Watchlist(t, refresh)
+	case KindCollection:
+		if c, ok := p.(Collector); ok {
+			return c.Collection(t, refresh)
+		}
+	case KindList:
+		if l, ok := p.(ListReader); ok {
+			return l.ListItems(listID, t, refresh)
+		}
+	default:
+		return nil, fmt.Errorf("unknown list kind %q", kind)
+	}
+	return nil, ErrUnsupported
+}
+
 // FetchList returns the list as stored by the previous successful fetch and the current one.
 // On error the snapshot is kept, so callers must not diff against a failed fetch.
 func FetchList(p Provider, kind ListKind, listID string, t MediaType, refresh bool) (prev, cur []*Item, err error) {
@@ -94,24 +113,7 @@ func FetchList(p Provider, kind ListKind, listID string, t MediaType, refresh bo
 	key := cacheKey(p, "snapshot.", kind, ".", listID, ".", int(t))
 	_ = store.Get(key, &prev)
 
-	switch kind {
-	case KindWatchlist:
-		cur, err = p.Watchlist(t, refresh)
-	case KindCollection:
-		c, ok := p.(Collector)
-		if !ok {
-			return prev, nil, ErrUnsupported
-		}
-		cur, err = c.Collection(t, refresh)
-	case KindList:
-		l, ok := p.(ListReader)
-		if !ok {
-			return prev, nil, ErrUnsupported
-		}
-		cur, err = l.ListItems(listID, t, refresh)
-	default:
-		return prev, nil, fmt.Errorf("unknown list kind %q", kind)
-	}
+	cur, err = readList(p, kind, listID, t, refresh)
 
 	if err == nil {
 		_ = store.Set(key, cur, StateExpire)
@@ -138,17 +140,8 @@ func ViewItems(p Provider, kind ListKind, listID string, t MediaType, bucket Buc
 	activities, err := GetActivities(p, fmt.Sprintf("view.%s.%d", kind, t))
 	refresh := err != nil || activities.Changed(bucket)
 
-	switch kind {
-	case KindWatchlist:
-		items, err = p.Watchlist(t, refresh)
-	case KindCollection:
-		if c, ok := p.(Collector); ok {
-			items, err = c.Collection(t, refresh)
-		}
-	case KindList:
-		if l, ok := p.(ListReader); ok {
-			items, err = l.ListItems(listID, t, refresh)
-		}
+	if got, rerr := readList(p, kind, listID, t, refresh); rerr != ErrUnsupported {
+		items, err = got, rerr
 	}
 	return
 }

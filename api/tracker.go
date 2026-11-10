@@ -1,6 +1,7 @@
 package api
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"slices"
@@ -13,6 +14,7 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/trakt"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
 )
@@ -147,12 +149,54 @@ func trackerProgressView(ctx *gin.Context) {
 // notifyTrackerError tells the user why a tracker view is empty.
 func notifyTrackerError(xbmcHost *xbmc.XBMCHost, p tracker.Provider, err error) {
 	msg := err.Error()
-	if errors.Is(err, tracker.ErrPaidAccount) {
+	if errors.Is(err, tracker.ErrPaidAccount) && xbmcHost != nil {
 		msg = fmt.Sprintf(xbmcHost.GetLocalizedString(30806), p.Name())
 	} else if errors.Is(err, tracker.ErrNotAuthorized) || errors.Is(err, util.ErrUnauthorized) {
 		msg = "LOCALIZE[30149]"
 	}
+	if xbmcHost == nil {
+		ui.Toast(msg)
+		return
+	}
 	xbmcHost.Notify("Elementum", msg, config.AddonIcon())
+}
+
+// traktListsView lists the Trakt user and liked lists of movies or shows. media is the /movies/ or /shows/
+// route group, menu the /menu/<menu>/ route that pins a list to the addon menu.
+func traktListsView(media, menu, view string) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		defer perf.ScopeTimer()()
+
+		xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
+		items := xbmc.ListItems{}
+		lists, err := trakt.Userlists()
+		if err != nil {
+			log.Error(err)
+			notifyTrackerError(xbmcHost, trakt.NewProvider(), err)
+		}
+		lists = append(lists, trakt.Likedlists()...)
+		lists = slices.DeleteFunc(lists, func(list *trakt.List) bool { return list == nil || list.User == nil })
+
+		slices.SortFunc(lists, func(a, b *trakt.List) int {
+			return cmp.Compare(a.Name, b.Name)
+		})
+
+		for _, list := range lists {
+			link := URLForXBMC("/%s/trakt/lists/%s/%d", media, list.Username(), list.ID())
+			menuItem := []string{"LOCALIZE[30520]", fmt.Sprintf("RunPlugin(%s)", URLQuery(URLForXBMC("/menu/%s/add", menu), "name", list.Name, "link", link))}
+			if MovieMenu.Contains(addAction, &MenuItem{Name: list.Name, Link: link}) {
+				menuItem = []string{"LOCALIZE[30521]", fmt.Sprintf("RunPlugin(%s)", URLQuery(URLForXBMC("/menu/%s/remove", menu), "name", list.Name, "link", link))}
+			}
+
+			items = append(items, &xbmc.ListItem{
+				Label:       list.Name,
+				Path:        link,
+				Thumbnail:   config.AddonResource("img", "lists.png"),
+				ContextMenu: [][]string{menuItem},
+			})
+		}
+		ctx.JSON(200, xbmc.NewView(view, filterListItems(items)))
+	}
 }
 
 // trackerMenuItems returns menu entries for the active tracker's lists, labeled with its name.
@@ -201,3 +245,8 @@ func settingsTracker(xbmcHost *xbmc.XBMCHost) tracker.Provider {
 	}
 	return tracker.Selected()
 }
+
+var (
+	MoviesTraktLists = traktListsView("movies", "movie", "menus_movies")
+	TVTraktLists     = traktListsView("shows", "shows", "menus_tvshows")
+)

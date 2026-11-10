@@ -1,4 +1,4 @@
-package apiv1
+package jsonapi
 
 import (
 	"encoding/json"
@@ -137,7 +137,7 @@ func TestCreatePlaybackBadRequest(t *testing.T) {
 		"internal url":       `{"uri":"http://127.0.0.1:65220/shutdown|X=1","type":"movie","tmdb_id":1}`,
 	} {
 		t.Run(name, func(t *testing.T) {
-			w := serve(r, http.MethodPost, "/api/v1/playback", body)
+			w := serve(r, http.MethodPost, "/api/playback", body)
 			if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), `"bad_request"`) {
 				t.Fatalf("got %d %s", w.Code, w.Body)
 			}
@@ -175,7 +175,7 @@ func TestSettle(t *testing.T) {
 			v := sess.view("tv.example:65220")
 			switch tc.want {
 			case PlaybackStateReady:
-				if v.StreamUrl == nil || !strings.HasPrefix(*v.StreamUrl, "http://tv.example:65220/api/v1/stream/S/3?exp=") || v.BufferProgress != 100 || *v.ResumeS != 42 {
+				if v.StreamUrl == nil || !strings.HasPrefix(*v.StreamUrl, "http://tv.example:65220/api/stream/S/3?exp=") || v.BufferProgress != 100 || *v.ResumeS != 42 {
 					t.Errorf("ready view %+v", v)
 				}
 			case PlaybackStateChoosingFile:
@@ -202,30 +202,30 @@ func TestSessionLifecycle(t *testing.T) {
 	}
 
 	var got PlaybackSession
-	w := serve(r, http.MethodGet, "/api/v1/playback/FIRST", "")
+	w := serve(r, http.MethodGet, "/api/playback/FIRST", "")
 	if json.Unmarshal(w.Body.Bytes(), &got); w.Code != http.StatusOK || got.State != PlaybackStateStopped {
 		t.Errorf("replaced session: %d %s", w.Code, w.Body)
 	}
-	if w := serve(r, http.MethodGet, "/api/v1/playback/NOPE", ""); w.Code != http.StatusNotFound {
+	if w := serve(r, http.MethodGet, "/api/playback/NOPE", ""); w.Code != http.StatusNotFound {
 		t.Errorf("unknown session: %d", w.Code)
 	}
 
 	// Status and progress calls keep the session alive.
 	second.seen = time.Now().Add(-time.Hour)
-	serve(r, http.MethodGet, "/api/v1/playback/SECOND", "")
+	serve(r, http.MethodGet, "/api/playback/SECOND", "")
 	if time.Since(second.seen) > time.Second {
 		t.Error("GET did not refresh the session")
 	}
 	second.seen = time.Now().Add(-time.Hour)
-	if w := serve(r, http.MethodPost, "/api/v1/playback/SECOND/progress", `{"position_s":10,"duration_s":100,"paused":false}`); w.Code != http.StatusNoContent || time.Since(second.seen) > time.Second {
+	if w := serve(r, http.MethodPost, "/api/playback/SECOND/progress", `{"position_s":10,"duration_s":100,"paused":false}`); w.Code != http.StatusNoContent || time.Since(second.seen) > time.Second {
 		t.Errorf("progress: %d %s", w.Code, w.Body)
 	}
 	for _, body := range []string{`{"position_s":-1,"duration_s":100,"paused":false}`, `{"position_s":1,"duration_s":-1,"paused":false}`, `{`} {
-		if w := serve(r, http.MethodPost, "/api/v1/playback/SECOND/progress", body); w.Code != http.StatusBadRequest {
+		if w := serve(r, http.MethodPost, "/api/playback/SECOND/progress", body); w.Code != http.StatusBadRequest {
 			t.Errorf("progress %s: %d", body, w.Code)
 		}
 	}
-	if w := serve(r, http.MethodPost, "/api/v1/playback/FIRST/progress", `{"position_s":1,"duration_s":2,"paused":true}`); w.Code != http.StatusNotFound {
+	if w := serve(r, http.MethodPost, "/api/playback/FIRST/progress", `{"position_s":1,"duration_s":2,"paused":true}`); w.Code != http.StatusNotFound {
 		t.Errorf("progress on stopped session: %d", w.Code)
 	}
 
@@ -240,10 +240,10 @@ func TestSessionLifecycle(t *testing.T) {
 	}
 
 	third := addSession("THIRD", PlaybackStateReady)
-	if w := serve(r, http.MethodDelete, "/api/v1/playback/THIRD", ""); w.Code != http.StatusNoContent || third.state != PlaybackStateStopped {
+	if w := serve(r, http.MethodDelete, "/api/playback/THIRD", ""); w.Code != http.StatusNoContent || third.state != PlaybackStateStopped {
 		t.Errorf("delete: %d", w.Code)
 	}
-	if w := serve(r, http.MethodDelete, "/api/v1/playback/THIRD", ""); w.Code != http.StatusNotFound {
+	if w := serve(r, http.MethodDelete, "/api/playback/THIRD", ""); w.Code != http.StatusNotFound {
 		t.Errorf("second delete: %d", w.Code)
 	}
 }
@@ -268,7 +268,7 @@ func TestStreamLink(t *testing.T) {
 
 	exp := time.Now().Add(time.Hour).Unix()
 	link := func(id string, index int, exp int64, sig string) string {
-		return fmt.Sprintf("/api/v1/stream/%s/%d?exp=%d&sig=%s", id, index, exp, sig)
+		return fmt.Sprintf("/api/stream/%s/%d?exp=%d&sig=%s", id, index, exp, sig)
 	}
 	valid := link("SID", 2, exp, sign("SID", 2, exp))
 
@@ -307,9 +307,9 @@ func TestStreamLink(t *testing.T) {
 		"other file signed":   link("OTHER", 3, exp, sign("OTHER", 3, exp)),
 		"expired":             link("OTHER", 2, past, sign("OTHER", 2, past)),
 		"unknown session":     link("GONE", 2, exp, sign("GONE", 2, exp)),
-		"missing sig":         fmt.Sprintf("/api/v1/stream/OTHER/2?exp=%d", exp),
-		"non-numeric exp":     "/api/v1/stream/OTHER/2?exp=soon&sig=" + sig,
-		"non-integer index":   fmt.Sprintf("/api/v1/stream/OTHER/2.5?exp=%d&sig=%s", exp, sig),
+		"missing sig":         fmt.Sprintf("/api/stream/OTHER/2?exp=%d", exp),
+		"non-numeric exp":     "/api/stream/OTHER/2?exp=soon&sig=" + sig,
+		"non-integer index":   fmt.Sprintf("/api/stream/OTHER/2.5?exp=%d&sig=%s", exp, sig),
 	} {
 		for _, method := range []string{http.MethodGet, http.MethodHead} {
 			w := serve(r, method, target, "")
@@ -326,25 +326,48 @@ func TestStreamLink(t *testing.T) {
 }
 
 func TestResumePoint(t *testing.T) {
-	old := config.Get().PlayResumeAction
-	t.Cleanup(func() { config.Get().PlayResumeAction = old })
+	oldAction, oldBack := config.Get().PlayResumeAction, config.Get().PlayResumeBack
+	t.Cleanup(func() {
+		config.Get().PlayResumeAction, config.Get().PlayResumeBack = oldAction, oldBack
+	})
 	stored, tracked := &uid.Resume{Position: 300}, &uid.Resume{Position: 120}
 	for name, tc := range map[string]struct {
-		action int
-		p      bittorrent.PlayerParams
-		want   float64 // 0 = nil
+		action, back int
+		p            bittorrent.PlayerParams
+		want         float64
+		wantNil      bool
 	}{
 		"stored first":      {action: 1, p: bittorrent.PlayerParams{ResumePlayback: bittorrent.ResumeYes, StoredResume: stored, Resume: tracked}, want: 300},
 		"tracker progress":  {action: 2, p: bittorrent.PlayerParams{Resume: tracked}, want: 120},
-		"resume by Kodi":    {action: 0, p: bittorrent.PlayerParams{ResumePlayback: bittorrent.ResumeYes, StoredResume: stored}},
-		"resume declined":   {action: 1, p: bittorrent.PlayerParams{ResumePlayback: bittorrent.ResumeNo, StoredResume: stored}},
-		"nothing to resume": {action: 1, p: bittorrent.PlayerParams{StoredResume: &uid.Resume{}}},
+		"stored rewind":     {action: 1, back: 10, p: bittorrent.PlayerParams{StoredResume: stored, Resume: tracked}, want: 290},
+		"library fallback":  {action: 1, back: 10, p: bittorrent.PlayerParams{StoredResume: &uid.Resume{}, Resume: tracked}, want: 110},
+		"rewind to zero":    {action: 2, back: 120, p: bittorrent.PlayerParams{Resume: tracked}},
+		"rewind past zero":  {action: 2, back: 130, p: bittorrent.PlayerParams{Resume: tracked}},
+		"negative rewind":   {action: 1, back: -10, p: bittorrent.PlayerParams{StoredResume: stored}, want: 300},
+		"resume by Kodi":    {action: 0, back: 10, p: bittorrent.PlayerParams{ResumePlayback: bittorrent.ResumeYes, StoredResume: stored}, wantNil: true},
+		"resume declined":   {action: 1, back: 10, p: bittorrent.PlayerParams{ResumePlayback: bittorrent.ResumeNo, StoredResume: stored, Resume: tracked}, wantNil: true},
+		"nothing to resume": {action: 1, back: 10, p: bittorrent.PlayerParams{StoredResume: &uid.Resume{}}, wantNil: true},
+		"missing resume":    {action: 2, back: 10, wantNil: true},
 	} {
-		config.Get().PlayResumeAction = tc.action
-		got := resumePoint(&tc.p)
-		if (got == nil) != (tc.want == 0) || (got != nil && *got != tc.want) {
-			t.Errorf("%s: got %v, want %v", name, got, tc.want)
-		}
+		t.Run(name, func(t *testing.T) {
+			config.Get().PlayResumeAction, config.Get().PlayResumeBack = tc.action, tc.back
+			got := resumePoint(&tc.p)
+			if (got == nil) != tc.wantNil {
+				t.Fatalf("got %v, want nil: %v", got, tc.wantNil)
+			}
+			if got != nil {
+				if *got != tc.want {
+					t.Errorf("got %v, want %v", *got, tc.want)
+				}
+				if kodi := tc.p.ResumePosition(); *got != kodi {
+					t.Errorf("JSON position %v differs from Kodi's shared calculation %v", *got, kodi)
+				}
+				*got = -1 // The client position must not change the stored/library resume.
+			}
+			if stored.Position != 300 || tracked.Position != 120 {
+				t.Fatal("resume source was modified")
+			}
+		})
 	}
 }
 

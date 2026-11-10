@@ -1,9 +1,12 @@
 package trakt
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
+	"github.com/elgatito/elementum/cache"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/util/reqapi"
@@ -12,6 +15,8 @@ import (
 // Provider adapts the trakt package to tracker.Provider.
 type Provider struct{}
 
+var _ tracker.AuthCustomizer = (*Provider)(nil)
+
 // NewProvider returns the Trakt tracker.
 func NewProvider() *Provider { return &Provider{} }
 
@@ -19,22 +24,42 @@ func (p *Provider) ID() string                     { return "trakt" }
 func (p *Provider) Name() string                   { return "Trakt" }
 func (p *Provider) MinSyncInterval() time.Duration { return time.Minute }
 func (p *Provider) Authorized() bool               { return config.Get().TraktToken != "" }
-func (p *Provider) Authorize() error               { return Authorize(true) }
-func (p *Provider) StartAuth() (*tracker.DeviceCode, error) {
-	c, err := StartAuthorize()
-	if err != nil {
-		return nil, err
+func (p *Provider) Authorize() error {
+	if config.Args.ConfigPath != "" && !config.KodiConnected() {
+		return errors.New("Trakt device authorization needs Kodi to show the code")
 	}
-	return &tracker.DeviceCode{DeviceCode: c.DeviceCode, UserCode: c.UserCode, VerificationURL: c.VerificationURL, ExpiresIn: c.ExpiresIn, Interval: c.Interval}, nil
+	return tracker.RunDeviceAuth(p, deviceFlow{})
 }
-func (p *Provider) Deauthorize() error { return Deauthorize(true) }
+func (p *Provider) StartAuth() (*tracker.DeviceCode, error) {
+	return tracker.StartDeviceAuth(p, deviceFlow{})
+}
+func (p *Provider) Deauthorize() error { return tracker.DeauthorizeDevice(p, deviceFlow{}) }
 
 // RefreshToken renews the token 90 minutes before its 24h expiry, see https://github.com/trakt/api-help/discussions/495
 func (p *Provider) RefreshToken() error {
-	if config.Get().TraktToken == "" || time.Now().Unix() <= config.Get().TraktTokenExpiry-90*60 {
-		return nil
+	return tracker.RefreshDeviceToken(p, deviceFlow{}, 90*time.Minute)
+}
+
+// AuthStrings keeps the Trakt texts Kodi users know.
+func (p *Provider) AuthStrings() tracker.AuthStrings {
+	return tracker.AuthStrings{Title: 30646, Steps: 30649, Authorized: 30650, Failed: 30651, Deauthorized: 30652, Reauthorize: 30576, NoName: true}
+}
+
+// AuthChanged mirrors the credentials into the Trakt* config fields read by the rest of the package.
+func (p *Provider) AuthChanged(c *config.TrackerCredentials, refresh bool) {
+	cfg := config.Get()
+	cfg.TraktToken, cfg.TraktRefreshToken, cfg.TraktTokenExpiry, cfg.TraktUsername = c.Token, c.RefreshToken, c.TokenExpiry, c.Username
+	if c.Token == "" {
+		cfg.TraktAuthorized = false
 	}
-	return RefreshToken()
+	if refresh {
+		return
+	}
+	// Cleanup last activities to force requesting again
+	_ = cache.NewDBStore().Set(fmt.Sprintf(cache.TraktActivitiesKey, ""), "", 1)
+	if c.Token != "" {
+		config.Reload()
+	}
 }
 
 func (p *Provider) LastActivities() (*tracker.Activities, error) {

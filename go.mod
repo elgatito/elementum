@@ -14,6 +14,7 @@ require (
 	github.com/dustin/go-humanize v1.1.0
 	github.com/elazarl/goproxy v1.9.2
 	github.com/fatih/color v1.19.0
+	github.com/getkin/kin-openapi v0.142.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/goccy/go-json v0.12.0
 	github.com/hectane/go-acl v1.0.0
@@ -62,7 +63,6 @@ require (
 	github.com/ebitengine/purego v0.11.2 // indirect
 	github.com/felixge/fgprof v0.9.5 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.16 // indirect
-	github.com/getkin/kin-openapi v0.142.0 // indirect
 	github.com/gin-contrib/sse v1.1.2 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.23.1 // indirect

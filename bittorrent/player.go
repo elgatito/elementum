@@ -138,6 +138,30 @@ type PlayerParams struct {
 	StoredResume      *uid.Resume
 }
 
+// ResumePoint returns the stored resume with a positive position, else the library or tracker resume.
+func (p *PlayerParams) ResumePoint() *uid.Resume {
+	if p.StoredResume != nil && p.StoredResume.Position > 0 {
+		return p.StoredResume
+	}
+	if p.Resume != nil && p.Resume.Position > 0 {
+		return p.Resume
+	}
+	return nil
+}
+
+// ResumePosition applies the configured rewind, or returns -1 when there is no resume point.
+func (p *PlayerParams) ResumePosition() float64 {
+	r := p.ResumePoint()
+	if r == nil {
+		return -1
+	}
+	position := r.Position
+	if back := config.Get().PlayResumeBack; back > 0 {
+		position = max(position-float64(back), 0)
+	}
+	return position
+}
+
 // NextEpisode ...
 type NextEpisode struct {
 	f *File
@@ -381,12 +405,7 @@ func (btp *Player) processMetadata() error {
 	// Handling resume logic
 	btp.FetchStoredResume()
 
-	var resume *uid.Resume
-	if btp.p.StoredResume != nil && btp.p.StoredResume.Position > 0 {
-		resume = btp.p.StoredResume
-	} else if btp.p.Resume != nil && btp.p.Resume.Position > 0 {
-		resume = btp.p.Resume
-	}
+	resume := btp.p.ResumePoint()
 
 	// Respect doresume=never and manual position from external add-ons.
 	// doresume=false is not trusted: Kodi passes resume:false on every plain play click, so we still ask.

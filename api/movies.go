@@ -2,7 +2,6 @@ package api
 
 import (
 	"cmp"
-	"errors"
 	"fmt"
 	"math/rand/v2"
 	"slices"
@@ -20,9 +19,7 @@ import (
 	"github.com/elgatito/elementum/library/uid"
 	"github.com/elgatito/elementum/providers"
 	"github.com/elgatito/elementum/tmdb"
-	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/trakt"
-	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
 )
@@ -274,50 +271,6 @@ func TopTraktLists(ctx *gin.Context) {
 		items = append(items, nextpage)
 	}
 
-	ctx.JSON(200, xbmc.NewView("menus_movies", filterListItems(items)))
-}
-
-// MoviesTraktLists ...
-func MoviesTraktLists(ctx *gin.Context) {
-	defer perf.ScopeTimer()()
-
-	items := xbmc.ListItems{}
-	lists, err := trakt.Userlists()
-	if err != nil {
-		log.Error(err)
-		if errors.Is(err, tracker.ErrNotAuthorized) {
-			ui.Toast("LOCALIZE[30149]")
-		} else {
-			ui.Toast(err.Error())
-		}
-	}
-	lists = append(lists, trakt.Likedlists()...)
-
-	slices.SortFunc(lists, func(a, b *trakt.List) int {
-		return cmp.Compare(a.Name, b.Name)
-	})
-
-	for _, list := range lists {
-		if list == nil || list.User == nil {
-			continue
-		}
-
-		link := URLForXBMC("/movies/trakt/lists/%s/%d", list.Username(), list.ID())
-		menuItem := []string{"LOCALIZE[30520]", fmt.Sprintf("RunPlugin(%s)", URLQuery(URLForXBMC("/menu/movie/add"), "name", list.Name, "link", link))}
-		if MovieMenu.Contains(addAction, &MenuItem{Name: list.Name, Link: link}) {
-			menuItem = []string{"LOCALIZE[30521]", fmt.Sprintf("RunPlugin(%s)", URLQuery(URLForXBMC("/menu/movie/remove"), "name", list.Name, "link", link))}
-		}
-
-		item := &xbmc.ListItem{
-			Label:     list.Name,
-			Path:      link,
-			Thumbnail: config.AddonResource("img", "lists.png"),
-			ContextMenu: [][]string{
-				menuItem,
-			},
-		}
-		items = append(items, item)
-	}
 	ctx.JSON(200, xbmc.NewView("menus_movies", filterListItems(items)))
 }
 
