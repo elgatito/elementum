@@ -92,6 +92,12 @@ func CallbackHost(ctx *gin.Context, xbmcHost *xbmc.XBMCHost) string {
 
 func getSearchers(xbmcHost *xbmc.XBMCHost, callbackHost string) []any {
 	list := make([]any, 0)
+	if useBuiltin(xbmcHost) {
+		list = append(list, builtinSearcher{NewAddonSearcher(xbmcHost, callbackHost, "builtin")})
+	}
+	if !useKodi(xbmcHost) {
+		return list
+	}
 	for _, addon := range xbmcHost.GetAddons("xbmc.python.script", "executable", true).Addons {
 		if strings.HasPrefix(addon.ID, "script.elementum.") {
 			list = append(list, NewAddonSearcher(xbmcHost, callbackHost, addon.ID))

@@ -10,6 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/elgatito/elementum/bittorrent"
+	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/providers"
 )
 
 func TestToStream(t *testing.T) {
@@ -93,6 +95,10 @@ func TestStreamErrors(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	Register(r, nil)
+	// Kodi add-ons only: with no Kodi there is nothing to search with, and the test stays off the network.
+	old := config.Get().ProvidersSource
+	config.Get().ProvidersSource = providers.SourceKodi
+	t.Cleanup(func() { config.Get().ProvidersSource = old })
 
 	for path, want := range map[string]int{
 		"/api/movies/0/streams":                        http.StatusBadRequest,

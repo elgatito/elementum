@@ -167,7 +167,7 @@ func processLinks(xbmcHost *xbmc.XBMCHost, torrentsChan chan *bittorrent.Torrent
 	}
 
 	var dialogProgressBG *xbmc.DialogProgressBG
-	if !isSilent {
+	if !isSilent && xbmcHost != nil {
 		dialogProgressBG = xbmcHost.NewDialogProgressBG("Elementum", "LOCALIZE[30117]", "LOCALIZE[30117]", "LOCALIZE[30118]")
 	}
 	// Drain until closed so resolvers never block on send; the dialog is optional.

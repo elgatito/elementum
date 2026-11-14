@@ -20,7 +20,7 @@ import (
 // shortcut: the provider search takes no context, so a client cancel only skips a search not started yet and a
 // running one ends at the provider timeout; thread ctx into AddonSearcher.callRaw if abandoned searches pile up.
 
-var providersUnavailable = failed(http.StatusBadGateway, ErrorCodeProvidersUnavailable, "Kodi or the search providers are not reachable")
+var providersUnavailable = failed(http.StatusBadGateway, ErrorCodeProvidersUnavailable, "no search provider is available: built-in search is off and Kodi is not reachable")
 
 // ListMovieStreams searches the providers for a movie.
 func (Server) ListMovieStreams(c *gin.Context, id TmdbIdParam) {
@@ -67,15 +67,16 @@ func (Server) ListEpisodeStreams(c *gin.Context, id TmdbIdParam, seasonNumber Se
 	})
 }
 
-// streams answers the cached results for key, else what search finds through the request's Kodi host. Results
+// streams answers the cached results for key, else what search finds (host is the request's Kodi, or nil). Results
 // are cached like the Kodi routes do (empty ones too); a nil result without a failure is not.
 func streams(c *gin.Context, key string, search func(host *xbmc.XBMCHost, callback string) ([]*bittorrent.TorrentFile, *failure)) {
 	if torrents, err := providers.GetCachedTorrents(key); err == nil && len(torrents) > 0 {
 		c.JSON(http.StatusOK, toStreams(torrents))
 		return
 	}
+	// Without Kodi the built-in search still answers, unless providers_source turns it off.
 	host, _ := xbmc.GetXBMCHostWithContext(c)
-	if host == nil {
+	if !providers.Available(host) {
 		fail(c, providersUnavailable)
 		return
 	}

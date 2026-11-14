@@ -277,6 +277,7 @@ type Configuration struct {
 	CustomProviderTimeoutEnabled bool
 	CustomProviderTimeout        int
 	ProviderUseLowestReleaseDate bool
+	ProvidersSource              int // 0 auto, 1 built-in, 2 Kodi add-ons, 3 both; see providers.Source*
 
 	InternalDNSEnabled        bool
 	InternalDNSSkipIPv6       bool
@@ -358,19 +359,19 @@ var (
 		ListenInterfaces   []string `help:"List of interfaces/IPs to use for libtorrent listen_interfaces"`
 		OutgoingInterfaces []string `help:"List of interfaces/IPs to use for libtorrent outgoing_interfaces"`
 
-		RemoteHost string `help:"Remote host IP or Hostname (Host with plugin.video.elementum running)"`
-		RemotePort int    `help:"Remote host Port (Host with plugin.video.elementum running)"`
+		RemoteHost string `help:"Kodi host IP or Hostname, when Kodi with plugin.video.elementum runs on another machine"`
+		RemotePort int    `help:"Kodi host Port, when Kodi with plugin.video.elementum runs on another machine"`
 
 		ServerExternalIP string `help:"Set to external IP if you run server behind NAT (e.g. in container with NAT network), so elementum will use this IP in replies and will not try to identify Kodi's IP based on client's IP"`
 
-		LocalHost     string `help:"Local host IP (IP that would be used for running Elementum HTTP server on a local host)"`
-		LocalPort     int    `help:"Local host Port (Port that would be used for running Elementum HTTP server on a local host)"`
-		LocalLogin    string `help:"Local host Login (To use for authentication from plugin.video.elementum calls)"`
-		LocalPassword string `help:"Local host Password (To use for authentication from plugin.video.elementum calls)"`
+		LocalHost     string `help:"IP the Elementum HTTP server listens on (JSON API, Kodi add-on routes, Web UI, streams)"`
+		LocalPort     int    `help:"Port the Elementum HTTP server listens on"`
+		LocalLogin    string `help:"Login required from every client of the HTTP server (API clients and the Kodi add-on); empty login and password mean no authentication"`
+		LocalPassword string `help:"Password required from every client of the HTTP server"`
 
 		LogPath string `help:"Log file location path"`
 
-		ConfigPath     string `help:"Custom path to Elementum config (Yaml or JSON format; settings-file-v1: polled, write-back; env ELEMENTUM_CONFIG_PATH is used when this is empty)"`
+		ConfigPath     string `help:"Settings file (Yaml or JSON) to run without Kodi settings; created with defaults when missing (settings-file-v1: polled, write-back; env ELEMENTUM_CONFIG_PATH is used when this is empty)"`
 		AddonPath      string `help:"Custom path to addon folder (where Kodi stored files, coming with addon zip)"`
 		ProfilePath    string `help:"Custom path to addon files folder (where Elementum will write data)"`
 		TempPath       string `help:"Custom path to temp folder (where Elementum will write temporary files)"`
@@ -858,6 +859,7 @@ func Reload() (ret *Configuration, err error) {
 		CustomProviderTimeoutEnabled: settings.ToBool("custom_provider_timeout_enabled"),
 		CustomProviderTimeout:        settings.ToInt("custom_provider_timeout"),
 		ProviderUseLowestReleaseDate: settings.ToBool("provider_use_lowest_release_date"),
+		ProvidersSource:              providersSource(settings),
 
 		InternalDNSEnabled:        settings.ToBool("internal_dns_enabled"),
 		InternalDNSSkipIPv6:       settings.ToBool("internal_dns_skip_ipv6"),
@@ -1432,4 +1434,13 @@ func windowsToWSLPath(path string, exists func(string) bool) string {
 
 	log.Infof("Using WSL path %s for Windows path %s", wslPath, path)
 	return wslPath
+}
+
+// providersSource reads providers_source; settings that do not have it yet mean 0 (auto), without the
+// missing-setting warning.
+func providersSource(settings XbmcSettings) int {
+	if _, ok := settings["providers_source"]; !ok {
+		return 0
+	}
+	return settings.ToInt("providers_source")
 }
