@@ -58,10 +58,7 @@ func (b builtinSearcher) search(q burst.Query) []*bittorrent.TorrentFile {
 			q.Titles[l] = v
 		}
 	}
-	q.Languages = []string{strings.ToLower(strings.SplitN(config.Get().Language, "-", 2)[0])}
-	if q.Languages[0] != "en" {
-		q.Languages = append(q.Languages, "en")
-	}
+	q.Language = strings.ToLower(strings.SplitN(config.Get().Language, "-", 2)[0])
 	// Through JSON, as add-on results come: decoding fills resolution, codecs and size of a TorrentFile.
 	torrents := make([]*bittorrent.TorrentFile, 0)
 	if b, err := json.Marshal(burst.Search(ctx, ProvidersDir(), q)); err != nil {

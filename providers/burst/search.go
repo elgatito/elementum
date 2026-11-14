@@ -44,7 +44,7 @@ var Client = func() *http.Client { return http.DefaultClient }
 // seeded first. Providers still running at the deadline of ctx are left out.
 func Search(ctx context.Context, dir string, q Query) []Result {
 	defs, settings, opts := Load(dir), LoadSettings(dir), LoadGeneral(dir)
-	ids := Enabled(defs, settings)
+	ids := Enabled(defs, settings, q.Method)
 	if len(ids) == 0 {
 		log.Warning("No providers enabled")
 		return nil
@@ -78,11 +78,12 @@ func Search(ctx context.Context, dir string, q Query) []Result {
 
 // session is one provider's search: its definition (on the user's mirror), credentials and cookies.
 type session struct {
-	id       string
-	d        Definition
-	set      Settings
-	client   *http.Client
-	loggedIn bool
+	id        string
+	d         Definition
+	set       Settings
+	client    *http.Client
+	userAgent string
+	loggedIn  bool
 }
 
 // jars keeps each provider's cookies for the life of the process, so a login is reused by later searches.
@@ -95,7 +96,48 @@ func newSession(id string, d Definition, set Settings) *session {
 		jar, _ = cached.(*cookiejar.Jar)
 	}
 	client.Jar = jar
-	return &session{id: id, d: d.withAlias(set.Alias), set: set, client: &client}
+	s := &session{id: id, d: d.withAlias(set.Alias), set: set, client: &client, userAgent: userAgent}
+	if set.UserAgent != "" {
+		s.userAgent = set.UserAgent
+	}
+	// The user's browser cookies: a session on a private tracker, or a passed bot check.
+	if root, err := url.Parse(s.d.str("root_url")); err == nil && set.Cookies != "" {
+		var cookies []*http.Cookie
+		for _, pair := range strings.Split(set.Cookies, ";") {
+			if name, value, ok := strings.Cut(strings.TrimSpace(pair), "="); ok && name != "" {
+				cookies = append(cookies, &http.Cookie{Name: name, Value: value, Path: "/"})
+				if name == s.d.str("login_cookie") {
+					s.loggedIn = true
+				}
+			}
+		}
+		jar.SetCookies(root, cookies)
+	}
+	return s
+}
+
+var (
+	lostfilmSeriesRe   = regexp.MustCompile(`PlayEpisode\('(\d+)'\)">`)
+	lostfilmRedirectRe = regexp.MustCompile(`url=(.*?)">`)
+)
+
+// lostfilmPage follows LostFilm's search result to the page with the torrents of the series, "" when
+// the search found no series.
+func (s *session) lostfilmPage(ctx context.Context, target string, post map[string]string) string {
+	root := s.d.str("root_url")
+	page, _, _ := s.fetch(ctx, target, post, nil)
+	m := lostfilmSeriesRe.FindStringSubmatch(page)
+	if m == nil {
+		return ""
+	}
+	target = root + "/v_search.php?a=" + m[1]
+	page, _, _ = s.fetch(ctx, target, nil, nil)
+	if m = lostfilmRedirectRe.FindStringSubmatch(page); m != nil {
+		if target = m[1]; !strings.HasPrefix(target, "http") {
+			target = root + target
+		}
+	}
+	return target
 }
 
 // searchProvider runs a definition's queries: the fallbacks only while there are no results.
@@ -107,6 +149,7 @@ func searchProvider(ctx context.Context, id string, d Definition, set Settings, 
 	}()
 	s := newSession(id, d, set)
 	d = s.d
+	q = q.withOptions(opts)
 	f := newFilter(opts, q)
 	used := map[string]bool{}
 	lastPriority := 1
@@ -140,6 +183,11 @@ func searchProvider(ctx context.Context, id string, d Definition, set Settings, 
 			}
 			target = strings.ReplaceAll(target, "CSRF_TOKEN", token)
 		}
+		if id == "lostfilm" && s.loggedIn { // its search answers with the series, whose page lists the torrents
+			if target = s.lostfilmPage(ctx, target, post); target == "" {
+				return results
+			}
+		}
 		content, _, err := s.fetch(ctx, target, post, nil)
 		if err != nil {
 			log.Warningf("[%s] request failed: %s", id, err)
@@ -147,7 +195,7 @@ func searchProvider(ctx context.Context, id string, d Definition, set Settings, 
 		}
 		var found []Result
 		if d.flag("is_api") {
-			found = fromAPI(id, d, content)
+			found = fromAPI(id, d, content, q.Languages)
 		} else {
 			found = fromPage(id, d, content)
 			if d.flag("subpage") {
@@ -246,7 +294,7 @@ func (s *session) withHeaders(link, page string) string {
 	if s.set.Passkey != "" {
 		return strings.ReplaceAll(link, "PASSKEY", s.set.Passkey)
 	}
-	link += "|User-Agent=" + userAgent + "|Referer=" + page + "|Origin=" + page
+	link += "|User-Agent=" + s.userAgent + "|Referer=" + page + "|Origin=" + page
 	if u, err := url.Parse(strings.Split(link, "|")[0]); err == nil {
 		var cookies []string
 		for _, c := range s.client.Jar.Cookies(u) {
@@ -280,7 +328,7 @@ func (s *session) fetch(ctx context.Context, target string, post, headers map[st
 	if err != nil {
 		return "", "", err
 	}
-	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("User-Agent", s.userAgent)
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	if method == http.MethodPost {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -456,8 +504,11 @@ var (
 	torrentioSourceRe = regexp.MustCompile(`\x{2699}\x{FE0F}?[ \t]*([^\n]+)`)
 )
 
+var flagsRe = regexp.MustCompile(`[\x{1F1E6}-\x{1F1FF}]{2}`)
+
 // fromAPI reads the results of a JSON API by the definition's api_format, which names the fields.
-func fromAPI(id string, d Definition, content string) []Result {
+// languages are the preferred ones: Torrentio orders by them but does not filter, so that is done here.
+func fromAPI(id string, d Definition, content string, languages []string) []Result {
 	var data any
 	if err := json.Unmarshal([]byte(content), &data); err != nil {
 		log.Warningf("[%s] response is not JSON: %s", id, err)
@@ -505,6 +556,23 @@ func fromAPI(id string, d Definition, content string) []Result {
 		trackers := ""
 		if id == "torrentio" { // seeds, size and source are lines of the title, after the name
 			title := str("name")
+			if len(languages) > 0 {
+				// languages are flags in the last line; a release in English only shows none
+				lines := strings.Split(title, "\n")
+				found := flagsRe.FindAllString(lines[len(lines)-1], -1)
+				if len(found) == 0 {
+					found = flags("en")
+				}
+				wanted := false
+				for _, l := range languages {
+					for _, f := range flags(l) {
+						wanted = wanted || contains(found, f)
+					}
+				}
+				if !wanted {
+					continue
+				}
+			}
 			r.Name = strings.TrimSpace(strings.SplitN(title, "\n", 2)[0])
 			if m := torrentioSeedsRe.FindStringSubmatch(title); m != nil {
 				r.Seeds = getInt(m[1])

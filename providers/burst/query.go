@@ -31,8 +31,13 @@ type Query struct {
 	// SkipAuth searches private trackers without signing in first (a background search).
 	SkipAuth bool
 
-	// Languages are the preferred languages, most wanted first, for {languages} in a search URL.
+	// Language is Elementum's language ("de"), and Languages more preferred ones, most wanted first.
+	// The language options decide how they are used, see withOptions.
+	Language  string
 	Languages []string
+
+	titleLanguage string   // the language of a bare {title} when the tracker's own is not forced
+	exceptions    []string // providers that keep their own title language
 }
 
 // search is one request to try: the query, the definition's extra for it, and its priority.
@@ -141,14 +146,71 @@ func splitPerYear(queries, countries []string) []string {
 	return out
 }
 
-// shortcut: only the languages below have a long name for {languages:long} (Torrentio); others are
-// sent as their code, which Torrentio ignores. Extend the table when a language is missed.
+// English names of languages for {languages:long}, and the countries whose flags stand for a language
+// in results (Torrentio shows the British flag for English).
 var languageNames = map[string]string{
-	"en": "english", "ru": "russian", "uk": "ukrainian", "de": "german", "fr": "french", "es": "spanish", "it": "italian",
-	"pt": "portuguese", "pl": "polish", "nl": "dutch", "tr": "turkish", "cs": "czech", "hu": "hungarian", "ro": "romanian",
-	"bg": "bulgarian", "el": "greek", "ja": "japanese", "ko": "korean", "zh": "chinese", "hi": "hindi", "ar": "arabic",
-	"he": "hebrew", "sv": "swedish", "no": "norwegian", "da": "danish", "fi": "finnish", "hr": "croatian", "sr": "serbian",
-	"sk": "slovak", "sl": "slovenian", "lt": "lithuanian", "lv": "latvian", "et": "estonian", "vi": "vietnamese", "th": "thai",
+	"en": "english", "ru": "russian", "uk": "ukrainian", "be": "belarusian", "de": "german", "fr": "french",
+	"es": "spanish", "it": "italian", "pt": "portuguese", "pl": "polish", "nl": "dutch", "sv": "swedish",
+	"no": "norwegian", "da": "danish", "fi": "finnish", "cs": "czech", "sk": "slovak", "hu": "hungarian",
+	"ro": "romanian", "bg": "bulgarian", "hr": "croatian", "sr": "serbian", "sl": "slovenian", "el": "greek",
+	"tr": "turkish", "he": "hebrew", "ar": "arabic", "fa": "persian", "hi": "hindi", "ja": "japanese",
+	"ko": "korean", "zh": "chinese", "th": "thai", "vi": "vietnamese", "id": "indonesian", "lt": "lithuanian",
+	"lv": "latvian", "et": "estonian", "ka": "georgian", "kk": "kazakh",
+}
+
+var languageCountries = map[string]string{
+	"en": "GB,US", "ru": "RU", "uk": "UA", "be": "BY", "de": "DE", "fr": "FR", "es": "ES,MX", "it": "IT", "pt": "PT,BR",
+	"pl": "PL", "nl": "NL", "sv": "SE", "no": "NO", "da": "DK", "fi": "FI", "cs": "CZ", "sk": "SK", "hu": "HU",
+	"ro": "RO", "bg": "BG", "hr": "HR", "sr": "RS", "sl": "SI", "el": "GR", "tr": "TR", "he": "IL", "ar": "SA",
+	"fa": "IR", "hi": "IN", "ja": "JP", "ko": "KR", "zh": "CN,TW", "th": "TH", "vi": "VN", "id": "ID", "lt": "LT",
+	"lv": "LV", "et": "EE", "ka": "GE", "kk": "KZ",
+}
+
+// flags returns the flag emojis of a language, as ["🇬🇧", "🇺🇸"] for "en".
+func flags(lang string) []string {
+	var out []string
+	for _, country := range strings.Split(languageCountries[lang], ",") {
+		if len(country) == 2 {
+			out = append(out, string([]rune{0x1F1E6 + rune(country[0]-'A'), 0x1F1E6 + rune(country[1]-'A')}))
+		}
+	}
+	return out
+}
+
+// withOptions applies the language options to a query: the preferred languages, the language of a bare
+// {title}, and the original title of anime. The query's maps are copied, as providers share the query.
+func (q Query) withOptions(opts General) Query {
+	var langs []string
+	for _, l := range append(strings.Split(opts.text("language_priority"), ","), q.Languages...) {
+		if l = strings.TrimSpace(l); l == "kodi" {
+			l = q.Language
+		}
+		if l != "" && !contains(langs, l) {
+			langs = append(langs, l)
+		}
+	}
+	q.Languages = langs
+	q.titleLanguage, q.exceptions = "", nil
+	if opts.on("kodi_language") {
+		q.titleLanguage = q.Language
+		for _, id := range strings.Split(opts.text("language_exceptions"), ",") {
+			q.exceptions = append(q.exceptions, strings.TrimSpace(id))
+		}
+	}
+	titles := make(map[string]string, len(q.Titles))
+	for k, v := range q.Titles {
+		titles[k] = v
+	}
+	if q.Method == "anime" { // trackers of anime list it by the Romaji or the English title
+		mode := int(opts.num("overwrite_anime_original_title"))
+		if mode == 1 && titles["jp"] != "" {
+			titles["original"] = titles["jp"]
+		} else if mode != 0 && titles["en"] != "" {
+			titles["original"] = titles["en"]
+		}
+	}
+	q.Titles = titles
+	return q
 }
 
 // fill replaces the {keywords} of a template. It returns "" when the query can't be made, for example
@@ -224,8 +286,11 @@ func (q Query) title(d Definition, parts []string) (title string, ok bool) {
 		lang = parts[1]
 	}
 	providerLang := d.str("language")
-	if (lang == "" && providerLang == "") || len(q.Titles) == 0 {
+	if (lang == "" && providerLang == "" && q.titleLanguage == "") || len(q.Titles) == 0 {
 		return q.Title, true
+	}
+	if lang == "" && q.Titles[q.titleLanguage] != "" && !contains(q.exceptions, d.str("id")) {
+		lang = q.titleLanguage
 	}
 	if lang == "" && q.Titles[providerLang] != "" {
 		lang = providerLang

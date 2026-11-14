@@ -16,6 +16,12 @@ type Settings struct {
 	Password string `json:"password,omitempty"`
 	Passkey  string `json:"passkey,omitempty"`
 	Alias    string `json:"alias,omitempty"` // a mirror: another domain, or URL, for the same site
+	// Contains limits the provider to "movies" or "shows" searches; "" is both.
+	Contains string `json:"contains,omitempty"`
+	// Cookies ("name=value; other=value") from a browser signed in to the site, or past its bot check,
+	// and the browser's User-Agent they belong to. With the site's login cookie among them no login is made.
+	Cookies   string `json:"cookies,omitempty"`
+	UserAgent string `json:"user_agent,omitempty"`
 }
 
 const settingsFile = "settings.json"
@@ -104,12 +110,14 @@ type Status struct {
 	Unusable   string // why it can't be searched even when enabled, "" when it can
 	Username   string
 	HasSecret  bool // a password or passkey is stored
+	HasCookies bool
+	Contains   string
 	NeedsLogin bool // private, and no credentials are stored
 }
 
 func status(id string, d Definition, s Settings) Status {
 	st := Status{ID: id, Name: d.str("name"), Private: d.flag("private"), Unusable: d.Skipped(), Username: s.Username,
-		HasSecret: s.Password != "" || s.Passkey != ""}
+		HasSecret: s.Password != "" || s.Passkey != "", HasCookies: s.Cookies != "", Contains: s.Contains}
 	for _, l := range strings.Split(d.str("languages"), ",") {
 		if l = strings.TrimSpace(l); l != "" {
 			st.Languages = append(st.Languages, l)
@@ -120,7 +128,7 @@ func status(id string, d Definition, s Settings) Status {
 		st.Enabled = *s.Enabled
 	}
 	// A private tracker is searched with a passkey, or with the login its definition describes.
-	st.NeedsLogin = st.Private && s.Passkey == "" && (s.Username == "" || s.Password == "")
+	st.NeedsLogin = st.Private && s.Passkey == "" && s.Cookies == "" && (s.Username == "" || s.Password == "")
 	return st
 }
 
@@ -135,12 +143,18 @@ func List(dir string) []Status {
 	return out
 }
 
-// Enabled returns the ids of the providers to search, sorted: those switched on (by the user, or by
-// default: Burst's "predefined" set and the user's own providers) that can be searched now.
-func Enabled(defs map[string]Definition, settings map[string]Settings) []string {
+// Enabled returns the ids of the providers to search with a method ("" for any), sorted: those switched
+// on (by the user, or by default: Burst's "predefined" set and the user's own providers) that can be
+// searched now and are not limited to the other kind of content.
+func Enabled(defs map[string]Definition, settings map[string]Settings, method string) []string {
+	kind := map[string]string{"movie": "movies", "season": "shows", "episode": "shows", "anime": "shows"}[method]
 	var ids []string
 	for id, d := range defs {
-		if st := status(id, d, settings[id]); st.Enabled && st.Unusable == "" && !st.NeedsLogin {
+		st := status(id, d, settings[id])
+		if c := st.Contains; c != "" && method != "" && c != kind && !d.flag("custom") {
+			continue
+		}
+		if st.Enabled && st.Unusable == "" && !st.NeedsLogin {
 			ids = append(ids, id)
 		}
 	}

@@ -56,6 +56,11 @@ var Options = []Option{
 	{"filter_workprint", "Release types", "Workprint", false},
 	{"filter_line", "Release types", "Line", false},
 
+	{"language_priority", "Languages", "Preferred languages, most wanted first (codes, comma separated; kodi is Elementum's language)", "kodi"},
+	{"kodi_language", "Languages", "Search with the title in Elementum's language", true},
+	{"language_exceptions", "Languages", "Providers that keep their own title language (ids, comma separated)", ""},
+	{"overwrite_anime_original_title", "Languages", "Anime original title (0 as is, 1 Romaji, 2 English)", 1.0},
+
 	{"additional_filters", "Keywords", "Use the keyword lists below", false},
 	{"accept", "Keywords", "Also accept (comma separated)", ""},
 	{"block", "Keywords", "Block (comma separated)", ""},

@@ -80,7 +80,7 @@ func TestBundledDefinitions(t *testing.T) {
 	if searchable < 40 {
 		t.Errorf("only %d providers are searchable", searchable)
 	}
-	if on := Enabled(defs, nil); !reflect.DeepEqual(on, []string{"1337x", "bt4g", "knaben", "thepiratebay", "torrentio", "yts"}) {
+	if on := Enabled(defs, nil, ""); !reflect.DeepEqual(on, []string{"1337x", "bt4g", "knaben", "thepiratebay", "torrentio", "yts"}) {
 		t.Errorf("default providers: %v", on)
 	}
 }
@@ -250,7 +250,7 @@ func TestSearch(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if on := Enabled(defs, LoadSettings(dir)); !reflect.DeepEqual(on, []string{"mine", "myapi"}) {
+	if on := Enabled(defs, LoadSettings(dir), ""); !reflect.DeepEqual(on, []string{"mine", "myapi"}) {
 		t.Fatalf("enabled: %v", on)
 	}
 	if defs["mine"].str("root_url") != srv.URL {
@@ -420,7 +420,7 @@ func TestSettings(t *testing.T) {
 	}
 	t.Cleanup(Reload)
 	// settings.json is not read as a definitions file, and switches a provider that is off by default on
-	if ids := Enabled(Load(dir), got); !contains(ids, "rutor") || contains(ids, "x") {
+	if ids := Enabled(Load(dir), got, ""); !contains(ids, "rutor") || contains(ids, "x") {
 		t.Errorf("enabled: %v", ids)
 	}
 	for _, st := range List(dir) {
@@ -493,5 +493,101 @@ func TestFilters(t *testing.T) {
 	}
 	if g := LoadGeneral(dir); !g.on("filter_cam") || g.num("max_size") != 50 || !g.on("filter_1080p") || g.num("max_results") != 10 {
 		t.Errorf("options: %v", g)
+	}
+}
+
+func TestLanguageOptions(t *testing.T) {
+	d := Definition{"id": "x", "language": "ru", "languages": "ru"}
+	q := Query{Method: "movie", Title: "amelie", Language: "de", Titles: map[string]string{"original": "Amélie", "de": "Die fabelhafte Welt", "ru": "Амели", "jp": "Romaji", "en": "English"}}
+
+	// Elementum's language wins over the tracker's for a bare {title}, unless switched off or excepted
+	if got := fill(d, "{title}", q.withOptions(nil)); got != "die fabelhafte welt" {
+		t.Errorf("kodi language: %q", got)
+	}
+	if got := fill(d, "{title}", q.withOptions(General{"kodi_language": false})); got != "амели" {
+		t.Errorf("provider language: %q", got)
+	}
+	if got := fill(d, "{title}", q.withOptions(General{"language_exceptions": "y, x"})); got != "амели" {
+		t.Errorf("exception: %q", got)
+	}
+	if got := fill(d, "{title:original}", q.withOptions(nil)); got != "amélie" {
+		t.Errorf("explicit language: %q", got)
+	}
+
+	if got := q.withOptions(General{"language_priority": "fr, kodi,fr"}).Languages; !reflect.DeepEqual(got, []string{"fr", "de"}) {
+		t.Errorf("priority: %v", got)
+	}
+	if got := fill(Definition{}, "{languages:long}|{languages}", q.withOptions(General{"language_priority": "kodi,en"})); got != "german,english|de,en" {
+		t.Errorf("languages keyword: %q", got)
+	}
+
+	q.Method = "anime"
+	for mode, want := range map[float64]string{0: "Amélie", 1: "Romaji", 2: "English"} {
+		if got := q.withOptions(General{"overwrite_anime_original_title": mode}).Titles["original"]; got != want {
+			t.Errorf("anime title mode %v: %q", mode, got)
+		}
+	}
+	if q.Titles["original"] != "Amélie" {
+		t.Error("the shared query was changed")
+	}
+
+	// Torrentio: only results in a preferred language; no flag means English
+	torrentio := Definition{"name": "Torrentio", "api_format": map[string]any{"results": "streams", "name": "title", "torrent": "infoHash"}, "download_path": "magnet:?xt=urn:btih:"}
+	person, de, gb, ru := "\U0001F464", "\U0001F1E9\U0001F1EA", "\U0001F1EC\U0001F1E7", "\U0001F1F7\U0001F1FA"
+	content := `{"streams":[{"title":"English 1080p\n` + person + ` 5","infoHash":"a"},{"title":"German 1080p\n` + person + ` 5\n` + de + `","infoHash":"b"},{"title":"Dual 1080p\n` + person + ` 5\n` + gb + ` / ` + ru + `","infoHash":"c"}]}`
+	names := func(langs ...string) (out []string) {
+		for _, r := range fromAPI("torrentio", torrentio, content, langs) {
+			out = append(out, r.Name)
+		}
+		return
+	}
+	if got := names(); len(got) != 3 {
+		t.Errorf("no priority: %v", got)
+	}
+	if got := names("de"); !reflect.DeepEqual(got, []string{"German 1080p"}) {
+		t.Errorf("de: %v", got)
+	}
+	if got := names("en"); !reflect.DeepEqual(got, []string{"English 1080p", "Dual 1080p"}) {
+		t.Errorf("en: %v", got)
+	}
+}
+
+func TestContainsAndCookies(t *testing.T) {
+	defs := map[string]Definition{
+		"a": {"enabled": true, "predefined": true},
+		"b": {"enabled": true, "predefined": true},
+		"c": {"enabled": true, "predefined": true, "private": true, "login_cookie": "sid"},
+	}
+	settings := map[string]Settings{"a": {Contains: "movies"}, "b": {Contains: "shows"}, "c": {Cookies: "sid=1"}}
+	for method, want := range map[string][]string{"movie": {"a", "c"}, "episode": {"b", "c"}, "anime": {"b", "c"}, "general": {"c"}, "": {"a", "b", "c"}} {
+		if got := Enabled(defs, settings, method); !reflect.DeepEqual(got, want) {
+			t.Errorf("%s: %v, want %v", method, got, want)
+		}
+	}
+
+	var gotCookie, gotAgent string
+	logins := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/login" {
+			logins++
+			return
+		}
+		gotAgent = r.UserAgent()
+		if c, err := r.Cookie("cf_clearance"); err == nil {
+			gotCookie = c.Value
+		}
+		fmt.Fprint(w, `<table><tr><td><a href="/t/1.torrent">Movie 1080p</a></td><td>3</td></tr></table>`)
+	}))
+	defer srv.Close()
+	d := Definition{"name": "Cookie", "color": "FFFFFFFF", "private": true, "separator": "+", "base_url": srv.URL + "/s?q=QUERY", "root_url": srv.URL,
+		"movie_keywords": "{title}", "login_path": "/login", "login_cookie": "sid", "login_object": map[string]any{"u": "USERNAME"},
+		"parser": map[string]any{"row": spec(t, `[{"css":"tr"}]`), "name": spec(t, `{"css":"a"}`), "torrent": spec(t, `{"css":"a","attr":"href"}`), "seeds": spec(t, `{"css":"td","nth":2}`)}}
+	set := Settings{Cookies: "sid=abc; cf_clearance=xyz", UserAgent: "MyBrowser/1"}
+	got := searchProvider(context.Background(), "cookie", d, set, nil, Query{Method: "movie", Title: "movie"})
+	if len(got) != 1 || gotCookie != "xyz" || gotAgent != "MyBrowser/1" || logins != 0 {
+		t.Fatalf("results %+v, cookie %q, agent %q, logins %d", got, gotCookie, gotAgent, logins)
+	}
+	if !strings.Contains(got[0].URI, "|User-Agent=MyBrowser/1") || !strings.Contains(got[0].URI, "sid=abc") {
+		t.Errorf("link: %s", got[0].URI)
 	}
 }

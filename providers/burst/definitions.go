@@ -126,6 +126,7 @@ func merge(defs map[string]Definition, content []byte, source string, custom boo
 				d["root_url"] = u.Scheme + "://" + u.Host
 			}
 		}
+		d["id"] = id
 		if defs[id] == nil {
 			defs[id] = Definition{}
 			if custom {
