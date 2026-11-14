@@ -34,9 +34,6 @@ type Result struct {
 	Provider string `json:"provider"`
 }
 
-// MaxResults is how many results one provider may return, its best seeded ones (Burst's default).
-const MaxResults = 10
-
 // userAgent is sent to trackers; many refuse clients that do not look like a browser.
 const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
@@ -46,7 +43,7 @@ var Client = func() *http.Client { return http.DefaultClient }
 // Search asks every enabled provider of dir (see Load and LoadSettings) and returns their results, best
 // seeded first. Providers still running at the deadline of ctx are left out.
 func Search(ctx context.Context, dir string, q Query) []Result {
-	defs, settings := Load(dir), LoadSettings(dir)
+	defs, settings, opts := Load(dir), LoadSettings(dir), LoadGeneral(dir)
 	ids := Enabled(defs, settings)
 	if len(ids) == 0 {
 		log.Warning("No providers enabled")
@@ -61,7 +58,7 @@ func Search(ctx context.Context, dir string, q Query) []Result {
 	var wg sync.WaitGroup
 	for _, id := range ids {
 		wg.Go(func() {
-			results := searchProvider(ctx, id, defs[id], settings[id], q)
+			results := searchProvider(ctx, id, defs[id], settings[id], opts, q)
 			log.Infof("[%s] returned %d results in %.1f seconds", id, len(results), time.Since(start).Seconds())
 			mu.Lock()
 			all = append(all, results...)
@@ -76,7 +73,7 @@ func Search(ctx context.Context, dir string, q Query) []Result {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	return cleanup(all)
+	return cleanup(all, opts.on("allow_noseeds"))
 }
 
 // session is one provider's search: its definition (on the user's mirror), credentials and cookies.
@@ -102,7 +99,7 @@ func newSession(id string, d Definition, set Settings) *session {
 }
 
 // searchProvider runs a definition's queries: the fallbacks only while there are no results.
-func searchProvider(ctx context.Context, id string, d Definition, set Settings, q Query) (results []Result) {
+func searchProvider(ctx context.Context, id string, d Definition, set Settings, opts General, q Query) (results []Result) {
 	defer func() {
 		if r := recover(); r != nil { // a broken definition must not take the search down
 			log.Errorf("[%s] failed: %v", id, r)
@@ -110,10 +107,14 @@ func searchProvider(ctx context.Context, id string, d Definition, set Settings, 
 	}()
 	s := newSession(id, d, set)
 	d = s.d
+	f := newFilter(opts, q)
 	used := map[string]bool{}
 	lastPriority := 1
 	for _, sr := range searches(d, q) {
 		query, extra := fill(d, unquoteTitle(sr.query, q), q), fill(d, sr.extra, q)
+		if opts.on("filter_quotes") {
+			query, extra = strings.ReplaceAll(query, "'", ""), strings.ReplaceAll(extra, "'", "")
+		}
 		switch {
 		case query == "", used[query+extra], ctx.Err() != nil:
 			continue
@@ -161,18 +162,17 @@ func searchProvider(ctx context.Context, id string, d Definition, set Settings, 
 			title = normalize(query)
 		}
 		for _, r := range found {
-			if verify(r, title) {
+			if ok, why := f.verify(r, title); ok {
 				r.Language = d.str("language")
 				r.Provider = fmt.Sprintf("[COLOR %s]%s[/COLOR]", d.str("color"), r.Provider)
 				results = append(results, r)
+			} else {
+				log.Debugf("[%s] dropped %q: %s", id, r.Name, why)
 			}
 		}
-		results = cleanup(results)
+		results = cleanup(results, opts.on("allow_noseeds"))
 	}
-	if len(results) > MaxResults {
-		results = results[:MaxResults]
-	}
-	return results
+	return f.best(results)
 }
 
 var csrfRe = regexp.MustCompile(`name="_?csrf_?[tT]oken" value="(.*?)"`)
@@ -590,29 +590,13 @@ func cleanSize(s string) string {
 	return s
 }
 
-// verify drops a result without a name, and one whose name lacks a word of the searched title
-// (title is "" unless the definition asks for that check).
-// shortcut: Burst's optional filters by resolution, release type, size range and season/episode numbers
-// are off or wide open by default and are not ported; Elementum sorts and filters results itself.
-func verify(r Result, title string) bool {
-	if r.Name == "" {
-		return false
-	}
-	name := normalize(r.Name)
-	for _, word := range strings.Fields(title) {
-		if !strings.Contains(name, word) {
-			return false
-		}
-	}
-	return true
-}
-
-// cleanup drops results without seeds or link and duplicates of a provider, and sorts by seeds.
-func cleanup(results []Result) []Result {
+// cleanup drops results without link, without seeds (unless noSeeds), and duplicates of a provider, and
+// sorts by seeds.
+func cleanup(results []Result, noSeeds bool) []Result {
 	seen := map[string]bool{}
 	out := results[:0:0]
 	for _, r := range results {
-		if r.Seeds == 0 || r.URI == "" {
+		if (r.Seeds == 0 && !noSeeds) || r.URI == "" {
 			continue
 		}
 		hash := r.InfoHash

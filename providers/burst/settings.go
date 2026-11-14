@@ -2,6 +2,7 @@ package burst
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -19,31 +20,48 @@ type Settings struct {
 
 const settingsFile = "settings.json"
 
-// LoadSettings reads the per-provider settings of dir; a missing or broken file gives none.
-func LoadSettings(dir string) map[string]Settings {
-	out := map[string]Settings{}
+// file is settings.json: the general options and each provider's settings.
+type file struct {
+	General   General             `json:"general,omitempty"`
+	Providers map[string]Settings `json:"providers,omitempty"`
+}
+
+func readFile(dir string) file {
+	f := file{General: General{}, Providers: map[string]Settings{}}
 	if dir == "" {
-		return out
+		return f
 	}
 	b, err := os.ReadFile(filepath.Join(dir, settingsFile))
 	if err == nil {
-		err = json.Unmarshal(b, &out)
+		err = json.Unmarshal(b, &f)
 	}
 	if err != nil && !os.IsNotExist(err) {
 		log.Errorf("Ignoring %s: %s", filepath.Join(dir, settingsFile), err)
 	}
-	return out
+	if f.General == nil {
+		f.General = General{}
+	}
+	if f.Providers == nil {
+		f.Providers = map[string]Settings{}
+	}
+	return f
 }
+
+// LoadSettings reads the per-provider settings of dir; a missing or broken file gives none.
+func LoadSettings(dir string) map[string]Settings { return readFile(dir).Providers }
+
+// LoadGeneral reads the general options the user changed.
+func LoadGeneral(dir string) General { return readFile(dir).General }
 
 var settingsMu = make(chan struct{}, 1) // serializes read-change-write of the file
 
-// SaveSettings stores the settings of one provider. The file holds passwords, so it is private (0600).
-func SaveSettings(dir, id string, s Settings) error {
+// change rewrites settings.json after edit. The file holds passwords, so it is private (0600).
+func change(dir string, edit func(*file)) error {
 	settingsMu <- struct{}{}
 	defer func() { <-settingsMu }()
-	all := LoadSettings(dir)
-	all[id] = s
-	b, err := json.MarshalIndent(all, "", "  ")
+	f := readFile(dir)
+	edit(&f)
+	b, err := json.MarshalIndent(f, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -55,6 +73,26 @@ func SaveSettings(dir, id string, s Settings) error {
 		return err
 	}
 	return os.Rename(tmp, filepath.Join(dir, settingsFile))
+}
+
+// SaveSettings stores the settings of one provider.
+func SaveSettings(dir, id string, s Settings) error {
+	return change(dir, func(f *file) { f.Providers[id] = s })
+}
+
+// SaveOption stores one general option. The value must have the type of the option's default
+// (bool, float64 or string); an unknown id or another type is refused.
+func SaveOption(dir, id string, value any) error {
+	for _, o := range Options {
+		if o.ID != id {
+			continue
+		}
+		if fmt.Sprintf("%T", value) != fmt.Sprintf("%T", o.Default) {
+			return fmt.Errorf("%s must be a %T", id, o.Default)
+		}
+		return change(dir, func(f *file) { f.General[id] = value })
+	}
+	return fmt.Errorf("unknown option %s", id)
 }
 
 // Status tells whether a provider is searched, and why not.

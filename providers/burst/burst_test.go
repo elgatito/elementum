@@ -87,7 +87,7 @@ func TestBundledDefinitions(t *testing.T) {
 
 const page = `<table><tbody>
 <tr><th>head</th></tr>
-<tr class="row odd"><td><a href="/cat">Movies</a><a href="/t/1">First <b>Movie</b> 2020 </a></td><td>1.4 GB in 2 files</td><td> 1,234 </td><td>5 | 7</td>
+<tr class="row odd"><td><a href="/cat">Movies</a><a href="/t/1">First <b>Movie</b> 2020 1080p </a></td><td>1.4 GB in 2 files</td><td> 1,234 </td><td>5 | 7</td>
     <td><div class="outer"><div class="inner">in</div>out</div></td><td align="right">a</td><td align="right">last</td></tr>
 <tr class="row"><td><a href="/cat">Movies</a><a href="/t/2">Second</a></td><td>700 MB</td><td>0</td><td>1 | 2</td></tr>
 <tr></tr>
@@ -109,7 +109,7 @@ func TestSelector(t *testing.T) {
 		t.Errorf("css steps: %d cells", len(rows))
 	}
 	for s, want := range map[string]string{
-		`{"tag":"a","nth":2}`:                                                     "First Movie 2020",
+		`{"tag":"a","nth":2}`:                                                     "First Movie 2020 1080p",
 		`{"tag":"a","nth":2,"attr":"href"}`:                                       "/t/1",
 		`{"tag":"td","nth":3}`:                                                    "1,234",
 		`{"tag":"td","nth":4,"divider":["|",1]}`:                                  "7",
@@ -262,7 +262,7 @@ func TestSearch(t *testing.T) {
 
 	got := Search(context.Background(), dir, Query{Method: "movie", Title: "first movie", Year: 2020})
 	want := []Result{
-		{Name: "First Movie 2020", URI: "magnet:?xt=urn:btih:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&dn=x", Size: "1.4 GB", Seeds: 1234, Peers: 7, Language: "en", Provider: "[COLOR FF00FF00]Mine[/COLOR]"},
+		{Name: "First Movie 2020 1080p", URI: "magnet:?xt=urn:btih:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&dn=x", Size: "1.4 GB", Seeds: 1234, Peers: 7, Language: "en", Provider: "[COLOR FF00FF00]Mine[/COLOR]"},
 		{Name: "Api Movie (2020) - 1080p", URI: "http://x/1.torrent", InfoHash: "BBBB", Size: "1.2 GB", Seeds: 7, Peers: 1, Language: "en", Provider: "[COLOR FFFFFFFF]MyApi[/COLOR]"},
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -346,13 +346,13 @@ func TestPrivate(t *testing.T) {
 				http.Error(w, "no session", http.StatusForbidden)
 				return
 			}
-			fmt.Fprint(w, `<table><tr><td><a href="/download/1.torrent">Private Movie</a></td><td>2 GB</td><td>9</td></tr></table>`)
+			fmt.Fprint(w, `<table><tr><td><a href="/download/1.torrent">Private Movie 720p</a></td><td>2 GB</td><td>9</td></tr></table>`)
 		case "/api":
 			if r.URL.Query().Get("key") != "PK1" || r.URL.Query().Get("user") != "me" {
 				http.Error(w, "bad key", http.StatusForbidden)
 				return
 			}
-			fmt.Fprint(w, `[{"name":"Key Movie","seeders":3,"link":"/dl/7?passkey=PK1"}]`)
+			fmt.Fprint(w, `[{"name":"Key Movie BluRay","seeders":3,"link":"/dl/7?passkey=PK1"}]`)
 		default:
 			http.NotFound(w, r)
 		}
@@ -371,12 +371,12 @@ func TestPrivate(t *testing.T) {
 	if st := status("form", form, Settings{}); !st.NeedsLogin || !st.Enabled {
 		t.Errorf("status without credentials: %+v", st)
 	}
-	if got := searchProvider(ctx, "form", form, Settings{Username: "me", Password: "wrong", Alias: srv.URL}, q); len(got) != 0 {
+	if got := searchProvider(ctx, "form", form, Settings{Username: "me", Password: "wrong", Alias: srv.URL}, nil, q); len(got) != 0 {
 		t.Errorf("wrong password: %+v", got)
 	}
 	set := Settings{Username: "me", Password: "secret", Alias: srv.URL}
-	got := searchProvider(ctx, "form", form, set, q)
-	if len(got) != 1 || got[0].Name != "Private Movie" || got[0].Seeds != 9 {
+	got := searchProvider(ctx, "form", form, set, nil, q)
+	if len(got) != 1 || got[0].Name != "Private Movie 720p" || got[0].Seeds != 9 {
 		t.Fatalf("results: %+v", got)
 	}
 	parts := strings.Split(got[0].URI, "|")
@@ -389,14 +389,14 @@ func TestPrivate(t *testing.T) {
 	// A background search does not sign in; here the cookies of the search before still hold.
 	before := logins
 	q.SkipAuth = true
-	if got := searchProvider(ctx, "form", form, set, q); len(got) != 1 || logins != before {
+	if got := searchProvider(ctx, "form", form, set, nil, q); len(got) != 1 || logins != before {
 		t.Errorf("skip auth: %d results, %d logins", len(got), logins-before)
 	}
 
 	key := Definition{"name": "Key", "color": "FFFFFFFF", "private": true, "is_api": true, "separator": "+", "movie_keywords": "{title}",
 		"base_url": srv.URL + "/api?user=USERNAME&key=PASSKEY&q=QUERY", "root_url": srv.URL, "download_path": srv.URL,
 		"api_format": map[string]any{"name": "name", "seeds": "seeders", "torrent": "link"}}
-	got = searchProvider(ctx, "key", key, Settings{Username: "me", Passkey: "PK1"}, q)
+	got = searchProvider(ctx, "key", key, Settings{Username: "me", Passkey: "PK1"}, nil, q)
 	if len(got) != 1 || got[0].URI != srv.URL+"/dl/7?passkey=PK1" || got[0].Seeds != 3 {
 		t.Errorf("passkey: %+v", got)
 	}
@@ -431,5 +431,67 @@ func TestSettings(t *testing.T) {
 	if d := (Definition{"base_url": "https://a.org/s?q=QUERY", "root_url": "https://a.org", "parser": map[string]any{"torrent": map[string]any{"format": "https://a.org%s"}}}).withAlias("http://b.net"); d.str("base_url") != "http://b.net/s?q=QUERY" ||
 		d["parser"].(map[string]any)["torrent"].(map[string]any)["format"] != "http://b.net%s" {
 		t.Errorf("alias: %v", d)
+	}
+}
+
+func TestFilters(t *testing.T) {
+	check := func(opts General, q Query, r Result, want string) {
+		t.Helper()
+		if ok, why := newFilter(opts, q).verify(r, ""); (want == "") != ok || !strings.HasPrefix(why, want) {
+			t.Errorf("%q %s with %v: ok=%v %q, want %q", r.Name, r.Size, opts, ok, why, want)
+		}
+	}
+	movie := Query{Method: "movie"}
+	// Burst's defaults
+	check(nil, movie, Result{Name: "Movie 2020 1080p BluRay x264", Size: "8 GB"}, "")
+	check(nil, movie, Result{Name: "Movie.2020.WEB-DL", Size: "700 MB"}, "")
+	check(nil, movie, Result{Name: "Movie 2020"}, "missing release type")
+	check(nil, movie, Result{Name: "Movie 2020 HDCAM 720p"}, "blocked by release type")
+	check(nil, movie, Result{Name: "Movie 2020 TS 720p"}, "blocked by release type")
+	check(nil, movie, Result{Name: "Movie 2020 240p WEB-DL"}, "resolution not allowed")
+	check(nil, movie, Result{Name: "Фильм 2020 1080р WEBRip"}, "") // Cyrillic р
+	check(nil, movie, Result{Name: "Фильмcam 2020 1080p"}, "")     // "cam" inside a word is not a keyword
+	check(nil, movie, Result{Name: "Movie 2160p UHD", Size: "120 GB"}, "size out of range")
+	check(nil, movie, Result{Name: "Show S03E01 720p"}, "") // the episode check is off by default
+
+	check(General{"filter_cam": true}, movie, Result{Name: "Movie 2020 HDCAM 720p"}, "")
+	check(General{"require_release_type": false}, movie, Result{Name: "Movie 2020"}, "")
+	check(General{"max_size": 4.0}, movie, Result{Name: "Movie 1080p", Size: "4,5 GB"}, "size out of range")
+	check(General{"separate_sizes": true, "max_size_movies": 4.0}, Query{Method: "episode"}, Result{Name: "Show 1080p", Size: "8 GB"}, "")
+	check(General{"separate_sizes": true, "max_size_movies": 4.0}, movie, Result{Name: "Movie 1080p", Size: "8 GB"}, "size out of range")
+	keywords := General{"additional_filters": true, "require": "x265, hdr", "block": "hindi", "accept": "remux"}
+	check(keywords, movie, Result{Name: "Movie 1080p x265 HDR"}, "")
+	check(keywords, movie, Result{Name: "Movie 1080p x265"}, "missing required keyword")
+	check(keywords, movie, Result{Name: "Movie 1080p x265 HDR Hindi"}, "blocked by release type")
+	episode := General{"require_episode": true}
+	check(episode, Query{Method: "episode", Season: 2, Episode: 9}, Result{Name: "Show S02E09 720p"}, "")
+	check(episode, Query{Method: "episode", Season: 2, Episode: 9}, Result{Name: "Show S02E10 720p"}, "other season or episode")
+	check(episode, Query{Method: "season", Season: 2}, Result{Name: "Show S03 720p"}, "other season or episode")
+	check(episode, Query{Method: "anime", Season: 2, Episode: 9}, Result{Name: "Show S03E01 720p"}, "")
+
+	for in, want := range map[string]float64{"1.4 GB": 1.4e9, "700 MB": 7e8, "1,4 GB": 1.4e9, "1,234.5 MB": 1.2345e9, "1.86 GiB": 1.86e9, "": 0} {
+		if got := sizeBytes(in); got < want*0.999 || got > want*1.001 {
+			t.Errorf("sizeBytes(%q) = %g, want %g", in, got, want)
+		}
+	}
+	// balanced: a well seeded 720p loses to a 1080p with a third of its seeds, and the cap follows
+	f := newFilter(General{"max_results": 2.0}, movie)
+	got := f.best([]Result{{Name: "a 480p", Seeds: 100}, {Name: "b 720p", Seeds: 90}, {Name: "c 1080p", Seeds: 80}})
+	if len(got) != 2 || got[0].Name != "c 1080p" || got[1].Name != "b 720p" {
+		t.Errorf("best: %+v", got)
+	}
+
+	dir := t.TempDir()
+	if err := SaveOption(dir, "filter_cam", true); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveOption(dir, "max_size", 50.0); err != nil {
+		t.Fatal(err)
+	}
+	if SaveOption(dir, "max_size", "big") == nil || SaveOption(dir, "nope", true) == nil {
+		t.Error("a bad option was saved")
+	}
+	if g := LoadGeneral(dir); !g.on("filter_cam") || g.num("max_size") != 50 || !g.on("filter_1080p") || g.num("max_results") != 10 {
+		t.Errorf("options: %v", g)
 	}
 }

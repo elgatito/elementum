@@ -12,6 +12,7 @@ require (
 	github.com/asdine/storm/v3 v3.2.1
 	github.com/c-robinson/iplib/v2 v2.0.5
 	github.com/cespare/xxhash/v2 v2.3.0
+	github.com/dlclark/regexp2 v1.12.0
 	github.com/dustin/go-humanize v1.1.0
 	github.com/elazarl/goproxy v1.9.2
 	github.com/fatih/color v1.19.0

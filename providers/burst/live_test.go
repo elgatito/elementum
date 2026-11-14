@@ -20,7 +20,7 @@ func TestLive(t *testing.T) {
 	for _, id := range Enabled(defs, nil) {
 		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 		start := time.Now()
-		results := searchProvider(ctx, id, defs[id], Settings{}, q)
+		results := searchProvider(ctx, id, defs[id], Settings{}, nil, q)
 		cancel()
 		t.Logf("%-14s %2d results in %4.1fs", id, len(results), time.Since(start).Seconds())
 		for i, r := range results {
