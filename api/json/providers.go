@@ -1,6 +1,7 @@
 package jsonapi
 
 import (
+	"cmp"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +17,8 @@ var noProfile = failed(http.StatusInternalServerError, ErrorCodeInternalError, "
 func toProvider(st burst.Status, set burst.Settings) Provider {
 	p := Provider{Id: st.ID, Name: st.Name, Private: st.Private, Languages: st.Languages, Enabled: st.Enabled,
 		Searched: st.Enabled && st.Unusable == "" && !st.NeedsLogin, HasSecret: st.HasSecret,
-		Username: optional(st.Username), Alias: optional(set.Alias)}
+		Username: optional(st.Username), Alias: optional(set.Alias), HasCookies: &st.HasCookies, UserAgent: optional(set.UserAgent),
+		Contains: ptr(ProviderContains(cmp.Or(st.Contains, "all")))}
 	if p.Languages == nil {
 		p.Languages = []string{}
 	}
@@ -58,10 +60,19 @@ func (Server) UpdateProvider(c *gin.Context, id string) {
 	if b.Enabled != nil {
 		set.Enabled = b.Enabled
 	}
+	if b.Contains != nil {
+		if !b.Contains.Valid() {
+			fail(c, bad("contains must be all, movies or shows"))
+			return
+		}
+		if set.Contains = string(*b.Contains); set.Contains == "all" {
+			set.Contains = ""
+		}
+	}
 	for _, f := range []struct {
 		to   *string
 		from *string
-	}{{&set.Username, b.Username}, {&set.Password, b.Password}, {&set.Passkey, b.Passkey}, {&set.Alias, b.Alias}} {
+	}{{&set.Username, b.Username}, {&set.Password, b.Password}, {&set.Passkey, b.Passkey}, {&set.Alias, b.Alias}, {&set.Cookies, b.Cookies}, {&set.UserAgent, b.UserAgent}} {
 		if f.from != nil {
 			*f.to = *f.from
 		}

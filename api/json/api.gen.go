@@ -174,6 +174,27 @@ func (e PlaybackType) Valid() bool {
 	}
 }
 
+// Defines values for ProviderContains.
+const (
+	ProviderContainsAll    ProviderContains = "all"
+	ProviderContainsMovies ProviderContains = "movies"
+	ProviderContainsShows  ProviderContains = "shows"
+)
+
+// Valid indicates whether the value is a known member of the ProviderContains enum.
+func (e ProviderContains) Valid() bool {
+	switch e {
+	case ProviderContainsAll:
+		return true
+	case ProviderContainsMovies:
+		return true
+	case ProviderContainsShows:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SearchType.
 const (
 	SearchTypeMovie SearchType = "movie"
@@ -936,8 +957,14 @@ type Provider struct {
 	// Example: http://rutor.is
 	Alias *string `json:"alias,omitempty"`
 
+	// Contains The searches the provider is used for.
+	Contains *ProviderContains `json:"contains,omitempty"`
+
 	// Enabled The user's choice, or the default.
 	Enabled bool `json:"enabled"`
+
+	// HasCookies Browser cookies are stored.
+	HasCookies *bool `json:"has_cookies,omitempty"`
 
 	// HasSecret A password or passkey is stored.
 	HasSecret bool `json:"has_secret"`
@@ -960,9 +987,15 @@ type Provider struct {
 	Reason *string `json:"reason,omitempty"`
 
 	// Searched Whether searches use it now: enabled, usable, and with credentials when private.
-	Searched bool    `json:"searched"`
-	Username *string `json:"username,omitempty"`
+	Searched bool `json:"searched"`
+
+	// UserAgent The browser the cookies belong to.
+	UserAgent *string `json:"user_agent,omitempty"`
+	Username  *string `json:"username,omitempty"`
 }
+
+// ProviderContains The searches the provider is used for.
+type ProviderContains string
 
 // ProviderOption defines model for ProviderOption.
 type ProviderOption struct {
@@ -984,11 +1017,21 @@ type ProviderOption struct {
 
 // ProviderSettings defines model for ProviderSettings.
 type ProviderSettings struct {
-	Alias    *string `json:"alias,omitempty"`
+	Alias *string `json:"alias,omitempty"`
+
+	// Contains The searches the provider is used for.
+	Contains *ProviderContains `json:"contains,omitempty"`
+
+	// Cookies Cookies of a browser signed in to the site, or past its bot check, as `name=value; other=value`.
+	// With the site's login cookie among them Elementum does not sign in itself.
+	Cookies  *string `json:"cookies,omitempty"`
 	Enabled  *bool   `json:"enabled,omitempty"`
 	Passkey  *string `json:"passkey,omitempty"`
 	Password *string `json:"password,omitempty"`
-	Username *string `json:"username,omitempty"`
+
+	// UserAgent The User-Agent of that browser; bot checks tie their cookie to it.
+	UserAgent *string `json:"user_agent,omitempty"`
+	Username  *string `json:"username,omitempty"`
 }
 
 // SearchType defines model for SearchType.

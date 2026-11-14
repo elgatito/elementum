@@ -61,6 +61,13 @@ func TestProviders(t *testing.T) {
 	if w, p := call(http.MethodPut, "/api/providers/rutracker", `{"password":""}`); w.Code != http.StatusOK || p.HasSecret || p.Searched || *p.Username != "me" {
 		t.Errorf("clear password: %d %s", w.Code, w.Body)
 	}
+	w, p = call(http.MethodPut, "/api/providers/rutracker", `{"contains":"shows","cookies":"bb_session=1","user_agent":"UA/1"}`)
+	if w.Code != http.StatusOK || *p.Contains != ProviderContainsShows || !*p.HasCookies || !p.Searched || *p.UserAgent != "UA/1" || strings.Contains(w.Body.String(), "bb_session") {
+		t.Errorf("cookies: %d %s", w.Code, w.Body)
+	}
+	if w, _ := call(http.MethodPut, "/api/providers/rutracker", `{"contains":"music"}`); w.Code != http.StatusBadRequest {
+		t.Errorf("bad contains: %d", w.Code)
+	}
 	if w, _ := call(http.MethodPut, "/api/providers/nope", `{"enabled":true}`); w.Code != http.StatusNotFound {
 		t.Errorf("unknown: %d", w.Code)
 	}

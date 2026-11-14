@@ -1502,6 +1502,9 @@ components:
           example: no username and password, or passkey
         username: { type: string }
         has_secret: { type: boolean, description: A password or passkey is stored. }
+        has_cookies: { type: boolean, description: Browser cookies are stored. }
+        user_agent: { type: string, description: The browser the cookies belong to. }
+        contains: { $ref: "#/components/schemas/ProviderContains" }
         alias: { type: string, description: "Mirror in use: another domain or URL of the site.", example: "http://rutor.is" }
     ProviderOption:
       type: object
@@ -1520,6 +1523,18 @@ components:
         password: { type: string, format: password }
         passkey: { type: string, format: password }
         alias: { type: string }
+        contains: { $ref: "#/components/schemas/ProviderContains" }
+        cookies:
+          type: string
+          format: password
+          description: |
+            Cookies of a browser signed in to the site, or past its bot check, as `name=value; other=value`.
+            With the site's login cookie among them Elementum does not sign in itself.
+        user_agent: { type: string, description: "The User-Agent of that browser; bot checks tie their cookie to it." }
+    ProviderContains:
+      type: string
+      enum: [all, movies, shows]
+      description: The searches the provider is used for.
     Torrent:
       type: object
       required: [info_hash, name, size_bytes, progress, download_rate, upload_rate, seeds, peers, state, paused, added_at, has_player]

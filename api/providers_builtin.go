@@ -1,6 +1,7 @@
 package api
 
 import (
+	"cmp"
 	"fmt"
 	"strconv"
 
@@ -120,7 +121,8 @@ func editLogins(h *xbmc.XBMCHost, dir, title string) error {
 			}
 			return ""
 		}
-		fields := []string{"Username: " + set.Username, "Password " + mark(set.Password != ""), "Passkey " + mark(set.Passkey != ""), "Mirror (other domain or URL): " + set.Alias}
+		fields := []string{"Username: " + set.Username, "Password " + mark(set.Password != ""), "Passkey " + mark(set.Passkey != ""), "Mirror (other domain or URL): " + set.Alias,
+			"Use for: " + cmp.Or(set.Contains, "movies and shows"), "Browser cookies (name=value; ...) " + mark(set.Cookies != ""), "Browser User-Agent: " + set.UserAgent}
 		switch h.ListDialog(list[i].Name, fields...) {
 		case 0:
 			set.Username = h.Keyboard(set.Username, "Username", false)
@@ -130,6 +132,14 @@ func editLogins(h *xbmc.XBMCHost, dir, title string) error {
 			set.Passkey = h.Keyboard("", "Passkey", true)
 		case 3:
 			set.Alias = h.Keyboard(set.Alias, "Mirror", false)
+		case 4:
+			if kind := h.ListDialog(list[i].Name, "Movies and shows", "Movies", "Shows"); kind >= 0 {
+				set.Contains = []string{"", "movies", "shows"}[kind]
+			}
+		case 5:
+			set.Cookies = h.Keyboard("", "Cookies", false)
+		case 6:
+			set.UserAgent = h.Keyboard(set.UserAgent, "User-Agent", false)
 		default:
 			continue
 		}
