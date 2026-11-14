@@ -223,7 +223,7 @@ func applyWriteBack(s XbmcSettings, c *Configuration) {
 }
 
 // WatchSettingsFile polls the settings file and calls reload when it changed to a valid one.
-// shortcut: polling (no fsnotify), see docs/settings-json.md; fine for one small file.
+// shortcut: polling (no fsnotify), fine for one small file; switch to fsnotify if the 2 s delay matters.
 func WatchSettingsFile(path string, interval time.Duration, closer <-chan struct{}, reload func()) {
 	tick := time.NewTicker(interval)
 	defer tick.Stop()

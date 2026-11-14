@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/elgatito/elementum/api/repository"
 	"github.com/elgatito/elementum/api/json"
+	"github.com/elgatito/elementum/api/repository"
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/providers"
