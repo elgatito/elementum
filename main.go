@@ -30,6 +30,7 @@ import (
 	"github.com/elgatito/elementum/library"
 	"github.com/elgatito/elementum/lockfile"
 	"github.com/elgatito/elementum/mdblist"
+	"github.com/elgatito/elementum/providers"
 	"github.com/elgatito/elementum/proxy"
 	"github.com/elgatito/elementum/repository"
 	"github.com/elgatito/elementum/scrob"
@@ -339,7 +340,8 @@ func main() {
 
 			log.Info("Updating Kodi add-on repositories... ")
 			xbmcHost.UpdateAddonRepos()
-			go repository.CheckBurst(xbmcHost, conf.SkipBurstSearch, config.AddonIcon())
+			// With the built-in search alone there is no need for the Burst add-on.
+			go repository.CheckBurst(xbmcHost, conf.SkipBurstSearch || conf.ProvidersSource == providers.SourceBuiltin, config.AddonIcon())
 		}
 
 		xbmcHost.DialogProgressBGCleanup()

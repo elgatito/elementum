@@ -427,6 +427,7 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 		allproviders.GET("/enable", ProvidersEnableAll)
 		allproviders.GET("/disable", ProvidersDisableAll)
 		allproviders.GET("/diagnose", ProvidersDiagnose)
+		allproviders.GET("/builtin/:id/:field", BuiltinProviderSet)
 	}
 
 	repo := r.Group("/repository")
