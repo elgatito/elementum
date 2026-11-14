@@ -1,11 +1,14 @@
 package jsonapi
 
 import (
-	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/database"
@@ -60,24 +63,29 @@ func TestToTorrentUnknownIDsAndName(t *testing.T) {
 	}
 }
 
+// badRequest runs a handler on a recorded gin context and reports whether it answered 400 bad_request.
+func badRequest(handler func(*gin.Context)) bool {
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	handler(c)
+	c.Writer.WriteHeaderNow()
+	var e Error
+	return w.Code == http.StatusBadRequest && json.Unmarshal(w.Body.Bytes(), &e) == nil && e.Error.Code == ErrorCodeBadRequest
+}
+
 func TestBadInfoHash(t *testing.T) {
 	for _, h := range []string{"", "abc", "zz" + string(make([]byte, 38)), "08ada5a7a6183aae1e09d831df6748d566095a1"} {
-		if _, e := findTorrent(h); e != &badHash {
-			t.Errorf("%q: %v", h, e)
+		if _, f := findTorrent(h); f != badHash {
+			t.Errorf("%q: %v", h, f)
 		}
 	}
 	s := Server{}
-	if r, _ := s.PauseTorrent(context.Background(), PauseTorrentRequestObject{InfoHash: "x"}); r.(PauseTorrent400JSONResponse).BadRequestJSONResponse.Error.Code != ErrorCodeBadRequest {
+	if !badRequest(func(c *gin.Context) { s.PauseTorrent(c, "x") }) {
 		t.Error("pause")
 	}
-	if _, ok := mustRemove(s, "x").(RemoveTorrent400JSONResponse); !ok {
+	if !badRequest(func(c *gin.Context) { s.RemoveTorrent(c, "x", RemoveTorrentParams{}) }) {
 		t.Error("remove")
 	}
-}
-
-func mustRemove(s Server, h string) RemoveTorrentResponseObject {
-	r, _ := s.RemoveTorrent(context.Background(), RemoveTorrentRequestObject{InfoHash: h})
-	return r
 }
 
 func TestStopSessions(t *testing.T) {
@@ -109,13 +117,11 @@ func TestToPerson(t *testing.T) {
 }
 
 func TestPersonBadLang(t *testing.T) {
-	bad := "english"
-	r, _ := Server{}.GetPerson(context.Background(), GetPersonRequestObject{TmdbId: 1, Params: GetPersonParams{Lang: &bad}})
-	if _, ok := r.(GetPerson400JSONResponse); !ok {
-		t.Fatalf("%T", r)
+	lang := "english"
+	if !badRequest(func(c *gin.Context) { Server{}.GetPerson(c, 1, GetPersonParams{Lang: &lang}) }) {
+		t.Error("person")
 	}
-	r2, _ := Server{}.GetPersonCredits(context.Background(), GetPersonCreditsRequestObject{TmdbId: 1, Params: GetPersonCreditsParams{Lang: &bad}})
-	if _, ok := r2.(GetPersonCredits400JSONResponse); !ok {
-		t.Fatalf("%T", r2)
+	if !badRequest(func(c *gin.Context) { Server{}.GetPersonCredits(c, 1, GetPersonCreditsParams{Lang: &lang}) }) {
+		t.Error("credits")
 	}
 }

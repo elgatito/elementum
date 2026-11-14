@@ -1,7 +1,6 @@
 package jsonapi
 
 import (
-	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -38,9 +37,8 @@ var (
 	// linkKey signs stream links. It lives as long as the process, like the sessions it signs for.
 	linkKey = func() []byte { k := make([]byte, 32); rand.Read(k); return k }()
 
-	forbidden       = newError(ErrorCodeForbidden, "forbidden")
-	badURI          = newError(ErrorCodeBadRequest, "uri is not a playable stream")
-	sessionNotFound = newError(ErrorCodeNotFound, "session not found")
+	forbidden       = failed(http.StatusForbidden, ErrorCodeForbidden, "forbidden")
+	sessionNotFound = failed(http.StatusNotFound, ErrorCodeNotFound, "session not found")
 )
 
 type session struct {
@@ -81,16 +79,22 @@ var (
 )
 
 // CreatePlayback validates the uri, stops the active session and starts buffering in the background.
-func (Server) CreatePlayback(ctx context.Context, req CreatePlaybackRequestObject) (CreatePlaybackResponseObject, error) {
-	b := req.Body
-	bad := func(msg string) (CreatePlaybackResponseObject, error) {
-		return CreatePlayback400JSONResponse{BadRequestJSONResponse(newError(ErrorCodeBadRequest, msg))}, nil
+func (Server) CreatePlayback(c *gin.Context) {
+	b := body[PlaybackRequest](c)
+	if b == nil {
+		return
 	}
-	if e := checkParams(nil, nil, b.Type); e != nil {
-		return CreatePlayback400JSONResponse{BadRequestJSONResponse(*e)}, nil
+	f := checkParams(nil, nil, b.Type)
+	switch {
+	case f != nil:
+	case b.TmdbId < 1 || (b.FileIndex != nil && *b.FileIndex < 0):
+		f = bad("tmdb_id must be 1 or more, file_index 0 or more")
+	case b.Type == PlaybackTypeEpisode && (b.Season == nil || b.Episode == nil || *b.Season < 0 || *b.Episode < 1):
+		f = bad("season (0 or more) and episode (1 or more) are required for an episode")
 	}
-	if b.TmdbId < 1 || (b.FileIndex != nil && *b.FileIndex < 0) {
-		return bad("tmdb_id must be 1 or more, file_index 0 or more")
+	if f != nil {
+		fail(c, f)
+		return
 	}
 
 	// Same params as the Kodi /play route; for an episode TMDBId is the episode's id and ShowID the show's.
@@ -100,9 +104,6 @@ func (Server) CreatePlayback(ctx context.Context, req CreatePlaybackRequestObjec
 	}
 	cacheKey := strconv.Itoa(b.TmdbId)
 	if b.Type == PlaybackTypeEpisode {
-		if b.Season == nil || b.Episode == nil || *b.Season < 0 || *b.Episode < 1 {
-			return bad("season (0 or more) and episode (1 or more) are required for an episode")
-		}
 		cacheKey = providers.EpisodeCacheKey(b.TmdbId, *b.Season, *b.Episode)
 		params.ShowID, params.Season, params.Episode = b.TmdbId, *b.Season, *b.Episode
 	}
@@ -113,7 +114,8 @@ func (Server) CreatePlayback(ctx context.Context, req CreatePlaybackRequestObjec
 	cached, _ := providers.GetCachedTorrents(cacheKey)
 	uri, hash, ok := playableURI(b.Uri, cached, config.Get().TemporaryPath)
 	if !ok {
-		return CreatePlayback400JSONResponse{BadRequestJSONResponse(badURI)}, nil
+		fail(c, bad("uri is not a playable stream"))
+		return
 	}
 	params.URI = uri
 
@@ -140,12 +142,12 @@ func (Server) CreatePlayback(ctx context.Context, req CreatePlaybackRequestObjec
 	sess := &session{id: rand.Text(), player: player, hash: hash, state: PlaybackStateResolving, seen: time.Now()}
 	sessions.Lock()
 	sess.activate()
-	view := sess.view(ctx.(*gin.Context).Request.Host)
+	view := sess.view(c.Request.Host)
 	sessions.Unlock()
 
 	reaper.Do(func() { go reapLoop() })
 	go run(sess, t)
-	return CreatePlayback201JSONResponse(view), nil
+	c.JSON(http.StatusCreated, view)
 }
 
 // run buffers the session's file and records the outcome.
@@ -326,48 +328,65 @@ func (sess *session) torrent() *bittorrent.Torrent {
 }
 
 // GetPlayback reports the session state and keeps it alive.
-func (Server) GetPlayback(ctx context.Context, req GetPlaybackRequestObject) (GetPlaybackResponseObject, error) {
+func (Server) GetPlayback(c *gin.Context, id SessionIdParam) {
 	sessions.Lock()
-	defer sessions.Unlock()
-	sess := sessions.byID[req.Id]
+	sess := sessions.byID[id]
+	var view PlaybackSession
+	if sess != nil {
+		if sess.state != PlaybackStateStopped {
+			sess.seen = time.Now()
+		}
+		view = sess.view(c.Request.Host)
+	}
+	sessions.Unlock()
 	if sess == nil {
-		return GetPlayback404JSONResponse{NotFoundJSONResponse(sessionNotFound)}, nil
+		fail(c, sessionNotFound)
+		return
 	}
-	if sess.state != PlaybackStateStopped {
-		sess.seen = time.Now()
-	}
-	return GetPlayback200JSONResponse(sess.view(ctx.(*gin.Context).Request.Host)), nil
+	c.JSON(http.StatusOK, view)
 }
 
 // DeletePlayback stops the session and removes its torrent.
-func (Server) DeletePlayback(_ context.Context, req DeletePlaybackRequestObject) (DeletePlaybackResponseObject, error) {
+func (Server) DeletePlayback(c *gin.Context, id SessionIdParam) {
 	sessions.Lock()
-	defer sessions.Unlock()
-	sess := sessions.byID[req.Id]
-	if sess == nil {
-		return DeletePlayback404JSONResponse{NotFoundJSONResponse(sessionNotFound)}, nil
+	sess := sessions.byID[id]
+	if sess != nil {
+		sess.stop()
+		delete(sessions.byID, id)
 	}
-	sess.stop()
-	delete(sessions.byID, req.Id)
-	return DeletePlayback204Response{}, nil
+	sessions.Unlock()
+	if sess == nil {
+		fail(c, sessionNotFound)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 // ReportPlaybackProgress keeps the session alive and, once playing, stores the resume point and scrobbles.
-func (Server) ReportPlaybackProgress(_ context.Context, req ReportPlaybackProgressRequestObject) (ReportPlaybackProgressResponseObject, error) {
-	if req.Body.PositionS < 0 || req.Body.DurationS < 0 {
-		return ReportPlaybackProgress400JSONResponse{BadRequestJSONResponse(newError(ErrorCodeBadRequest, "position_s and duration_s must be 0 or more"))}, nil
+func (Server) ReportPlaybackProgress(c *gin.Context, id SessionIdParam) {
+	b := body[PlaybackProgress](c)
+	if b == nil {
+		return
+	}
+	if b.PositionS < 0 || b.DurationS < 0 {
+		fail(c, bad("position_s and duration_s must be 0 or more"))
+		return
 	}
 	sessions.Lock()
-	defer sessions.Unlock()
-	sess := sessions.byID[req.Id]
-	if sess == nil || sess.state == PlaybackStateStopped {
-		return ReportPlaybackProgress404JSONResponse{NotFoundJSONResponse(sessionNotFound)}, nil
+	sess := sessions.byID[id]
+	found := sess != nil && sess.state != PlaybackStateStopped
+	if found {
+		sess.seen = time.Now()
+		if sess.state == PlaybackStateReady && sess.player != nil {
+			sess.player.UpdateExternal(b.PositionS, b.DurationS, b.Paused)
+		}
 	}
-	sess.seen = time.Now()
-	if sess.state == PlaybackStateReady && sess.player != nil {
-		sess.player.UpdateExternal(req.Body.PositionS, req.Body.DurationS, req.Body.Paused)
+	sessions.Unlock()
+	if !found {
+		fail(c, sessionNotFound)
+		return
 	}
-	return ReportPlaybackProgress204Response{}, nil
+	c.Status(http.StatusNoContent)
 }
 
 // sign is hex(HMAC-SHA256(key, id + "/" + file_index + "/" + exp)).
@@ -382,26 +401,7 @@ func streamURL(host, id string, fileIndex int, exp int64) string {
 	return fmt.Sprintf("http://%s/api/stream/%s/%d?exp=%d&sig=%s", host, id, fileIndex, exp, sign(id, fileIndex, exp))
 }
 
-// GetStream serves the session's chosen file to a valid signed link. Every rejection is the same 403.
-func (Server) GetStream(ctx context.Context, req GetStreamRequestObject) (GetStreamResponseObject, error) {
-	deny := GetStream403JSONResponse{ForbiddenJSONResponse(forbidden)}
-	if !hmac.Equal([]byte(req.Params.Sig), []byte(sign(req.Id, req.FileIndex, req.Params.Exp))) || time.Now().Unix() > req.Params.Exp {
-		return deny, nil
-	}
-	sessions.Lock()
-	sess := sessions.byID[req.Id]
-	var path string
-	if sess != nil && sess.state == PlaybackStateReady && sess.file.Index == req.FileIndex {
-		path = sess.file.Path
-	}
-	sessions.Unlock()
-	if path == "" {
-		return deny, nil
-	}
-	return streamFile{req: ctx.(*gin.Context).Request, path: path}, nil
-}
-
-// streamFS is the file system getStream serves from: the torrents, as for /files/.
+// streamFS is the file system GetStream serves from: the torrents, as for /files/.
 var streamFS = func(method string) http.FileSystem { return bittorrent.NewTorrentFS(sessions.bts, method) }
 
 // videoTypes are set explicitly: Go's MIME table lacks most video types and sniffing calls Matroska "video/webm".
@@ -411,21 +411,28 @@ var videoTypes = map[string]string{
 	".wmv": "video/x-ms-wmv", ".mpg": "video/mpeg", ".mpeg": "video/mpeg", ".flv": "video/x-flv",
 }
 
-// streamFile serves a torrent file with the same Range-capable handler as /files/ (GET and HEAD).
-type streamFile struct {
-	req  *http.Request
-	path string
-}
-
-func (f streamFile) VisitGetStreamResponse(w http.ResponseWriter) error {
-	if ct := videoTypes[strings.ToLower(filepath.Ext(f.path))]; ct != "" {
-		w.Header().Set("Content-Type", ct) // else FileServer picks one by extension or content
+// GetStream serves the session's chosen file to a valid signed link, with the same Range-capable handler as
+// /files/ (GET and HEAD). Every rejection is the same 403.
+func (Server) GetStream(c *gin.Context, id SessionIdParam, fileIndex int, p GetStreamParams) {
+	var path string
+	if hmac.Equal([]byte(p.Sig), []byte(sign(id, fileIndex, p.Exp))) && time.Now().Unix() <= p.Exp {
+		sessions.Lock()
+		if sess := sessions.byID[id]; sess != nil && sess.state == PlaybackStateReady && sess.file.Index == fileIndex {
+			path = sess.file.Path
+		}
+		sessions.Unlock()
 	}
-	w.Header().Set("Connection", "close") // as /files/
-	r := f.req.Clone(f.req.Context())
-	r.URL.Path, r.URL.RawPath = "/"+filepath.ToSlash(f.path), ""
-	http.FileServer(streamFS(r.Method)).ServeHTTP(w, r)
-	return nil
+	if path == "" {
+		fail(c, forbidden)
+		return
+	}
+	if ct := videoTypes[strings.ToLower(filepath.Ext(path))]; ct != "" {
+		c.Header("Content-Type", ct) // else FileServer picks one by extension or content
+	}
+	c.Header("Connection", "close") // as /files/
+	r := c.Request.Clone(c.Request.Context())
+	r.URL.Path, r.URL.RawPath = "/"+filepath.ToSlash(path), ""
+	http.FileServer(streamFS(r.Method)).ServeHTTP(c.Writer, r)
 }
 
 var torrentFileName = regexp.MustCompile(`^[0-9a-f]{40}\.torrent$`)

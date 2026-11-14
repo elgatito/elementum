@@ -1,7 +1,7 @@
 package jsonapi
 
 import (
-	"context"
+	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -20,84 +20,76 @@ import (
 // shortcut: the provider search takes no context, so a client cancel only skips a search not started yet and a
 // running one ends at the provider timeout; thread ctx into AddonSearcher.callRaw if abandoned searches pile up.
 
-var (
-	providersUnavailable = newError(ErrorCodeProvidersUnavailable, "Kodi or the search providers are not reachable")
-	badPathID            = newError(ErrorCodeBadRequest, "tmdb_id and episode must be 1 or more, season 0 or more")
-)
+var providersUnavailable = failed(http.StatusBadGateway, ErrorCodeProvidersUnavailable, "Kodi or the search providers are not reachable")
 
 // ListMovieStreams searches the providers for a movie.
-func (Server) ListMovieStreams(ctx context.Context, req ListMovieStreamsRequestObject) (ListMovieStreamsResponseObject, error) {
-	if req.TmdbId < 1 {
-		return ListMovieStreams400JSONResponse{BadRequestJSONResponse(badPathID)}, nil
+func (Server) ListMovieStreams(c *gin.Context, id TmdbIdParam) {
+	if id < 1 {
+		fail(c, bad("tmdb_id must be 1 or more"))
+		return
 	}
-	c := ctx.(*gin.Context)
-	key := strconv.Itoa(req.TmdbId)
-	if cached := cachedStreams(key); cached != nil {
-		return ListMovieStreams200JSONResponse(cached), nil
-	}
-	xbmcHost, _ := xbmc.GetXBMCHostWithContext(c)
-	if xbmcHost == nil {
-		return ListMovieStreams502JSONResponse{ProvidersUnavailableJSONResponse(providersUnavailable)}, nil
-	}
-
-	// nil also when TMDB can't be reached; the fetcher doesn't tell the two apart.
-	movie := tmdb.GetMovie(req.TmdbId, config.Get().Language)
-	if movie == nil {
-		return ListMovieStreams404JSONResponse{NotFoundJSONResponse(newError(ErrorCodeNotFound, "movie not found"))}, nil
-	}
-	searchers := providers.GetMovieSearchers(xbmcHost, providers.CallbackHost(c, xbmcHost))
-	if len(searchers) == 0 {
-		return ListMovieStreams502JSONResponse{ProvidersUnavailableJSONResponse(providersUnavailable)}, nil
-	}
-	if c.Request.Context().Err() != nil {
-		return ListMovieStreams200JSONResponse{}, nil // client is gone, don't start the search
-	}
-	return ListMovieStreams200JSONResponse(storeStreams(key, providers.SearchMovieSilent(xbmcHost, searchers, movie, true))), nil
+	streams(c, strconv.Itoa(id), func(host *xbmc.XBMCHost, callback string) ([]*bittorrent.TorrentFile, *failure) {
+		// nil also when TMDB can't be reached; the fetcher doesn't tell the two apart.
+		movie := tmdb.GetMovie(id, config.Get().Language)
+		if movie == nil {
+			return nil, failed(http.StatusNotFound, ErrorCodeNotFound, "movie not found")
+		}
+		searchers := providers.GetMovieSearchers(host, callback)
+		if len(searchers) == 0 {
+			return nil, providersUnavailable
+		}
+		if c.Request.Context().Err() != nil {
+			return nil, nil // client is gone, don't start the search
+		}
+		return providers.SearchMovieSilent(host, searchers, movie, true), nil
+	})
 }
 
 // ListEpisodeStreams searches the providers for an episode.
-func (Server) ListEpisodeStreams(ctx context.Context, req ListEpisodeStreamsRequestObject) (ListEpisodeStreamsResponseObject, error) {
-	if req.TmdbId < 1 || req.Season < 0 || req.Episode < 1 {
-		return ListEpisodeStreams400JSONResponse{BadRequestJSONResponse(badPathID)}, nil
+func (Server) ListEpisodeStreams(c *gin.Context, id TmdbIdParam, seasonNumber SeasonParam, episodeNumber EpisodeParam) {
+	if id < 1 || seasonNumber < 0 || episodeNumber < 1 {
+		fail(c, bad("tmdb_id and episode must be 1 or more, season 0 or more"))
+		return
 	}
-	c := ctx.(*gin.Context)
-	key := providers.EpisodeCacheKey(req.TmdbId, req.Season, req.Episode)
-	if cached := cachedStreams(key); cached != nil {
-		return ListEpisodeStreams200JSONResponse(cached), nil
-	}
-	xbmcHost, _ := xbmc.GetXBMCHostWithContext(c)
-	if xbmcHost == nil {
-		return ListEpisodeStreams502JSONResponse{ProvidersUnavailableJSONResponse(providersUnavailable)}, nil
-	}
-
-	show, season, episode, err := tmdb.GetShowSeasonEpisode(req.TmdbId, req.Season, req.Episode, config.Get().Language)
-	if err != nil {
-		return ListEpisodeStreams404JSONResponse{NotFoundJSONResponse(newError(ErrorCodeNotFound, "episode not found"))}, nil
-	}
-	searchers := providers.GetEpisodeSearchers(xbmcHost, providers.CallbackHost(c, xbmcHost))
-	if len(searchers) == 0 {
-		return ListEpisodeStreams502JSONResponse{ProvidersUnavailableJSONResponse(providersUnavailable)}, nil
-	}
-	if c.Request.Context().Err() != nil {
-		return ListEpisodeStreams200JSONResponse{}, nil // client is gone, don't start the search
-	}
-	return ListEpisodeStreams200JSONResponse(storeStreams(key, providers.SearchEpisodeSilent(xbmcHost, searchers, show, season, episode, true))), nil
+	streams(c, providers.EpisodeCacheKey(id, seasonNumber, episodeNumber), func(host *xbmc.XBMCHost, callback string) ([]*bittorrent.TorrentFile, *failure) {
+		show, season, episode, err := tmdb.GetShowSeasonEpisode(id, seasonNumber, episodeNumber, config.Get().Language)
+		if err != nil {
+			return nil, failed(http.StatusNotFound, ErrorCodeNotFound, "episode not found")
+		}
+		searchers := providers.GetEpisodeSearchers(host, callback)
+		if len(searchers) == 0 {
+			return nil, providersUnavailable
+		}
+		if c.Request.Context().Err() != nil {
+			return nil, nil // client is gone, don't start the search
+		}
+		return providers.SearchEpisodeSilent(host, searchers, show, season, episode, true), nil
+	})
 }
 
-// cachedStreams returns the cached search results for key, or nil when there are none.
-func cachedStreams(key string) []Stream {
+// streams answers the cached results for key, else what search finds through the request's Kodi host. Results
+// are cached like the Kodi routes do (empty ones too); a nil result without a failure is not.
+func streams(c *gin.Context, key string, search func(host *xbmc.XBMCHost, callback string) ([]*bittorrent.TorrentFile, *failure)) {
 	if torrents, err := providers.GetCachedTorrents(key); err == nil && len(torrents) > 0 {
-		return toStreams(torrents)
+		c.JSON(http.StatusOK, toStreams(torrents))
+		return
 	}
-	return nil
-}
-
-// storeStreams caches the results like the Kodi routes do (empty ones too) and maps them.
-func storeStreams(key string, torrents []*bittorrent.TorrentFile) []Stream {
-	if err := providers.SetCachedTorrents(key, torrents); err != nil {
-		log.Warningf("Caching stream search for %s: %v", key, err)
+	host, _ := xbmc.GetXBMCHostWithContext(c)
+	if host == nil {
+		fail(c, providersUnavailable)
+		return
 	}
-	return toStreams(torrents)
+	torrents, f := search(host, providers.CallbackHost(c, host))
+	if f != nil {
+		fail(c, f)
+		return
+	}
+	if torrents != nil {
+		if err := providers.SetCachedTorrents(key, torrents); err != nil {
+			log.Warningf("Caching stream search for %s: %v", key, err)
+		}
+	}
+	c.JSON(http.StatusOK, toStreams(torrents))
 }
 
 func toStreams(torrents []*bittorrent.TorrentFile) []Stream {

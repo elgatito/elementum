@@ -1,9 +1,10 @@
 package jsonapi
 
 import (
-	"context"
 	"errors"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/elgatito/elementum/tmdb"
 	"github.com/elgatito/elementum/util"
@@ -17,34 +18,31 @@ func toPerson(p *tmdb.Person) Person {
 	}
 }
 
-func (Server) GetPerson(_ context.Context, req GetPersonRequestObject) (GetPersonResponseObject, error) {
-	if req.TmdbId < 1 {
-		return GetPerson400JSONResponse{BadRequestJSONResponse(badDetailID)}, nil
+func (Server) GetPerson(c *gin.Context, id TmdbIdParam, params GetPersonParams) {
+	lang, ok := detailArgs(c, id, params.Lang)
+	if !ok {
+		return
 	}
-	lang, e := langArg(req.Params.Lang)
-	if e != nil {
-		return GetPerson400JSONResponse{badRequest(e)}, nil
-	}
-	p := tmdb.GetPerson(req.TmdbId, lang)
+	p := tmdb.GetPerson(id, lang)
 	if p == nil {
-		return GetPerson404JSONResponse{NotFoundJSONResponse(tmdbNotFound)}, nil
+		fail(c, tmdbNotFound)
+		return
 	}
-	return GetPerson200JSONResponse(toPerson(p)), nil
+	c.JSON(http.StatusOK, toPerson(p))
 }
 
-func (Server) GetPersonCredits(_ context.Context, req GetPersonCreditsRequestObject) (GetPersonCreditsResponseObject, error) {
-	if req.TmdbId < 1 {
-		return GetPersonCredits400JSONResponse{BadRequestJSONResponse(badDetailID)}, nil
+func (Server) GetPersonCredits(c *gin.Context, id TmdbIdParam, params GetPersonCreditsParams) {
+	lang, ok := detailArgs(c, id, params.Lang)
+	if !ok {
+		return
 	}
-	lang, e := langArg(req.Params.Lang)
-	if e != nil {
-		return GetPersonCredits400JSONResponse{badRequest(e)}, nil
-	}
-	movies, shows, err := tmdb.PersonCredits(req.TmdbId, lang)
+	movies, shows, err := tmdb.PersonCredits(id, lang)
 	if errors.Is(err, util.ErrNotFound) {
-		return GetPersonCredits404JSONResponse{NotFoundJSONResponse(tmdbNotFound)}, nil
+		fail(c, tmdbNotFound)
+		return
 	} else if err != nil {
-		return GetPersonCreditsdefaultJSONResponse{Body: tmdbFailed, StatusCode: http.StatusBadGateway}, nil
+		fail(c, tmdbFailed)
+		return
 	}
-	return GetPersonCredits200JSONResponse{Movies: annotate(movieItems(movies)), Shows: annotate(showItems(shows))}, nil
+	c.JSON(http.StatusOK, PersonCredits{Movies: annotate(movieItems(movies)), Shows: annotate(showItems(shows))})
 }

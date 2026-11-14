@@ -1,12 +1,13 @@
 package jsonapi
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"regexp"
 	"strconv"
 	"sync"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/library"
@@ -21,13 +22,13 @@ import (
 // stop them.
 
 var (
-	notLinked    = failure{http.StatusConflict, newError(ErrorCodeTrackerNotAuthorized, "no tracker account is linked")}
-	unsupported  = failure{http.StatusConflict, newError(ErrorCodeTrackerUnsupported, "the linked tracker has no such list")}
-	noDeviceAuth = failure{http.StatusConflict, newError(ErrorCodeTrackerUnsupported, "the selected tracker has no device-code login")}
-	paidOnly     = failure{http.StatusConflict, newError(ErrorCodeTrackerUnsupported, "the linked tracker offers this to paid accounts only")}
-	listMissing  = failure{http.StatusNotFound, newError(ErrorCodeNotFound, "list not found")}
-	trackerDown  = failure{http.StatusBadGateway, newError(ErrorCodeInternalError, "tracker request failed")}
-	badListID    = failure{http.StatusBadRequest, newError(ErrorCodeBadRequest, "invalid list_id")}
+	notLinked    = failed(http.StatusConflict, ErrorCodeTrackerNotAuthorized, "no tracker account is linked")
+	unsupported  = failed(http.StatusConflict, ErrorCodeTrackerUnsupported, "the linked tracker has no such list")
+	noDeviceAuth = failed(http.StatusConflict, ErrorCodeTrackerUnsupported, "the selected tracker has no device-code login")
+	noTokenStore = failed(http.StatusConflict, ErrorCodeTrackerUnsupported, "linking needs a JSON settings file")
+	paidOnly     = failed(http.StatusConflict, ErrorCodeTrackerUnsupported, "the linked tracker offers this to paid accounts only")
+	listMissing  = failed(http.StatusNotFound, ErrorCodeNotFound, "list not found")
+	trackerDown  = failed(http.StatusBadGateway, ErrorCodeInternalError, "tracker request failed")
 
 	// list ids go into tracker URL paths
 	listIDRe = regexp.MustCompile(`^[A-Za-z0-9_:-]{1,64}$`) // Simkl uses status:watching etc.
@@ -39,36 +40,28 @@ var (
 	}
 )
 
-// failure is an error response, for the operations' default response types.
-type failure struct {
-	status int
-	body   Error
-}
-
-func badParams(e *Error) *failure { return &failure{http.StatusBadRequest, *e} }
-
 // activeTracker returns the linked tracker. Provider.Authorized only checks stored credentials, it never starts a login.
 func activeTracker() (tracker.Provider, *failure) {
 	if p := tracker.Active(); p != nil {
 		return p, nil
 	}
-	return nil, &notLinked
+	return nil, notLinked
 }
 
 // trackerFailure maps a tracker error; upstream messages are only logged.
 func trackerFailure(p tracker.Provider, err error) *failure {
 	switch {
 	case errors.Is(err, tracker.ErrNotAuthorized), errors.Is(err, util.ErrUnauthorized):
-		return &notLinked
+		return notLinked
 	case errors.Is(err, tracker.ErrUnsupported):
-		return &unsupported
+		return unsupported
 	case errors.Is(err, tracker.ErrPaidAccount):
-		return &paidOnly
+		return paidOnly
 	case errors.Is(err, util.ErrNotFound):
-		return &listMissing
+		return listMissing
 	}
 	log.Warningf("%s request failed: %v", p.Name(), err)
-	return &trackerDown
+	return trackerDown
 }
 
 // ref is a list entry's ids; the IMDB id is used only when the source has no TMDB id.
@@ -109,51 +102,42 @@ func mediaItems(refs []ref, movies bool, lang string) []MediaItem {
 	return annotate(items)
 }
 
-func (Server) ListLibraryMovies(_ context.Context, req ListLibraryMoviesRequestObject) (ListLibraryMoviesResponseObject, error) {
-	p := req.Params
-	page, f := libraryPage(library.MovieType, p.Page, p.Limit, p.Lang)
-	if f != nil {
-		return ListLibraryMoviesdefaultJSONResponse{Body: f.body, StatusCode: f.status}, nil
-	}
-	return ListLibraryMovies200JSONResponse{MediaItemPageJSONResponse(page)}, nil
+func (Server) ListLibraryMovies(c *gin.Context, p ListLibraryMoviesParams) {
+	libraryPage(c, library.MovieType, p.Page, p.Limit, p.Lang)
 }
 
-func (Server) ListLibraryShows(_ context.Context, req ListLibraryShowsRequestObject) (ListLibraryShowsResponseObject, error) {
-	p := req.Params
-	page, f := libraryPage(library.ShowType, p.Page, p.Limit, p.Lang)
-	if f != nil {
-		return ListLibraryShowsdefaultJSONResponse{Body: f.body, StatusCode: f.status}, nil
-	}
-	return ListLibraryShows200JSONResponse{MediaItemPageJSONResponse(page)}, nil
+func (Server) ListLibraryShows(c *gin.Context, p ListLibraryShowsParams) {
+	libraryPage(c, library.ShowType, p.Page, p.Limit, p.Lang)
 }
 
-func libraryPage(mediaType int, page, limit *int, lang *string) (MediaItemPage, *failure) {
-	pg, lim, lng, e := args(page, limit, lang)
-	if e != nil {
-		return MediaItemPage{}, badParams(e)
+func libraryPage(c *gin.Context, mediaType int, page, limit *int, lang *string) {
+	pg, lim, lng, f := args(page, limit, lang)
+	if f != nil {
+		fail(c, f)
+		return
 	}
 	ids := library.ActiveIDs(mediaType)
 	refs := []ref{}
 	for _, id := range window(ids, pg, lim) {
 		refs = append(refs, ref{tmdb: id})
 	}
-	return listPage(mediaItems(refs, mediaType == library.MovieType, lng), len(ids), pg, lim), nil
+	c.JSON(http.StatusOK, listPage(mediaItems(refs, mediaType == library.MovieType, lng), len(ids), pg, lim))
 }
 
-func (Server) ListTraktChart(_ context.Context, req ListTraktChartRequestObject) (ListTraktChartResponseObject, error) {
-	p := req.Params
-	page, limit, lang, e := args(p.Page, p.Limit, p.Lang, req.Media, req.List)
-	if e != nil {
-		return ListTraktChartdefaultJSONResponse{Body: *e, StatusCode: http.StatusBadRequest}, nil
+func (Server) ListTraktChart(c *gin.Context, media MediaParam, list TraktChartName, p ListTraktChartParams) {
+	page, limit, lang, f := args(p.Page, p.Limit, p.Lang, media, list)
+	if f != nil {
+		fail(c, f)
+		return
 	}
 	// The chart names are Trakt's own; Trakt pages by limit, and its request cache key includes page and limit.
-	movies := req.Media == MediaKindMovies
+	movies := media == MediaKindMovies
 	var refs []ref
 	var total int
 	var err error
 	if movies {
 		var ms []*trakt.Movies
-		ms, total, err = trakt.TopMovies(string(req.List), strconv.Itoa(page), limit)
+		ms, total, err = trakt.TopMovies(string(list), strconv.Itoa(page), limit)
 		for _, m := range ms {
 			if m != nil && m.Movie != nil && m.Movie.IDs != nil {
 				refs = append(refs, ref{m.Movie.IDs.TMDB, m.Movie.IDs.IMDB})
@@ -161,7 +145,7 @@ func (Server) ListTraktChart(_ context.Context, req ListTraktChartRequestObject)
 		}
 	} else {
 		var ss []*trakt.Shows
-		ss, total, err = trakt.TopShows(string(req.List), strconv.Itoa(page), limit)
+		ss, total, err = trakt.TopShows(string(list), strconv.Itoa(page), limit)
 		for _, s := range ss {
 			if s != nil && s.Show != nil && s.Show.IDs != nil {
 				refs = append(refs, ref{s.Show.IDs.TMDB, s.Show.IDs.IMDB})
@@ -169,35 +153,38 @@ func (Server) ListTraktChart(_ context.Context, req ListTraktChartRequestObject)
 		}
 	}
 	if err != nil {
-		log.Warningf("Trakt chart %s/%s failed: %v", req.Media, req.List, err)
-		return ListTraktChartdefaultJSONResponse{Body: trackerDown.body, StatusCode: trackerDown.status}, nil
+		log.Warningf("Trakt chart %s/%s failed: %v", media, list, err)
+		fail(c, trackerDown)
+		return
 	}
-	return ListTraktChart200JSONResponse{MediaItemPageJSONResponse(listPage(mediaItems(refs, movies, lang), total, page, limit))}, nil
+	c.JSON(http.StatusOK, listPage(mediaItems(refs, movies, lang), total, page, limit))
 }
 
-// trackerList pages a watchlist, collection or custom list of the linked tracker.
-func trackerList(kind tracker.ListKind, media MediaKind, listID string, page, limit *int, lang *string) (MediaItemPage, *failure) {
-	pg, lim, lng, e := args(page, limit, lang, media)
-	if e != nil {
-		return MediaItemPage{}, badParams(e)
+// trackerList answers a page of a watchlist, collection or custom list of the linked tracker.
+func trackerList(c *gin.Context, kind tracker.ListKind, media MediaKind, listID string, page, limit *int, lang *string) {
+	pg, lim, lng, f := args(page, limit, lang, media)
+	var p tracker.Provider
+	if f == nil {
+		p, f = activeTracker()
 	}
-	p, f := activeTracker()
 	if f != nil {
-		return MediaItemPage{}, f
+		fail(c, f)
+		return
 	}
 	t := tracker.MovieType
 	if media == MediaKindShows {
 		t = tracker.ShowType
 	}
-	if _, ok := p.(tracker.Collector); kind == tracker.KindCollection && !ok {
-		return MediaItemPage{}, &unsupported
-	}
-	if _, ok := p.(tracker.ListReader); kind == tracker.KindList && !ok {
-		return MediaItemPage{}, &unsupported
+	_, collector := p.(tracker.Collector)
+	_, reader := p.(tracker.ListReader)
+	if (kind == tracker.KindCollection && !collector) || (kind == tracker.KindList && !reader) {
+		fail(c, unsupported)
+		return
 	}
 	items, err := tracker.ViewItems(p, kind, listID, t, viewBuckets[media][kind])
 	if err != nil {
-		return MediaItemPage{}, trackerFailure(p, err)
+		fail(c, trackerFailure(p, err))
+		return
 	}
 	refs := []ref{}
 	for _, i := range window(items, pg, lim) {
@@ -205,83 +192,71 @@ func trackerList(kind tracker.ListKind, media MediaKind, listID string, page, li
 			refs = append(refs, ref{i.IDs.TMDB, i.IDs.IMDB})
 		}
 	}
-	return listPage(mediaItems(refs, t == tracker.MovieType, lng), len(items), pg, lim), nil
+	c.JSON(http.StatusOK, listPage(mediaItems(refs, t == tracker.MovieType, lng), len(items), pg, lim))
 }
 
-func (Server) ListTrackerWatchlist(_ context.Context, req ListTrackerWatchlistRequestObject) (ListTrackerWatchlistResponseObject, error) {
-	p := req.Params
-	page, f := trackerList(tracker.KindWatchlist, req.Media, "", p.Page, p.Limit, p.Lang)
-	if f != nil {
-		return ListTrackerWatchlistdefaultJSONResponse{Body: f.body, StatusCode: f.status}, nil
-	}
-	return ListTrackerWatchlist200JSONResponse{MediaItemPageJSONResponse(page)}, nil
+func (Server) ListTrackerWatchlist(c *gin.Context, media MediaParam, p ListTrackerWatchlistParams) {
+	trackerList(c, tracker.KindWatchlist, media, "", p.Page, p.Limit, p.Lang)
 }
 
-func (Server) ListTrackerCollection(_ context.Context, req ListTrackerCollectionRequestObject) (ListTrackerCollectionResponseObject, error) {
-	p := req.Params
-	page, f := trackerList(tracker.KindCollection, req.Media, "", p.Page, p.Limit, p.Lang)
-	if f != nil {
-		return ListTrackerCollectiondefaultJSONResponse{Body: f.body, StatusCode: f.status}, nil
-	}
-	return ListTrackerCollection200JSONResponse{MediaItemPageJSONResponse(page)}, nil
+func (Server) ListTrackerCollection(c *gin.Context, media MediaParam, p ListTrackerCollectionParams) {
+	trackerList(c, tracker.KindCollection, media, "", p.Page, p.Limit, p.Lang)
 }
 
-func (Server) ListTrackerListItems(_ context.Context, req ListTrackerListItemsRequestObject) (ListTrackerListItemsResponseObject, error) {
-	p := req.Params
-	if !listIDRe.MatchString(req.ListId) {
-		return ListTrackerListItemsdefaultJSONResponse{Body: badListID.body, StatusCode: badListID.status}, nil
+func (Server) ListTrackerListItems(c *gin.Context, listID string, p ListTrackerListItemsParams) {
+	if !listIDRe.MatchString(listID) {
+		fail(c, bad("invalid list_id"))
+		return
 	}
-	page, f := trackerList(tracker.KindList, p.Media, req.ListId, p.Page, p.Limit, p.Lang)
-	if f != nil {
-		return ListTrackerListItemsdefaultJSONResponse{Body: f.body, StatusCode: f.status}, nil
-	}
-	return ListTrackerListItems200JSONResponse{MediaItemPageJSONResponse(page)}, nil
+	trackerList(c, tracker.KindList, p.Media, listID, p.Page, p.Limit, p.Lang)
 }
 
-func (Server) ListTrackerLists(context.Context, ListTrackerListsRequestObject) (ListTrackerListsResponseObject, error) {
+func (Server) ListTrackerLists(c *gin.Context) {
 	p, f := activeTracker()
 	if f != nil {
-		return ListTrackerListsdefaultJSONResponse{Body: f.body, StatusCode: f.status}, nil
+		fail(c, f)
+		return
 	}
 	l, ok := p.(tracker.ListReader)
 	if !ok {
-		return ListTrackerListsdefaultJSONResponse{Body: unsupported.body, StatusCode: unsupported.status}, nil
+		fail(c, unsupported)
+		return
 	}
 	lists, err := l.Lists()
 	if err != nil {
-		f = trackerFailure(p, err)
-		return ListTrackerListsdefaultJSONResponse{Body: f.body, StatusCode: f.status}, nil
+		fail(c, trackerFailure(p, err))
+		return
 	}
-	out := ListTrackerLists200JSONResponse{}
+	out := []TrackerList{}
 	for _, list := range lists {
 		if list != nil {
 			out = append(out, TrackerList{Id: list.ID, Name: list.Name, ItemCount: list.ItemCount})
 		}
 	}
-	return out, nil
+	c.JSON(http.StatusOK, out)
 }
 
-func (Server) ListTrackerProgress(_ context.Context, req ListTrackerProgressRequestObject) (ListTrackerProgressResponseObject, error) {
-	fail := func(f *failure) (ListTrackerProgressResponseObject, error) {
-		return ListTrackerProgressdefaultJSONResponse{Body: f.body, StatusCode: f.status}, nil
+func (Server) ListTrackerProgress(c *gin.Context, params ListTrackerProgressParams) {
+	pg, lim, lng, f := args(params.Page, params.Limit, params.Lang)
+	var p tracker.Provider
+	if f == nil {
+		p, f = activeTracker()
 	}
-	pg, lim, lng, e := args(req.Params.Page, req.Params.Limit, req.Params.Lang)
-	if e != nil {
-		return fail(badParams(e))
-	}
-	p, f := activeTracker()
 	if f != nil {
-		return fail(f)
+		fail(c, f)
+		return
 	}
 	pr, ok := p.(tracker.ProgressReader)
 	if !ok {
-		return fail(&unsupported)
+		fail(c, unsupported)
+		return
 	}
 	// as the Kodi progress view does
 	activities, err := tracker.GetActivities(p, "view.progress")
 	items, err := pr.Progress(err != nil || activities.Changed(tracker.EpisodesWatched))
 	if err != nil {
-		return fail(trackerFailure(p, err))
+		fail(c, trackerFailure(p, err))
+		return
 	}
 
 	page := window(items, pg, lim)
@@ -311,28 +286,31 @@ func (Server) ListTrackerProgress(_ context.Context, req ListTrackerProgressRequ
 			out.Items = append(out.Items, *ne)
 		}
 	}
-	return ListTrackerProgress200JSONResponse(out), nil
+	c.JSON(http.StatusOK, out)
 }
 
-func (Server) StartTrackerAuth(_ context.Context, _ StartTrackerAuthRequestObject) (StartTrackerAuthResponseObject, error) {
+func (Server) StartTrackerAuth(c *gin.Context) {
 	if !config.SettingsWritable() { // the token could not be saved
-		return StartTrackerAuth409JSONResponse(newError(ErrorCodeTrackerUnsupported, "linking needs a JSON settings file")), nil
+		fail(c, noTokenStore)
+		return
 	}
 	p := tracker.Selected() // an unlinked tracker is the one to link
 	s, ok := p.(tracker.DeviceAuthStarter)
 	if !ok {
-		return StartTrackerAuth409JSONResponse(noDeviceAuth.body), nil
+		fail(c, noDeviceAuth)
+		return
 	}
 	code, err := s.StartAuth()
 	if err != nil {
 		log.Warningf("%s authorization failed: %v", p.Name(), err)
-		return StartTrackerAuth502JSONResponse(trackerDown.body), nil
+		fail(c, trackerDown)
+		return
 	}
-	return StartTrackerAuth200JSONResponse{
-		Tracker:         TrackerInfo{Id: p.ID(), Name: p.Name(), Authorized: p.Authorized(), Logins: tracker.Logins(p.ID())},
+	c.JSON(http.StatusOK, TrackerAuthCode{
+		Tracker:         *trackerInfo(p),
 		UserCode:        code.UserCode,
 		VerificationUrl: code.VerificationURL,
 		ExpiresIn:       code.ExpiresIn,
 		Interval:        code.Interval,
-	}, nil
+	})
 }

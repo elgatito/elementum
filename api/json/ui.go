@@ -1,8 +1,8 @@
 package jsonapi
 
 import (
-	"context"
 	"errors"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -10,35 +10,37 @@ import (
 	"github.com/elgatito/elementum/ui"
 )
 
+var badClientID = bad("client_id must be 1-64 letters, digits, - or _")
+
 // GetUiEvents long-polls the UI broker. Texts are translated here, in the client's language.
-func (Server) GetUiEvents(ctx context.Context, req GetUiEventsRequestObject) (GetUiEventsResponseObject, error) {
-	p := req.Params
-	if !ui.ClientIDRe.MatchString(p.ClientId) {
-		return GetUiEvents400JSONResponse{BadRequestJSONResponse(newError(ErrorCodeBadRequest, "client_id must be 1-64 letters, digits, - or _"))}, nil
-	}
+func (Server) GetUiEvents(c *gin.Context, p GetUiEventsParams) {
 	wait := 25
 	if p.Wait != nil {
 		wait = *p.Wait
 	}
-	if wait < 0 || wait > 60 || (p.Since != nil && *p.Since < 0) {
-		return GetUiEvents400JSONResponse{BadRequestJSONResponse(newError(ErrorCodeBadRequest, "wait must be 0-60 and since 0 or more"))}, nil
+	lang, f := langArg(p.Lang)
+	switch {
+	case !ui.ClientIDRe.MatchString(p.ClientId):
+		f = badClientID
+	case wait < 0 || wait > 60 || (p.Since != nil && *p.Since < 0):
+		f = bad("wait must be 0-60 and since 0 or more")
 	}
-	lang, e := langArg(p.Lang)
-	if e != nil {
-		return GetUiEvents400JSONResponse{BadRequestJSONResponse(*e)}, nil
+	if f != nil {
+		fail(c, f)
+		return
 	}
-	// The strict server's ctx is the *gin.Context, which is not cancelled with the request.
-	reqCtx := ctx.(*gin.Context).Request.Context()
-	events := ui.Default.Poll(reqCtx, p.ClientId, ui.Default.SinceFor(derefOr(p.Epoch), p.Since), time.Duration(wait)*time.Second)
+	events := ui.Default.Poll(c.Request.Context(), p.ClientId, ui.Default.SinceFor(derefOr(p.Epoch), p.Since), time.Duration(wait)*time.Second)
 	epoch := ui.Default.Epoch()
+	c.Header("X-UI-Epoch", epoch)
 	if len(events) == 0 {
-		return GetUiEvents204Response{Headers: GetUiEvents204ResponseHeaders{XUIEpoch: &epoch}}, nil
+		c.Status(http.StatusNoContent)
+		return
 	}
 	batch := UIEventBatch{Seq: events[len(events)-1].Seq, Epoch: epoch, Events: make([]UIEvent, len(events))}
 	for i, e := range events {
 		batch.Events[i] = uiEvent(e.Translated(lang))
 	}
-	return GetUiEvents200JSONResponse{Body: batch, Headers: GetUiEvents200ResponseHeaders{XUIEpoch: &epoch}}, nil
+	c.JSON(http.StatusOK, batch)
 }
 
 func uiEvent(e ui.Event) UIEvent {
@@ -68,21 +70,26 @@ func uiEvent(e ui.Event) UIEvent {
 }
 
 // AnswerUiRequest hands a client's answer to the broker.
-func (Server) AnswerUiRequest(_ context.Context, req AnswerUiRequestRequestObject) (AnswerUiRequestResponseObject, error) {
-	b := req.Body
-	if b == nil || !ui.ClientIDRe.MatchString(b.ClientId) {
-		return AnswerUiRequest400JSONResponse{BadRequestJSONResponse(newError(ErrorCodeBadRequest, "client_id must be 1-64 letters, digits, - or _"))}, nil
+func (Server) AnswerUiRequest(c *gin.Context, id string) {
+	b := body[UIAnswer](c)
+	if b == nil {
+		return
+	}
+	if !ui.ClientIDRe.MatchString(b.ClientId) {
+		fail(c, badClientID)
+		return
 	}
 	a := ui.Answer{Selected: derefOr(b.Selected), Text: derefOr(b.Text), Yes: derefOr(b.Yes), Cancel: derefOr(b.Cancel)}
-	switch err := ui.Default.Answer(req.Id, a); {
+	switch err := ui.Default.Answer(id, a); {
 	case errors.Is(err, ui.ErrUnknown):
-		return AnswerUiRequest404JSONResponse{NotFoundJSONResponse(newError(ErrorCodeNotFound, "unknown request"))}, nil
+		fail(c, failed(http.StatusNotFound, ErrorCodeNotFound, "unknown request"))
 	case errors.Is(err, ui.ErrInvalid):
-		return AnswerUiRequest400JSONResponse{BadRequestJSONResponse(newError(ErrorCodeBadRequest, "invalid answer"))}, nil
+		fail(c, bad("invalid answer"))
 	case errors.Is(err, ui.ErrClosed):
-		return AnswerUiRequest410JSONResponse(newError(ErrorCodeUiRequestExpired, "request is closed")), nil
+		fail(c, failed(http.StatusGone, ErrorCodeUiRequestExpired, "request is closed"))
+	default:
+		c.Status(http.StatusNoContent)
 	}
-	return AnswerUiRequest204Response{}, nil
 }
 
 func derefOr[T any](p *T) (v T) {

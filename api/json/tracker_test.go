@@ -440,3 +440,21 @@ func TestStartTrackerAuthYAMLSettings(t *testing.T) {
 		t.Errorf("status %d: %s", w.Code, w.Body)
 	}
 }
+
+// noLists is a linked tracker whose account has no lists.
+type noLists struct{ fakeTracker }
+
+func (noLists) Lists() ([]*tracker.List, error) { return nil, nil }
+func (noLists) ListItems(string, tracker.MediaType, bool) ([]*tracker.Item, error) {
+	return nil, nil
+}
+
+// An account without lists answers an empty array, not null.
+func TestTrackerListsEmpty(t *testing.T) {
+	setCreds(t, "", "")
+	useTracker(t, noLists{fakeTracker{authorized: true}})
+	w := do(newEngine(), request{path: "/api/tracker/lists"})
+	if w.Code != http.StatusOK || w.Body.String() != "[]" {
+		t.Errorf("status %d: %s", w.Code, w.Body)
+	}
+}

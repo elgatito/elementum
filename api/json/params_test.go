@@ -29,8 +29,8 @@ func TestCheckParams(t *testing.T) {
 			if (e != nil) != tc.bad {
 				t.Fatalf("got %+v, want bad=%v", e, tc.bad)
 			}
-			if e != nil && (e.Error.Code != ErrorCodeBadRequest || e.Error.Message == "" || strings.Contains(e.Error.Message, "0x")) {
-				t.Errorf("error = %+v", e.Error)
+			if e != nil && (e.body.Error.Code != ErrorCodeBadRequest || e.body.Error.Message == "" || strings.Contains(e.body.Error.Message, "0x")) {
+				t.Errorf("error = %+v", e.body.Error)
 			}
 		})
 	}

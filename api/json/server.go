@@ -4,7 +4,6 @@ package jsonapi
 //go:generate go tool oapi-codegen -config oapi-codegen.yaml openapi.yaml
 
 import (
-	"context"
 	"crypto/subtle"
 	_ "embed"
 	"fmt"
@@ -30,11 +29,7 @@ var (
 	docs []byte
 )
 
-// Server implements StrictServerInterface.
-//
-// The ctx handlers get is the *gin.Context. Gin's ContextWithFallback is off (turning it on would change
-// the Kodi handlers), so use ctx.(*gin.Context).Request.Context() for cancellation and .Request for
-// http.ServeContent.
+// Server implements ServerInterface. Handlers answer through c.JSON, c.Status or fail.
 type Server struct{}
 
 // Register mounts /api, the spec and /api/docs on the engine. Playback runs its torrents on s.
@@ -43,18 +38,8 @@ func Register(r *gin.Engine, s *bittorrent.Service) {
 	r.GET("/api/docs", func(c *gin.Context) { c.Data(http.StatusOK, "text/html; charset=utf-8", docs) })
 	r.GET("/api/openapi.yaml", func(c *gin.Context) { c.Data(http.StatusOK, "application/yaml", spec) })
 
-	badRequest := func(c *gin.Context, err error) { abort(c, http.StatusBadRequest, ErrorCodeBadRequest, err.Error()) }
-	// Upstream errors can hold URLs with api keys, so they are only logged.
-	internal := func(c *gin.Context, err error) {
-		log.Errorf("%s %s: %v", c.Request.Method, c.Request.URL.Path, err)
-		abort(c, http.StatusInternalServerError, ErrorCodeInternalError, "internal error")
-	}
-	handler := NewStrictHandlerWithOptions(Server{}, nil, StrictGinServerOptions{
-		RequestErrorHandlerFunc:  badRequest,
-		HandlerErrorFunc:         internal,
-		ResponseErrorHandlerFunc: internal,
-	})
 	// Auth is a group middleware, not GinServerOptions.Middlewares, so it runs before parameter parsing.
+	// Upstream errors can hold URLs with api keys, so a panic is only logged.
 	recovery := gin.CustomRecovery(func(c *gin.Context, err any) {
 		log.Errorf("panic in %s %s: %v", c.Request.Method, c.Request.URL.Path, err)
 		abort(c, http.StatusInternalServerError, ErrorCodeInternalError, "internal error")
@@ -62,14 +47,14 @@ func Register(r *gin.Engine, s *bittorrent.Service) {
 	group := r.Group("/api", recovery, basicAuth)
 	paramError := func(c *gin.Context, err error, status int) {
 		if strings.HasPrefix(c.FullPath(), "/api/stream/") {
-			c.AbortWithStatusJSON(http.StatusForbidden, forbidden) // every stream link rejection looks the same
+			fail(c, forbidden) // every stream link rejection looks the same
 			return
 		}
 		abort(c, status, ErrorCodeBadRequest, err.Error())
 	}
-	RegisterHandlersWithOptions(group, handler, GinServerOptions{ErrorHandler: paramError})
+	RegisterHandlersWithOptions(group, Server{}, GinServerOptions{ErrorHandler: paramError})
 	// OpenAPI 3.0 can't declare HEAD; the stream handler serves it like GET (players probe with it).
-	group.HEAD("/stream/:id/:file_index", (&ServerInterfaceWrapper{Handler: handler, ErrorHandler: paramError}).GetStream)
+	group.HEAD("/stream/:id/:file_index", (&ServerInterfaceWrapper{Handler: Server{}, ErrorHandler: paramError}).GetStream)
 
 	// Without handlers gin still writes its plain 404 for other paths, so Kodi routes are unaffected.
 	r.NoRoute(func(c *gin.Context) {
@@ -103,16 +88,38 @@ func newError(code ErrorCode, message string) Error {
 	return Error{Error: ErrorBody{Code: code, Message: message}}
 }
 
-// checkParams returns a bad_request Error when page is below 1, limit is outside 1-100, or an enum
-// is not a known value, else nil. The strict server checks none of these. Nil optional enums are skipped.
-func checkParams(page, limit *int, enums ...interface{ Valid() bool }) *Error {
+// failure is an error response.
+type failure struct {
+	status int
+	body   Error
+}
+
+func failed(status int, code ErrorCode, message string) *failure {
+	return &failure{status, newError(code, message)}
+}
+
+func bad(message string) *failure { return failed(http.StatusBadRequest, ErrorCodeBadRequest, message) }
+
+func fail(c *gin.Context, f *failure) { c.AbortWithStatusJSON(f.status, f.body) }
+
+// body decodes the JSON request body; on a malformed one it answers 400 and returns nil.
+func body[T any](c *gin.Context) *T {
+	var b T
+	if err := c.ShouldBindJSON(&b); err != nil {
+		fail(c, bad(err.Error()))
+		return nil
+	}
+	return &b
+}
+
+// checkParams returns a bad_request failure when page is below 1, limit is outside 1-100, or an enum
+// is not a known value, else nil. The generated binding checks none of these. Nil optional enums are skipped.
+func checkParams(page, limit *int, enums ...interface{ Valid() bool }) *failure {
 	if limit != nil && (*limit < 1 || *limit > 100) {
-		e := newError(ErrorCodeBadRequest, "limit must be between 1 and 100")
-		return &e
+		return bad("limit must be between 1 and 100")
 	}
 	if page != nil && *page < 1 {
-		e := newError(ErrorCodeBadRequest, "page must be 1 or more")
-		return &e
+		return bad("page must be 1 or more")
 	}
 	for _, v := range enums {
 		rv := reflect.ValueOf(v)
@@ -120,16 +127,15 @@ func checkParams(page, limit *int, enums ...interface{ Valid() bool }) *Error {
 			continue // unset optional enum
 		}
 		if !v.Valid() {
-			e := newError(ErrorCodeBadRequest, fmt.Sprintf("invalid value %q", reflect.Indirect(rv).Interface()))
-			return &e
+			return bad(fmt.Sprintf("invalid value %q", reflect.Indirect(rv).Interface()))
 		}
 	}
 	return nil
 }
 
 // GetSystemInfo reports the version, auth and tracker state. It never starts a tracker login.
-func (Server) GetSystemInfo(context.Context, GetSystemInfoRequestObject) (GetSystemInfoResponseObject, error) {
-	info := GetSystemInfo200JSONResponse{
+func (Server) GetSystemInfo(c *gin.Context) {
+	info := SystemInfo{
 		Version:      ident.GetVersion(),
 		AuthRequired: config.Args.LocalLogin != "" || config.Args.LocalPassword != "",
 		Language:     config.Get().Language,
@@ -138,8 +144,12 @@ func (Server) GetSystemInfo(context.Context, GetSystemInfoRequestObject) (GetSys
 		SettingsSource: SystemInfoSettingsSource(config.SettingsSource()),
 	}
 	if p := tracker.Selected(); p != nil {
-		// Authorized() only checks stored tokens/keys for every tracker; trakt.Authorized() would start a login.
-		info.Tracker = &TrackerInfo{Id: p.ID(), Name: p.Name(), Authorized: p.Authorized(), Logins: tracker.Logins(p.ID())}
+		info.Tracker = trackerInfo(p)
 	}
-	return info, nil
+	c.JSON(http.StatusOK, info)
+}
+
+// trackerInfo only checks stored tokens/keys (Authorized); trakt.Authorized() would start a login.
+func trackerInfo(p tracker.Provider) *TrackerInfo {
+	return &TrackerInfo{Id: p.ID(), Name: p.Name(), Authorized: p.Authorized(), Logins: tracker.Logins(p.ID())}
 }

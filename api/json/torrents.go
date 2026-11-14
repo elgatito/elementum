@@ -1,10 +1,12 @@
 package jsonapi
 
 import (
-	"context"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
 
 	"github.com/elgatito/elementum/bittorrent"
 	"github.com/elgatito/elementum/database"
@@ -15,8 +17,8 @@ import (
 
 var (
 	hashRe        = regexp.MustCompile(`^[0-9a-fA-F]{40}$`)
-	badHash       = newError(ErrorCodeBadRequest, "info_hash must be 40 hex characters")
-	torrentAbsent = newError(ErrorCodeNotFound, "torrent not found")
+	badHash       = bad("info_hash must be 40 hex characters")
+	torrentAbsent = failed(http.StatusNotFound, ErrorCodeNotFound, "torrent not found")
 
 	// Indexed by bittorrent.Status*.
 	torrentStates = []TorrentState{
@@ -61,9 +63,9 @@ func toTorrent(i torrentInfo) Torrent {
 	return t
 }
 
-func (Server) ListTorrents(context.Context, ListTorrentsRequestObject) (ListTorrentsResponseObject, error) {
+func (Server) ListTorrents(c *gin.Context) {
 	torrents := sessions.bts.GetTorrents()
-	out := make(ListTorrents200JSONResponse, 0, len(torrents))
+	out := make([]Torrent, 0, len(torrents))
 	for _, t := range torrents {
 		if t == nil || t.Closer.IsSet() || sessions.bts.Closer.IsSet() {
 			continue
@@ -76,65 +78,56 @@ func (Server) ListTorrents(context.Context, ListTorrentsRequestObject) (ListTorr
 			added: t.GetAddedTime(), db: t.GetDBItem(), players: t.PlayerAttached.Load(),
 		}))
 	}
-	return out, nil
+	c.JSON(http.StatusOK, out)
 }
 
 // findTorrent validates the hash and looks the torrent up; exactly one of the results is set.
-func findTorrent(hash string) (*bittorrent.Torrent, *Error) {
+func findTorrent(hash string) (*bittorrent.Torrent, *failure) {
 	if !hashRe.MatchString(hash) {
-		return nil, &badHash
+		return nil, badHash
 	}
 	if t := sessions.bts.GetTorrentByHash(strings.ToLower(hash)); t != nil {
 		return t, nil
 	}
-	return nil, &torrentAbsent
+	return nil, torrentAbsent
 }
 
-func (Server) PauseTorrent(_ context.Context, req PauseTorrentRequestObject) (PauseTorrentResponseObject, error) {
-	t, e := findTorrent(req.InfoHash)
-	switch {
-	case e == &badHash:
-		return PauseTorrent400JSONResponse{badRequest(e)}, nil
-	case e != nil:
-		return PauseTorrent404JSONResponse{NotFoundJSONResponse(*e)}, nil
+// torrentAction runs do on the torrent and answers 204, or the lookup's failure.
+func torrentAction(c *gin.Context, hash string, do func(*bittorrent.Torrent)) {
+	t, f := findTorrent(hash)
+	if f != nil {
+		fail(c, f)
+		return
 	}
-	t.Pause()
-	return PauseTorrent204Response{}, nil
+	do(t)
+	c.Status(http.StatusNoContent)
 }
 
-func (Server) ResumeTorrent(_ context.Context, req ResumeTorrentRequestObject) (ResumeTorrentResponseObject, error) {
-	t, e := findTorrent(req.InfoHash)
-	switch {
-	case e == &badHash:
-		return ResumeTorrent400JSONResponse{badRequest(e)}, nil
-	case e != nil:
-		return ResumeTorrent404JSONResponse{NotFoundJSONResponse(*e)}, nil
-	}
-	if sessions.bts.IsPaused() { // Kodi's "pause all" would keep the torrent paused
-		sessions.bts.Resume()
-	}
-	t.Resume()
-	return ResumeTorrent204Response{}, nil
+func (Server) PauseTorrent(c *gin.Context, hash InfoHashParam) {
+	torrentAction(c, hash, (*bittorrent.Torrent).Pause)
+}
+
+func (Server) ResumeTorrent(c *gin.Context, hash InfoHashParam) {
+	torrentAction(c, hash, func(t *bittorrent.Torrent) {
+		if sessions.bts.IsPaused() { // Kodi's "pause all" would keep the torrent paused
+			sessions.bts.Resume()
+		}
+		t.Resume()
+	})
 }
 
 // RemoveTorrent drops the torrent with no Kodi host, so nothing is asked: the data goes only with delete_files.
 // A playback session on the torrent is stopped after the removal (not before: the player's own Close would
 // remove the torrent first, by the keep-files settings, and ignore delete_files).
-func (Server) RemoveTorrent(_ context.Context, req RemoveTorrentRequestObject) (RemoveTorrentResponseObject, error) {
-	t, e := findTorrent(req.InfoHash)
-	switch {
-	case e == &badHash:
-		return RemoveTorrent400JSONResponse{badRequest(e)}, nil
-	case e != nil:
-		return RemoveTorrent404JSONResponse{NotFoundJSONResponse(*e)}, nil
-	}
-	deleteFiles := req.Params.DeleteFiles != nil && *req.Params.DeleteFiles
-	sessions.bts.RemoveTorrent(nil, t, bittorrent.RemoveOptions{ForceDrop: true, ForceDelete: deleteFiles, ForceKeepTorrentData: !deleteFiles})
+func (Server) RemoveTorrent(c *gin.Context, hash InfoHashParam, p RemoveTorrentParams) {
+	torrentAction(c, hash, func(t *bittorrent.Torrent) {
+		deleteFiles := p.DeleteFiles != nil && *p.DeleteFiles
+		sessions.bts.RemoveTorrent(nil, t, bittorrent.RemoveOptions{ForceDrop: true, ForceDelete: deleteFiles, ForceKeepTorrentData: !deleteFiles})
 
-	stopSessions(func(sess *session) bool {
-		return sess.hash == t.InfoHash() || (sess.state != PlaybackStateResolving && sess.player != nil && sess.player.GetTorrent() == t)
+		stopSessions(func(sess *session) bool {
+			return sess.hash == t.InfoHash() || (sess.state != PlaybackStateResolving && sess.player != nil && sess.player.GetTorrent() == t)
+		})
 	})
-	return RemoveTorrent204Response{}, nil
 }
 
 // stopSessions stops and forgets the sessions for which uses is true.
