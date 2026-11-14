@@ -17,10 +17,10 @@ func TestLive(t *testing.T) {
 	defs := Load("")
 	q := Query{Method: "movie", Title: "the matrix", Year: 1999, IMDBId: "tt0133093", TMDBId: 603,
 		Titles: map[string]string{"original": "The Matrix", "en": "The Matrix"}, Languages: []string{"en"}}
-	for _, id := range Enabled(defs) {
+	for _, id := range Enabled(defs, nil) {
 		ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 		start := time.Now()
-		results := searchProvider(ctx, id, defs[id], q)
+		results := searchProvider(ctx, id, defs[id], Settings{}, q)
 		cancel()
 		t.Logf("%-14s %2d results in %4.1fs", id, len(results), time.Since(start).Seconds())
 		for i, r := range results {

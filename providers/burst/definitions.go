@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/op/go-logging"
@@ -57,8 +58,8 @@ func (d Definition) Skipped() string {
 	switch {
 	case d.str("unsupported") != "":
 		return "definition not converted: " + d.str("unsupported")
-	case d.flag("private"), d.str("login_path") != "", d.str("token") != "":
-		return "needs a login" // shortcut: private trackers are not ported yet, see docs/builtin-providers.md phase 4
+	case d.str("token") != "":
+		return "needs a request token, which is not supported"
 	}
 	return ""
 }
@@ -148,17 +149,40 @@ func update(d, u map[string]any) {
 	}
 }
 
-// Enabled returns the ids of the providers to search, sorted. A provider is on when its definition says
-// "predefined": true (Burst's default set), which an override file can set for others, or when it is the
-// user's own provider.
-// shortcut: per-provider settings (settings.json and the API) are phase 3.
-func Enabled(defs map[string]Definition) []string {
-	var ids []string
-	for id, d := range defs {
-		if (d.flag("predefined") || d.flag("custom")) && d.flag("enabled") && d.Skipped() == "" {
-			ids = append(ids, id)
-		}
+// withAlias returns the definition moved to a mirror: alias is another domain ("example.org") or URL
+// ("http://example.org") of the same site. The original is not changed.
+func (d Definition) withAlias(alias string) Definition {
+	oldHost := host(d.str("root_url"))
+	if oldHost == "" {
+		oldHost = host(d.str("base_url"))
 	}
-	sort.Strings(ids)
-	return ids
+	scheme, newHost, found := strings.Cut(alias, "://")
+	if !found {
+		scheme, newHost = "", alias
+	}
+	newHost = strings.Trim(newHost, "/ ")
+	if alias == "" || oldHost == "" || newHost == "" {
+		return d
+	}
+	// Through JSON, so the domain is replaced in every text of the definition, parser specs included.
+	b, err := json.Marshal(d)
+	if err != nil {
+		return d
+	}
+	text := strings.ReplaceAll(string(b), oldHost, newHost)
+	if scheme != "" {
+		text = strings.NewReplacer("https://"+newHost, scheme+"://"+newHost, "http://"+newHost, scheme+"://"+newHost).Replace(text)
+	}
+	var out Definition
+	if json.Unmarshal([]byte(text), &out) != nil {
+		return d
+	}
+	return out
+}
+
+func host(raw string) string {
+	if u, err := url.Parse(raw); err == nil {
+		return u.Host
+	}
+	return ""
 }

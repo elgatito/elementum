@@ -80,7 +80,7 @@ func TestBundledDefinitions(t *testing.T) {
 	if searchable < 40 {
 		t.Errorf("only %d providers are searchable", searchable)
 	}
-	if on := Enabled(defs); !reflect.DeepEqual(on, []string{"1337x", "bt4g", "knaben", "thepiratebay", "torrentio", "yts"}) {
+	if on := Enabled(defs, nil); !reflect.DeepEqual(on, []string{"1337x", "bt4g", "knaben", "thepiratebay", "torrentio", "yts"}) {
 		t.Errorf("default providers: %v", on)
 	}
 }
@@ -101,6 +101,12 @@ func TestSelector(t *testing.T) {
 	}
 	if odd := follow(dom, spec(t, `[{"tag":"tr","all":true,"select":[["class",["odd","even"]]]}]`)); len(odd) != 1 {
 		t.Errorf("class match: %d rows", len(odd))
+	}
+	if rows := follow(dom, spec(t, `[{"css":"tbody > tr.row"}]`)); len(rows) != 2 {
+		t.Errorf("css rows: %d", len(rows))
+	}
+	if rows := follow(dom, spec(t, `[{"css":"tr","nth":2},{"css":"td"}]`)); len(rows) != 7 {
+		t.Errorf("css steps: %d cells", len(rows))
 	}
 	for s, want := range map[string]string{
 		`{"tag":"a","nth":2}`:                                                     "First Movie 2020",
@@ -123,7 +129,13 @@ func TestSelector(t *testing.T) {
 		`{"op":"upper","arg":{"op":"replace","arg":{"tag":"a"},"old":"ies","new":"y"}}`:        "MOVY",
 		`{"op":"unquote","arg":{"op":"resub","pattern":"^x","repl":"","arg":"xa%20b"}}`:        "a b",
 		`{"op":"if","test":{"tag":"span"},"then":"yes","else":"no"}`:                           "no",
-		`{"op":"key"}`: "KEY",
+		`{"op":"key"}`:                           "KEY",
+		`{"css":"td:nth-child(2)"}`:              "1.4 GB in 2 files",
+		`{"css":"td > a","nth":2,"attr":"href"}`: "/t/1",
+		`{"css":"div.outer"}`:                    "inout",
+		`{"css":"td[align=right]","nth":0}`:      "last",
+		`{"css":"video"}`:                        "",
+		`{"css":"td:nth-child(","attr":"href"}`:  "", // a selector that does not compile matches nothing
 	} {
 		if got, err := eval(spec(t, s), rows[0], "KEY"); err != nil || got != want {
 			t.Errorf("%s = %q, %v; want %q", s, got, err, want)
@@ -225,10 +237,13 @@ func TestSearch(t *testing.T) {
 	}
 	t.Cleanup(Reload)
 	defs := Load(dir)
+	off := false
 	for _, id := range []string{"1337x", "bt4g", "knaben", "thepiratebay", "torrentio"} {
-		defs[id]["enabled"] = false // only the local ones are asked
+		if err := SaveSettings(dir, id, Settings{Enabled: &off}); err != nil { // only the local ones are asked
+			t.Fatal(err)
+		}
 	}
-	if on := Enabled(defs); !reflect.DeepEqual(on, []string{"mine", "myapi"}) {
+	if on := Enabled(defs, LoadSettings(dir)); !reflect.DeepEqual(on, []string{"mine", "myapi"}) {
 		t.Fatalf("enabled: %v", on)
 	}
 	if defs["mine"].str("root_url") != srv.URL {
@@ -267,5 +282,147 @@ func TestLinkOnPage(t *testing.T) {
 		if got := linkOnPage(d, content); got != want {
 			t.Errorf("%s: %q, want %q", content, got, want)
 		}
+	}
+}
+
+// resultsPage is a results table of n rows, the size of a real tracker page.
+func resultsPage(n int) string {
+	var b strings.Builder
+	b.WriteString(`<html><head><title>x</title></head><body><div class="nav"><a href="/">home</a></div><table class="results"><tbody>`)
+	for i := 0; i < n; i++ {
+		fmt.Fprintf(&b, `<tr class="row"><td><a href="/cat">Movies</a><a href="/t/%[1]d" title="t">Some Movie %[1]d 1080p BluRay x264</a></td><td>1.4 GB</td><td>%[1]d</td><td>5</td><td><span class="date">2024-01-01</span></td></tr>`+"\n", i)
+	}
+	b.WriteString(`</tbody></table></body></html>`)
+	return b.String()
+}
+
+func benchmarkPage(b *testing.B, parser string) {
+	content := resultsPage(300)
+	var p map[string]any
+	if err := json.Unmarshal([]byte(parser), &p); err != nil {
+		b.Fatal(err)
+	}
+	d := Definition{"name": "Bench", "parser": p}
+	b.SetBytes(int64(len(content)))
+	for b.Loop() {
+		if got := fromPage("bench", d, content); len(got) != 300 {
+			b.Fatalf("%d results", len(got))
+		}
+	}
+}
+
+// One results page of 300 rows, parsed and read with each selector form.
+func BenchmarkPageTags(b *testing.B) {
+	benchmarkPage(b, `{"row":[{"tag":"tbody"},{"tag":"tr","all":true}],"name":{"tag":"a","nth":2},"torrent":{"tag":"a","nth":2,"attr":"href"},"size":{"tag":"td","nth":2},"seeds":{"tag":"td","nth":3},"peers":{"tag":"td","nth":4}}`)
+}
+
+func BenchmarkPageCSS(b *testing.B) {
+	benchmarkPage(b, `{"row":[{"css":"table.results > tbody > tr"}],"name":{"css":"td:nth-child(1) > a:nth-child(2)"},"torrent":{"css":"td:nth-child(1) > a:nth-child(2)","attr":"href"},"size":{"css":"td:nth-child(2)"},"seeds":{"css":"td:nth-child(3)"},"peers":{"css":"td:nth-child(4)"}}`)
+}
+
+// A private tracker on a local server: the login form, the session cookie on the search and on the
+// torrent link, a passkey tracker, and a mirror.
+func TestPrivate(t *testing.T) {
+	logins := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/takelogin.php":
+			logins++
+			if r.PostFormValue("username") == "me" && r.PostFormValue("password") == "secret" && r.PostFormValue("returnto") == "/" {
+				http.SetCookie(w, &http.Cookie{Name: "session", Value: "ok", Path: "/"})
+				fmt.Fprint(w, "welcome")
+			} else {
+				fmt.Fprint(w, "Login failed")
+			}
+		case "/browse":
+			if c, err := r.Cookie("session"); err != nil || c.Value != "ok" {
+				http.Error(w, "no session", http.StatusForbidden)
+				return
+			}
+			fmt.Fprint(w, `<table><tr><td><a href="/download/1.torrent">Private Movie</a></td><td>2 GB</td><td>9</td></tr></table>`)
+		case "/api":
+			if r.URL.Query().Get("key") != "PK1" || r.URL.Query().Get("user") != "me" {
+				http.Error(w, "bad key", http.StatusForbidden)
+				return
+			}
+			fmt.Fprint(w, `[{"name":"Key Movie","seeders":3,"link":"/dl/7?passkey=PK1"}]`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	form := Definition{"name": "Form", "color": "FFFFFFFF", "private": true, "enabled": true, "predefined": true, "separator": "+",
+		"base_url": "https://old.example/browse?q=QUERY", "root_url": "https://old.example", "movie_keywords": "{title}",
+		"login_path": "/takelogin.php", "login_failed": "Login failed",
+		"login_object": map[string]any{"username": "USERNAME", "password": "PASSWORD", "returnto": "/"},
+		"parser": map[string]any{"row": spec(t, `[{"tag":"tr","all":true}]`), "name": spec(t, `{"tag":"a"}`),
+			"torrent": spec(t, `{"tag":"a","attr":"href"}`), "size": spec(t, `{"tag":"td","nth":2}`), "seeds": spec(t, `{"tag":"td","nth":3}`)}}
+	q := Query{Method: "movie", Title: "private movie"}
+	ctx := context.Background()
+
+	if st := status("form", form, Settings{}); !st.NeedsLogin || !st.Enabled {
+		t.Errorf("status without credentials: %+v", st)
+	}
+	if got := searchProvider(ctx, "form", form, Settings{Username: "me", Password: "wrong", Alias: srv.URL}, q); len(got) != 0 {
+		t.Errorf("wrong password: %+v", got)
+	}
+	set := Settings{Username: "me", Password: "secret", Alias: srv.URL}
+	got := searchProvider(ctx, "form", form, set, q)
+	if len(got) != 1 || got[0].Name != "Private Movie" || got[0].Seeds != 9 {
+		t.Fatalf("results: %+v", got)
+	}
+	parts := strings.Split(got[0].URI, "|")
+	if parts[0] != srv.URL+"/download/1.torrent" || !contains(parts, "Cookie=session=ok") || !contains(parts, "Referer="+srv.URL+"/browse?q=private+movie") {
+		t.Errorf("link: %q", got[0].URI)
+	}
+	if form.str("base_url") != "https://old.example/browse?q=QUERY" {
+		t.Errorf("the mirror changed the definition: %s", form.str("base_url"))
+	}
+	// A background search does not sign in; here the cookies of the search before still hold.
+	before := logins
+	q.SkipAuth = true
+	if got := searchProvider(ctx, "form", form, set, q); len(got) != 1 || logins != before {
+		t.Errorf("skip auth: %d results, %d logins", len(got), logins-before)
+	}
+
+	key := Definition{"name": "Key", "color": "FFFFFFFF", "private": true, "is_api": true, "separator": "+", "movie_keywords": "{title}",
+		"base_url": srv.URL + "/api?user=USERNAME&key=PASSKEY&q=QUERY", "root_url": srv.URL, "download_path": srv.URL,
+		"api_format": map[string]any{"name": "name", "seeds": "seeders", "torrent": "link"}}
+	got = searchProvider(ctx, "key", key, Settings{Username: "me", Passkey: "PK1"}, q)
+	if len(got) != 1 || got[0].URI != srv.URL+"/dl/7?passkey=PK1" || got[0].Seeds != 3 {
+		t.Errorf("passkey: %+v", got)
+	}
+}
+
+func TestSettings(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "providers")
+	on := true
+	if err := SaveSettings(dir, "rutor", Settings{Enabled: &on}); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveSettings(dir, "x", Settings{Username: "u", Password: "p"}); err != nil {
+		t.Fatal(err)
+	}
+	got := LoadSettings(dir)
+	if len(got) != 2 || got["rutor"].Enabled == nil || !*got["rutor"].Enabled || got["x"].Password != "p" {
+		t.Errorf("%+v", got)
+	}
+	if fi, err := os.Stat(filepath.Join(dir, "settings.json")); err != nil || fi.Mode().Perm() != 0o600 {
+		t.Errorf("settings file: %v %v", fi, err)
+	}
+	t.Cleanup(Reload)
+	// settings.json is not read as a definitions file, and switches a provider that is off by default on
+	if ids := Enabled(Load(dir), got); !contains(ids, "rutor") || contains(ids, "x") {
+		t.Errorf("enabled: %v", ids)
+	}
+	for _, st := range List(dir) {
+		if st.ID == "rutracker" && (!st.Private || !st.NeedsLogin || st.Enabled) {
+			t.Errorf("rutracker: %+v", st)
+		}
+	}
+	if d := (Definition{"base_url": "https://a.org/s?q=QUERY", "root_url": "https://a.org", "parser": map[string]any{"torrent": map[string]any{"format": "https://a.org%s"}}}).withAlias("http://b.net"); d.str("base_url") != "http://b.net/s?q=QUERY" ||
+		d["parser"].(map[string]any)["torrent"].(map[string]any)["format"] != "http://b.net%s" {
+		t.Errorf("alias: %v", d)
 	}
 }

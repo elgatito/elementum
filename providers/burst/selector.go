@@ -6,7 +6,9 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 
+	"github.com/andybalholm/cascadia"
 	"golang.org/x/net/html"
 )
 
@@ -20,6 +22,13 @@ import (
 //
 // A row spec is a list of steps: {"tag","select","nth"} picks one element, with "all" (and "start",
 // "every") it picks all of them.
+//
+// Definitions written by hand can use CSS selectors instead, in a step or an item:
+//
+//	{"css":"table.results > tbody > tr"}               a step: every match (one with "nth")
+//	{"css":"td:nth-child(3) a","attr":"href"}          an item: the first match (or "nth")
+//
+// Converted Burst definitions use the tag form, which counts elements the way Burst's parser does.
 
 var errNoMatch = errors.New("no match")
 
@@ -92,6 +101,25 @@ func text(n *html.Node) string {
 	return b.String()
 }
 
+var cssCache sync.Map // selector text -> cascadia.Sel, nil for a selector that does not compile
+
+// css returns the elements below n matching a CSS selector, in document order.
+func css(n *html.Node, selector string) []*html.Node {
+	cached, ok := cssCache.Load(selector)
+	if !ok {
+		sel, err := cascadia.Parse(selector)
+		if err != nil {
+			log.Errorf("Bad CSS selector %q: %s", selector, err)
+			sel = nil
+		}
+		cached, _ = cssCache.LoadOrStore(selector, sel)
+	}
+	if sel, _ := cached.(cascadia.Sel); sel != nil {
+		return cascadia.QueryAll(n, sel)
+	}
+	return nil
+}
+
 // pick returns element number nth, counted from 1; 0 and below count from the end (0 is the last),
 // as Python's list[nth-1] does.
 func pick(list []*html.Node, nth int) *html.Node {
@@ -128,7 +156,13 @@ func follow(n *html.Node, steps any) []*html.Node {
 			}
 			tag, _ := step["tag"].(string)
 			found := elements(from, tag, step["select"])
-			if all, _ := step["all"].(bool); !all {
+			all, _ := step["all"].(bool)
+			if selector, _ := step["css"].(string); selector != "" {
+				found = css(from, selector)
+				_, one := step["nth"]
+				all = !one
+			}
+			if !all {
 				if e := pick(found, number(step["nth"], 1)); e != nil {
 					next = append(next, e)
 				}
@@ -194,7 +228,11 @@ func evalItem(s map[string]any, row *html.Node) (string, error) {
 		}
 		n = found[0]
 	}
-	if tag, _ := s["tag"].(string); tag != "" {
+	if selector, _ := s["css"].(string); selector != "" {
+		if n = pick(css(n, selector), number(s["nth"], 1)); n == nil {
+			return "", nil
+		}
+	} else if tag, _ := s["tag"].(string); tag != "" {
 		if n = pick(elements(n, tag, s["select"]), number(s["nth"], 1)); n == nil {
 			return "", nil
 		}

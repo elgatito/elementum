@@ -81,8 +81,10 @@ func (b builtinSearcher) SearchMovieLinks(movie *tmdb.Movie) []*bittorrent.Torre
 	return b.search(burst.Query{Method: "movie", Title: o.Title, Titles: o.Titles, Year: o.Year, Years: o.Years, IMDBId: o.IMDBId, TMDBId: o.TMDBId})
 }
 
-func (b builtinSearcher) SearchMovieLinksSilent(movie *tmdb.Movie, _ bool) []*bittorrent.TorrentFile {
-	return b.SearchMovieLinks(movie) // the built-in search has no dialogs and no logins yet
+// The built-in search has no dialogs, so a silent search differs only in signing in to private trackers.
+func (b builtinSearcher) SearchMovieLinksSilent(movie *tmdb.Movie, withAuth bool) []*bittorrent.TorrentFile {
+	o := b.objects.GetMovieSearchObject(movie)
+	return b.search(burst.Query{Method: "movie", Title: o.Title, Titles: o.Titles, Year: o.Year, Years: o.Years, IMDBId: o.IMDBId, TMDBId: o.TMDBId, SkipAuth: !withAuth})
 }
 
 func (b builtinSearcher) SearchSeasonLinks(show *tmdb.Show, season *tmdb.Season) []*bittorrent.TorrentFile {
@@ -92,15 +94,15 @@ func (b builtinSearcher) SearchSeasonLinks(show *tmdb.Show, season *tmdb.Season)
 }
 
 func (b builtinSearcher) SearchEpisodeLinks(show *tmdb.Show, season *tmdb.Season, episode *tmdb.Episode) []*bittorrent.TorrentFile {
+	return b.SearchEpisodeLinksSilent(show, season, episode, true)
+}
+
+func (b builtinSearcher) SearchEpisodeLinksSilent(show *tmdb.Show, season *tmdb.Season, episode *tmdb.Episode, withAuth bool) []*bittorrent.TorrentFile {
 	o := b.objects.GetEpisodeSearchObject(show, season, episode)
 	method := "episode"
 	if o.Anime {
 		method = "anime"
 	}
 	return b.search(burst.Query{Method: method, Title: o.Title, Titles: o.Titles, Year: o.Year, Season: o.Season, Episode: o.Episode,
-		AbsoluteNumber: o.AbsoluteNumber, IMDBId: o.IMDBId, TMDBId: o.TMDBId, ShowTMDBId: o.ShowTMDBId, TVDBId: o.TVDBId})
-}
-
-func (b builtinSearcher) SearchEpisodeLinksSilent(show *tmdb.Show, season *tmdb.Season, episode *tmdb.Episode, _ bool) []*bittorrent.TorrentFile {
-	return b.SearchEpisodeLinks(show, season, episode)
+		AbsoluteNumber: o.AbsoluteNumber, IMDBId: o.IMDBId, TMDBId: o.TMDBId, ShowTMDBId: o.ShowTMDBId, TVDBId: o.TVDBId, SkipAuth: !withAuth})
 }

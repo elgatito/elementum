@@ -15,7 +15,11 @@
   "languages": "ua, ru",
   "login_cookie": "0day_session",
   "login_failed": "Ошибка входа",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD, 'returnto': '/browse.php'}",
+  "login_object": {
+   "password": "PASSWORD",
+   "returnto": "/browse.php",
+   "username": "USERNAME"
+  },
   "login_path": "/takelogin.php",
   "movie_extra": "",
   "movie_keywords": "{title:original} {year}",
@@ -176,7 +180,11 @@
   "language": null,
   "languages": "ru",
   "login_failed": "Регистрация",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD, 'login': u'Вход'}",
+  "login_object": {
+   "login": "Вход",
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/ucp.php?mode=login",
   "movie_extra": "",
   "movie_keywords": "{title} {year}",
@@ -424,7 +432,10 @@
   "language": "ru",
   "languages": "ru",
   "login_failed": "Неверное имя пользователя или пароль",
-  "login_object": "{'login': USERNAME, 'password': PASSWORD}",
+  "login_object": {
+   "login": "USERNAME",
+   "password": "PASSWORD"
+  },
   "login_path": "/auth/login/",
   "movie_keywords": "{title:ru:jp}",
   "name": "Animelayer",
@@ -496,7 +507,10 @@
   "language": null,
   "languages": "ar",
   "login_failed": "تسجيل الدخول",
-  "login_object": "{'uid': USERNAME, 'pwd': PASSWORD}",
+  "login_object": {
+   "pwd": "PASSWORD",
+   "uid": "USERNAME"
+  },
   "login_path": "/index.php?page=login&returnto=index.php",
   "movie_extra": "",
   "movie_keywords": "{title}",
@@ -586,7 +600,11 @@
   "language": "en",
   "languages": "ua",
   "login_failed": "не зарегистрированы|неверны",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD, 'commit': u'Пустите меня'}",
+  "login_object": {
+   "commit": "Пустите меня",
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/takelogin.php",
   "movie_extra": "",
   "movie_keywords": "",
@@ -672,7 +690,10 @@
   "language": "en",
   "languages": "hu",
   "login_failed": "Sikertelen",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD}",
+  "login_object": {
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/takelogin.php",
   "movie_extra": "",
   "movie_keywords": "{title} {year}",
@@ -754,7 +775,11 @@
   "language": null,
   "languages": "pl",
   "login_failed": "Forgot your password?",
-  "login_object": "{'login': USERNAME, 'pass': PASSWORD, 'remember': '1'}",
+  "login_object": {
+   "login": "USERNAME",
+   "pass": "PASSWORD",
+   "remember": "1"
+  },
   "login_path": "/login.php?action=login",
   "movie_extra": "",
   "movie_keywords": "{title:original} {year}",
@@ -1003,7 +1028,11 @@
   "language": null,
   "languages": "ru",
   "login_failed": "Ошибка",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD, 'returnto': '/browse.php'}",
+  "login_object": {
+   "password": "PASSWORD",
+   "returnto": "/browse.php",
+   "username": "USERNAME"
+  },
   "login_path": "/takelogin.php",
   "movie_extra": "",
   "movie_keywords": "{title:original} ({year})",
@@ -1280,7 +1309,10 @@
   "language": null,
   "languages": "pl",
   "login_failed": "Logowanie nie",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD}",
+  "login_object": {
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/takelogin.php",
   "movie_extra": "",
   "movie_keywords": "{title:original} {year}",
@@ -1755,7 +1787,10 @@
   "language": "ru",
   "languages": "ru",
   "login_failed": "Имя пользователя введено неверно",
-  "login_object": "{'uid': USERNAME, 'pwd': PASSWORD}",
+  "login_object": {
+   "pwd": "PASSWORD",
+   "uid": "USERNAME"
+  },
   "login_path": "/login.php",
   "movie_keywords": "{title:en:ru} {year}",
   "movie_keywords_fallback": "{title:original} {year}",
@@ -1888,7 +1923,10 @@
   "language": null,
   "languages": "pl",
   "login_failed": "Forgot your password?",
-  "login_object": "{'uid': USERNAME, 'pwd': PASSWORD}",
+  "login_object": {
+   "pwd": "PASSWORD",
+   "uid": "USERNAME"
+  },
   "login_path": "/zaloguj?returnto=%2F",
   "movie_extra": "",
   "movie_keywords": "{title:original} {year}",
@@ -1967,7 +2005,10 @@
   "language": null,
   "languages": "en",
   "login_failed": "Login failed!",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD}",
+  "login_object": {
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/takelogin.php",
   "movie_extra": "",
   "movie_keywords": "{title} {year}",
@@ -2131,7 +2172,11 @@
   "language": null,
   "languages": "en",
   "login_failed": "Recover",
-  "login_object": "{'uid': USERNAME, 'pwd': PASSWORD, 'csrfToken': CSRF_TOKEN}",
+  "login_object": {
+   "csrfToken": "CSRF_TOKEN",
+   "pwd": "PASSWORD",
+   "uid": "USERNAME"
+  },
   "login_path": "/login.php",
   "movie_extra": "",
   "movie_keywords": "{title} {year}",
@@ -2223,7 +2268,10 @@
   "language": null,
   "languages": "pl",
   "login_failed": "Forgot your password?",
-  "login_object": "{'uid': USERNAME, 'pwd': PASSWORD}",
+  "login_object": {
+   "pwd": "PASSWORD",
+   "uid": "USERNAME"
+  },
   "login_path": "/login.php",
   "movie_extra": "",
   "movie_keywords": "{title:original} {year}",
@@ -2424,7 +2472,10 @@
   "languages": "it",
   "login_cookie": "uid",
   "login_failed": "Nome Utente non corretto",
-  "login_object": "{'uid': USERNAME, 'pwd': PASSWORD}",
+  "login_object": {
+   "pwd": "PASSWORD",
+   "uid": "USERNAME"
+  },
   "login_path": "/index.php?page=login&returnto=index.php",
   "movie_extra": "",
   "movie_keywords": "{title:original} {year}",
@@ -2633,7 +2684,10 @@
   "language": null,
   "languages": "en",
   "login_failed": "Forgot your password?",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD}",
+  "login_object": {
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/take_login.php",
   "movie_extra": "",
   "movie_keywords": "{title:original} {year}",
@@ -2892,7 +2946,15 @@
   "languages": "ru",
   "login_cookie": "uid",
   "login_failed": "Восстановление",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD, 'to': '', 'touser': 1, 'wact': 'takerecover', 'referer': 'https://kinozal.guru/login.php?m=5', 'login': 'Вход'}",
+  "login_object": {
+   "login": "Вход",
+   "password": "PASSWORD",
+   "referer": "https://kinozal.guru/login.php?m=5",
+   "to": "",
+   "touser": "1",
+   "username": "USERNAME",
+   "wact": "takerecover"
+  },
   "login_path": "/takelogin.php",
   "movie_extra": "",
   "movie_keywords": "{title:ru:en} {year}",
@@ -3228,7 +3290,12 @@
   "language": null,
   "languages": "lt",
   "login_failed": "Forgot your password?",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD, 'commit': 'Prisijungti', 'login_cookie': '1'}",
+  "login_object": {
+   "commit": "Prisijungti",
+   "login_cookie": "1",
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/takelogin.php",
   "movie_extra": "",
   "movie_keywords": "{title:original:en} {year}",
@@ -3328,7 +3395,14 @@
   "languages": "ru",
   "login_cookie": "lf_session",
   "login_failed": "\"need_captcha\":|\"error\":|НЕ ЗАРЕГИСТРИРОВАНЫ",
-  "login_object": "{'rem': '1', 'mail': USERNAME, 'pass': PASSWORD, 'type': 'login', 'act': 'users', 'need_captcha': '1'}",
+  "login_object": {
+   "act": "users",
+   "mail": "USERNAME",
+   "need_captcha": "1",
+   "pass": "PASSWORD",
+   "rem": "1",
+   "type": "login"
+  },
   "login_path": "/ajaxik.php",
   "movie_extra": "",
   "movie_keywords": "{title:en}",
@@ -3585,7 +3659,15 @@
   "language": null,
   "languages": "en",
   "login_failed": "You do not have permission to view this board",
-  "login_object": "{'UserName': USERNAME, 'PassWord': PASSWORD, 'referer': 'http://forums.mvgroup.org/index.php?act=Login&CODE=00', 'CookieDate': '1', 'submit': 'Log In', 'act': 'Login', 'CODE': '01'}",
+  "login_object": {
+   "CODE": "01",
+   "CookieDate": "1",
+   "PassWord": "PASSWORD",
+   "UserName": "USERNAME",
+   "act": "Login",
+   "referer": "http://forums.mvgroup.org/index.php?act=Login&CODE=00",
+   "submit": "Log In"
+  },
   "login_path": "/index.php",
   "movie_extra": "",
   "movie_keywords": "{title} {year}",
@@ -3667,7 +3749,12 @@
   "language": null,
   "languages": "ro",
   "login_failed": "Login esuat!",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD, '_remember_me': 'on', '_csrf_token': 'CSRF_TOKEN'}",
+  "login_object": {
+   "_csrf_token": "CSRF_TOKEN",
+   "_remember_me": "on",
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/login",
   "movie_extra": "",
   "movie_keywords": "{title:original} {year}",
@@ -3727,7 +3814,11 @@
   "language": "en",
   "languages": "hu, en",
   "login_failed": "Login Failed!",
-  "login_object": "{'nev': USERNAME, 'pass': PASSWORD, 'ne_leptessen_ki': '1'}",
+  "login_object": {
+   "ne_leptessen_ki": "1",
+   "nev": "USERNAME",
+   "pass": "PASSWORD"
+  },
   "login_path": "/login.php",
   "movie_extra": "",
   "movie_keywords": "{title:original:en:hu} {year}",
@@ -3856,7 +3947,12 @@
   "language": "ru",
   "languages": "ru",
   "login_failed": "You have specified an incorrect or inactive username",
-  "login_object": "{'login_username': USERNAME, 'login_password': PASSWORD, 'autologin': '1', 'login': '1'}",
+  "login_object": {
+   "autologin": "1",
+   "login": "1",
+   "login_password": "PASSWORD",
+   "login_username": "USERNAME"
+  },
   "login_path": "/login.php",
   "movie_extra": "",
   "movie_keywords": "\"{title:en} {year}\"",
@@ -3929,7 +4025,10 @@
   "language": null,
   "languages": "pl",
   "login_failed": "Forgot your password?",
-  "login_object": "{'uid': USERNAME, 'pwd': PASSWORD}",
+  "login_object": {
+   "pwd": "PASSWORD",
+   "uid": "USERNAME"
+  },
   "login_path": "/login.php",
   "movie_extra": "",
   "movie_keywords": "{title:original} {year}",
@@ -4020,7 +4119,12 @@
   "login_cookie": "phpbb2mysql_4_sid",
   "login_failed": "",
   "login_failed.bak": "Вы ввели",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD, 'autologin': 'on', 'login': '1'}",
+  "login_object": {
+   "autologin": "on",
+   "login": "1",
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/forum/login.php",
   "movie_extra": "",
   "movie_keywords": "{title:ru:en} {year}",
@@ -4202,7 +4306,11 @@
   "language": "ru",
   "languages": "ru",
   "login_failed": "Регистрация",
-  "login_object": "{'login_site_username': USERNAME, 'login_password': PASSWORD, 'login': u'Bxoд'}",
+  "login_object": {
+   "login": "Bxoд",
+   "login_password": "PASSWORD",
+   "login_site_username": "USERNAME"
+  },
   "login_path": "/login.php",
   "movie_extra": "",
   "movie_keywords": "{title:original} {year}",
@@ -4345,7 +4453,11 @@
   "languages": "ru",
   "login_cookie": "bb_data",
   "login_failed": "Регистрация",
-  "login_object": "{'login_username': USERNAME, 'login_password': PASSWORD, 'login': u'Логин'}",
+  "login_object": {
+   "login": "Логин",
+   "login_password": "PASSWORD",
+   "login_username": "USERNAME"
+  },
   "login_path": "/forum/login.php",
   "movie_extra": "",
   "movie_keywords": "{title:original} {year}",
@@ -4602,7 +4714,11 @@
   "languages": "ru",
   "login_cookie": "bb_session",
   "login_failed": "Регистрация",
-  "login_object": "{'login_username': USERNAME, 'login_password': PASSWORD, 'login': 'Login'}",
+  "login_object": {
+   "login": "Login",
+   "login_password": "PASSWORD",
+   "login_username": "USERNAME"
+  },
   "login_path": "/forum/login.php",
   "movie_extra": "",
   "movie_keywords": "{title:en:ru} {year}",
@@ -5246,7 +5362,12 @@
   "languages": "ua",
   "login_cookie": "toloka_sid",
   "login_failed": "Зареєструватися",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD, 'autologin': '1', 'login': 'Enter'}",
+  "login_object": {
+   "autologin": "1",
+   "login": "Enter",
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/login.php",
   "movie_extra": "",
   "movie_keywords": "{title:ua:en} {year}",
@@ -5421,7 +5542,10 @@
   "language": null,
   "languages": "ru",
   "login_failed": "Регистрация",
-  "login_object": "{'email': USERNAME, 'password': PASSWORD}",
+  "login_object": {
+   "email": "USERNAME",
+   "password": "PASSWORD"
+  },
   "login_path": "/takelogin.php",
   "movie_extra": "",
   "movie_keywords": "{title} {year}",
@@ -5580,7 +5704,10 @@
   "language": "ru",
   "languages": "by",
   "login_failed": "ACCESS_DENIED",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD}",
+  "login_object": {
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/account-login.php",
   "movie_keywords": "{title:en:ru} {year}",
   "movie_keywords_fallback": "{title:original} {year}",
@@ -5705,7 +5832,10 @@
   "languages": "en",
   "login_cookie": "td_uid",
   "login_failed": "Invalid username or password. Please try again.",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD}",
+  "login_object": {
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/login.php",
   "movie_extra": "",
   "movie_keywords": "{title:en} {year}",
@@ -6095,7 +6225,10 @@
   "languages": "en",
   "login_cookie": "tluid",
   "login_failed": "Invalid",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD}",
+  "login_object": {
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/user/account/login/",
   "movie_extra": "",
   "movie_keywords": "{title:en} {year}",
@@ -6170,7 +6303,10 @@
   "language": null,
   "languages": "lt",
   "login_failed": "Forgot your password?",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD}",
+  "login_object": {
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/lt/account-login.php",
   "movie_extra": "",
   "movie_keywords": "{title:original:en} {year}",
@@ -6414,7 +6550,12 @@
   "language": null,
   "languages": "en",
   "login_failed": "Your username or password was incorrect",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD, 'keeplogged': '1', 'login': 'Log in'}",
+  "login_object": {
+   "keeplogged": "1",
+   "login": "Log in",
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/login.php",
   "movie_extra": "",
   "movie_keywords": "{title} {year}",
@@ -6630,8 +6771,16 @@
   "languages": "fr",
   "login_cookie": "ygg_",
   "login_failed": "Bad credentials",
-  "login_headers": "{'X-Requested-With': 'XMLHttpRequest', 'Origin': definition['root_url'], 'Referer': definition['root_url']}",
-  "login_object": "{'id': USERNAME, 'pass': PASSWORD, 'ci_csrf_token' : ''}",
+  "login_headers": {
+   "Origin": "{root_url}",
+   "Referer": "{root_url}",
+   "X-Requested-With": "XMLHttpRequest"
+  },
+  "login_object": {
+   "ci_csrf_token": "",
+   "id": "USERNAME",
+   "pass": "PASSWORD"
+  },
   "login_path": "/auth/process_login",
   "movie_extra": "",
   "movie_extra2": "",
@@ -6842,7 +6991,10 @@
   "language": "bg",
   "languages": "bg",
   "login_failed": "Login failed!",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD}",
+  "login_object": {
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/takelogin.php",
   "movie_extra": "",
   "movie_keywords": "{title:original} {year}",
@@ -6971,7 +7123,10 @@
   "language": "bg",
   "languages": "bg",
   "login_failed": "Login failed!",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD}",
+  "login_object": {
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/takelogin.php",
   "movie_extra": "",
   "movie_keywords": "{title:original} {year}",
@@ -7206,8 +7361,14 @@
   "language": "hu",
   "languages": "hu",
   "login_failed": "Felhasználónév",
-  "login_headers": "{'Origin': definition['login_prerequest'], 'Referer': definition['login_prerequest']}",
-  "login_object": "{'username': USERNAME, 'password': PASSWORD}",
+  "login_headers": {
+   "Origin": "{login_prerequest}",
+   "Referer": "{login_prerequest}"
+  },
+  "login_object": {
+   "password": "PASSWORD",
+   "username": "USERNAME"
+  },
   "login_path": "/takelogin.php",
   "login_prerequest": "https://ztracker.cc/login.php",
   "movie_extra": "",

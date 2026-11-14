@@ -5,9 +5,11 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"regexp"
 	"sort"
@@ -41,11 +43,11 @@ const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 
 // Client returns the HTTP client for tracker requests. Elementum sets it to its internal proxy client.
 var Client = func() *http.Client { return http.DefaultClient }
 
-// Search asks every enabled provider of dir (see Load) and returns their results, best seeded first.
-// Providers still running at the deadline of ctx are left out.
+// Search asks every enabled provider of dir (see Load and LoadSettings) and returns their results, best
+// seeded first. Providers still running at the deadline of ctx are left out.
 func Search(ctx context.Context, dir string, q Query) []Result {
-	defs := Load(dir)
-	ids := Enabled(defs)
+	defs, settings := Load(dir), LoadSettings(dir)
+	ids := Enabled(defs, settings)
 	if len(ids) == 0 {
 		log.Warning("No providers enabled")
 		return nil
@@ -59,7 +61,7 @@ func Search(ctx context.Context, dir string, q Query) []Result {
 	var wg sync.WaitGroup
 	for _, id := range ids {
 		wg.Go(func() {
-			results := searchProvider(ctx, id, defs[id], q)
+			results := searchProvider(ctx, id, defs[id], settings[id], q)
 			log.Infof("[%s] returned %d results in %.1f seconds", id, len(results), time.Since(start).Seconds())
 			mu.Lock()
 			all = append(all, results...)
@@ -77,24 +79,48 @@ func Search(ctx context.Context, dir string, q Query) []Result {
 	return cleanup(all)
 }
 
+// session is one provider's search: its definition (on the user's mirror), credentials and cookies.
+type session struct {
+	id       string
+	d        Definition
+	set      Settings
+	client   *http.Client
+	loggedIn bool
+}
+
+// jars keeps each provider's cookies for the life of the process, so a login is reused by later searches.
+var jars sync.Map // "id|username" -> http.CookieJar
+
+func newSession(id string, d Definition, set Settings) *session {
+	client := *Client() // a copy: the jar is this provider's own
+	jar, _ := cookiejar.New(nil)
+	if cached, loaded := jars.LoadOrStore(id+"|"+set.Username, http.CookieJar(jar)); loaded {
+		jar, _ = cached.(*cookiejar.Jar)
+	}
+	client.Jar = jar
+	return &session{id: id, d: d.withAlias(set.Alias), set: set, client: &client}
+}
+
 // searchProvider runs a definition's queries: the fallbacks only while there are no results.
-func searchProvider(ctx context.Context, id string, d Definition, q Query) (results []Result) {
+func searchProvider(ctx context.Context, id string, d Definition, set Settings, q Query) (results []Result) {
 	defer func() {
 		if r := recover(); r != nil { // a broken definition must not take the search down
 			log.Errorf("[%s] failed: %v", id, r)
 		}
 	}()
+	s := newSession(id, d, set)
+	d = s.d
 	used := map[string]bool{}
 	lastPriority := 1
-	for _, s := range searches(d, q) {
-		query, extra := fill(d, s.query, q), fill(d, s.extra, q)
+	for _, sr := range searches(d, q) {
+		query, extra := fill(d, sr.query, q), fill(d, sr.extra, q)
 		switch {
 		case query == "", used[query+extra], ctx.Err() != nil:
 			continue
-		case s.priority > lastPriority && len(results) > 0:
+		case sr.priority > lastPriority && len(results) > 0:
 			continue // fallbacks are for when there is nothing
 		}
-		used[query+extra], lastPriority = true, s.priority
+		used[query+extra], lastPriority = true, sr.priority
 
 		var post map[string]string
 		for k, v := range d.strings("post_data") {
@@ -103,7 +129,17 @@ func searchProvider(ctx context.Context, id string, d Definition, q Query) (resu
 			}
 			post[k] = strings.ReplaceAll(strings.ReplaceAll(v, "QUERY", query), "EXTRA", extra)
 		}
-		content, _, err := fetch(ctx, d, searchURL(d, q, quote(query, d.str("charset")), quote(extra, d.str("charset"))), post, nil)
+		target := searchURL(d, q, quote(query, d.str("charset")), quote(extra, d.str("charset")))
+		target = strings.NewReplacer("USERNAME", set.Username, "PASSKEY", set.Passkey).Replace(target)
+		if d.flag("private") && !q.SkipAuth {
+			token, err := s.login(ctx)
+			if err != nil {
+				log.Warningf("[%s] login failed: %s", id, err)
+				return results
+			}
+			target = strings.ReplaceAll(target, "CSRF_TOKEN", token)
+		}
+		content, _, err := s.fetch(ctx, target, post, nil)
 		if err != nil {
 			log.Warningf("[%s] request failed: %s", id, err)
 			continue
@@ -114,7 +150,10 @@ func searchProvider(ctx context.Context, id string, d Definition, q Query) (resu
 		} else {
 			found = fromPage(id, d, content)
 			if d.flag("subpage") {
-				found = subpages(ctx, id, d, found)
+				found = s.subpages(ctx, found)
+			}
+			for i := range found {
+				found[i].URI = s.withHeaders(found[i].URI, target)
 			}
 		}
 		title := ""
@@ -136,12 +175,103 @@ func searchProvider(ctx context.Context, id string, d Definition, q Query) (resu
 	return results
 }
 
+var csrfRe = regexp.MustCompile(`name="_?csrf_?[tT]oken" value="(.*?)"`)
+
+// login signs in to a private tracker once per session, with the form its definition describes. With a
+// passkey there is nothing to do. It returns the CSRF token for the search URL of the trackers that want one.
+// shortcut: Burst's cookie sync from a GitHub gist and its lostfilm lookup are not ported.
+func (s *session) login(ctx context.Context) (csrf string, err error) {
+	d := s.d
+	form := d.strings("login_object")
+	if s.loggedIn || s.set.Passkey != "" || len(form) == 0 {
+		return "", nil
+	}
+	root := d.str("root_url")
+	abs := func(u string) string {
+		if u == "" || strings.HasPrefix(u, "http") {
+			return u
+		}
+		return root + u
+	}
+	headers := map[string]string{}
+	for k, v := range d.strings("login_headers") {
+		headers[k] = keywordRe.ReplaceAllStringFunc(v, func(m string) string { return d.str(strings.Trim(m, "{}")) })
+	}
+	if d.flag("csrf_token") { // the login form carries a token to send back
+		if page, _, err := s.fetch(ctx, abs(d.str("login_path")), nil, nil); err == nil {
+			if m := csrfRe.FindStringSubmatch(page); m != nil {
+				csrf = m[1]
+			} else {
+				s.loggedIn = true // no form: the cookies of an earlier login still hold
+			}
+		}
+	}
+	if !s.loggedIn {
+		if pre := abs(d.str("login_prerequest")); pre != "" {
+			_, _, _ = s.fetch(ctx, pre, nil, headers)
+		}
+		post := map[string]string{}
+		for k, v := range form {
+			post[k] = strings.NewReplacer("USERNAME", s.set.Username, "PASSWORD", s.set.Password, "CSRF_TOKEN", csrf).Replace(v)
+		}
+		page, _, err := s.fetch(ctx, abs(d.str("login_path")), post, headers)
+		if err != nil {
+			return "", err
+		}
+		if failed := d.str("login_failed"); failed != "" {
+			if re, err := regexp.Compile(failed); err == nil && re.MatchString(page) {
+				return "", errors.New("wrong username or password")
+			}
+		}
+		s.loggedIn = true
+	}
+	if strings.Contains(d.str("base_url"), "CSRF_TOKEN") { // the search itself wants a token, from the site's own page
+		csrf = ""
+		if page, _, err := s.fetch(ctx, root+"/torrents.php", nil, nil); err == nil {
+			if m := csrfRe.FindStringSubmatch(page); m != nil {
+				csrf = m[1]
+			}
+		}
+	}
+	return csrf, nil
+}
+
+// withHeaders prepares a torrent file link for Elementum's download: the passkey is filled in, and
+// what the tracker wants with the request (browser, referer, session cookies) is appended as
+// "|Header=value", the form bittorrent.TorrentFile reads. Magnets are left alone.
+func (s *session) withHeaders(link, page string) string {
+	if link == "" || strings.HasPrefix(link, "magnet") {
+		return link
+	}
+	if s.set.Passkey != "" {
+		return strings.ReplaceAll(link, "PASSKEY", s.set.Passkey)
+	}
+	link += "|User-Agent=" + userAgent + "|Referer=" + page + "|Origin=" + page
+	if u, err := url.Parse(strings.Split(link, "|")[0]); err == nil {
+		var cookies []string
+		for _, c := range s.client.Jar.Cookies(u) {
+			cookies = append(cookies, c.Name+"="+c.Value)
+		}
+		if len(cookies) > 0 {
+			link += "|Cookie=" + strings.Join(cookies, ";")
+		}
+	}
+	return link
+}
+
 // fetch requests a URL (with POST when post is set) and returns the page decoded to UTF-8, and its content type.
-func fetch(ctx context.Context, d Definition, target string, post, headers map[string]string) (string, string, error) {
+func (s *session) fetch(ctx context.Context, target string, post, headers map[string]string) (string, string, error) {
+	d := s.d
 	method, body := http.MethodGet, io.Reader(nil)
 	if post != nil {
 		form := url.Values{}
 		for k, v := range post {
+			// the form goes in the tracker's charset, as the query does
+			if enc, err := htmlindex.Get(d.str("charset")); err == nil && !strings.Contains(strings.ToLower(d.str("charset")), "utf") {
+				if e, err := enc.NewEncoder().String(v); err == nil {
+					v = e
+				}
+			}
 			form.Set(k, v)
 		}
 		method, body = http.MethodPost, strings.NewReader(form.Encode())
@@ -161,7 +291,7 @@ func fetch(ctx context.Context, d Definition, target string, post, headers map[s
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
-	resp, err := Client().Do(req)
+	resp, err := s.client.Do(req)
 	if err != nil {
 		return "", "", err
 	}
@@ -189,9 +319,9 @@ const subpageWorkers = 5
 
 // subpages replaces each result's link to its page with the magnet or torrent link found on that page.
 // Results whose page has none, or is not fetched before ctx ends, are dropped.
-func subpages(ctx context.Context, id string, d Definition, results []Result) []Result {
+func (s *session) subpages(ctx context.Context, results []Result) []Result {
 	var headers map[string]string
-	if d.str("subpage_mode") == "xhr" {
+	if s.d.str("subpage_mode") == "xhr" {
 		headers = map[string]string{"X-Requested-With": "XMLHttpRequest"}
 	}
 	slots := make(chan struct{}, subpageWorkers)
@@ -209,14 +339,14 @@ func subpages(ctx context.Context, id string, d Definition, results []Result) []
 			if ctx.Err() != nil {
 				return
 			}
-			content, contentType, err := fetch(ctx, d, page, nil, headers)
+			content, contentType, err := s.fetch(ctx, page, nil, headers)
 			switch {
 			case err != nil:
-				log.Debugf("[%s] subpage %s failed: %s", id, page, err)
+				log.Debugf("[%s] subpage %s failed: %s", s.id, page, err)
 			case strings.Contains(contentType, "bittorrent"):
 				r.URI = page // the link was the torrent file itself
 			default:
-				r.URI = linkOnPage(d, content)
+				r.URI = linkOnPage(s.d, content)
 			}
 		})
 	}

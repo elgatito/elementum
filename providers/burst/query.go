@@ -28,6 +28,9 @@ type Query struct {
 	IMDBId                     string
 	TMDBId, ShowTMDBId, TVDBId int
 
+	// SkipAuth searches private trackers without signing in first (a background search).
+	SkipAuth bool
+
 	// Languages are the preferred languages, most wanted first, for {languages} in a search URL.
 	Languages []string
 }

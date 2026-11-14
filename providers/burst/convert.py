@@ -161,13 +161,31 @@ def convert(provider):
         except (Unsupported, SyntaxError, ValueError, IndexError, TypeError) as e:
             out["unsupported"] = "parser.%s: %s" % (field, str(e) or type(e).__name__)
     out["parser"] = converted
-    for field in ("post_data", "headers"):
+    for field in ("post_data", "headers", "login_object", "login_headers"):
         if provider.get(field):
             try:
-                out[field] = ast.literal_eval(provider[field])
+                out[field] = form(provider[field])
             except Exception as e:
                 out["unsupported"] = "%s: %s" % (field, e)
     return out
+
+
+def form(expression):
+    """A dict literal of a request -> {name: text}. The names USERNAME, PASSWORD and CSRF_TOKEN stay as
+    those words, which Elementum replaces; definition['key'] becomes {key}."""
+    tree = ast.parse(expression.strip(), mode="eval").body
+    if not isinstance(tree, ast.Dict):
+        raise Unsupported("not a dict")
+    result = {}
+    for k, v in zip(tree.keys, tree.values):
+        if isinstance(v, ast.Name):
+            value = v.id
+        elif isinstance(v, ast.Subscript) and isinstance(v.value, ast.Name) and v.value.id == "definition":
+            value = "{%s}" % lit(v.slice)
+        else:
+            value = str(lit(v))
+        result[str(lit(k))] = value
+    return result
 
 
 def main():
