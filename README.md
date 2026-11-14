@@ -29,11 +29,11 @@ The settings file is created with defaults when it does not exist. See [Settings
 
 ## What still needs Kodi
 
-- **Private trackers and Kodi provider add-ons.** Elementum searches public trackers itself (the providers of Burst, see `providers/burst`); trackers that need a login are still searched only through a provider add-on in Kodi. The `providers_source` setting picks built-in search, Kodi add-ons, or both; by default the built-in search is used when no Kodi is connected.
+- **Kodi provider add-ons**, if you prefer them. Elementum searches trackers itself (the providers of Burst, public and private, see `providers/burst` and `/api/providers`); the `providers_source` setting picks this built-in search, Kodi add-ons, or both. By default the built-in search is used when no Kodi is connected.
 - **The Kodi library**: scanning, cleaning and watched sync with Kodi's database.
 - **Playback inside Kodi.**
 
-Browsing, search of movies and shows, torrent search on public trackers, tracker lists and device login, the Elementum library, torrents, and playback in a client app work without Kodi.
+Browsing, search of movies and shows, torrent search, tracker lists and device login, the Elementum library, torrents, and playback in a client app work without Kodi.
 
 # JSON API (`/api`)
 
@@ -59,6 +59,7 @@ The contract lives in `api/json/openapi.yaml`; regenerate its Go bindings with `
 | playback, stream | `/playback`, `/playback/{id}`, `/playback/{id}/progress`, `/stream/{id}/{file_index}` |
 | torrents | `/torrents`, `/torrents/{info_hash}` (+ `pause`, `resume`) |
 | people | `/people/{tmdb_id}`, `/people/{tmdb_id}/credits` |
+| providers | `/providers`, `/providers/{id}` (trackers of the built-in search: enable, credentials, mirror) |
 | UI events | `/ui/events`, `/ui/requests/{id}` |
 
 ## UI host

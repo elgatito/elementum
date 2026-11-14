@@ -929,6 +929,50 @@ type PlaybackState string
 // PlaybackType defines model for PlaybackType.
 type PlaybackType string
 
+// Provider defines model for Provider.
+type Provider struct {
+	// Alias Mirror in use: another domain or URL of the site.
+	//
+	// Example: http://rutor.is
+	Alias *string `json:"alias,omitempty"`
+
+	// Enabled The user's choice, or the default.
+	Enabled bool `json:"enabled"`
+
+	// HasSecret A password or passkey is stored.
+	HasSecret bool `json:"has_secret"`
+
+	// Id Example: rutor
+	Id string `json:"id"`
+
+	// Languages Example: ["ru"]
+	Languages []string `json:"languages"`
+
+	// Name Example: RuTor
+	Name string `json:"name"`
+
+	// Private Needs an account on the tracker.
+	Private bool `json:"private"`
+
+	// Reason Why an enabled provider is not searched.
+	//
+	// Example: no username and password, or passkey
+	Reason *string `json:"reason,omitempty"`
+
+	// Searched Whether searches use it now: enabled, usable, and with credentials when private.
+	Searched bool    `json:"searched"`
+	Username *string `json:"username,omitempty"`
+}
+
+// ProviderSettings defines model for ProviderSettings.
+type ProviderSettings struct {
+	Alias    *string `json:"alias,omitempty"`
+	Enabled  *bool   `json:"enabled,omitempty"`
+	Passkey  *string `json:"passkey,omitempty"`
+	Password *string `json:"password,omitempty"`
+	Username *string `json:"username,omitempty"`
+}
+
 // SearchType defines model for SearchType.
 type SearchType string
 
@@ -1623,6 +1667,9 @@ type CreatePlaybackJSONRequestBody = PlaybackRequest
 // ReportPlaybackProgressJSONRequestBody defines body for ReportPlaybackProgress for application/json ContentType.
 type ReportPlaybackProgressJSONRequestBody = PlaybackProgress
 
+// UpdateProviderJSONRequestBody defines body for UpdateProvider for application/json ContentType.
+type UpdateProviderJSONRequestBody = ProviderSettings
+
 // AnswerUiRequestJSONRequestBody defines body for AnswerUiRequest for application/json ContentType.
 type AnswerUiRequestJSONRequestBody = UIAnswer
 
@@ -1676,6 +1723,12 @@ type ServerInterface interface {
 	// ReportPlaybackProgress Keepalive, resume point and tracker scrobble
 	// (POST /playback/{id}/progress)
 	ReportPlaybackProgress(c *gin.Context, id SessionIdParam)
+	// ListProviders Trackers of the built-in torrent search, with the user's settings
+	// (GET /providers)
+	ListProviders(c *gin.Context)
+	// UpdateProvider Change a provider's settings
+	// (PUT /providers/{id})
+	UpdateProvider(c *gin.Context, id string)
 	// Search Search TMDB movies or shows
 	// (GET /search)
 	Search(c *gin.Context, params SearchParams)
@@ -2224,6 +2277,44 @@ func (siw *ServerInterfaceWrapper) ReportPlaybackProgress(c *gin.Context) {
 	}
 
 	siw.Handler.ReportPlaybackProgress(c, id)
+}
+
+// ListProviders operation middleware
+func (siw *ServerInterfaceWrapper) ListProviders(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListProviders(c)
+}
+
+// UpdateProvider operation middleware
+func (siw *ServerInterfaceWrapper) UpdateProvider(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UpdateProvider(c, id)
 }
 
 // Search operation middleware
@@ -3177,6 +3268,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/torrents/:info_hash/pause", wrapper.PauseTorrent)
 	router.POST(options.BaseURL+"/torrents/:info_hash/resume", wrapper.ResumeTorrent)
 	router.DELETE(options.BaseURL+"/torrents/:info_hash", wrapper.RemoveTorrent)
+	router.GET(options.BaseURL+"/providers", wrapper.ListProviders)
+	router.PUT(options.BaseURL+"/providers/:id", wrapper.UpdateProvider)
 	router.GET(options.BaseURL+"/people/:tmdb_id", wrapper.GetPerson)
 	router.GET(options.BaseURL+"/people/:tmdb_id/credits", wrapper.GetPersonCredits)
 	router.GET(options.BaseURL+"/ui/events", wrapper.GetUiEvents)

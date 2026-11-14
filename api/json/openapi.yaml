@@ -28,6 +28,7 @@ tags:
   - name: playback
   - name: torrents
   - name: people
+  - name: providers
   - name: ui
 
 paths:
@@ -630,6 +631,52 @@ paths:
           schema: { type: boolean, default: false }
       responses:
         "204": { description: Removed }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /providers:
+    get:
+      tags: [providers]
+      operationId: listProviders
+      summary: Trackers of the built-in torrent search, with the user's settings
+      description: |
+        Elementum searches these itself, without Kodi (the `providers_source` setting decides whether this
+        search, Kodi provider add-ons, or both are used). Passwords and passkeys are never returned.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Provider" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /providers/{id}:
+    put:
+      tags: [providers]
+      operationId: updateProvider
+      summary: Change a provider's settings
+      description: Fields left out keep their value. An empty text clears it.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProviderSettings" }
+      responses:
+        "200":
+          description: The provider after the change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Provider" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -1394,6 +1441,31 @@ components:
         duration_s: { type: number, format: double, minimum: 0, example: 8160 }
         paused: { type: boolean, example: false }
 
+    Provider:
+      type: object
+      required: [id, name, private, languages, enabled, searched, has_secret]
+      properties:
+        id: { type: string, example: rutor }
+        name: { type: string, example: RuTor }
+        private: { type: boolean, description: Needs an account on the tracker. }
+        languages: { type: array, items: { type: string }, example: [ru] }
+        enabled: { type: boolean, description: "The user's choice, or the default." }
+        searched: { type: boolean, description: "Whether searches use it now: enabled, usable, and with credentials when private." }
+        reason:
+          type: string
+          description: Why an enabled provider is not searched.
+          example: no username and password, or passkey
+        username: { type: string }
+        has_secret: { type: boolean, description: A password or passkey is stored. }
+        alias: { type: string, description: "Mirror in use: another domain or URL of the site.", example: "http://rutor.is" }
+    ProviderSettings:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        username: { type: string }
+        password: { type: string, format: password }
+        passkey: { type: string, format: password }
+        alias: { type: string }
     Torrent:
       type: object
       required: [info_hash, name, size_bytes, progress, download_rate, upload_rate, seeds, peers, state, paused, added_at, has_player]
