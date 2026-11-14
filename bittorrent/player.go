@@ -876,101 +876,113 @@ func (btp *Player) playerLoop() {
 		btp.t.IsPlaying.Store(true)
 		<-btp.closer.C()
 		btp.t.IsPlaying.Store(false)
-	} else {
-		log.Info("Waiting for playback...")
-		oneSecond := time.NewTicker(1 * time.Second)
-		defer oneSecond.Stop()
-		playbackTimeout := time.Duration(config.Get().BufferTimeout) * time.Second
-		lastActive := time.Now()
-		externalReported := false
+	} else if !btp.kodiPlayback() {
+		return
+	}
+	btp.playbackEnded()
+}
 
-		for !btp.p.Background && btp.xbmcHost != nil && !btp.isPlayingOwnFile() {
-			// External players (e.g. "Play using" on Android) are invisible to Kodi, so open readers count as playback
-			if btp.t.HasReaders() {
-				lastActive = time.Now()
-				if !externalReported {
-					externalReported = true
-					log.Infof("File is being read before Kodi reports playback (external player?), keeping torrent while readers are active")
-				}
-			} else if time.Since(lastActive) > playbackTimeout {
-				log.Warningf("Playback was unable to start after %d seconds. Aborting...", config.Get().BufferTimeout)
-				btp.bufferEvents.Broadcast(errors.New("Playback was unable to start before timeout"))
-				return
+// kodiPlayback waits for Kodi to start playing the file and follows it until it stops.
+// It returns false when playback never started.
+func (btp *Player) kodiPlayback() bool {
+	log.Info("Waiting for playback...")
+	oneSecond := time.NewTicker(1 * time.Second)
+	defer oneSecond.Stop()
+	playbackTimeout := time.Duration(config.Get().BufferTimeout) * time.Second
+	lastActive := time.Now()
+	externalReported := false
+
+	for !btp.p.Background && btp.xbmcHost != nil && !btp.isPlayingOwnFile() {
+		// External players (e.g. "Play using" on Android) are invisible to Kodi, so open readers count as playback
+		if btp.t.HasReaders() {
+			lastActive = time.Now()
+			if !externalReported {
+				externalReported = true
+				log.Infof("File is being read before Kodi reports playback (external player?), keeping torrent while readers are active")
 			}
-			<-oneSecond.C
+		} else if time.Since(lastActive) > playbackTimeout {
+			log.Warningf("Playback was unable to start after %d seconds. Aborting...", config.Get().BufferTimeout)
+			btp.bufferEvents.Broadcast(errors.New("Playback was unable to start before timeout"))
+			return false
 		}
+		<-oneSecond.C
+	}
 
-		log.Info("Playback loop")
-		overlayStatusActive := false
-		playing := true
+	log.Info("Playback loop")
+	overlayStatusActive := false
+	playing := true
 
+	btp.updateWatchTimes()
+	btp.findNextFile()
+
+	log.Infof("Got playback: %fs / %fs", btp.p.WatchedTime, btp.p.VideoDuration)
+	if btp.scrobble {
+		btp.scrobbleTracker(tracker.ScrobbleStart)
+		btp.p.TraktScrobbled = true
+	}
+
+	btp.t.IsPlaying.Store(true)
+
+playbackLoop:
+	for {
+		if btp.p.Background || btp.xbmcHost == nil || !btp.isPlayingOwnFile() {
+			btp.t.IsPlaying.Store(false)
+			break playbackLoop
+		}
+		<-oneSecond.C
 		btp.updateWatchTimes()
-		btp.findNextFile()
 
-		log.Infof("Got playback: %fs / %fs", btp.p.WatchedTime, btp.p.VideoDuration)
-		if btp.scrobble {
-			btp.scrobbleTracker(tracker.ScrobbleStart)
-			btp.p.TraktScrobbled = true
+		// Trigger UpNext notification if Player is done with initialization
+		if btp.p.VideoDuration > 0 && !btp.p.UpNextSent {
+			go btp.processUpNextPayload()
 		}
 
-		btp.t.IsPlaying.Store(true)
-
-	playbackLoop:
-		for {
-			if btp.p.Background || btp.xbmcHost == nil || !btp.isPlayingOwnFile() {
-				btp.t.IsPlaying.Store(false)
-				break playbackLoop
+		if btp.p.Seeked {
+			btp.p.Seeked = false
+			if btp.scrobble {
+				go btp.scrobbleTracker(tracker.ScrobbleStart)
 			}
-			<-oneSecond.C
-			btp.updateWatchTimes()
+		} else {
+			// Overlay is also shown while Kodi's info screen or OSD is open, not only on pause
+			state := btp.xbmcHost.InfoBooleans("Player.Paused", "Player.ShowInfo", "Window.IsVisible(videoosd)")
+			paused := state["Player.Paused"]
 
-			// Trigger UpNext notification if Player is done with initialization
-			if btp.p.VideoDuration > 0 && !btp.p.UpNextSent {
-				go btp.processUpNextPayload()
+			if btp.overlayStatusEnabled && btp.p.Playing && (paused || state["Player.ShowInfo"] || state["Window.IsVisible(videoosd)"]) {
+				progress := btp.t.GetProgress()
+				line1, line2, line3 := btp.statusStrings(progress, btp.t.GetStatus())
+				btp.overlayStatus.Update(int(progress), line1, line2, line3)
+				if !overlayStatusActive {
+					btp.overlayStatus.Show()
+					overlayStatusActive = true
+				}
+			} else if overlayStatusActive {
+				btp.overlayStatus.Hide()
+				overlayStatusActive = false
 			}
 
-			if btp.p.Seeked {
-				btp.p.Seeked = false
+			if paused && playing {
+				playing = false
+				if btp.scrobble {
+					go btp.scrobbleTracker(tracker.ScrobblePause)
+				}
+			} else if !paused && !playing {
+				playing = true
 				if btp.scrobble {
 					go btp.scrobbleTracker(tracker.ScrobbleStart)
 				}
-			} else {
-				// Overlay is also shown while Kodi's info screen or OSD is open, not only on pause
-				state := btp.xbmcHost.InfoBooleans("Player.Paused", "Player.ShowInfo", "Window.IsVisible(videoosd)")
-				paused := state["Player.Paused"]
-
-				if btp.overlayStatusEnabled && btp.p.Playing && (paused || state["Player.ShowInfo"] || state["Window.IsVisible(videoosd)"]) {
-					progress := btp.t.GetProgress()
-					line1, line2, line3 := btp.statusStrings(progress, btp.t.GetStatus())
-					btp.overlayStatus.Update(int(progress), line1, line2, line3)
-					if !overlayStatusActive {
-						btp.overlayStatus.Show()
-						overlayStatusActive = true
-					}
-				} else if overlayStatusActive {
-					btp.overlayStatus.Hide()
-					overlayStatusActive = false
-				}
-
-				if paused && playing {
-					playing = false
-					if btp.scrobble {
-						go btp.scrobbleTracker(tracker.ScrobblePause)
-					}
-				} else if !paused && !playing {
-					playing = true
-					if btp.scrobble {
-						go btp.scrobbleTracker(tracker.ScrobbleStart)
-					}
-				}
 			}
+		}
 
-			if btp.next.f != nil && !btp.next.started && btp.isReadyForNextFile() {
-				btp.startNextFile()
-			}
+		if btp.next.f != nil && !btp.next.started && btp.isReadyForNextFile() {
+			btp.startNextFile()
 		}
 	}
 
+	return true
+}
+
+// playbackEnded stores the resume point, updates the watched state and sends the last scrobble.
+func (btp *Player) playbackEnded() {
 	log.Info("Stopped playback")
 	btp.SaveStoredResume()
 	btp.setRateLimiting(false)
