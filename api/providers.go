@@ -10,8 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/elgatito/elementum/config"
-	"github.com/elgatito/elementum/providers"
-	"github.com/elgatito/elementum/providers/burst"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -100,101 +98,7 @@ func ProviderList(ctx *gin.Context) {
 		items = append(items, item)
 	}
 
-	items = append(items, builtinProviderItems()...)
-
 	ctx.JSON(200, xbmc.NewView("", items))
-}
-
-// builtinProviderItems lists the trackers of Elementum's own search (providers/burst), the ones in use
-// first. Clicking one switches it on or off; its login and mirror are in the context menu.
-func builtinProviderItems() xbmc.ListItems {
-	list := burst.List(providers.ProvidersDir())
-	slices.SortStableFunc(list, func(a, b burst.Status) int {
-		if a.Enabled != b.Enabled {
-			if a.Enabled {
-				return -1
-			}
-			return 1
-		}
-		return 0
-	})
-	items := make(xbmc.ListItems, 0, len(list))
-	for _, st := range list {
-		state := "[COLOR FF990000]Disabled[/COLOR]"
-		switch {
-		case st.Enabled && st.Unusable != "":
-			state = "[COLOR FF999900]Not supported[/COLOR]"
-		case st.Enabled && st.NeedsLogin:
-			state = "[COLOR FF999900]Needs login[/COLOR]"
-		case st.Enabled:
-			state = "[COLOR FF009900]Enabled[/COLOR]"
-		}
-		label := fmt.Sprintf("Built-in - %s - %s", state, st.Name)
-		if st.Private {
-			label += " (private)"
-		}
-		action := func(field string) string {
-			return fmt.Sprintf("RunPlugin(%s)", URLForXBMC("/providers/builtin/%s/%s", st.ID, field))
-		}
-		item := &xbmc.ListItem{Label: label, Path: URLForXBMC("/providers/builtin/%s/toggle", st.ID), IsPlayable: false}
-		if st.Private {
-			item.ContextMenu = [][]string{{"Username", action("username")}, {"Password", action("password")}, {"Passkey", action("passkey")}}
-		}
-		item.ContextMenu = append(item.ContextMenu, []string{"Mirror (other domain or URL)", action("alias")})
-		items = append(items, item)
-	}
-	return items
-}
-
-// BuiltinProviderSet changes one setting of a built-in provider: "toggle" flips it on or off, the other
-// fields are asked for with Kodi's keyboard (an empty answer leaves the value as it is).
-func BuiltinProviderSet(ctx *gin.Context) {
-	xbmcHost, _ := xbmc.GetXBMCHostWithContext(ctx)
-	dir, id, field := providers.ProvidersDir(), ctx.Params.ByName("id"), ctx.Params.ByName("field")
-	if xbmcHost == nil || dir == "" {
-		return
-	}
-	var current *burst.Status
-	for _, st := range burst.List(dir) {
-		if st.ID == id {
-			current = &st
-		}
-	}
-	if current == nil {
-		ctx.String(404, "unknown provider")
-		return
-	}
-	set := burst.LoadSettings(dir)[id]
-	ask := func(value string, hidden bool) string {
-		if answer := xbmcHost.Keyboard(value, current.Name+": "+field, hidden); answer != "" {
-			return answer
-		}
-		return value
-	}
-	switch field {
-	case "toggle":
-		on := !current.Enabled
-		set.Enabled = &on
-	case "username":
-		set.Username = ask(set.Username, false)
-	case "password":
-		set.Password = ask("", true)
-	case "passkey":
-		set.Passkey = ask("", true)
-	case "alias":
-		set.Alias = ask(set.Alias, false)
-	default:
-		ctx.String(404, "unknown setting")
-		return
-	}
-	if err := burst.SaveSettings(dir, id, set); err != nil {
-		log.Errorf("Saving provider settings: %s", err)
-		xbmcHost.Notify("Elementum", err.Error(), config.AddonIcon())
-	}
-	if xbmcHost.InfoLabel("Container.FolderPath") == providerPrefix {
-		xbmcHost.Refresh()
-	}
-	ctx.String(200, "")
 }
 
 // ProviderSettings ...

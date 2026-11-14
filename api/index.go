@@ -44,6 +44,9 @@ func Index(s *bittorrent.Service) gin.HandlerFunc {
 			{Label: "LOCALIZE[30579]", Path: URLForXBMC("/settings/plugin.video.elementum"), Thumbnail: config.AddonResource("img", "settings.png")},
 		}
 
+		// Settings of Elementum's own search, as the provider add-ons get theirs below.
+		li = append(li, &xbmc.ListItem{Label: "LOCALIZE[30582];;built-in", Path: URLForXBMC("/providers/builtin"), Thumbnail: config.AddonResource("img", "settings.png")})
+
 		// Adding Settings urls for each search provider found locally.
 		for _, addon := range getProviders(xbmcHost) {
 			name := cases.Title(language.Und, cases.NoLower).String(strings.ReplaceAll(addon.Name, "script.elementum.", ""))
