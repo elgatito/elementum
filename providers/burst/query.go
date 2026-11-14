@@ -344,3 +344,14 @@ func getInt(s string) int {
 	}, m))
 	return n
 }
+
+var quotedTitleRe = regexp.MustCompile(`["']({title.*?})["']`)
+
+// unquoteTitle drops the quotes some templates put around {title} when the title itself has
+// punctuation, which trackers do not match inside a quoted phrase.
+func unquoteTitle(template string, q Query) string {
+	if strings.ContainsAny(q.Titles["source"], "()\"':.[]<>/\\?") {
+		return quotedTitleRe.ReplaceAllString(template, "$1")
+	}
+	return template
+}

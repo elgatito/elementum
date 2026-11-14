@@ -194,6 +194,13 @@ func TestQueries(t *testing.T) {
 	if s := searches(d, q); len(s) != 1 || fill(d, s[0].query, q) != "some query" {
 		t.Errorf("general: %+v", s)
 	}
+	quoted := "'{title:original}' s{season:2}"
+	if got := unquoteTitle(quoted, Query{Titles: map[string]string{"source": "Mr. Robot"}}); got != "{title:original} s{season:2}" {
+		t.Errorf("unquote: %s", got)
+	}
+	if got := unquoteTitle(quoted, Query{Titles: map[string]string{"source": "Dark"}}); got != quoted {
+		t.Errorf("kept quotes: %s", got)
+	}
 	for in, want := range map[string]int{"12": 12, " 1,234 ": 1234, "1 234 seeds": 1234, "5.0": 5, "": 0, "n/a": 0} {
 		if got := getInt(in); got != want {
 			t.Errorf("getInt(%q) = %d, want %d", in, got, want)

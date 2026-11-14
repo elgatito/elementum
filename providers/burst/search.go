@@ -113,7 +113,7 @@ func searchProvider(ctx context.Context, id string, d Definition, set Settings, 
 	used := map[string]bool{}
 	lastPriority := 1
 	for _, sr := range searches(d, q) {
-		query, extra := fill(d, sr.query, q), fill(d, sr.extra, q)
+		query, extra := fill(d, unquoteTitle(sr.query, q), q), fill(d, sr.extra, q)
 		switch {
 		case query == "", used[query+extra], ctx.Err() != nil:
 			continue
