@@ -11,7 +11,6 @@ import (
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/library"
 	"github.com/elgatito/elementum/library/uid"
-	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/util"
 	"github.com/elgatito/elementum/xbmc"
 )
@@ -69,9 +68,7 @@ func AddMovie(ctx *gin.Context) {
 			return
 		}
 	}
-	if config.Get().TraktSyncAddedMovies {
-		go tracker.AddTo(tracker.Location(config.Get().TraktSyncAddedMoviesLocation), config.Get().TraktSyncAddedMoviesList, trackerItem(tracker.MovieType, tmdbID))
-	}
+	go library.SyncTracker(library.MovieType, util.StrInterfaceToInt(tmdbID), true)
 
 	label := "LOCALIZE[30277]"
 	logMsg := "%s (%s) added to library"
@@ -127,9 +124,7 @@ func RemoveMovie(ctx *gin.Context) {
 	if err != nil {
 		ctx.String(200, err.Error())
 	}
-	if config.Get().TraktSyncRemovedMovies {
-		go tracker.RemoveFrom(tracker.Location(config.Get().TraktSyncRemovedMoviesLocation), config.Get().TraktSyncRemovedMoviesList, trackerItem(tracker.MovieType, tmdbStr))
-	}
+	go library.SyncTracker(library.MovieType, util.StrInterfaceToInt(tmdbStr), false)
 
 	if ctx != nil {
 		if movie != nil && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30278];;%s", movie.GetTitle())) {
@@ -180,9 +175,7 @@ func AddShow(ctx *gin.Context) {
 			return
 		}
 	}
-	if config.Get().TraktSyncAddedShows {
-		go tracker.AddTo(tracker.Location(config.Get().TraktSyncAddedShowsLocation), config.Get().TraktSyncAddedShowsList, trackerItem(tracker.ShowType, tmdbID))
-	}
+	go library.SyncTracker(library.ShowType, util.StrInterfaceToInt(tmdbID), true)
 
 	label := "LOCALIZE[30277]"
 	logMsg := "%s (%s) added to library"
@@ -234,9 +227,7 @@ func RemoveShow(ctx *gin.Context) {
 	if err != nil {
 		ctx.String(200, err.Error())
 	}
-	if config.Get().TraktSyncRemovedShows {
-		go tracker.RemoveFrom(tracker.Location(config.Get().TraktSyncRemovedShowsLocation), config.Get().TraktSyncRemovedShowsList, trackerItem(tracker.ShowType, tmdbID))
-	}
+	go library.SyncTracker(library.ShowType, util.StrInterfaceToInt(tmdbID), false)
 
 	if ctx != nil {
 		if show != nil && paths != nil && xbmcHost.DialogConfirmFocused("Elementum", fmt.Sprintf("LOCALIZE[30278];;%s", show.GetName())) {

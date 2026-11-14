@@ -8,7 +8,6 @@ import (
 
 	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/library/uid"
-	"github.com/elgatito/elementum/tracker"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -52,22 +51,16 @@ func removeKodiRemoved(tmdbID int, mediaType int) {
 		return
 	}
 
-	cfg := config.Get()
 	if mediaType == MovieType {
 		if _, _, err := RemoveMovie(tmdbID, false); err != nil {
 			log.Warningf("Could not remove movie %d deleted from Kodi library: %s", tmdbID, err)
-		}
-		if cfg.TraktSyncRemovedMovies {
-			tracker.RemoveFrom(tracker.Location(cfg.TraktSyncRemovedMoviesLocation), cfg.TraktSyncRemovedMoviesList, &tracker.Item{Type: tracker.MovieType, IDs: tracker.IDs{TMDB: tmdbID}})
 		}
 	} else {
 		if _, _, err := RemoveShow(strconv.Itoa(tmdbID), false); err != nil {
 			log.Warningf("Could not remove show %d deleted from Kodi library: %s", tmdbID, err)
 		}
-		if cfg.TraktSyncRemovedShows {
-			tracker.RemoveFrom(tracker.Location(cfg.TraktSyncRemovedShowsLocation), cfg.TraktSyncRemovedShowsList, &tracker.Item{Type: tracker.ShowType, IDs: tracker.IDs{TMDB: tmdbID}})
-		}
 	}
+	SyncTracker(mediaType, tmdbID, false)
 }
 
 // isInKodiLibrary asks Kodi directly, as cached library state can be outdated or not reloaded at all.

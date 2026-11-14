@@ -976,3 +976,30 @@ func watchedToItems(watched []*tracker.WatchedItem) []*tracker.Item {
 	}
 	return ret
 }
+
+// SyncTracker mirrors a library add or removal of a movie (MovieType) or a show to the tracker location
+// chosen in the settings. It does nothing when that sync is off.
+func SyncTracker(mediaType, tmdbID int, added bool) {
+	c := config.Get()
+	item := &tracker.Item{Type: tracker.ShowType, IDs: tracker.IDs{TMDB: tmdbID}}
+	on, location, list := c.TraktSyncRemovedShows, c.TraktSyncRemovedShowsLocation, c.TraktSyncRemovedShowsList
+	switch {
+	case mediaType == MovieType && added:
+		on, location, list = c.TraktSyncAddedMovies, c.TraktSyncAddedMoviesLocation, c.TraktSyncAddedMoviesList
+	case mediaType == MovieType:
+		on, location, list = c.TraktSyncRemovedMovies, c.TraktSyncRemovedMoviesLocation, c.TraktSyncRemovedMoviesList
+	case added:
+		on, location, list = c.TraktSyncAddedShows, c.TraktSyncAddedShowsLocation, c.TraktSyncAddedShowsList
+	}
+	if mediaType == MovieType {
+		item.Type = tracker.MovieType
+	}
+	if !on {
+		return
+	}
+	if added {
+		tracker.AddTo(tracker.Location(location), list, item)
+	} else {
+		tracker.RemoveFrom(tracker.Location(location), list, item)
+	}
+}
