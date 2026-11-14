@@ -78,3 +78,38 @@ func (Server) UpdateProvider(c *gin.Context, id string) {
 		}
 	}
 }
+
+func toOption(o burst.Option, general burst.General) ProviderOption {
+	return ProviderOption{Id: o.ID, Group: o.Group, Label: o.Label, Value: general.Get(o.ID), Default: o.Default}
+}
+
+func (Server) ListProviderOptions(c *gin.Context) {
+	general := burst.LoadGeneral(providers.ProvidersDir())
+	out := make([]ProviderOption, 0, len(burst.Options))
+	for _, o := range burst.Options {
+		out = append(out, toOption(o, general))
+	}
+	c.JSON(http.StatusOK, out)
+}
+
+func (Server) UpdateProviderOption(c *gin.Context, id string) {
+	b := body[UpdateProviderOptionJSONRequestBody](c)
+	if b == nil {
+		return
+	}
+	dir := providers.ProvidersDir()
+	if dir == "" {
+		fail(c, noProfile)
+		return
+	}
+	// SaveOption refuses unknown ids and values of another type than the default's.
+	if err := burst.SaveOption(dir, id, b.Value); err != nil {
+		fail(c, bad(err.Error()))
+		return
+	}
+	for _, o := range burst.Options {
+		if o.ID == id {
+			c.JSON(http.StatusOK, toOption(o, burst.LoadGeneral(dir)))
+		}
+	}
+}

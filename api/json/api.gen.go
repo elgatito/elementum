@@ -964,6 +964,24 @@ type Provider struct {
 	Username *string `json:"username,omitempty"`
 }
 
+// ProviderOption defines model for ProviderOption.
+type ProviderOption struct {
+	// Default The value when the user has not set one.
+	Default interface{} `json:"default"`
+
+	// Group Example: Release types
+	Group string `json:"group"`
+
+	// Id Example: filter_cam
+	Id string `json:"id"`
+
+	// Label Example: CAM
+	Label string `json:"label"`
+
+	// Value The current value: a boolean, number or text.
+	Value interface{} `json:"value"`
+}
+
 // ProviderSettings defines model for ProviderSettings.
 type ProviderSettings struct {
 	Alias    *string `json:"alias,omitempty"`
@@ -1507,6 +1525,12 @@ type GetPersonCreditsParams struct {
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
+// UpdateProviderOptionJSONBody defines parameters for UpdateProviderOption.
+type UpdateProviderOptionJSONBody struct {
+	// Value A boolean, number or text: the type of the option's default.
+	Value interface{} `json:"value"`
+}
+
 // SearchParams defines parameters for Search.
 type SearchParams struct {
 	Query string     `form:"query" json:"query"`
@@ -1667,6 +1691,9 @@ type CreatePlaybackJSONRequestBody = PlaybackRequest
 // ReportPlaybackProgressJSONRequestBody defines body for ReportPlaybackProgress for application/json ContentType.
 type ReportPlaybackProgressJSONRequestBody = PlaybackProgress
 
+// UpdateProviderOptionJSONRequestBody defines body for UpdateProviderOption for application/json ContentType.
+type UpdateProviderOptionJSONRequestBody UpdateProviderOptionJSONBody
+
 // UpdateProviderJSONRequestBody defines body for UpdateProvider for application/json ContentType.
 type UpdateProviderJSONRequestBody = ProviderSettings
 
@@ -1726,6 +1753,12 @@ type ServerInterface interface {
 	// ListProviders Trackers of the built-in torrent search, with the user's settings
 	// (GET /providers)
 	ListProviders(c *gin.Context)
+	// ListProviderOptions General settings of the built-in search (filters, sizes, result limits)
+	// (GET /providers/options)
+	ListProviderOptions(c *gin.Context)
+	// UpdateProviderOption Change one general setting
+	// (PUT /providers/options/{id})
+	UpdateProviderOption(c *gin.Context, id string)
 	// UpdateProvider Change a provider's settings
 	// (PUT /providers/{id})
 	UpdateProvider(c *gin.Context, id string)
@@ -2290,6 +2323,44 @@ func (siw *ServerInterfaceWrapper) ListProviders(c *gin.Context) {
 	}
 
 	siw.Handler.ListProviders(c)
+}
+
+// ListProviderOptions operation middleware
+func (siw *ServerInterfaceWrapper) ListProviderOptions(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListProviderOptions(c)
+}
+
+// UpdateProviderOption operation middleware
+func (siw *ServerInterfaceWrapper) UpdateProviderOption(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", c.Param("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter id: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.UpdateProviderOption(c, id)
 }
 
 // UpdateProvider operation middleware
@@ -3269,6 +3340,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/torrents/:info_hash/resume", wrapper.ResumeTorrent)
 	router.DELETE(options.BaseURL+"/torrents/:info_hash", wrapper.RemoveTorrent)
 	router.GET(options.BaseURL+"/providers", wrapper.ListProviders)
+	router.GET(options.BaseURL+"/providers/options", wrapper.ListProviderOptions)
+	router.PUT(options.BaseURL+"/providers/options/:id", wrapper.UpdateProviderOption)
 	router.PUT(options.BaseURL+"/providers/:id", wrapper.UpdateProvider)
 	router.GET(options.BaseURL+"/people/:tmdb_id", wrapper.GetPerson)
 	router.GET(options.BaseURL+"/people/:tmdb_id/credits", wrapper.GetPersonCredits)

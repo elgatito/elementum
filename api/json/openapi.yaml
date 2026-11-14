@@ -655,6 +655,51 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         default: { $ref: "#/components/responses/Error" }
 
+  /providers/options:
+    get:
+      tags: [providers]
+      operationId: listProviderOptions
+      summary: General settings of the built-in search (filters, sizes, result limits)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ProviderOption" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /providers/options/{id}:
+    put:
+      tags: [providers]
+      operationId: updateProviderOption
+      summary: Change one general setting
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value: { description: "A boolean, number or text: the type of the option's default." }
+      responses:
+        "200":
+          description: The option after the change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProviderOption" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
   /providers/{id}:
     put:
       tags: [providers]
@@ -1458,6 +1503,15 @@ components:
         username: { type: string }
         has_secret: { type: boolean, description: A password or passkey is stored. }
         alias: { type: string, description: "Mirror in use: another domain or URL of the site.", example: "http://rutor.is" }
+    ProviderOption:
+      type: object
+      required: [id, group, label, value, default]
+      properties:
+        id: { type: string, example: filter_cam }
+        group: { type: string, example: Release types }
+        label: { type: string, example: CAM }
+        value: { description: "The current value: a boolean, number or text." }
+        default: { description: The value when the user has not set one. }
     ProviderSettings:
       type: object
       properties:

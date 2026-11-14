@@ -59,7 +59,7 @@ The contract lives in `api/json/openapi.yaml`; regenerate its Go bindings with `
 | playback, stream | `/playback`, `/playback/{id}`, `/playback/{id}/progress`, `/stream/{id}/{file_index}` |
 | torrents | `/torrents`, `/torrents/{info_hash}` (+ `pause`, `resume`) |
 | people | `/people/{tmdb_id}`, `/people/{tmdb_id}/credits` |
-| providers | `/providers`, `/providers/{id}` (trackers of the built-in search: enable, credentials, mirror) |
+| providers | `/providers`, `/providers/{id}` (trackers of the built-in search: enable, credentials, mirror), `/providers/options`, `/providers/options/{id}` (filters, sizes, result limits) |
 | UI events | `/ui/events`, `/ui/requests/{id}` |
 
 ## UI host
