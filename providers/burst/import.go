@@ -7,6 +7,22 @@ import (
 	"strconv"
 )
 
+// CanImportBurst reports whether this is the first run of the built-in search (dir has no settings.json
+// yet) and the Burst add-on has settings to take over.
+func CanImportBurst(dir, burstSettings string) bool {
+	if dir == "" {
+		return false
+	}
+	if _, err := os.Stat(filepath.Join(dir, settingsFile)); err == nil {
+		return false
+	}
+	fi, err := os.Stat(burstSettings)
+	return err == nil && fi.Size() > 0
+}
+
+// SkipImport writes an empty settings.json, so the import is not offered again.
+func SkipImport(dir string) error { return change(dir, func(*file) {}) }
+
 // ImportBurst copies the settings of the Burst add-on (its settings.xml in Kodi's addon_data) into
 // dir's settings.json, when that file does not exist yet: the first run of the built-in search.
 // It reports how many providers came out enabled; nothing is imported, and no file written, when Burst

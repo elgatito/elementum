@@ -14,7 +14,6 @@ import (
 	"github.com/elgatito/elementum/providers/burst"
 	"github.com/elgatito/elementum/proxy"
 	"github.com/elgatito/elementum/tmdb"
-	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -45,25 +44,43 @@ func useKodi(xbmcHost *xbmc.XBMCHost) bool {
 // Available reports whether there is anything to search with: the built-in search, or a reachable Kodi.
 func Available(xbmcHost *xbmc.XBMCHost) bool { return useBuiltin(xbmcHost) || useKodi(xbmcHost) }
 
-var importOnce sync.Once
-
-// ProvidersDir is the folder of the user's provider files, in the profile. On the first run of the
-// built-in search (no settings there yet) the settings of the Burst add-on are imported, when Kodi has them.
+// ProvidersDir is the folder of the user's provider files, in the profile.
 func ProvidersDir() string {
 	info := config.Get().Info
 	if info == nil || info.Profile == "" {
 		return ""
 	}
-	profile := filepath.Clean(info.Profile)
-	dir := filepath.Join(profile, "providers")
-	importOnce.Do(func() {
-		// Kodi keeps every add-on's settings next to each other in addon_data.
-		burstSettings := filepath.Join(filepath.Dir(profile), "script.elementum.burst", "settings.xml")
-		if enabled, imported := burst.ImportBurst(dir, burstSettings); imported {
-			ui.Toast(fmt.Sprintf("Built-in search: imported the Burst settings, %d providers enabled", enabled))
+	return filepath.Join(filepath.Clean(info.Profile), "providers")
+}
+
+var importMu sync.Mutex
+
+// OfferBurstImport asks in Kodi, on the first run of the built-in search, whether to take over the
+// settings of the Burst add-on: enabled providers, logins, mirrors, filters and the cookie sync. The
+// answer is final (closing the dialog counts as no): afterwards the built-in search has its own settings
+// file. Without a Kodi to ask nothing happens, and it is offered on the next search from Kodi.
+func OfferBurstImport(xbmcHost *xbmc.XBMCHost) {
+	dir := ProvidersDir()
+	if xbmcHost == nil || dir == "" {
+		return
+	}
+	importMu.Lock() // two searches at once must not ask twice
+	defer importMu.Unlock()
+	// Kodi keeps every add-on's settings next to each other in addon_data.
+	burstSettings := filepath.Join(filepath.Dir(filepath.Dir(dir)), "script.elementum.burst", "settings.xml")
+	if !burst.CanImportBurst(dir, burstSettings) {
+		return
+	}
+	question := "Elementum now searches trackers itself.[CR]Import the settings of the Burst add-on (enabled providers, logins, filters, cookie sync)?[CR]Burst keeps its own settings either way."
+	if !xbmcHost.DialogConfirmNonTimed("Elementum", question) {
+		if err := burst.SkipImport(dir); err != nil {
+			log.Warningf("Could not create the built-in search settings: %s", err)
 		}
-	})
-	return dir
+		return
+	}
+	if enabled, imported := burst.ImportBurst(dir, burstSettings); imported {
+		xbmcHost.Notify("Elementum", fmt.Sprintf("Burst settings imported, %d providers enabled", enabled), config.AddonIcon())
+	}
 }
 
 // search runs the built-in search. A search that is not silent shows its progress in Kodi, when the
@@ -73,6 +90,7 @@ func (b builtinSearcher) search(q burst.Query, silent bool) []*bittorrent.Torren
 	defer cancel()
 	var progress func(done, total int, waiting []string)
 	if host := b.objects.xbmcHost; host != nil && !silent {
+		OfferBurstImport(host)
 		if dialog := host.NewDialogProgressBG("Elementum", "Searching..."); dialog != nil {
 			defer dialog.Close()
 			progress = func(done, total int, waiting []string) {

@@ -24,6 +24,7 @@ func BuiltinSettings(ctx *gin.Context) {
 	if xbmcHost == nil || dir == "" {
 		return
 	}
+	providers.OfferBurstImport(xbmcHost)
 	const title = "Elementum: built-in search"
 	failed := func(err error) {
 		if err != nil {

@@ -211,6 +211,9 @@ func TestImportBurst(t *testing.T) {
 	if _, imported := ImportBurst(dir, filepath.Join(t.TempDir(), "missing.xml")); imported {
 		t.Error("imported from a missing file")
 	}
+	if CanImportBurst(dir, filepath.Join(t.TempDir(), "missing.xml")) || !CanImportBurst(dir, burstSettings) {
+		t.Error("CanImportBurst is wrong before the import")
+	}
 	enabled, imported := ImportBurst(dir, burstSettings)
 	if !imported || enabled != 2 {
 		t.Fatalf("imported %v, %d enabled", imported, enabled)
@@ -224,6 +227,14 @@ func TestImportBurst(t *testing.T) {
 	}
 	if ids := Enabled(Load(dir), set, "episode"); !contains(ids, "rutor") || !contains(ids, "rutracker") || contains(ids, "yts") {
 		t.Errorf("enabled: %v", ids)
+	}
+	// declining leaves an empty settings file, and nothing is offered again
+	declined := filepath.Join(t.TempDir(), "providers")
+	if err := SkipImport(declined); err != nil || CanImportBurst(declined, burstSettings) || len(LoadSettings(declined)) != 0 {
+		t.Errorf("declined import: %v", err)
+	}
+	if CanImportBurst(dir, burstSettings) {
+		t.Error("offered again after the import")
 	}
 	// only on the first run: the settings file is there now
 	if _, again := ImportBurst(dir, burstSettings); again {

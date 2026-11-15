@@ -600,3 +600,31 @@ func TestContainsAndCookies(t *testing.T) {
 		t.Errorf("link: %s", got[0].URI)
 	}
 }
+
+// One providers.json serves Burst and the built-in search: Elementum reads the "builtin" part, and skips a
+// provider that only has Burst's Python expressions.
+func TestBuiltinPart(t *testing.T) {
+	t.Cleanup(Reload)
+	dir := t.TempDir()
+	custom := `{
+	 "both": {"name": "Both", "base_url": "https://both.example/s?q=QUERY", "login_object": "{'u': USERNAME}",
+	   "parser": {"row": "find_all('tr')", "name": "item('a')"},
+	   "builtin": {"login_object": {"u": "USERNAME"}, "parser": {"row": [{"tag": "tr", "all": true}], "name": {"tag": "a"}}}},
+	 "python": {"name": "Python", "base_url": "https://python.example/s?q=QUERY", "parser": {"row": "find_all('tr')", "name": "item('a')"}}
+	}`
+	if err := os.WriteFile(filepath.Join(dir, "my.json"), []byte(custom), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	defs := Load(dir)
+	both := defs["both"]
+	if _, isSteps := both["parser"].(map[string]any)["row"].([]any); !isSteps || both.strings("login_object")["u"] != "USERNAME" || both["builtin"] != nil || both.Skipped() != "" {
+		t.Errorf("both: %v", both)
+	}
+	if why := defs["python"].Skipped(); !strings.Contains(why, "Python") {
+		t.Errorf("python-only definition: %q", why)
+	}
+	// the bundled file is Burst's own: it still has the Python expressions next to the builtin part
+	if !strings.Contains(string(bundled), `"builtin"`) || !strings.Contains(string(bundled), "find_once(") {
+		t.Error("the bundled providers.json is not the shared file")
+	}
+}

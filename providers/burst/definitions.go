@@ -1,10 +1,12 @@
 // Package burst is Elementum's built-in torrent search: the providers of the Burst add-on
 // (script.elementum.burst), searched from Go with no Kodi and no Python.
 //
-// providers.json is generated from Burst's own file by convert.py; see docs/builtin-providers.md.
+// providers.json is Burst's own file, copied by bundle.py. Burst runs the Python expressions of a
+// provider's "parser" and login fields; Elementum reads the same things from the provider's "builtin"
+// part, which Burst's scripts/builtin.py writes. See docs/builtin-providers.md.
 package burst
 
-//go:generate python3 convert.py
+//go:generate python3 bundle.py
 
 import (
 	"embed"
@@ -95,6 +97,8 @@ func (d Definition) Skipped() string {
 	switch {
 	case d.str("unsupported") != "":
 		return "definition not converted: " + d.str("unsupported")
+	case d.pythonOnly():
+		return "definition has Python expressions and no builtin part (Burst's scripts/builtin.py writes it)"
 	case d.str("token") != "":
 		return "needs a request token, which is not supported"
 	}
@@ -158,6 +162,13 @@ func merge(defs map[string]Definition, content []byte, source string, custom boo
 		return
 	}
 	for id, d := range in {
+		// What the built-in search reads in place of Burst's Python expressions of the same name.
+		if builtin, ok := d["builtin"].(map[string]any); ok {
+			for k, v := range builtin {
+				d[k] = v
+			}
+		}
+		delete(d, "builtin")
 		// As Burst: the site root follows the search URL, so an override of base_url moves both.
 		if base, _ := d["base_url"].(string); base != "" {
 			if u, err := url.Parse(base); err == nil && u.Host != "" {
@@ -224,4 +235,13 @@ func host(raw string) string {
 		return u.Host
 	}
 	return ""
+}
+
+// pythonOnly reports a definition whose parser is still Burst's Python: text where the specs should be.
+func (d Definition) pythonOnly() bool {
+	parser, _ := d["parser"].(map[string]any)
+	if s, ok := parser["row"].(string); ok && s != "" {
+		return true
+	}
+	return false
 }
