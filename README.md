@@ -110,7 +110,7 @@ Elementum's dialogs, notifications, confirmations, lists, text prompts and progr
 - `GET /api/ui/events?client_id=...` is a long-poll: it returns as soon as an event is queued, or `204` after `wait` seconds. Pass the last `seq` as `since` on the next call.
 - `POST /api/ui/requests/{id}` answers a question (`yes`, `selected`, `text`) or cancels it / a progress dialog.
 - A question goes to every connected client and the first answer wins (`410` for the others). Elementum asks Kodi only when no client is connected.
-- Texts are translated on the server, into the client's `lang`, from the addon's strings (English when missing).
+- Texts are translated on the server, into the client's `lang`. The translations are built into the binary (a copy of the addon's strings, refreshed with `go generate ./ui`), so they are there without the addon; when the addon folder is present its own files are used.
 
 ## Settings from a file
 

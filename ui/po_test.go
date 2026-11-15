@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -57,7 +58,8 @@ func TestText(t *testing.T) {
 	stringsDir = func() string { return dir }
 	t.Cleanup(func() { stringsDir = old })
 
-	for lang, want := range map[string]string{"de": "Allgemein", "de-DE": "Allgemein", "fr": "General"} {
+	// the add-on's folder has German only: French comes from the strings built into the binary
+	for lang, want := range map[string]string{"de": "Allgemein", "de-DE": "Allgemein", "fr": "Général"} {
 		if got := Text(lang, "General"); got != want {
 			t.Errorf("%s: %q, want %q", lang, got, want)
 		}
@@ -69,9 +71,25 @@ func TestText(t *testing.T) {
 	if got := Text("de", "Not a known text"); got != "Not a known text" {
 		t.Errorf("unknown: %q", got)
 	}
-	// without an add-on folder, as in a standalone run
+	// without an add-on folder, as in a standalone run, every text comes from the binary
 	stringsDir = func() string { return "" }
-	if got := Text("de", "General"); got != "General" {
-		t.Errorf("no strings: %q", got)
+	for lang, want := range map[string]string{"de": "Filterung", "ru-RU": "Фильтрация", "pt": "Filtragem", "xx": "Filtering"} {
+		if got := Text(lang, "Filtering"); got != want {
+			t.Errorf("built-in %s: %q, want %q", lang, got, want)
+		}
+	}
+	if got := Translate("de", "LOCALIZE[30214]"); got == "LOCALIZE[30214]" || got == "" {
+		t.Errorf("an old id is not translated without the add-on: %q", got)
+	}
+	// every language of the add-on is in the binary, with the texts of the built-in search
+	entries, _ := embeddedStrings.ReadDir("strings")
+	if len(entries) < 22 {
+		t.Fatalf("%d embedded languages", len(entries))
+	}
+	for _, e := range entries {
+		lang := strings.TrimSuffix(e.Name(), ".po.gz")
+		if m := embedded(lang); len(m) < 700 || m[textIDs["GitHub is connected"]] == "" {
+			t.Errorf("%s: %d strings", lang, len(m))
+		}
 	}
 }

@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"compress/gzip"
+	"embed"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -105,12 +108,54 @@ func unquote(s string) string {
 	return ""
 }
 
-// stringsFor finds the strings of a language ("de", "de-DE"), or nil. Kodi names the dirs resource.language.de_de.
-func stringsFor(lang string) map[int]string {
-	dir := stringsDir()
-	if dir == "" {
+// The add-on's translations, copied into the binary so Elementum has its texts without the add-on:
+// in a standalone run, a container, or as a server for client apps. Refresh them with
+// `go generate ./ui` after the add-on's strings change.
+//
+//go:generate go run gen_strings.go
+//go:embed strings/*.po.gz
+var embeddedStrings embed.FS
+
+// embedded returns the built-in strings of a language ("de", "de-DE"), or nil: the same choice of
+// language as findStrings makes among the add-on's folders.
+func embedded(lang string) map[int]string {
+	l := strings.ToLower(strings.ReplaceAll(lang, "-", "_"))
+	entries, _ := embeddedStrings.ReadDir("strings")
+	name := ""
+	for _, e := range entries { // sorted, so the first language of a family is always the same
+		n := strings.TrimSuffix(e.Name(), ".po.gz")
+		if n == l {
+			name = n
+			break
+		}
+		if name == "" && strings.HasPrefix(n, strings.SplitN(l, "_", 2)[0]+"_") {
+			name = n
+		}
+	}
+	if name == "" {
 		return nil
 	}
+	f, err := embeddedStrings.Open("strings/" + name + ".po.gz")
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	zr, err := gzip.NewReader(f)
+	if err != nil {
+		return nil
+	}
+	b, err := io.ReadAll(zr)
+	if err != nil {
+		return nil
+	}
+	return parsePO(string(b))
+}
+
+// stringsFor finds the strings of a language ("de", "de-DE"), or nil. The add-on's own files win when
+// its folder is there (they may be newer than the binary); else the strings built into the binary are used.
+// Kodi names the dirs resource.language.de_de.
+func stringsFor(lang string) map[int]string {
+	dir := stringsDir()
 	key := dir + "|" + lang
 	langMu.Lock()
 	m, ok := langCache[key]
@@ -118,7 +163,12 @@ func stringsFor(lang string) map[int]string {
 	if ok {
 		return m
 	}
-	m = findStrings(dir, lang)
+	if dir != "" {
+		m = findStrings(dir, lang)
+	}
+	if m == nil {
+		m = embedded(lang)
+	}
 	langMu.Lock()
 	if len(langCache) < maxLangCache {
 		langCache[key] = m
