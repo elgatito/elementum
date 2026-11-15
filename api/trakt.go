@@ -398,7 +398,7 @@ func renderTraktMovies(ctx *gin.Context, movies []*trakt.Movies, total int, page
 		}
 		items = append(items, nextpage)
 	}
-	ctx.JSON(200, xbmc.NewView("movies", items))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "movies", items))
 }
 
 // TraktPopularMovies ...
@@ -739,7 +739,7 @@ func renderTraktShows(ctx *gin.Context, shows []*trakt.Shows, total int, page in
 		}
 		items = append(items, nextpage)
 	}
-	ctx.JSON(200, xbmc.NewView("tvshows", items))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "tvshows", items))
 }
 
 // TraktPopularShows ...
@@ -1277,7 +1277,7 @@ func renderCalendarMovies(ctx *gin.Context, movies []*trakt.CalendarMovie, total
 		}
 		items = append(items, nextpage)
 	}
-	ctx.JSON(200, xbmc.NewView("movies", items))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "movies", items))
 }
 
 func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total int, page int) {
@@ -1485,7 +1485,7 @@ func renderCalendarShows(ctx *gin.Context, shows []*trakt.CalendarShow, total in
 		}
 		items = append(items, nextpage)
 	}
-	ctx.JSON(200, xbmc.NewView("episodes", items))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "episodes", items))
 }
 
 func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total int, page int) {
@@ -1654,7 +1654,7 @@ func renderProgressShows(ctx *gin.Context, shows []*trakt.ProgressShow, total in
 		})
 	}
 
-	ctx.JSON(200, xbmc.NewView("episodes", items))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "episodes", items))
 }
 
 // SelectTrackerUserList lets the user pick a list of the active tracker for added/removed sync

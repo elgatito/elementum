@@ -4,12 +4,17 @@ import "time"
 
 type XBMCHost struct {
 	Host string
+	// Lang is the language Kodi asked for with the request (LanguageHeader), for the texts sent back to it;
+	// "" for the configured one. A host with it is a copy made for that request.
+	Lang string `json:"-"`
 }
 
 // View ...
 type View struct {
 	ContentType string    `json:"content_type"`
 	Items       ListItems `json:"items"`
+
+	lang string // of the request, see NewViewFor
 }
 
 // GUIIconOverlay ...

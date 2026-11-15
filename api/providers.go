@@ -98,7 +98,7 @@ func ProviderList(ctx *gin.Context) {
 		items = append(items, item)
 	}
 
-	ctx.JSON(200, xbmc.NewView("", items))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "", items))
 }
 
 // ProviderSettings ...

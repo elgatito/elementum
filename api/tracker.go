@@ -109,7 +109,7 @@ func trackerListsView(media string) gin.HandlerFunc {
 		if media == showType {
 			view = "menus_tvshows"
 		}
-		ctx.JSON(200, xbmc.NewView(view, items))
+		ctx.JSON(200, xbmc.NewViewFor(ctx, view, items))
 	}
 }
 
@@ -195,7 +195,7 @@ func traktListsView(media, menu, view string) gin.HandlerFunc {
 				ContextMenu: [][]string{menuItem},
 			})
 		}
-		ctx.JSON(200, xbmc.NewView(view, filterListItems(items)))
+		ctx.JSON(200, xbmc.NewViewFor(ctx, view, filterListItems(items)))
 	}
 }
 

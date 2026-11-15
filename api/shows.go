@@ -80,7 +80,7 @@ func TVIndex(ctx *gin.Context) {
 		}
 	}
 
-	ctx.JSON(200, xbmc.NewView("menus_tvshows", filterListItems(items)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "menus_tvshows", filterListItems(items)))
 }
 
 // TVGenres ...
@@ -101,7 +101,7 @@ func TVGenres(ctx *gin.Context) {
 			},
 		})
 	}
-	ctx.JSON(200, xbmc.NewView("menus_tvshows_genres", filterListItems(items)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "menus_tvshows_genres", filterListItems(items)))
 }
 
 // TVLanguages ...
@@ -120,7 +120,7 @@ func TVLanguages(ctx *gin.Context) {
 			},
 		})
 	}
-	ctx.JSON(200, xbmc.NewView("menus_tvshows_languages", filterListItems(items)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "menus_tvshows_languages", filterListItems(items)))
 }
 
 // TVCountries ...
@@ -139,7 +139,7 @@ func TVCountries(ctx *gin.Context) {
 			},
 		})
 	}
-	ctx.JSON(200, xbmc.NewView("menus_tvshows_countries", filterListItems(items)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "menus_tvshows_countries", filterListItems(items)))
 }
 
 // TVLibrary ...
@@ -212,7 +212,7 @@ func CalendarShows(ctx *gin.Context) {
 		{Label: "LOCALIZE[30299]", Path: URLForXBMC("/shows/trakt/calendars/allnewshows"), Thumbnail: config.AddonResource("img", "calendar_new_shows.png")},
 		{Label: "LOCALIZE[30300]", Path: URLForXBMC("/shows/trakt/calendars/allpremieres"), Thumbnail: config.AddonResource("img", "calendar_premieres.png")},
 	}
-	ctx.JSON(200, xbmc.NewView("menus_tvshows", filterListItems(items)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "menus_tvshows", filterListItems(items)))
 }
 
 func renderShows(ctx *gin.Context, shows tmdb.Shows, page int, total int, nameSort bool) {
@@ -312,7 +312,7 @@ func renderShows(ctx *gin.Context, shows tmdb.Shows, page int, total int, nameSo
 		})
 	}
 
-	ctx.JSON(200, xbmc.NewView("tvshows", filterListItems(items)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "tvshows", filterListItems(items)))
 }
 
 // PopularShows ...
@@ -502,7 +502,7 @@ func ShowSeasons(ctx *gin.Context) {
 
 	// xbmc.ListItems always returns false to Less() so that order is unchanged
 
-	ctx.JSON(200, xbmc.NewView("seasons", filterListItems(reversedItems)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "seasons", filterListItems(reversedItems)))
 }
 
 // ShowEpisodes ...
@@ -628,7 +628,7 @@ func ShowEpisodes(ctx *gin.Context) {
 		episodes = append(episodes, e...)
 	}
 
-	ctx.JSON(200, xbmc.NewView("episodes", filterListItems(episodes)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "episodes", filterListItems(episodes)))
 }
 
 func setEpisodeItemProgress(path string, showID, seasonNumber, episodeNumber int) {

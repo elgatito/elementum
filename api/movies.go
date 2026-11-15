@@ -114,7 +114,7 @@ func MoviesIndex(ctx *gin.Context) {
 		}
 	}
 
-	ctx.JSON(200, xbmc.NewView("menus_movies", filterListItems(items)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "menus_movies", filterListItems(items)))
 }
 
 // MovieGenres ...
@@ -134,7 +134,7 @@ func MovieGenres(ctx *gin.Context) {
 			},
 		})
 	}
-	ctx.JSON(200, xbmc.NewView("menus_movies_genres", filterListItems(items)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "menus_movies_genres", filterListItems(items)))
 }
 
 // MovieLanguages ...
@@ -152,7 +152,7 @@ func MovieLanguages(ctx *gin.Context) {
 			},
 		})
 	}
-	ctx.JSON(200, xbmc.NewView("menus_movies_languages", filterListItems(items)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "menus_movies_languages", filterListItems(items)))
 }
 
 // MovieCountries ...
@@ -170,7 +170,7 @@ func MovieCountries(ctx *gin.Context) {
 			},
 		})
 	}
-	ctx.JSON(200, xbmc.NewView("menus_movies_countries", filterListItems(items)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "menus_movies_countries", filterListItems(items)))
 }
 
 // MovieLibrary ...
@@ -271,7 +271,7 @@ func TopTraktLists(ctx *gin.Context) {
 		items = append(items, nextpage)
 	}
 
-	ctx.JSON(200, xbmc.NewView("menus_movies", filterListItems(items)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "menus_movies", filterListItems(items)))
 }
 
 // CalendarMovies ...
@@ -284,7 +284,7 @@ func CalendarMovies(ctx *gin.Context) {
 		{Label: "LOCALIZE[30293]", Path: URLForXBMC("/movies/trakt/calendars/allmovies"), Thumbnail: config.AddonResource("img", "calendar_movies.png")},
 		{Label: "LOCALIZE[30294]", Path: URLForXBMC("/movies/trakt/calendars/allreleases"), Thumbnail: config.AddonResource("img", "calendar_releases.png")},
 	}
-	ctx.JSON(200, xbmc.NewView("menus_movies", filterListItems(items)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "menus_movies", filterListItems(items)))
 }
 
 func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, nameSort bool) {
@@ -402,7 +402,7 @@ func renderMovies(ctx *gin.Context, movies tmdb.Movies, page int, total int, nam
 		})
 	}
 
-	ctx.JSON(200, xbmc.NewView("movies", filterListItems(items)))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "movies", filterListItems(items)))
 }
 
 func setMovieItemProgress(path string, movieID int) {
@@ -534,7 +534,7 @@ func PopularPeople(mediaType string) gin.HandlerFunc {
 		if mediaType == "shows" {
 			view = "menus_tvshows"
 		}
-		ctx.JSON(200, xbmc.NewView(view, filterListItems(items)))
+		ctx.JSON(200, xbmc.NewViewFor(ctx, view, filterListItems(items)))
 	}
 }
 

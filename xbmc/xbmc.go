@@ -552,7 +552,7 @@ func (h *XBMCHost) SetFileProgress(file string, position int, total int) (ret st
 
 // Translate ...
 func (h *XBMCHost) Translate(str string) (retVal string) {
-	if t := localize(str); !strings.Contains(t, "LOCALIZE[") {
+	if t := localize(h.Lang, str); !strings.Contains(t, "LOCALIZE[") {
 		return t // no round trip to the add-on for what Elementum can translate itself
 	}
 	h.executeJSONRPCEx("Translate", &retVal, Args{str})
@@ -561,7 +561,7 @@ func (h *XBMCHost) Translate(str string) (retVal string) {
 
 // TranslateText ...
 func (h *XBMCHost) TranslateText(str string) (retVal string) {
-	if t := localize(str); !strings.Contains(t, "LOCALIZE[") {
+	if t := localize(h.Lang, str); !strings.Contains(t, "LOCALIZE[") {
 		return t
 	}
 	h.executeJSONRPCEx("TranslateText", &retVal, Args{str})

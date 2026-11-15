@@ -47,7 +47,7 @@ func History(ctx *gin.Context) {
 		})
 	}
 
-	ctx.JSON(200, xbmc.NewView("", items))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "", items))
 }
 
 // HistoryRemove ...

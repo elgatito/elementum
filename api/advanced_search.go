@@ -350,7 +350,7 @@ func AdvancedSearch(mediaType string) gin.HandlerFunc {
 			items = append(items, edit("LOCALIZE[30770]", "reset"))
 		}
 
-		ctx.JSON(200, xbmc.NewView("", items))
+		ctx.JSON(200, xbmc.NewViewFor(ctx, "", items))
 	}
 }
 

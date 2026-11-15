@@ -80,7 +80,7 @@ func ProbeLocalHost() {
 				return
 			}
 		}
-		XBMCLocalHost = &XBMCHost{host}
+		XBMCLocalHost = &XBMCHost{Host: host}
 		XBMCHosts = append(XBMCHosts, XBMCLocalHost)
 		// Both loopbacks are the same Kodi, keep only the first one that answers
 		return
@@ -145,7 +145,7 @@ func AddXBMCHost(host string) (*XBMCHost, error) {
 		}
 	}
 
-	h := &XBMCHost{host}
+	h := &XBMCHost{Host: host}
 	XBMCHosts = append(XBMCHosts, h)
 
 	return h, nil
@@ -182,7 +182,20 @@ func GetLocalXBMCHost() (*XBMCHost, error) {
 	return nil, errors.New("No local XBMCHost found")
 }
 
+// GetXBMCHostWithContext returns the Kodi a request is for. When the request names the language of Kodi's
+// interface (LanguageHeader), the host is a copy that carries it, so what is sent to Kodi for this
+// request is in that language.
 func GetXBMCHostWithContext(ctx *gin.Context) (*XBMCHost, error) {
+	h, err := xbmcHostWithContext(ctx)
+	if lang := RequestLanguage(ctx); h != nil && lang != "" {
+		c := *h
+		c.Lang = lang
+		return &c, err
+	}
+	return h, err
+}
+
+func xbmcHostWithContext(ctx *gin.Context) (*XBMCHost, error) {
 	// If request is not coming from addon's python part - then it can be a browser request or Kodi,
 	// so we communicate with any existing Kodi connection.
 	// Same if we are behind NAT - in this case ClientIP is NAT gateway IP, so we should not use it.
@@ -268,7 +281,7 @@ func (h XBMCHost) executeJSONRPCEx(method string, retVal any, args Args) error {
 	if args == nil {
 		args = Args{}
 	}
-	args = localizeArgs(args)
+	args = localizeArgs(h.Lang, args)
 	conn, err := h.getExJSONConnection()
 	if err != nil {
 		log.Error(err)

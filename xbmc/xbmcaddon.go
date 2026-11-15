@@ -65,7 +65,7 @@ func (h *XBMCHost) AddonCheck(addonID string) (failures int) {
 
 // GetLocalizedString ...
 func (h *XBMCHost) GetLocalizedString(id int) (retVal string) {
-	if s, ok := localString(id); ok {
+	if s, ok := localString(h.Lang, id); ok {
 		return s
 	}
 	h.executeJSONRPCEx("GetLocalizedString", &retVal, Args{id})

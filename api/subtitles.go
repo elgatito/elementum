@@ -100,7 +100,7 @@ func SubtitlesIndex(s *bittorrent.Service) gin.HandlerFunc {
 			items = append(items, item)
 		}
 
-		ctx.JSON(200, xbmc.NewView("", items))
+		ctx.JSON(200, xbmc.NewViewFor(ctx, "", items))
 	}
 }
 
@@ -116,7 +116,7 @@ func SubtitleGet(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(200, xbmc.NewView("", xbmc.ListItems{
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "", xbmc.ListItems{
 		{Label: file, Path: outFile.Name()},
 	}))
 }

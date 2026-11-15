@@ -114,7 +114,7 @@ func TestKodiTexts(t *testing.T) {
 
 	// metadata in German, Kodi in Russian: Kodi's texts are Russian
 	c.Language, c.InterfaceLanguage = "de", "ru-ru"
-	if got := xbmc.Localize("LOCALIZE[" + strconv.Itoa(textIDs["Filtering"]) + "]"); got != "Фильтрация" {
+	if got := xbmc.Localize("", "LOCALIZE["+strconv.Itoa(textIDs["Filtering"])+"]"); got != "Фильтрация" {
 		t.Errorf("interface language: %q", got)
 	}
 	// an older settings file without the interface language: the metadata language

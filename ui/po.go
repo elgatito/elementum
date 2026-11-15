@@ -276,7 +276,16 @@ func addonIcon() string {
 }
 
 func init() {
-	xbmc.Localize = func(s string) string { return Translate(InterfaceLanguage(), s) }
+	xbmc.Localize = func(lang, s string) string { return Translate(cmp.Or(lang, InterfaceLanguage()), s) }
+}
+
+// LanguageOf is the language of the texts for a Kodi host: the one its request asked for, else the
+// configured interface language.
+func LanguageOf(h *xbmc.XBMCHost) string {
+	if h != nil && h.Lang != "" {
+		return h.Lang
+	}
+	return InterfaceLanguage()
 }
 
 // InterfaceLanguage is the language of Kodi's interface, for the texts Elementum shows in Kodi. It is not

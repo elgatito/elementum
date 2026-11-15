@@ -197,7 +197,7 @@ func renderLinks(ctx *gin.Context, torrents []*bittorrent.TorrentFile, route str
 		})
 	}
 
-	ctx.JSON(200, xbmc.NewView("", items))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "", items))
 }
 
 // providerIcons keeps icon paths, that were sent to Web UI, by their IDs
@@ -320,7 +320,7 @@ func searchHistoryList(ctx *gin.Context, historyType string) {
 		})
 	}
 
-	ctx.JSON(200, xbmc.NewView("", items))
+	ctx.JSON(200, xbmc.NewViewFor(ctx, "", items))
 }
 
 // SearchRemove ...

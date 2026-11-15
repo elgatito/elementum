@@ -3,26 +3,51 @@ package xbmc
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
-// Localize translates "LOCALIZE[30xxx]" texts into the language of Kodi's interface, with Elementum's own
-// copy of the add-on's strings. The ui package sets it. A text it cannot translate comes back unchanged,
-// and the add-on still translates what is left, so a string only the add-on has keeps working.
-var Localize = func(s string) string { return s }
+// Localize translates "LOCALIZE[30xxx]" texts into lang, with Elementum's own copy of the add-on's strings;
+// "" is the language of Kodi's interface from the configuration. The ui package sets it. A text it cannot
+// translate comes back unchanged, and the add-on still translates what is left, so a string only the
+// add-on has keeps working.
+var Localize = func(lang, s string) string { return s }
 
-func localize(s string) string {
+// LanguageHeader carries the language of Kodi's interface on the add-on's requests, so the texts sent
+// back follow Kodi at once when its language changes.
+const LanguageHeader = "X-Kodi-Language"
+
+var languageRe = regexp.MustCompile(`^[a-zA-Z]{2,3}(?:[-_][a-zA-Z0-9]{2,4})?$`)
+
+// RequestLanguage returns the language a request asks for with LanguageHeader, "" when it names none.
+func RequestLanguage(ctx *gin.Context) string {
+	if lang := ctx.GetHeader(LanguageHeader); languageRe.MatchString(lang) {
+		return strings.ToLower(lang)
+	}
+	return ""
+}
+
+// NewViewFor is NewView for a request: the view's texts are translated into the language it asks for.
+func NewViewFor(ctx *gin.Context, contentType string, items ListItems) *View {
+	v := NewView(contentType, items)
+	v.lang = RequestLanguage(ctx)
+	return v
+}
+
+func localize(lang, s string) string {
 	if !strings.Contains(s, "LOCALIZE[") {
 		return s
 	}
-	return Localize(s)
+	return Localize(lang, s)
 }
 
-func localizeAll(list []string) []string {
+func localizeAll(lang string, list []string) []string {
 	var out []string
 	for i, s := range list {
-		if t := localize(s); t != s {
+		if t := localize(lang, s); t != s {
 			if out == nil {
 				out = slices.Clone(list) // the caller's slice stays as it was
 			}
@@ -37,14 +62,14 @@ func localizeAll(list []string) []string {
 
 // localizeArgs translates the texts among the arguments of a call to the add-on: titles, messages and
 // lists of choices.
-func localizeArgs(args Args) Args {
+func localizeArgs(lang string, args Args) Args {
 	out := make(Args, len(args))
 	for i, a := range args {
 		switch v := a.(type) {
 		case string:
-			out[i] = localize(v)
+			out[i] = localize(lang, v)
 		case []string:
-			out[i] = localizeAll(v)
+			out[i] = localizeAll(lang, v)
 		default:
 			out[i] = a
 		}
@@ -63,11 +88,11 @@ func (v View) MarshalJSON() ([]byte, error) {
 		if item == nil {
 			continue
 		}
-		label, label2 := localize(item.Label), localize(item.Label2)
+		label, label2 := localize(v.lang, item.Label), localize(v.lang, item.Label2)
 		var menu [][]string
 		for n, entry := range item.ContextMenu {
 			if len(entry) > 0 {
-				if t := localize(entry[0]); t != entry[0] {
+				if t := localize(v.lang, entry[0]); t != entry[0] {
 					if menu == nil {
 						menu = slices.Clone(item.ContextMenu)
 					}
@@ -88,8 +113,8 @@ func (v View) MarshalJSON() ([]byte, error) {
 }
 
 // localString returns string id of the add-on from Elementum's own copy, ok false when it has none.
-func localString(id int) (string, bool) {
+func localString(lang string, id int) (string, bool) {
 	raw := fmt.Sprintf("LOCALIZE[%d]", id)
-	t := Localize(raw)
+	t := Localize(lang, raw)
 	return t, t != raw
 }

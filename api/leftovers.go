@@ -30,7 +30,7 @@ func Leftovers(s *bittorrent.Service) gin.HandlerFunc {
 		root, err := openDownloadRoot()
 		if err != nil {
 			log.Warningf("Could not open download path: %s", err)
-			ctx.JSON(200, xbmc.NewView("", items))
+			ctx.JSON(200, xbmc.NewViewFor(ctx, "", items))
 			return
 		}
 		defer root.Close()
@@ -63,7 +63,7 @@ func Leftovers(s *bittorrent.Service) gin.HandlerFunc {
 			items = append(items, item)
 		}
 
-		ctx.JSON(200, xbmc.NewView("", items))
+		ctx.JSON(200, xbmc.NewViewFor(ctx, "", items))
 	}
 }
 

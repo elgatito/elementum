@@ -43,7 +43,7 @@ func BuiltinSettings(ctx *gin.Context) {
 		return
 	}
 	providers.OfferBurstImport(xbmcHost)
-	d := builtinDialog{h: xbmcHost, dir: dir, lang: ui.InterfaceLanguage()}
+	d := builtinDialog{h: xbmcHost, dir: dir, lang: ui.LanguageOf(xbmcHost)}
 	failed := func(err error) {
 		if err != nil {
 			log.Errorf("Built-in search settings: %s", err)

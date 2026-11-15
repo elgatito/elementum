@@ -223,7 +223,7 @@ func ListTorrents(s *bittorrent.Service) gin.HandlerFunc {
 		torrents := s.GetTorrents()
 		items := make(xbmc.ListItems, 0, len(torrents))
 		if len(torrents) == 0 {
-			ctx.JSON(200, xbmc.NewView("", items))
+			ctx.JSON(200, xbmc.NewViewFor(ctx, "", items))
 			return
 		}
 
@@ -308,7 +308,7 @@ func ListTorrents(s *bittorrent.Service) gin.HandlerFunc {
 			items = append(items, &item)
 		}
 
-		ctx.JSON(200, xbmc.NewView("", items))
+		ctx.JSON(200, xbmc.NewViewFor(ctx, "", items))
 	}
 }
 

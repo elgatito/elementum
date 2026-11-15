@@ -72,7 +72,7 @@ func OfferBurstImport(xbmcHost *xbmc.XBMCHost) {
 	if !burst.CanImportBurst(dir, burstSettings) {
 		return
 	}
-	lang := ui.InterfaceLanguage()
+	lang := ui.LanguageOf(xbmcHost)
 	if !xbmcHost.DialogConfirmNonTimed("Elementum", ui.Text(lang, "Import settings of the Burst add-on into the built-in search?")) {
 		if err := burst.SkipImport(dir); err != nil {
 			log.Warningf("Could not create the built-in search settings: %s", err)
@@ -92,7 +92,7 @@ func (b builtinSearcher) search(q burst.Query, silent bool) []*bittorrent.Torren
 	var progress func(done, total int, waiting []string)
 	if host := b.objects.xbmcHost; host != nil && !silent {
 		OfferBurstImport(host)
-		lang := ui.InterfaceLanguage()
+		lang := ui.LanguageOf(host)
 		if dialog := host.NewDialogProgressBG("Elementum", ui.Text(lang, "Built-in search")); dialog != nil {
 			defer dialog.Close()
 			progress = func(done, total int, waiting []string) {

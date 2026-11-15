@@ -44,7 +44,7 @@ func Storage(s *bittorrent.Service) gin.HandlerFunc {
 			&xbmc.ListItem{Label: "LOCALIZE[30562]", Path: URLForXBMC("/cmd/open_path/download"), IsAction: true, Thumbnail: config.AddonResource("img", "folder.png")},
 			&xbmc.ListItem{Label: "LOCALIZE[30761]", Path: URLForXBMC("/cmd/leftovers"), Thumbnail: config.AddonResource("img", "trash.png")},
 		)
-		ctx.JSON(200, xbmc.NewView("", items))
+		ctx.JSON(200, xbmc.NewViewFor(ctx, "", items))
 	}
 }
 
