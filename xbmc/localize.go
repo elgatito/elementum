@@ -24,6 +24,9 @@ var languageRe = regexp.MustCompile(`^[a-zA-Z]{2,3}(?:[-_][a-zA-Z0-9]{2,4})?$`)
 
 // RequestLanguage returns the language a request asks for with LanguageHeader, "" when it names none.
 func RequestLanguage(ctx *gin.Context) string {
+	if ctx == nil || ctx.Request == nil { // a context made in code, not for a request
+		return ""
+	}
 	if lang := ctx.GetHeader(LanguageHeader); languageRe.MatchString(lang) {
 		return strings.ToLower(lang)
 	}

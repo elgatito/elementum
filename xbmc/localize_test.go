@@ -117,6 +117,9 @@ func TestRequestLanguage(t *testing.T) {
 		t.Error("without the header the registered host itself is returned")
 	}
 
+	if RequestLanguage(nil) != "" || RequestLanguage(&gin.Context{}) != "" {
+		t.Error("a context without a request has no language")
+	}
 	b, _ := json.Marshal(NewViewFor(c, "", ListItems{{Label: "LOCALIZE[30001]"}}))
 	if !strings.Contains(string(b), "Фильмы") {
 		t.Errorf("view in the request's language: %s", b)
