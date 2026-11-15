@@ -28,7 +28,7 @@ func SkipImport(dir string) error { return change(dir, func(*file) {}) }
 // It reports how many providers came out enabled; nothing is imported, and no file written, when Burst
 // has no settings.
 // shortcut: Burst's own provider files (<its profile>/providers/*.json) hold Python expressions and
-// are not imported; convert.py can convert them by hand.
+// are not imported: they have no builtin part.
 func ImportBurst(dir, burstSettings string) (enabled int, imported bool) {
 	if dir == "" {
 		return 0, false
