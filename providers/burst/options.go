@@ -65,7 +65,16 @@ var Options = []Option{
 	{"accept", "Keywords", "Also accept (comma separated)", ""},
 	{"block", "Keywords", "Block (comma separated)", ""},
 	{"require", "Keywords", "Require (comma separated)", ""},
+
+	{"cookie_sync_enabled", "Cookie sync", "Sync browser cookies through a GitHub gist", false},
+	{"cookie_sync_token", "Cookie sync", "GitHub token (with access to gists)", ""},
+	{"cookie_sync_password", "Cookie sync", "Password of the cookies, when the browser extension encrypts them", ""},
+	{"cookie_sync_gist_id", "Cookie sync", "Gist id (empty: the latest gist with the cookies file)", ""},
+	{"cookie_sync_filename", "Cookie sync", "Name of the cookies file in the gist", "kevast-gist-default.json"},
 }
+
+// Secret tells the options whose value must not be shown or returned.
+func (o Option) Secret() bool { return o.ID == "cookie_sync_token" || o.ID == "cookie_sync_password" }
 
 // General holds the values the user changed; the rest are the defaults of Options.
 type General map[string]any
@@ -88,6 +97,9 @@ func (g General) text(id string) string {
 	s, _ := g.value(id).(string)
 	return strings.ToLower(strings.TrimSpace(s))
 }
+
+// raw is text without the trimming and lower-casing of text, for tokens and passwords.
+func (g General) raw(id string) string { s, _ := g.value(id).(string); return s }
 
 // Get returns the value of an option: the user's, or its default.
 func (g General) Get(id string) any { return g.value(id) }

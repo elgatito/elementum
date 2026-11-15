@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"regexp"
 	"sort"
@@ -32,6 +31,9 @@ type Result struct {
 	Peers    int    `json:"peers"`
 	Language string `json:"language"`
 	Provider string `json:"provider"`
+	Icon     string `json:"icon"`
+
+	id string // of the provider
 }
 
 // userAgent is sent to trackers; many refuse clients that do not look like a browser.
@@ -41,27 +43,61 @@ const userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 
 var Client = func() *http.Client { return http.DefaultClient }
 
 // Search asks every enabled provider of dir (see Load and LoadSettings) and returns their results, best
-// seeded first. Providers still running at the deadline of ctx are left out.
-func Search(ctx context.Context, dir string, q Query) []Result {
+// seeded first. Providers still running at the deadline of ctx are left out. progress, when not nil, is
+// told how many providers have answered, and the names of those still searching.
+func Search(ctx context.Context, dir string, q Query, progress func(done, total int, waiting []string)) []Result {
 	defs, settings, opts := Load(dir), LoadSettings(dir), LoadGeneral(dir)
+	// Before the providers are picked: synced cookies are the login of some private ones.
+	jar.open(dir)
+	if err := syncState.pull(ctx, dir, opts); err != nil {
+		log.Warning(err)
+	}
 	ids := Enabled(defs, settings, q.Method)
 	if len(ids) == 0 {
 		log.Warning("No providers enabled")
 		return nil
 	}
 	log.Infof("Searching %s with %s", q.Method, strings.Join(ids, ", "))
+	defer func() {
+		// Not with ctx: the search may have used up its time, and the cookies still have to go back.
+		syncState.push(context.Background(), LoadGeneral(dir))
+		jar.save()
+	}()
+	waiting := map[string]bool{}
+	for _, id := range ids {
+		waiting[id] = true
+	}
+	report := func() { // called with mu held
+		if progress == nil {
+			return
+		}
+		var names []string
+		for _, id := range ids {
+			if waiting[id] {
+				names = append(names, defs[id].str("name"))
+			}
+		}
+		progress(len(ids)-len(names), len(ids), names)
+	}
 
 	start := time.Now()
 	var mu sync.Mutex
 	var all []Result
+	report()
 	done := make(chan struct{})
 	var wg sync.WaitGroup
 	for _, id := range ids {
 		wg.Go(func() {
 			results := searchProvider(ctx, id, defs[id], settings[id], opts, q)
 			log.Infof("[%s] returned %d results in %.1f seconds", id, len(results), time.Since(start).Seconds())
+			icon := Icon(dir, id)
+			for i := range results {
+				results[i].Icon = icon
+			}
 			mu.Lock()
 			all = append(all, results...)
+			delete(waiting, id)
+			report()
 			mu.Unlock()
 		})
 	}
@@ -86,32 +122,38 @@ type session struct {
 	loggedIn  bool
 }
 
-// jars keeps each provider's cookies for the life of the process, so a login is reused by later searches.
-var jars sync.Map // "id|username" -> http.CookieJar
-
 func newSession(id string, d Definition, set Settings) *session {
-	client := *Client() // a copy: the jar is this provider's own
-	jar, _ := cookiejar.New(nil)
-	if cached, loaded := jars.LoadOrStore(id+"|"+set.Username, http.CookieJar(jar)); loaded {
-		jar, _ = cached.(*cookiejar.Jar)
-	}
+	client := *Client() // a copy, to give it the jar all providers share
 	client.Jar = jar
 	s := &session{id: id, d: d.withAlias(set.Alias), set: set, client: &client, userAgent: userAgent}
+	// Cookies of a bot check are tied to the browser that got them.
+	if synced := SyncedUserAgent(); synced != "" {
+		s.userAgent = synced
+	}
 	if set.UserAgent != "" {
 		s.userAgent = set.UserAgent
 	}
 	// The user's browser cookies: a session on a private tracker, or a passed bot check.
-	if root, err := url.Parse(s.d.str("root_url")); err == nil && set.Cookies != "" {
+	root, err := url.Parse(s.d.str("root_url"))
+	if err != nil {
+		return s
+	}
+	if set.Cookies != "" {
 		var cookies []*http.Cookie
 		for _, pair := range strings.Split(set.Cookies, ";") {
 			if name, value, ok := strings.Cut(strings.TrimSpace(pair), "="); ok && name != "" {
 				cookies = append(cookies, &http.Cookie{Name: name, Value: value, Path: "/"})
-				if name == s.d.str("login_cookie") {
-					s.loggedIn = true
-				}
 			}
 		}
 		jar.SetCookies(root, cookies)
+	}
+	// With the tracker's login cookie in the jar (pasted, synced, or kept from an earlier run) no login is made.
+	if name := s.d.str("login_cookie"); name != "" {
+		for _, c := range jar.Cookies(root) {
+			if c.Name == name {
+				s.loggedIn = true
+			}
+		}
 	}
 	return s
 }
@@ -213,6 +255,7 @@ func searchProvider(ctx context.Context, id string, d Definition, set Settings, 
 			if ok, why := f.verify(r, title); ok {
 				r.Language = d.str("language")
 				r.Provider = fmt.Sprintf("[COLOR %s]%s[/COLOR]", d.str("color"), r.Provider)
+				r.id = id
 				results = append(results, r)
 			} else {
 				log.Debugf("[%s] dropped %q: %s", id, r.Name, why)

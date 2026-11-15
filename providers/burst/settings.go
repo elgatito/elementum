@@ -3,6 +3,7 @@ package burst
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -127,8 +128,9 @@ func status(id string, d Definition, s Settings) Status {
 	if s.Enabled != nil {
 		st.Enabled = *s.Enabled
 	}
-	// A private tracker is searched with a passkey, or with the login its definition describes.
-	st.NeedsLogin = st.Private && s.Passkey == "" && s.Cookies == "" && (s.Username == "" || s.Password == "")
+	// A private tracker is searched with a passkey, with the login its definition describes, or with the
+	// cookies of a browser that is signed in (pasted, or from the cookie sync).
+	st.NeedsLogin = st.Private && s.Passkey == "" && s.Cookies == "" && (s.Username == "" || s.Password == "") && !synced(d)
 	return st
 }
 
@@ -160,4 +162,20 @@ func Enabled(defs map[string]Definition, settings map[string]Settings, method st
 	}
 	sort.Strings(ids)
 	return ids
+}
+
+// synced reports whether the cookie sync brought cookies for the provider's site.
+func synced(d Definition) bool {
+	h := ""
+	if u, err := url.Parse(d.str("root_url")); err == nil {
+		h = u.Hostname() // cookies know no ports
+	}
+	syncState.mu.Lock()
+	defer syncState.mu.Unlock()
+	for domain := range syncState.raw {
+		if h != "" && domainMatches(h, domain) {
+			return true
+		}
+	}
+	return false
 }

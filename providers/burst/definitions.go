@@ -7,7 +7,7 @@ package burst
 //go:generate python3 convert.py
 
 import (
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"net/url"
 	"os"
@@ -23,6 +23,43 @@ var log = logging.MustGetLogger("burst")
 
 //go:embed providers.json
 var bundled []byte
+
+// Icons of the providers, from Burst, by provider id.
+//
+//go:embed icons/*.png
+var icons embed.FS
+
+// writeIcons puts the icons in dir/icons, where Kodi can load them from; existing files are kept.
+func writeIcons(dir string) {
+	entries, _ := icons.ReadDir("icons")
+	target := filepath.Join(dir, "icons")
+	if len(entries) == 0 || os.MkdirAll(target, 0o755) != nil {
+		return
+	}
+	for _, e := range entries {
+		path := filepath.Join(target, e.Name())
+		if fi, _ := e.Info(); fi != nil {
+			if old, err := os.Stat(path); err == nil && old.Size() == fi.Size() {
+				continue
+			}
+		}
+		if b, err := icons.ReadFile("icons/" + e.Name()); err == nil {
+			_ = os.WriteFile(path, b, 0o644)
+		}
+	}
+}
+
+// Icon returns the icon file of a provider in dir, "" when it has none.
+func Icon(dir, id string) string {
+	if dir == "" {
+		return ""
+	}
+	path := filepath.Join(dir, "icons", id+".png")
+	if _, err := os.Stat(path); err != nil {
+		return ""
+	}
+	return path
+}
 
 // Definition is one provider: Burst's definition, as decoded JSON. Query templates are looked up by name
 // (movie_keywords, tv_keywords_fallback2, ...), so the fields stay a map.
@@ -86,12 +123,13 @@ func Load(dir string) map[string]Definition {
 		if err := os.MkdirAll(dir, 0o755); err == nil {
 			// Rewritten on every load and never read back: edits belong in other files.
 			_ = os.WriteFile(filepath.Join(dir, reference), bundled, 0o644)
+			writeIcons(dir)
 		}
 		files, _ := filepath.Glob(filepath.Join(dir, "*.json"))
 		sort.Strings(files)
 		for _, f := range files {
 			// settings.json is reserved for the per-provider settings.
-			if name := filepath.Base(f); name == reference || name == "settings.json" {
+			if name := filepath.Base(f); name == reference || name == settingsFile || name == cookiesFile {
 				continue
 			}
 			if b, err := os.ReadFile(f); err != nil {

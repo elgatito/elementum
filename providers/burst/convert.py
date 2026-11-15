@@ -188,6 +188,22 @@ def form(expression):
     return result
 
 
+def icons(source, target, providers):
+    """Copies the icons of the providers, scaled down to 96 pixels to keep the binary small."""
+    try:
+        from PIL import Image
+    except ImportError:
+        print("Pillow is not installed, icons are not refreshed")
+        return
+    os.makedirs(target, exist_ok=True)
+    for name in sorted(providers):
+        path = os.path.join(source, name + ".png")
+        if os.path.exists(path):
+            image = Image.open(path).convert("RGBA")
+            image.thumbnail((96, 96), Image.LANCZOS)
+            image.save(os.path.join(target, name + ".png"), optimize=True)
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     burst = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("ELEMENTUM_BURST_PATH") or os.path.join(here, "..", "..", "..", "script.elementum.burst")
@@ -197,6 +213,7 @@ def main():
     with open(os.path.join(here, "providers.json"), "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=1, sort_keys=True)
         f.write("\n")
+    icons(os.path.join(burst, "burst", "providers", "icons"), os.path.join(here, "icons"), result)
     bad = dict((n, p["unsupported"]) for n, p in result.items() if "unsupported" in p)
     print("%d providers converted, %d unsupported" % (len(result) - len(bad), len(bad)))
     for n, why in sorted(bad.items()):

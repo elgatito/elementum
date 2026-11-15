@@ -260,10 +260,19 @@ func TestSearch(t *testing.T) {
 		t.Errorf("reference file: %v", err)
 	}
 
-	got := Search(context.Background(), dir, Query{Method: "movie", Title: "first movie", Year: 2020})
+	var steps []string
+	got := Search(context.Background(), dir, Query{Method: "movie", Title: "first movie", Year: 2020}, func(done, total int, waiting []string) {
+		steps = append(steps, fmt.Sprintf("%d/%d", done, total))
+	})
+	if !reflect.DeepEqual(steps, []string{"0/2", "1/2", "2/2"}) {
+		t.Errorf("progress: %v", steps)
+	}
+	if Icon(dir, "yts") == "" || Icon(dir, "mine") != "" {
+		t.Errorf("icons: yts %q, mine %q", Icon(dir, "yts"), Icon(dir, "mine"))
+	}
 	want := []Result{
-		{Name: "First Movie 2020 1080p", URI: "magnet:?xt=urn:btih:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&dn=x", Size: "1.4 GB", Seeds: 1234, Peers: 7, Language: "en", Provider: "[COLOR FF00FF00]Mine[/COLOR]"},
-		{Name: "Api Movie (2020) - 1080p", URI: "http://x/1.torrent", InfoHash: "BBBB", Size: "1.2 GB", Seeds: 7, Peers: 1, Language: "en", Provider: "[COLOR FFFFFFFF]MyApi[/COLOR]"},
+		{Name: "First Movie 2020 1080p", URI: "magnet:?xt=urn:btih:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&dn=x", Size: "1.4 GB", Seeds: 1234, Peers: 7, Language: "en", Provider: "[COLOR FF00FF00]Mine[/COLOR]", id: "mine"},
+		{Name: "Api Movie (2020) - 1080p", URI: "http://x/1.torrent", InfoHash: "BBBB", Size: "1.2 GB", Seeds: 7, Peers: 1, Language: "en", Provider: "[COLOR FFFFFFFF]MyApi[/COLOR]", id: "myapi"},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("results:\n%+v\nwant\n%+v", got, want)
