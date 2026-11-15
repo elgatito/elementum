@@ -35,12 +35,16 @@ func TestTranslate(t *testing.T) {
 	}
 }
 
+// Without the add-on's folder the strings built into the binary are used; an id nobody has stays as it is.
 func TestTranslateNoStringsDir(t *testing.T) {
 	old := stringsDir
 	stringsDir = func() string { return "" }
 	defer func() { stringsDir = old }()
-	if got := Translate("de", "LOCALIZE[30204]"); got != "LOCALIZE[30204]" {
+	if got := Translate("de", "LOCALIZE[30204]"); got != "Kann keine Provider finden" {
 		t.Errorf("got %q", got)
+	}
+	if got := Translate("de", "LOCALIZE[99999]"); got != "LOCALIZE[99999]" {
+		t.Errorf("unknown id: %q", got)
 	}
 }
 
