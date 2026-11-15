@@ -1011,7 +1011,7 @@ type ProviderOption struct {
 	// Label Example: CAM
 	Label string `json:"label"`
 
-	// Value The current value: a boolean, number or text.
+	// Value The current value: a boolean, number or text. A token or password is only shown as set (`********`) or empty.
 	Value interface{} `json:"value"`
 }
 

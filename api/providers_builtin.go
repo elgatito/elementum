@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -37,43 +38,47 @@ func BuiltinSettings(ctx *gin.Context) {
 		}
 	}
 	for {
-		choice := xbmcHost.ListDialog(title, append([]string{"Providers", "Logins and mirrors"}, groups...)...)
+		choice := xbmcHost.ListDialog(title, append([]string{"Public providers", "Private providers (need an account)", "Logins, mirrors and cookies"}, groups...)...)
 		switch {
 		case choice < 0:
 			ctx.String(200, "")
 			return
-		case choice == 0:
-			failed(chooseProviders(xbmcHost, dir, title))
-		case choice == 1:
+		case choice <= 1:
+			failed(chooseProviders(xbmcHost, dir, title, choice == 1))
+		case choice == 2:
 			failed(editLogins(xbmcHost, dir, title))
 		default:
-			failed(editOptions(xbmcHost, dir, title, groups[choice-2]))
+			failed(editOptions(xbmcHost, dir, title, groups[choice-3]))
 		}
 	}
 }
 
-// chooseProviders switches providers on and off in one multi-select list.
-func chooseProviders(h *xbmc.XBMCHost, dir, title string) error {
+// chooseProviders switches the public or the private providers on and off in one multi-select list.
+func chooseProviders(h *xbmc.XBMCHost, dir, title string, private bool) error {
 	var list []burst.Status
 	var labels []string
 	var on []int
 	for _, st := range burst.List(dir) {
-		if st.Unusable != "" {
+		if st.Unusable != "" || st.Private != private {
 			continue
 		}
 		label := st.Name
-		if st.Private {
-			label += " (private)"
-			if st.NeedsLogin {
-				label += " - no login"
-			}
+		if len(st.Languages) > 0 {
+			label += " [" + strings.Join(st.Languages, ", ") + "]"
+		}
+		if st.NeedsLogin {
+			label += " - [COLOR FF999900]no login yet[/COLOR]"
 		}
 		if st.Enabled {
 			on = append(on, len(list))
 		}
 		list, labels = append(list, st), append(labels, label)
 	}
-	chosen := h.DialogMultiSelect(title+": providers", labels, on)
+	kind := "public providers"
+	if private {
+		kind = "private providers"
+	}
+	chosen := h.DialogMultiSelect(title+": "+kind, labels, on)
 	if chosen == nil { // cancelled
 		return nil
 	}
@@ -191,14 +196,22 @@ func editOptions(h *xbmc.XBMCHost, dir, title, group string) error {
 		general = burst.LoadGeneral(dir)
 		var labels []string
 		for _, o := range values {
-			labels = append(labels, fmt.Sprintf("%s: %v", o.Label, general.Get(o.ID)))
+			shown := general.Get(o.ID)
+			if o.Secret() {
+				shown = map[bool]string{true: "(set)", false: ""}[shown != ""]
+			}
+			labels = append(labels, fmt.Sprintf("%s: %v", o.Label, shown))
 		}
 		i := h.ListDialog(title+": "+group, labels...)
 		if i < 0 {
 			break
 		}
 		o := values[i]
-		answer := h.Keyboard(fmt.Sprint(general.Get(o.ID)), o.Label, false)
+		current := fmt.Sprint(general.Get(o.ID))
+		if o.Secret() {
+			current = ""
+		}
+		answer := h.Keyboard(current, o.Label, o.Secret())
 		var value any = answer
 		if _, isNumber := o.Default.(float64); isNumber {
 			n, err := strconv.ParseFloat(answer, 64)

@@ -1513,7 +1513,7 @@ components:
         id: { type: string, example: filter_cam }
         group: { type: string, example: Release types }
         label: { type: string, example: CAM }
-        value: { description: "The current value: a boolean, number or text." }
+        value: { description: "The current value: a boolean, number or text. A token or password is only shown as set (`********`) or empty." }
         default: { description: The value when the user has not set one. }
     ProviderSettings:
       type: object

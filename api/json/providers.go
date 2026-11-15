@@ -90,8 +90,13 @@ func (Server) UpdateProvider(c *gin.Context, id string) {
 	}
 }
 
+// toOption maps an option; a secret's value is only told as set ("********") or not ("").
 func toOption(o burst.Option, general burst.General) ProviderOption {
-	return ProviderOption{Id: o.ID, Group: o.Group, Label: o.Label, Value: general.Get(o.ID), Default: o.Default}
+	value := general.Get(o.ID)
+	if o.Secret() && value != "" {
+		value = "********"
+	}
+	return ProviderOption{Id: o.ID, Group: o.Group, Label: o.Label, Value: value, Default: o.Default}
 }
 
 func (Server) ListProviderOptions(c *gin.Context) {
