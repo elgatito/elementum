@@ -580,6 +580,13 @@ func (btp *Player) ChosenFile() *File {
 // UpdateExternal takes the playback state from an API client in External mode, in place of Kodi's player
 // polling: it stores the resume point and scrobbles start and pause like the Kodi player loop.
 func (btp *Player) UpdateExternal(position, duration float64, paused bool) {
+	// Close takes the same lock before it lets the end of playback run, which reads and resets what
+	// is written here: a report that comes for a closed player is dropped, one in flight finishes first.
+	btp.mu.Lock()
+	defer btp.mu.Unlock()
+	if btp.closed {
+		return
+	}
 	btp.p.WatchedTime, btp.p.VideoDuration = position, duration
 	if duration > 0 {
 		btp.p.WatchedProgress = position / duration * 100

@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 
 	"golang.org/x/net/html"
@@ -39,6 +40,11 @@ func TestBundledDefinitions(t *testing.T) {
 	defs := Load("")
 	if len(defs) < 80 {
 		t.Fatalf("%d definitions", len(defs))
+	}
+	for id, d := range defs {
+		if why := d.Skipped(); why != "" && d.str("token") == "" {
+			t.Errorf("%s is not searchable: %s", id, why)
+		}
 	}
 	empty := parse(t, "<html></html>")
 	var check func(id, field string, v any)
@@ -121,14 +127,16 @@ func TestSelector(t *testing.T) {
 		`{"tag":"div","select":[["class",["outer"]]]}`:                            "inout",
 		`{"in":[{"tag":"td","nth":1}],"tag":"a","attr":"href"}`:                   "/cat",
 		`{"in":[{"tag":"td","select":[["align",["right"]]],"nth":0}],"raw":true}`: "last",
-		`{"op":"format","format":"https://x.to%s","arg":{"tag":"a","nth":2,"attr":"href"}}`:    "https://x.to/t/1",
-		`{"op":"concat","args":[{"tag":"a"}," [",{"tag":"td","nth":2},"]"]}`:                   "Movies [1.4 GB in 2 files]",
-		`{"op":"split","arg":{"tag":"a","nth":2,"attr":"href"},"sep":"/","max":-1,"index":-1}`: "1",
-		`{"op":"slice","arg":{"tag":"a","nth":2,"attr":"href"},"from":1}`:                      "t/1",
-		`{"op":"regex","pattern":"(\\d+\\.\\d+ ..)","group":1,"arg":{"tag":"td","nth":2}}`:     "1.4 GB",
-		`{"op":"upper","arg":{"op":"replace","arg":{"tag":"a"},"old":"ies","new":"y"}}`:        "MOVY",
-		`{"op":"unquote","arg":{"op":"resub","pattern":"^x","repl":"","arg":"xa%20b"}}`:        "a b",
-		`{"op":"if","test":{"tag":"span"},"then":"yes","else":"no"}`:                           "no",
+		`{"op":"format","format":"https://x.to%s","arg":{"tag":"a","nth":2,"attr":"href"}}`:                               "https://x.to/t/1",
+		`{"op":"concat","args":[{"tag":"a"}," [",{"tag":"td","nth":2},"]"]}`:                                              "Movies [1.4 GB in 2 files]",
+		`{"op":"split","arg":{"tag":"a","nth":2,"attr":"href"},"sep":"/","max":-1,"index":-1}`:                            "1",
+		`{"op":"slice","arg":{"tag":"a","nth":2,"attr":"href"},"from":1}`:                                                 "t/1",
+		`{"op":"regex","pattern":"(\\d+\\.\\d+ ..)","group":1,"arg":{"tag":"td","nth":2}}`:                                "1.4 GB",
+		`{"op":"upper","arg":{"op":"replace","arg":{"tag":"a"},"old":"ies","new":"y"}}`:                                   "MOVY",
+		`{"op":"unquote","arg":{"op":"resub","pattern":"^x","repl":"","arg":"xa%20b"}}`:                                   "a b",
+		`{"op":"if","test":{"tag":"span"},"then":"yes","else":"no"}`:                                                      "no",
+		`{"op":"if","test":{"op":"exists","in":[{"tag":"div","select":[["class",["inner"]]]}]},"then":"yes","else":"no"}`: "yes",
+		`{"op":"if","test":{"op":"exists","in":[{"parent_of":[["class",["nope"]]]}]},"then":"yes","else":"no"}`:           "no",
 		`{"op":"key"}`:                           "KEY",
 		`{"css":"td:nth-child(2)"}`:              "1.4 GB in 2 files",
 		`{"css":"td > a","nth":2,"attr":"href"}`: "/t/1",
@@ -211,8 +219,11 @@ func TestQueries(t *testing.T) {
 // A search through a local server: an HTML provider with result pages, a JSON API, and the user's files.
 func TestSearch(t *testing.T) {
 	var requests []string
+	var requestsMu sync.Mutex // providers and subpages ask at the same time
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestsMu.Lock()
 		requests = append(requests, r.URL.RequestURI())
+		requestsMu.Unlock()
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/search/"):
 			fmt.Fprint(w, page)

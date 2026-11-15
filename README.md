@@ -59,8 +59,49 @@ The contract lives in `api/json/openapi.yaml`; regenerate its Go bindings with `
 | playback, stream | `/playback`, `/playback/{id}`, `/playback/{id}/progress`, `/stream/{id}/{file_index}` |
 | torrents | `/torrents`, `/torrents/{info_hash}` (+ `pause`, `resume`) |
 | people | `/people/{tmdb_id}`, `/people/{tmdb_id}/credits` |
-| providers | `/providers`, `/providers/{id}` (trackers of the built-in search: enable, credentials, mirror), `/providers/options`, `/providers/options/{id}` (filters, sizes, result limits) |
+| providers | `/providers`, `/providers/{id}` (trackers of the built-in search: enable, credentials, mirror), `/providers/options`, `/providers/options/{id}` (filters, sizes, result limits), `/providers/cookie-sync/login` (GitHub device login) |
 | UI events | `/ui/events`, `/ui/requests/{id}` |
+
+## Built-in torrent search
+
+Elementum searches trackers itself, with the provider definitions of the Burst add-on (`providers/burst`). `providers_source` ("Search torrents with" in the add-on settings) picks this search, Kodi provider add-ons, or both; without a Kodi the built-in search is used.
+
+Everything of it is in `<profile>/providers/`:
+
+| File | What |
+|---|---|
+| `providers.json` | Optional. Your own complete set of providers, used **in place of** the bundled one. |
+| any other `*.json` | Optional. Additions, merged over the set key by key in file name order: a new provider, or single fields of an existing one. |
+| `providers.default.json` | The bundled set, rewritten at every start. Copy from it; do not edit it. |
+| `settings.json` | General options (filters, sizes, languages, cookie sync) and each provider's settings (enabled, login, mirror, cookies). Private: it holds passwords. |
+| `cookies.json`, `icons/` | The cookies sites have set, and provider icons. |
+
+Changing one field of a bundled provider, and adding a provider, in `my.json`:
+
+```json
+{
+  "yts": { "base_url": "https://yts.example/api/v2/list_movies.json?query_term=QUERY" },
+  "mine": {
+    "name": "Mine", "color": "FF00FF00", "language": "en", "separator": "+",
+    "base_url": "https://mine.example/search/QUERY",
+    "movie_keywords": "{title} {year}", "tv_keywords": "{title} s{season:2}e{episode:2}",
+    "parser": {
+      "row": [{ "css": "table.results > tbody > tr" }],
+      "name": { "css": "td:nth-child(1) a" },
+      "torrent": { "css": "td:nth-child(1) a", "attr": "href" },
+      "size": { "css": "td:nth-child(2)" },
+      "seeds": { "css": "td:nth-child(3)" },
+      "peers": { "css": "td:nth-child(4)" }
+    }
+  }
+}
+```
+
+- A provider of your own is on at once; bundled ones are switched on in the settings.
+- `parser` fields are selector specs: CSS (`css`, with `attr` for an attribute and `nth` for the n-th match), or Burst's counting form (`tag`, `select`, `nth`), and ops around them such as `{"op": "format", "format": "https://mine.example%s", "arg": {...}}`, `regex`, `split`, `replace`, `concat`. `providers.default.json` has an example of each under `builtin`.
+- Burst's Python expressions are not run. A file in Burst's own format works when it has the `builtin` part that Burst's `scripts/builtin.py` writes.
+- Settings: in Kodi, "Built-in search settings" in Elementum's main menu; for other clients `/api/providers`, `/api/providers/options` and `/api/providers/cookie-sync/login`. On the first search from Kodi, Elementum offers to import the Burst add-on's settings.
+- Cookie sync: with a GitHub gist kept by a browser extension, cookies are read before a search and the ones sites changed are written back. Sign in with the device code from the settings dialog or the API.
 
 ## UI host
 

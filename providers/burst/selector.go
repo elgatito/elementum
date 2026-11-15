@@ -274,6 +274,12 @@ func evalOp(op string, s map[string]any, row *html.Node, key string) (string, er
 		}
 		return b.String(), nil
 	}
+	if op == "exists" { // "1" when the steps lead to an element: the test of an "if"
+		if len(follow(row, s["in"])) > 0 {
+			return "1", nil
+		}
+		return "", nil
+	}
 	if op == "if" {
 		if test, err := eval(s["test"], row, key); err == nil && test != "" {
 			return eval(s["then"], row, key)
