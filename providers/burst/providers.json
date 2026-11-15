@@ -4285,7 +4285,7 @@
                     }
                 ]
             },
-            "unsupported": "parser.torrent: positional argument follows keyword argument (<unknown>, line 1)"
+            "unsupported": "parser.torrent: not valid Python"
         }
     },
     "ncore": {
@@ -7430,7 +7430,7 @@
                     "op": "format"
                 }
             },
-            "unsupported": "parser.name: Tuple(elts=[Call(func=Name(id='item', ctx=Load()), args=[], keywords=[keyword(ar"
+            "unsupported": "parser.name: Tuple"
         }
     },
     "uindex": {
@@ -8135,7 +8135,7 @@
                     "op": "concat"
                 }
             },
-            "unsupported": "parser.infohash: Call(func=Attribute(value=Name(id='item', ctx=Load()), attr='take_with_root', ct"
+            "unsupported": "parser.infohash: Call"
         }
     },
     "zooqle": {
