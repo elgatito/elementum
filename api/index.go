@@ -46,7 +46,7 @@ func Index(s *bittorrent.Service) gin.HandlerFunc {
 		}
 
 		// Settings of Elementum's own search, as the provider add-ons get theirs below.
-		li = append(li, &xbmc.ListItem{Label: ui.Text(config.Get().Language, "Built-in search settings"), Path: URLForXBMC("/providers/builtin"), Thumbnail: config.AddonResource("img", "settings.png")})
+		li = append(li, &xbmc.ListItem{Label: ui.Text(ui.InterfaceLanguage(), "Built-in search settings"), Path: URLForXBMC("/providers/builtin"), Thumbnail: config.AddonResource("img", "settings.png")})
 
 		// Adding Settings urls for each search provider found locally.
 		for _, addon := range getProviders(xbmcHost) {

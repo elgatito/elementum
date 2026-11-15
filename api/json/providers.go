@@ -149,7 +149,7 @@ func (Server) StartCookieSyncLogin(c *gin.Context) {
 		if err := burst.FinishDeviceLogin(ctx, dir, code); err != nil {
 			log.Warningf("GitHub device login: %v", err)
 		} else {
-			ui.Toast(ui.Text(config.Get().Language, "GitHub is connected"))
+			ui.Toast(ui.Localized("GitHub is connected"))
 		}
 	}()
 	c.JSON(http.StatusOK, DeviceLoginCode{UserCode: code.UserCode, VerificationUrl: code.VerificationURL, ExpiresIn: code.ExpiresIn, Interval: code.Interval})

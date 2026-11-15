@@ -13,6 +13,10 @@ type ConfigBundle struct {
 	Language       string
 	SecondLanguage string
 	Region         string
+	// InterfaceLanguage is the language of Kodi's interface ("de", "pt-br"), which Elementum's texts for
+	// Kodi are in. Language is the language of metadata, a separate setting; an older settings file
+	// without this field uses that.
+	InterfaceLanguage string `json:",omitempty" yaml:",omitempty"`
 	// KodiBufferSize is Kodi's advancedsettings cache size, since a file-mode binary cannot ask Kodi.
 	KodiBufferSize int
 }

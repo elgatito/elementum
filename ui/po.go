@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"cmp"
 	"compress/gzip"
 	"embed"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/xbmc"
 )
 
 // stringsDir is the addon's language directory (resources/language). Tests replace it.
@@ -270,6 +273,35 @@ func addonIcon() string {
 		return c.Info.Icon
 	}
 	return ""
+}
+
+func init() {
+	xbmc.Localize = func(s string) string { return Translate(InterfaceLanguage(), s) }
+}
+
+// InterfaceLanguage is the language of Kodi's interface, for the texts Elementum shows in Kodi. It is not
+// the metadata language (config Language), which the user can set apart.
+func InterfaceLanguage() string {
+	c := config.Get()
+	if c == nil {
+		return ""
+	}
+	return cmp.Or(c.InterfaceLanguage, c.Language)
+}
+
+// Localized returns the raw form of an English text of the built-in search, "LOCALIZE[id];;arg;;arg",
+// for a message that goes to several hosts: Kodi and each HTTP client translate it into their own
+// language. An unknown text is returned with its arguments formatted in.
+func Localized(english string, args ...any) string {
+	id := textIDs[english]
+	if id == 0 {
+		return fmt.Sprintf(english, args...)
+	}
+	raw := "LOCALIZE[" + strconv.Itoa(id) + "]"
+	for _, a := range args {
+		raw += ";;" + fmt.Sprint(a)
+	}
+	return raw
 }
 
 // Text returns the add-on's translation of an English text of the built-in search (see textIDs) in

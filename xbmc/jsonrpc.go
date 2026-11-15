@@ -268,6 +268,7 @@ func (h XBMCHost) executeJSONRPCEx(method string, retVal any, args Args) error {
 	if args == nil {
 		args = Args{}
 	}
+	args = localizeArgs(args)
 	conn, err := h.getExJSONConnection()
 	if err != nil {
 		log.Error(err)

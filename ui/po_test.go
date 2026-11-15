@@ -6,6 +6,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/elgatito/elementum/config"
+	"github.com/elgatito/elementum/xbmc"
 )
 
 func useFixture(t *testing.T) {
@@ -95,5 +98,39 @@ func TestText(t *testing.T) {
 		if m := embedded(lang); len(m) < 700 || m[textIDs["GitHub is connected"]] == "" {
 			t.Errorf("%s: %d strings", lang, len(m))
 		}
+	}
+}
+
+func TestKodiTexts(t *testing.T) {
+	c := config.Get()
+	if c == nil {
+		t.Skip("no config")
+	}
+	old := *c
+	t.Cleanup(func() { *c = old })
+	oldDir := stringsDir
+	stringsDir = func() string { return "" }
+	t.Cleanup(func() { stringsDir = oldDir })
+
+	// metadata in German, Kodi in Russian: Kodi's texts are Russian
+	c.Language, c.InterfaceLanguage = "de", "ru-ru"
+	if got := xbmc.Localize("LOCALIZE[" + strconv.Itoa(textIDs["Filtering"]) + "]"); got != "Фильтрация" {
+		t.Errorf("interface language: %q", got)
+	}
+	// an older settings file without the interface language: the metadata language
+	c.InterfaceLanguage = ""
+	if InterfaceLanguage() != "de" {
+		t.Errorf("fallback: %q", InterfaceLanguage())
+	}
+	// a text for several hosts keeps its raw form, with the arguments
+	raw := Localized("Burst settings imported, %d providers enabled", 3)
+	if raw != "LOCALIZE["+strconv.Itoa(textIDs["Burst settings imported, %d providers enabled"])+"];;3" {
+		t.Errorf("raw: %q", raw)
+	}
+	if got := Translate("de", raw); got != "Burst-Einstellungen importiert, 3 Anbieter aktiviert" {
+		t.Errorf("raw translated: %q", got)
+	}
+	if got := Localized("Not known %d", 2); got != "Not known 2" {
+		t.Errorf("unknown: %q", got)
 	}
 }

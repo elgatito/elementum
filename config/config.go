@@ -1,6 +1,7 @@
 package config
 
 import (
+	"cmp"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -85,6 +86,7 @@ type Configuration struct {
 	Platform                    *xbmc.Platform
 	Language                    string
 	SecondLanguage              string
+	InterfaceLanguage           string // of Kodi's interface, for the texts Elementum shows there
 	Region                      string
 	TemporaryPath               string
 	ProfilePath                 string
@@ -672,6 +674,7 @@ func Reload() (ret *Configuration, err error) {
 		Platform:                    platform,
 		Language:                    configBundle.Language,
 		SecondLanguage:              configBundle.SecondLanguage,
+		InterfaceLanguage:           cmp.Or(configBundle.InterfaceLanguage, configBundle.Language),
 		Region:                      configBundle.Region,
 		TemporaryPath:               info.TempPath,
 		ProfilePath:                 info.Profile,
@@ -1329,12 +1332,13 @@ func fetchConfiguration(xbmcHost *xbmc.XBMCHost) (*ConfigBundle, error) {
 	language, secondLanguage := getLanguages(xbmcHost, settings)
 
 	return &ConfigBundle{
-		Info:           info,
-		Platform:       platform,
-		Settings:       settings,
-		Language:       language,
-		SecondLanguage: secondLanguage,
-		Region:         xbmcHost.GetRegion(),
+		Info:              info,
+		Platform:          platform,
+		Settings:          settings,
+		Language:          language,
+		SecondLanguage:    secondLanguage,
+		InterfaceLanguage: cmp.Or(xbmcHost.GetLanguage(xbmc.Iso639_1, true), xbmcHost.GetLanguageISO639_1()),
+		Region:            xbmcHost.GetRegion(),
 	}, nil
 }
 
