@@ -241,3 +241,54 @@ func TestImportBurst(t *testing.T) {
 		t.Error("imported twice")
 	}
 }
+
+func TestDeviceLogin(t *testing.T) {
+	polls := 0
+	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		switch r.URL.Path {
+		case "/login/device/code":
+			if r.PostForm.Get("client_id") == "" || r.PostForm.Get("scope") != "gist" {
+				fmt.Fprint(w, `{"error":"bad_request"}`)
+				return
+			}
+			fmt.Fprint(w, `{"device_code":"DEV","user_code":"AB12-CD34","verification_uri":"https://github.com/login/device","expires_in":60,"interval":1}`)
+		case "/login/oauth/access_token":
+			if polls++; polls == 1 {
+				fmt.Fprint(w, `{"error":"authorization_pending"}`)
+			} else if r.PostForm.Get("device_code") == "DEV" {
+				fmt.Fprint(w, `{"access_token":"NEWTOKEN"}`)
+			}
+		case "/user":
+			if r.Header.Get("Authorization") == "Bearer NEWTOKEN" {
+				fmt.Fprint(w, `{"login":"octocat"}`)
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer hub.Close()
+	oldLogin, oldAPI := GitHubLogin, GistAPI
+	GitHubLogin, GistAPI = hub.URL, hub.URL+"/gists"
+	t.Cleanup(func() { GitHubLogin, GistAPI = oldLogin, oldAPI; syncState = cookieSync{} })
+
+	dir := t.TempDir()
+	_ = SaveOption(dir, "cookie_sync_gist_id", "GIST-OF-ANOTHER-ACCOUNT")
+	code, err := StartDeviceLogin(context.Background())
+	if err != nil || code.UserCode != "AB12-CD34" || code.VerificationURL == "" || code.Interval != 1 {
+		t.Fatalf("code %+v, %v", code, err)
+	}
+	if err := FinishDeviceLogin(context.Background(), dir, code); err != nil {
+		t.Fatal(err)
+	}
+	g := LoadGeneral(dir)
+	if g.raw("cookie_sync_token") != "NEWTOKEN" || g.raw("cookie_sync_user") != "octocat" || !g.on("cookie_sync_enabled") || g.raw("cookie_sync_gist_id") != "" || polls != 2 {
+		t.Errorf("after login: %v, %d polls", g, polls)
+	}
+	// cancelled while waiting
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := FinishDeviceLogin(ctx, dir, code); err != context.Canceled {
+		t.Errorf("cancelled login: %v", err)
+	}
+}

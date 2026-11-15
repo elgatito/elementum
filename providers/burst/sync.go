@@ -2,6 +2,7 @@ package burst
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -12,7 +13,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -297,4 +300,127 @@ func (s *cookieSync) push(ctx context.Context, opts General) {
 	if _, err := github(ctx, http.MethodPatch, GistAPI+"/"+opts.raw("cookie_sync_gist_id"), s.token, body); err != nil {
 		log.Warningf("Cookie sync: update failed: %s", err)
 	}
+}
+
+// GitHub's OAuth device login, for the token of the cookie sync: the user opens a page on any device
+// and enters a code. The client id is Burst's own GitHub app.
+const githubClientID = "Ov23liyj1e79CVhOqohm"
+
+// GitHubLogin is GitHub's login host; tests point it at a local server.
+var GitHubLogin = "https://github.com"
+
+// DeviceCode is what the user needs to sign in.
+type DeviceCode struct {
+	UserCode        string `json:"user_code"`
+	VerificationURL string `json:"verification_uri"`
+	ExpiresIn       int    `json:"expires_in"`
+	Interval        int    `json:"interval"`
+	deviceCode      string
+}
+
+func githubForm(ctx context.Context, path string, form url.Values, out any) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, GitHubLogin+path, strings.NewReader(form.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	client := *Client()
+	client.Jar = nil
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(out)
+}
+
+// StartDeviceLogin asks GitHub for a code to show to the user.
+func StartDeviceLogin(ctx context.Context) (*DeviceCode, error) {
+	var answer struct {
+		DeviceCode
+		Device      string `json:"device_code"`
+		Error       string `json:"error"`
+		Description string `json:"error_description"`
+	}
+	if err := githubForm(ctx, "/login/device/code", url.Values{"client_id": {githubClientID}, "scope": {"gist"}}, &answer); err != nil {
+		return nil, err
+	}
+	if answer.Device == "" {
+		return nil, fmt.Errorf("GitHub: %s", cmp.Or(answer.Description, answer.Error, "no device code"))
+	}
+	code := answer.DeviceCode
+	code.deviceCode = answer.Device
+	if code.Interval <= 0 {
+		code.Interval = 5
+	}
+	if code.ExpiresIn <= 0 {
+		code.ExpiresIn = 900
+	}
+	return &code, nil
+}
+
+// ErrLoginExpired is returned by FinishDeviceLogin when the code ran out before the user used it.
+var ErrLoginExpired = errors.New("the GitHub code has expired")
+
+// FinishDeviceLogin waits until the user has entered the code (or ctx ends, or the code expires) and
+// stores the token: the cookie sync is switched on, and a gist of another account is forgotten.
+func FinishDeviceLogin(ctx context.Context, dir string, code *DeviceCode) error {
+	interval := time.Duration(code.Interval) * time.Second
+	deadline := time.Now().Add(time.Duration(code.ExpiresIn) * time.Second)
+	form := url.Values{"client_id": {githubClientID}, "device_code": {code.deviceCode}, "grant_type": {"urn:ietf:params:oauth:grant-type:device_code"}}
+	for time.Now().Before(deadline) {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(interval):
+		}
+		var answer struct {
+			Token       string `json:"access_token"`
+			Error       string `json:"error"`
+			Description string `json:"error_description"`
+			Interval    int    `json:"interval"`
+		}
+		if err := githubForm(ctx, "/login/oauth/access_token", form, &answer); err != nil {
+			continue // a network hiccup: try again until the code expires
+		}
+		switch {
+		case answer.Token != "":
+			return storeToken(ctx, dir, answer.Token)
+		case answer.Error == "slow_down":
+			interval = time.Duration(cmp.Or(answer.Interval, code.Interval+5)) * time.Second
+		case answer.Error != "authorization_pending":
+			return fmt.Errorf("GitHub: %s", cmp.Or(answer.Description, answer.Error))
+		}
+	}
+	return ErrLoginExpired
+}
+
+func storeToken(ctx context.Context, dir, token string) error {
+	// The gist of another account is not reachable with the new token.
+	user := ""
+	if b, err := github(ctx, http.MethodGet, strings.TrimSuffix(GistAPI, "/gists")+"/user", token, nil); err == nil {
+		var u struct {
+			Login string `json:"login"`
+		}
+		_ = json.Unmarshal(b, &u)
+		user = u.Login
+	}
+	old := LoadGeneral(dir)
+	if user != old.raw("cookie_sync_user") {
+		if err := SaveOption(dir, "cookie_sync_gist_id", ""); err != nil {
+			return err
+		}
+	}
+	for id, value := range map[string]any{"cookie_sync_token": token, "cookie_sync_user": user, "cookie_sync_enabled": true} {
+		if err := SaveOption(dir, id, value); err != nil {
+			return err
+		}
+	}
+	syncState.mu.Lock()
+	syncState.at = time.Time{} // read the gist with the new token on the next search
+	syncState.mu.Unlock()
+	return nil
 }

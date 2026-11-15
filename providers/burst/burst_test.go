@@ -628,3 +628,38 @@ func TestBuiltinPart(t *testing.T) {
 		t.Error("the bundled providers.json is not the shared file")
 	}
 }
+
+// The user's files: providers.json replaces the bundled set, other files add to it or change single fields.
+func TestUserFiles(t *testing.T) {
+	t.Cleanup(Reload)
+	dir := t.TempDir()
+	write := func(name, content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		Reload()
+	}
+	// additions only: the bundled providers stay, one field of one changes, one provider is new
+	write("10-mine.json", `{"yts": {"name": "My YTS", "api_format": {"name": "title_english"}}, "extra": {"name": "Extra", "base_url": "https://extra.example/QUERY"}}`)
+	write("20-more.json", `{"extra": {"separator": "-"}}`)
+	defs := Load(dir)
+	if len(defs) < 80 || defs["yts"].str("name") != "My YTS" || defs["yts"].str("base_url") == "" ||
+		defs["yts"].strings("api_format")["name"] != "title_english" || defs["yts"].strings("api_format")["seeds"] != "seeds" {
+		t.Errorf("override of single fields: %d providers, yts %v", len(defs), defs["yts"])
+	}
+	if e := defs["extra"]; e.str("separator") != "-" || !e.flag("custom") || !e.flag("enabled") || e.str("root_url") != "https://extra.example" {
+		t.Errorf("added provider: %v", e)
+	}
+	// a whole set of the user's own, with the additions still applied on top
+	write("providers.json", `{"only": {"name": "Only", "enabled": true, "predefined": true, "base_url": "https://only.example/QUERY"}}`)
+	defs = Load(dir)
+	if len(defs) != 3 || defs["only"].flag("custom") || defs["yts"].str("base_url") != "" || defs["extra"].str("name") != "Extra" {
+		t.Errorf("replaced set: %v", defs)
+	}
+	// a broken file does not take the search down
+	write("providers.json", `{broken`)
+	if defs = Load(dir); len(defs) < 80 {
+		t.Errorf("broken providers.json: %d providers", len(defs))
+	}
+}

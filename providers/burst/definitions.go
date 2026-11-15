@@ -111,8 +111,13 @@ var (
 	loadedFrom  string
 )
 
-// Load reads the bundled definitions and merges every *.json file of dir (the user's overrides and own
-// providers, in the same format) over them. It also writes the bundled file there for reference.
+// Load reads the definitions. In dir the user can keep:
+//
+//   - providers.json: a whole set of their own, used in place of the bundled one;
+//   - any other *.json: additions, merged over the set key by key, in file name order. A file can add a
+//     provider, or change single fields of an existing one (and of its parser) without repeating the rest.
+//
+// The bundled set is written to dir as providers.default.json, as a reference to copy from.
 // An empty dir loads the bundled definitions only.
 func Load(dir string) map[string]Definition {
 	mu.Lock()
@@ -121,9 +126,17 @@ func Load(dir string) map[string]Definition {
 		return definitions
 	}
 	defs := map[string]Definition{}
-	merge(defs, bundled, "bundled providers.json", false)
+	const reference, replacement = "providers.default.json", "providers.json"
+	if own, err := os.ReadFile(filepath.Join(dir, replacement)); dir != "" && err == nil && json.Valid(own) {
+		log.Infof("Using %s in place of the bundled providers", filepath.Join(dir, replacement))
+		merge(defs, own, replacement, false)
+	} else {
+		if dir != "" && err == nil {
+			log.Errorf("%s is not valid JSON, using the bundled providers", filepath.Join(dir, replacement))
+		}
+		merge(defs, bundled, "bundled providers.json", false)
+	}
 	if dir != "" {
-		const reference = "providers.default.json"
 		if err := os.MkdirAll(dir, 0o755); err == nil {
 			// Rewritten on every load and never read back: edits belong in other files.
 			_ = os.WriteFile(filepath.Join(dir, reference), bundled, 0o644)
@@ -133,7 +146,7 @@ func Load(dir string) map[string]Definition {
 		sort.Strings(files)
 		for _, f := range files {
 			// settings.json is reserved for the per-provider settings.
-			if name := filepath.Base(f); name == reference || name == settingsFile || name == cookiesFile {
+			if name := filepath.Base(f); name == reference || name == replacement || name == settingsFile || name == cookiesFile {
 				continue
 			}
 			if b, err := os.ReadFile(f); err != nil {
