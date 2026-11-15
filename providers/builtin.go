@@ -14,6 +14,7 @@ import (
 	"github.com/elgatito/elementum/providers/burst"
 	"github.com/elgatito/elementum/proxy"
 	"github.com/elgatito/elementum/tmdb"
+	"github.com/elgatito/elementum/ui"
 	"github.com/elgatito/elementum/xbmc"
 )
 
@@ -71,15 +72,15 @@ func OfferBurstImport(xbmcHost *xbmc.XBMCHost) {
 	if !burst.CanImportBurst(dir, burstSettings) {
 		return
 	}
-	question := "Elementum now searches trackers itself.[CR]Import the settings of the Burst add-on (enabled providers, logins, filters, cookie sync)?[CR]Burst keeps its own settings either way."
-	if !xbmcHost.DialogConfirmNonTimed("Elementum", question) {
+	lang := config.Get().Language
+	if !xbmcHost.DialogConfirmNonTimed("Elementum", ui.Text(lang, "Import settings of the Burst add-on into the built-in search?")) {
 		if err := burst.SkipImport(dir); err != nil {
 			log.Warningf("Could not create the built-in search settings: %s", err)
 		}
 		return
 	}
 	if enabled, imported := burst.ImportBurst(dir, burstSettings); imported {
-		xbmcHost.Notify("Elementum", fmt.Sprintf("Burst settings imported, %d providers enabled", enabled), config.AddonIcon())
+		xbmcHost.Notify("Elementum", fmt.Sprintf(ui.Text(lang, "Burst settings imported, %d providers enabled"), enabled), config.AddonIcon())
 	}
 }
 
@@ -91,12 +92,13 @@ func (b builtinSearcher) search(q burst.Query, silent bool) []*bittorrent.Torren
 	var progress func(done, total int, waiting []string)
 	if host := b.objects.xbmcHost; host != nil && !silent {
 		OfferBurstImport(host)
-		if dialog := host.NewDialogProgressBG("Elementum", "Searching..."); dialog != nil {
+		lang := config.Get().Language
+		if dialog := host.NewDialogProgressBG("Elementum", ui.Text(lang, "Built-in search")); dialog != nil {
 			defer dialog.Close()
 			progress = func(done, total int, waiting []string) {
-				message := "Searching: " + strings.Join(waiting, ", ")
+				message := fmt.Sprintf(ui.Text(lang, "Searching: %s"), strings.Join(waiting, ", "))
 				if len(waiting) > 4 {
-					message = fmt.Sprintf("Searching: %d providers left", len(waiting))
+					message = fmt.Sprintf(ui.Text(lang, "%d providers left"), len(waiting))
 				}
 				dialog.Update(done*100/max(total, 1), "Elementum", message)
 			}

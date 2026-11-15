@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -80,6 +81,49 @@ func TestProviders(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &options); err != nil || w.Code != http.StatusOK || len(options) != len(burst.Options) {
 		t.Fatalf("options: %d %v", w.Code, err)
 	}
+	for _, o := range options {
+		if o.Id == "sort_by" && (o.Choices == nil || len(*o.Choices) != 4 || (*o.Choices)[3] != "Balanced") {
+			t.Errorf("sort_by choices: %+v", o.Choices)
+		}
+		if o.Id == "max_size_movies" && o.Label != "Movies: Maximum size (GB)" {
+			t.Errorf("label with prefix: %q", o.Label)
+		}
+	}
+	if w, _ := call(http.MethodGet, "/api/providers/options?lang=english", ""); w.Code != http.StatusBadRequest {
+		t.Errorf("bad lang: %d", w.Code)
+	}
+
+	// GitHub device login: the code comes back at once, the token is stored when the user has entered it
+	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/login/device/code":
+			_, _ = w.Write([]byte(`{"device_code":"DEV","user_code":"AB12-CD34","verification_uri":"https://github.com/login/device","expires_in":30,"interval":1}`))
+		case "/login/oauth/access_token":
+			_, _ = w.Write([]byte(`{"access_token":"TOKEN"}`))
+		case "/user":
+			_, _ = w.Write([]byte(`{"login":"octocat"}`))
+		}
+	}))
+	defer hub.Close()
+	oldLogin, oldAPI := burst.GitHubLogin, burst.GistAPI
+	burst.GitHubLogin, burst.GistAPI = hub.URL, hub.URL+"/gists"
+	t.Cleanup(func() { burst.GitHubLogin, burst.GistAPI = oldLogin, oldAPI })
+	w, _ = call(http.MethodPost, "/api/providers/cookie-sync/login", "")
+	var code DeviceLoginCode
+	if err := json.Unmarshal(w.Body.Bytes(), &code); err != nil || w.Code != http.StatusOK || code.UserCode != "AB12-CD34" || code.VerificationUrl == "" {
+		t.Fatalf("device login: %d %s", w.Code, w.Body)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for burst.LoadGeneral(providers.ProvidersDir()).Get("cookie_sync_user") != "octocat" {
+		if time.Now().After(deadline) {
+			t.Fatal("the token was not stored")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if w, _ := call(http.MethodGet, "/api/providers/options", ""); strings.Contains(w.Body.String(), `"TOKEN"`) {
+		t.Error("the token is returned by the API")
+	}
+
 	if w, _ := call(http.MethodPut, "/api/providers/options/filter_cam", `{"value":true}`); w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"value":true`) {
 		t.Errorf("set option: %d %s", w.Code, w.Body)
 	}

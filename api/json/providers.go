@@ -2,12 +2,16 @@ package jsonapi
 
 import (
 	"cmp"
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/elgatito/elementum/config"
 	"github.com/elgatito/elementum/providers"
 	"github.com/elgatito/elementum/providers/burst"
+	"github.com/elgatito/elementum/ui"
 )
 
 // The providers of the built-in search (providers/burst) and their settings file.
@@ -90,22 +94,65 @@ func (Server) UpdateProvider(c *gin.Context, id string) {
 	}
 }
 
-// toOption maps an option; a secret's value is only told as set ("********") or not ("").
-func toOption(o burst.Option, general burst.General) ProviderOption {
+// toOption maps an option, with its texts in lang; a secret's value is only told as set ("********") or not ("").
+func toOption(o burst.Option, general burst.General, lang string) ProviderOption {
+	t := func(english string) string { return ui.Plain(ui.Text(lang, english)) }
 	value := general.Get(o.ID)
 	if o.Secret() && value != "" {
 		value = "********"
 	}
-	return ProviderOption{Id: o.ID, Group: o.Group, Label: o.Label, Value: value, Default: o.Default}
+	out := ProviderOption{Id: o.ID, Group: t(o.Group), Label: t(o.Label), Value: value, Default: o.Default}
+	if o.Prefix != "" {
+		out.Label = t(o.Prefix) + ": " + out.Label
+	}
+	if len(o.Choices) > 0 {
+		choices := make([]string, len(o.Choices))
+		for i, choice := range o.Choices {
+			choices[i] = t(choice)
+		}
+		out.Choices = &choices
+	}
+	return out
 }
 
-func (Server) ListProviderOptions(c *gin.Context) {
+func (Server) ListProviderOptions(c *gin.Context, p ListProviderOptionsParams) {
+	lang, f := langArg(p.Lang)
+	if f != nil {
+		fail(c, f)
+		return
+	}
 	general := burst.LoadGeneral(providers.ProvidersDir())
 	out := make([]ProviderOption, 0, len(burst.Options))
 	for _, o := range burst.Options {
-		out = append(out, toOption(o, general))
+		out = append(out, toOption(o, general, lang))
 	}
 	c.JSON(http.StatusOK, out)
+}
+
+// StartCookieSyncLogin starts GitHub's device login and waits for its end in the background.
+func (Server) StartCookieSyncLogin(c *gin.Context) {
+	dir := providers.ProvidersDir()
+	if dir == "" {
+		fail(c, noProfile)
+		return
+	}
+	code, err := burst.StartDeviceLogin(c.Request.Context())
+	if err != nil {
+		log.Warningf("GitHub device login: %v", err)
+		fail(c, failed(http.StatusBadGateway, ErrorCodeInternalError, "GitHub could not be reached"))
+		return
+	}
+	go func() {
+		// Not the request's context: the user enters the code long after this request has ended.
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(code.ExpiresIn)*time.Second)
+		defer cancel()
+		if err := burst.FinishDeviceLogin(ctx, dir, code); err != nil {
+			log.Warningf("GitHub device login: %v", err)
+		} else {
+			ui.Toast(ui.Text(config.Get().Language, "GitHub is connected"))
+		}
+	}()
+	c.JSON(http.StatusOK, DeviceLoginCode{UserCode: code.UserCode, VerificationUrl: code.VerificationURL, ExpiresIn: code.ExpiresIn, Interval: code.Interval})
 }
 
 func (Server) UpdateProviderOption(c *gin.Context, id string) {
@@ -125,7 +172,7 @@ func (Server) UpdateProviderOption(c *gin.Context, id string) {
 	}
 	for _, o := range burst.Options {
 		if o.ID == id {
-			c.JSON(http.StatusOK, toOption(o, burst.LoadGeneral(dir)))
+			c.JSON(http.StatusOK, toOption(o, burst.LoadGeneral(dir), config.Get().Language))
 		}
 	}
 }

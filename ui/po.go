@@ -221,3 +221,16 @@ func addonIcon() string {
 	}
 	return ""
 }
+
+// Text returns the add-on's translation of an English text of the built-in search (see textIDs) in
+// lang. It returns the English text itself when there is no translation: an unknown text, or no add-on
+// folder to read the strings from, as in a standalone run.
+func Text(lang, english string) string {
+	if id := textIDs[english]; id != 0 {
+		raw := "LOCALIZE[" + strconv.Itoa(id) + "]"
+		if t := Translate(lang, raw); t != raw {
+			return t
+		}
+	}
+	return english
+}

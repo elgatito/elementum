@@ -1,6 +1,11 @@
 package ui
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strconv"
+	"testing"
+)
 
 func useFixture(t *testing.T) {
 	t.Helper()
@@ -35,5 +40,38 @@ func TestTranslateNoStringsDir(t *testing.T) {
 	defer func() { stringsDir = old }()
 	if got := Translate("de", "LOCALIZE[30204]"); got != "LOCALIZE[30204]" {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestText(t *testing.T) {
+	dir := t.TempDir()
+	po := filepath.Join(dir, "resource.language.de_de")
+	if err := os.MkdirAll(po, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := "msgctxt \"#" + strconv.Itoa(textIDs["General"]) + "\"\nmsgid \"General\"\nmsgstr \"Allgemein\"\n"
+	if err := os.WriteFile(filepath.Join(po, "strings.po"), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	old := stringsDir
+	stringsDir = func() string { return dir }
+	t.Cleanup(func() { stringsDir = old })
+
+	for lang, want := range map[string]string{"de": "Allgemein", "de-DE": "Allgemein", "fr": "General"} {
+		if got := Text(lang, "General"); got != want {
+			t.Errorf("%s: %q, want %q", lang, got, want)
+		}
+	}
+	// a text the strings do not have, and one that is not in the table at all, stay English
+	if got := Text("de", "Filtering"); got != "Filtering" {
+		t.Errorf("untranslated: %q", got)
+	}
+	if got := Text("de", "Not a known text"); got != "Not a known text" {
+		t.Errorf("unknown: %q", got)
+	}
+	// without an add-on folder, as in a standalone run
+	stringsDir = func() string { return "" }
+	if got := Text("de", "General"); got != "General" {
+		t.Errorf("no strings: %q", got)
 	}
 }

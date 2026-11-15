@@ -569,6 +569,21 @@ type DetailsCommon struct {
 	Videos  []Video `json:"videos"`
 }
 
+// DeviceLoginCode defines model for DeviceLoginCode.
+type DeviceLoginCode struct {
+	// ExpiresIn Seconds the code is valid for.
+	ExpiresIn int `json:"expires_in"`
+
+	// Interval Seconds between Elementum's checks with GitHub.
+	Interval int `json:"interval"`
+
+	// UserCode Example: AB12-CD34
+	UserCode string `json:"user_code"`
+
+	// VerificationUrl Example: https://github.com/login/device
+	VerificationUrl string `json:"verification_url"`
+}
+
 // Episode defines model for Episode.
 type Episode struct {
 	// AirDate Example: 2008-01-20
@@ -999,16 +1014,23 @@ type ProviderContains string
 
 // ProviderOption defines model for ProviderOption.
 type ProviderOption struct {
+	// Choices For a number option with named values: the names of 0, 1, 2 ... in the requested language.
+	Choices *[]string `json:"choices,omitempty"`
+
 	// Default The value when the user has not set one.
 	Default interface{} `json:"default"`
 
-	// Group Example: Release types
+	// Group In the requested language.
+	//
+	// Example: Release type
 	Group string `json:"group"`
 
 	// Id Example: filter_cam
 	Id string `json:"id"`
 
-	// Label Example: CAM
+	// Label In the requested language.
+	//
+	// Example: CAM
 	Label string `json:"label"`
 
 	// Value The current value: a boolean, number or text. A token or password is only shown as set (`********`) or empty.
@@ -1568,6 +1590,14 @@ type GetPersonCreditsParams struct {
 	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
 }
 
+// ListProviderOptionsParams defines parameters for ListProviderOptions.
+type ListProviderOptionsParams struct {
+	// Lang Metadata language, `ll` or `ll-CC`. Defaults to Elementum's language.
+	// Images, logos and videos are also requested in this language first, then Elementum's second
+	// language, English, and no language.
+	Lang *LangParam `form:"lang,omitempty" json:"lang,omitempty"`
+}
+
 // UpdateProviderOptionJSONBody defines parameters for UpdateProviderOption.
 type UpdateProviderOptionJSONBody struct {
 	// Value A boolean, number or text: the type of the option's default.
@@ -1796,9 +1826,12 @@ type ServerInterface interface {
 	// ListProviders Trackers of the built-in torrent search, with the user's settings
 	// (GET /providers)
 	ListProviders(c *gin.Context)
+	// StartCookieSyncLogin Sign in to GitHub for the cookie sync, with a device code
+	// (POST /providers/cookie-sync/login)
+	StartCookieSyncLogin(c *gin.Context)
 	// ListProviderOptions General settings of the built-in search (filters, sizes, result limits)
 	// (GET /providers/options)
-	ListProviderOptions(c *gin.Context)
+	ListProviderOptions(c *gin.Context, params ListProviderOptionsParams)
 	// UpdateProviderOption Change one general setting
 	// (PUT /providers/options/{id})
 	UpdateProviderOption(c *gin.Context, id string)
@@ -2368,8 +2401,8 @@ func (siw *ServerInterfaceWrapper) ListProviders(c *gin.Context) {
 	siw.Handler.ListProviders(c)
 }
 
-// ListProviderOptions operation middleware
-func (siw *ServerInterfaceWrapper) ListProviderOptions(c *gin.Context) {
+// StartCookieSyncLogin operation middleware
+func (siw *ServerInterfaceWrapper) StartCookieSyncLogin(c *gin.Context) {
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -2378,7 +2411,34 @@ func (siw *ServerInterfaceWrapper) ListProviderOptions(c *gin.Context) {
 		}
 	}
 
-	siw.Handler.ListProviderOptions(c)
+	siw.Handler.StartCookieSyncLogin(c)
+}
+
+// ListProviderOptions operation middleware
+func (siw *ServerInterfaceWrapper) ListProviderOptions(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListProviderOptionsParams
+
+	// ------------- Optional query parameter "lang" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "lang", c.Request.URL.Query(), &params.Lang, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter lang: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListProviderOptions(c, params)
 }
 
 // UpdateProviderOption operation middleware
@@ -3385,6 +3445,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/providers", wrapper.ListProviders)
 	router.GET(options.BaseURL+"/providers/options", wrapper.ListProviderOptions)
 	router.PUT(options.BaseURL+"/providers/options/:id", wrapper.UpdateProviderOption)
+	router.POST(options.BaseURL+"/providers/cookie-sync/login", wrapper.StartCookieSyncLogin)
 	router.PUT(options.BaseURL+"/providers/:id", wrapper.UpdateProvider)
 	router.GET(options.BaseURL+"/people/:tmdb_id", wrapper.GetPerson)
 	router.GET(options.BaseURL+"/people/:tmdb_id/credits", wrapper.GetPersonCredits)

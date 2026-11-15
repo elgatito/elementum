@@ -660,6 +660,8 @@ paths:
       tags: [providers]
       operationId: listProviderOptions
       summary: General settings of the built-in search (filters, sizes, result limits)
+      parameters:
+        - $ref: "#/components/parameters/LangParam"
       responses:
         "200":
           description: OK
@@ -698,6 +700,30 @@ paths:
               schema: { $ref: "#/components/schemas/ProviderOption" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        default: { $ref: "#/components/responses/Error" }
+
+  /providers/cookie-sync/login:
+    post:
+      tags: [providers]
+      operationId: startCookieSyncLogin
+      summary: Sign in to GitHub for the cookie sync, with a device code
+      description: |
+        Show `verification_url` and `user_code` to the user. Elementum waits for GitHub in the background;
+        when the user has entered the code, the token is stored and the cookie sync is switched on
+        (`cookie_sync_user` in `/providers/options` then names the account). Nothing is stored when the
+        code expires.
+      responses:
+        "200":
+          description: The code to enter
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DeviceLoginCode" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "502":
+          description: GitHub could not be reached, or refused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         default: { $ref: "#/components/responses/Error" }
 
   /providers/{id}:
@@ -1511,10 +1537,22 @@ components:
       required: [id, group, label, value, default]
       properties:
         id: { type: string, example: filter_cam }
-        group: { type: string, example: Release types }
-        label: { type: string, example: CAM }
+        group: { type: string, description: In the requested language., example: Release type }
+        label: { type: string, description: In the requested language., example: CAM }
+        choices:
+          type: array
+          items: { type: string }
+          description: "For a number option with named values: the names of 0, 1, 2 ... in the requested language."
         value: { description: "The current value: a boolean, number or text. A token or password is only shown as set (`********`) or empty." }
         default: { description: The value when the user has not set one. }
+    DeviceLoginCode:
+      type: object
+      required: [user_code, verification_url, expires_in, interval]
+      properties:
+        user_code: { type: string, example: "AB12-CD34" }
+        verification_url: { type: string, example: "https://github.com/login/device" }
+        expires_in: { type: integer, description: Seconds the code is valid for. }
+        interval: { type: integer, description: Seconds between Elementum's checks with GitHub. }
     ProviderSettings:
       type: object
       properties:
