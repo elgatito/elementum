@@ -1,4 +1,6 @@
-// Code generated from the add-on's strings; the ids are in resources/language/messages.pot. DO NOT EDIT.
+// Texts of the built-in search and their string ids in the add-on (resources/language/messages.pot of
+// plugin.video.elementum). Maintained by hand: a new text gets an id there, with its translations, and a line
+// here; then `go generate ./ui` copies the strings into the binary.
 
 package ui
 
