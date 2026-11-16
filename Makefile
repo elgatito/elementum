@@ -165,16 +165,27 @@ PLATFORMS = $(ANDROID_PLATFORMS) $(LINUX_PLATFORMS) $(WINDOWS_PLATFORMS) $(DARWI
 # rather than set globally, because this Makefile also runs inside the build containers.
 JOBS ?= 4
 
-.PHONY: $(PLATFORMS) all help
+.PHONY: $(PLATFORMS) all help bundle
 
-all:
+# The add-on's translations and settings and Burst's providers and icons, built into the binary. They are maintained
+# there and fetched here: 'all' fetches them anew, other builds once when missing (BUNDLE_SOURCE, see scripts/bundle.sh)
+BUNDLED = providers/burst/providers.json
+
+bundle:
+	./scripts/bundle.sh
+
+$(BUNDLED):
+	./scripts/bundle.sh
+
+all: bundle
 	$(MAKE) -j$(JOBS) --output-sync=target $(PLATFORMS)
 
 help:
 	@echo "Usage: make [target] [VAR=value ...]"
 	@echo
 	@echo "Build (in Docker images $(DOCKER_IMAGE):<os>-<arch>):"
-	@echo "  all                  Build all platforms in parallel (JOBS=$(JOBS))"
+	@echo "  all                  Refresh the bundled files, then build all platforms in parallel (JOBS=$(JOBS))"
+	@echo "  bundle               Refresh the add-on's translations and settings and Burst's providers in the binary"
 	@echo "  <platform>           Build one platform, e.g. 'make linux-x64 windows-x64-shared'"
 	@echo "  build                Build TARGET_OS/TARGET_ARCH[/TARGET_SHARED=shared] in Docker"
 	@echo "  dist                 Build inside the container (used by 'build')"
@@ -199,6 +210,7 @@ help:
 	@echo
 	@echo "Variables:"
 	@echo "  JOBS=N               Parallel platform builds for 'all' (default 4)"
+	@echo "  BUNDLE_SOURCE=...    Where 'bundle' takes them from: auto (local checkouts, else GitHub), github, local"
 	@echo "  IS_RACE=1            Build with -race"
 	@echo "  TARGET_OS, TARGET_ARCH, TARGET_SHARED   Target for build/docker/prepare/clean"
 	@echo "  PLATFORM=<os>-<arch> Target for pull/libs/zip"
@@ -210,7 +222,7 @@ client client-shared:
 	mkdir -p $(BUILD_PATH)
 	touch $(BUILD_PATH)/.keep
 
-$(PLATFORMS):
+$(PLATFORMS): $(BUNDLED)
 	$(MAKE) build TARGET_OS=$(firstword $(subst -, ,$@)) TARGET_ARCH=$(word 2, $(subst -, ,$@)) TARGET_SHARED=$(word 3, $(subst -, ,$@))
 
 # X and X-shared share build/<os>_<arch> (vendor libs, chmod -R), so when both are requested, run them in sequence
@@ -281,7 +293,7 @@ endif
 	$(DOCKER) run --rm -v $(GOPATH):/go -e GOPATH=/go -e GOCACHE=/go-cache -e GOWORK=off -v $(shell pwd):/go/src/$(GO_PKG) -v $(shell go env GOCACHE):/go-cache -u `stat -c "%u:%g" $(shell go env GOCACHE)` --ulimit memlock=67108864 -w /go/src/$(GO_PKG) $(DOCKER_IMAGE):$(TARGET_OS)-$(TARGET_ARCH) make dist TARGET_OS=$(TARGET_OS) TARGET_ARCH=$(TARGET_ARCH) TARGET_SHARED=$(TARGET_SHARED) GIT_VERSION=$(GIT_VERSION) IS_RACE=$(IS_RACE)
 
 # Tests run natively, so only in the linux-x64 image (cross-compiled targets cannot execute them)
-test: force
+test: force $(BUNDLED)
 	$(DOCKER) run --rm -v $(GOPATH):/go -e GOPATH=/go -e GOCACHE=/go-cache -e GOWORK=off -v $(shell pwd):/go/src/$(GO_PKG) -v $(shell go env GOCACHE):/go-cache -u `stat -c "%u:%g" $(shell go env GOCACHE)` --ulimit memlock=67108864 -w /go/src/$(GO_PKG) $(DOCKER_IMAGE):linux-x64 $(GO) test -tags binary,go_json ./...
 
 docker: force

@@ -1,6 +1,6 @@
 //go:build ignore
 
-// Developer step: copies the add-on's translations (resources/language/*/strings.po) into ui/strings,
+// Build step (make bundle, scripts/bundle.sh): copies the add-on's translations (resources/language/*/strings.po) into ui/strings,
 // gzipped, so the binary has them without the add-on. The add-on dir comes from ELEMENTUM_ADDON_PATH
 // (default ../plugin.video.elementum next to the repo).
 package main

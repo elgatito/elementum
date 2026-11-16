@@ -15,8 +15,8 @@ sudo -S true
 # Special dependency for Windows platform
 # GOOS=windows go get -u github.com/yusufpapurcu/wmi
 
-# Compile all platforms
-make all
+# Compile all platforms, with the translations and providers of the add-on's and Burst's master on GitHub
+BUNDLE_SOURCE=github make all
 
 # Run binaries uploads if we are on the tag
 if [[ $TAG != *-* ]]

@@ -1,6 +1,6 @@
 //go:build ignore
 
-// Developer step: copies the addon's resources/settings.xml into default_settings.xml.
+// Build step (make bundle, scripts/bundle.sh): copies the addon's resources/settings.xml into default_settings.xml.
 // The addon dir comes from ELEMENTUM_ADDON_PATH (default ../plugin.video.elementum next to the repo).
 package main
 

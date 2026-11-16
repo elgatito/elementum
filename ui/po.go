@@ -112,8 +112,8 @@ func unquote(s string) string {
 }
 
 // The add-on's translations, copied into the binary so Elementum has its texts without the add-on:
-// in a standalone run, a container, or as a server for client apps. Refresh them with
-// `go generate ./ui` after the add-on's strings change.
+// in a standalone run, a container, or as a server for client apps. They are not in the repository:
+// `make bundle` fetches them (scripts/bundle.sh).
 //
 //go:generate go run gen_strings.go
 //go:embed strings/*.po.gz

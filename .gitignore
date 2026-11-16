@@ -48,3 +48,8 @@ __pycache__/
 
 # Documentation
 docs/
+# Fetched from plugin.video.elementum and script.elementum.burst by `make bundle` (scripts/bundle.sh); edit them there
+/config/default_settings.xml
+/ui/strings/
+/providers/burst/providers.json
+/providers/burst/icons/

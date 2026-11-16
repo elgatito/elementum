@@ -9,6 +9,19 @@ Fork of the great [Pulsar daemon](https://github.com/steeve/pulsar) and [Quasar 
 
 Documentation for users, including running Elementum on a server and its JSON API: <https://elementum.surge.sh/>.
 
+# Building
+
+The binary contains files maintained in other repositories: the translations and default settings of
+[plugin.video.elementum](https://github.com/elgatito/plugin.video.elementum), and the providers and their icons of
+[script.elementum.burst](https://github.com/elgatito/script.elementum.burst). They are not in this repository. Fetch them once,
+and again to pick up changes, before `go build` or `go test`:
+
+```sh
+make bundle    # from checkouts next to this one, else from GitHub; BUNDLE_SOURCE=github always takes their master
+```
+
+`make all` and the platform targets fetch them by themselves; releases and CI take them from GitHub.
+
 # Ways to run it
 
 | Mode | How | Settings come from |
@@ -112,7 +125,7 @@ Elementum's dialogs, notifications, confirmations, lists, text prompts and progr
 - `GET /api/ui/events?client_id=...` is a long-poll: it returns as soon as an event is queued, or `204` after `wait` seconds. Pass the last `seq` as `since` on the next call.
 - `POST /api/ui/requests/{id}` answers a question (`yes`, `selected`, `text`) or cancels it / a progress dialog.
 - A question goes to every connected client and the first answer wins (`410` for the others). Elementum asks Kodi only when no client is connected.
-- Texts are translated on the server, into the client's `lang`. The translations are built into the binary (a copy of the addon's strings, refreshed with `go generate ./ui`), so they are there without the addon; when the addon folder is present its own files are used.
+- Texts are translated on the server, into the client's `lang`. The translations are built into the binary (the addon's strings, fetched by `make bundle`), so they are there without the addon; when the addon folder is present its own files are used.
 
 ## Settings from a file
 
@@ -121,7 +134,7 @@ By default Elementum reads its settings from Kodi. With `-configPath=<file>` (or
 - The API login does not come from the settings file: use `-localLogin` / `-localPassword` (in Kodi, the addon's Authorization "Remote host login/password", ids `remote_login` / `remote_password`, passed to the binary as those flags).
 - The file is JSON (`.json`) or YAML. A JSON file has a `"Version": 1` field (`settings-file-v1`); a newer version is rejected. `Info.ID`, `Info.Profile`, `Platform` and `Settings` are required.
 - If the file does not exist, a default one is created (mode `0600`) and a warning is logged. The addon writes the file for you when it starts the binary (plugin.video.elementum 0.1.120 and later).
-- Developers: the defaults without `-addonPath` come from `config/default_settings.xml`, a copy of the addon's `resources/settings.xml`. Refresh it with `ELEMENTUM_ADDON_PATH=<addon checkout> go generate ./config` (default `../plugin.video.elementum`); it is not run by the Makefile or Docker builds.
+- Developers: the defaults without `-addonPath` come from the addon's `resources/settings.xml`, built into the binary.
 - The file is polled every 2 s. A valid change reloads the settings; an invalid file is logged and the previous settings are kept. `GET /reload` re-reads it at once.
 - Write-back: tokens and other values Elementum changes at runtime (Trakt and OpenSubtitles tokens, expiries) are written into the file atomically (`.json` only), and into Kodi when it is connected. A change that only touches such keys does not restart services.
 - `GET /api/system/info` reports `settings_source` (`file` or `kodi`) and `kodi_connected`.

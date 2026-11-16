@@ -23,10 +23,14 @@ import (
 
 var log = logging.MustGetLogger("burst")
 
+// Not in the repository: `make bundle` fetches it (scripts/bundle.sh)
+//
 //go:embed providers.json
 var bundled []byte
 
 // Icons of the providers, from Burst, by provider id.
+//
+// Not in the repository: `make bundle` fetches it (scripts/bundle.sh)
 //
 //go:embed icons/*.png
 var icons embed.FS
