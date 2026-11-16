@@ -19,7 +19,9 @@ cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 
 SOURCE=${BUNDLE_SOURCE:-auto}
-CACHE="$ROOT/build/upstream"
+# Clones go to a temporary dir, not build/: `make binaries` publishes everything in build/
+CACHE=$(mktemp -d)
+trap 'rm -rf "$CACHE"' EXIT
 
 # source <var> <sibling dir> <GitHub repo> <ref>: prints the absolute path of a checkout to use
 source_of() {
@@ -36,7 +38,6 @@ source_of() {
       exit 1
     fi
     path="$CACHE/$sibling"
-    rm -rf "$path"
     git clone --quiet --depth=1 --branch "$ref" "https://github.com/$repo.git" "$path" >&2
   fi
   (cd "$path" && pwd)
