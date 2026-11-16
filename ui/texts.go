@@ -72,4 +72,7 @@ var textIDs = map[string]int{
 	"Select another Gist":                   30902,
 	"No Gists with %s file found":           30903,
 	"%d cookies for %d sites":               30904,
+	"Gist ID":                               30905,
+	"For Developers":                        30906,
+	"Log debug messages for parsing":        30907,
 }
