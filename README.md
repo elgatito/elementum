@@ -7,13 +7,15 @@ It started as a Kodi add-on, and still works as one. It is also an application o
 
 Fork of the great [Pulsar daemon](https://github.com/steeve/pulsar) and [Quasar daemon](https://github.com/scakemyer/quasar).
 
+Documentation for users, including running Elementum on a server and its JSON API: <https://elementum.surge.sh/>.
+
 # Ways to run it
 
 | Mode | How | Settings come from |
 | --- | --- | --- |
 | Kodi add-on | Install [plugin.video.elementum](https://github.com/elgatito/plugin.video.elementum). The add-on starts Elementum (as a binary or a shared library) next to Kodi and stops it with Kodi. | Kodi add-on settings |
 | Standalone | Start the binary yourself with `-configPath`. It keeps running without Kodi and without a parent process. | A JSON or YAML file |
-| Container | Elementum in an image, see [elementum-docker](https://github.com/ElementumOrg/elementum-docker) for its setup. Set `-serverExternalIP` when the container sits behind NAT. | As the image is set up: a file, or a remote Kodi |
+| Container | Elementum in an image, see [elementum-docker](https://github.com/ElementumOrg/elementum-docker) for its setup. Set `-serverExternalIp` when the container sits behind NAT. | As the image is set up: a file, or a remote Kodi |
 | Server for client apps | Any of the above. Clients such as the Samsung TV app ([elementum-tizen](https://github.com/ElementumOrg/elementum-tizen)) browse, search and play through the [JSON API](#json-api-api). | As the mode it runs in |
 | Remote Kodi | Elementum on one machine, Kodi with the add-on on another: `-remoteHost` / `-remotePort` point at Kodi. | Kodi add-on settings |
 

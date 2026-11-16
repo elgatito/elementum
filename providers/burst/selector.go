@@ -12,7 +12,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-// A spec is the JSON form of one Burst parser expression (see convert.py):
+// A spec is the JSON form of one Burst parser expression (the builtin part that Burst's scripts/builtin.py writes):
 //
 //	"text"                                             a literal
 //	{"tag":"a","nth":2,"attr":"href"}                  the 2nd <a> inside the row, its href (text without attr)
