@@ -343,3 +343,47 @@ func (h *XBMCHost) CloseAllConfirmDialogs() bool {
 	h.executeJSONRPCEx("Dialog_CloseAllConfirms", &retVal, nil)
 	return retVal != 0
 }
+
+// DetailItem is a line of a details list: Label on top, Label2 smaller below it (a value, a description),
+// and an icon beside them.
+type DetailItem struct {
+	Label, Label2, Icon string
+}
+
+func detailArgs(items []DetailItem) [][]string {
+	out := make([][]string, len(items))
+	for i, it := range items {
+		out[i] = []string{it.Label, it.Label2, it.Icon}
+	}
+	return out
+}
+
+// plainLines are details items as single lines, for an add-on without the details dialogs.
+func plainLines(items []DetailItem) []string {
+	out := make([]string, len(items))
+	for i, it := range items {
+		if out[i] = it.Label; it.Label2 != "" {
+			out[i] += ": " + it.Label2
+		}
+	}
+	return out
+}
+
+// ListDialogDetails is ListDialog with a second line and an icon for each choice; -1 when cancelled.
+func (h *XBMCHost) ListDialogDetails(title string, items []DetailItem, preselect int) int {
+	retVal := -1
+	if err := h.executeJSONRPCEx("Dialog_Select_Details", &retVal, Args{title, detailArgs(items), preselect}); err != nil {
+		return h.ListDialog(title, plainLines(items)...)
+	}
+	return retVal
+}
+
+// DialogMultiSelectDetails is DialogMultiSelect with a second line and an icon for each choice; nil when
+// cancelled.
+func (h *XBMCHost) DialogMultiSelectDetails(title string, items []DetailItem, preselect []int) []int {
+	var retVal []int
+	if err := h.executeJSONRPCEx("Dialog_MultiSelect_Details", &retVal, Args{title, detailArgs(items), preselect}); err != nil {
+		return h.DialogMultiSelect(title, plainLines(items), preselect)
+	}
+	return retVal
+}

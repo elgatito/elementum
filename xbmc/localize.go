@@ -73,6 +73,12 @@ func localizeArgs(lang string, args Args) Args {
 			out[i] = localize(lang, v)
 		case []string:
 			out[i] = localizeAll(lang, v)
+		case [][]string: // details lists: label, label2, icon
+			rows := make([][]string, len(v))
+			for n, row := range v {
+				rows[n] = localizeAll(lang, row)
+			}
+			out[i] = rows
 		default:
 			out[i] = a
 		}
