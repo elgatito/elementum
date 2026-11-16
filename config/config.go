@@ -1448,3 +1448,34 @@ func providersSource(settings XbmcSettings) int {
 	}
 	return settings.ToInt("providers_source")
 }
+
+var wslDriveRe = regexp.MustCompile(`^/mnt/([a-zA-Z])(/.*)?$`)
+
+// KodiPath returns a local file path as Kodi can open it: through the library substitutions, else, when
+// Elementum runs in WSL next to a Kodi on Windows, as the Windows path of a /mnt/<drive>/ path. Elsewhere
+// both see the same path.
+func KodiPath(local string) string {
+	if local == "" {
+		return local
+	}
+	var platform *xbmc.Platform
+	if c := Get(); c != nil {
+		platform = c.Platform
+	}
+	if p := util.GetKodiPath(local, &LibrarySubstitutions, platform); p != local {
+		return p
+	}
+	if runtime.GOOS != "linux" || platform == nil || !strings.EqualFold(platform.OS, "windows") {
+		return local
+	}
+	return wslToWindowsPath(local)
+}
+
+// wslToWindowsPath is the reverse of windowsToWSLPath: "/mnt/c/Kodi/x.png" is "C:\Kodi\x.png".
+func wslToWindowsPath(path string) string {
+	m := wslDriveRe.FindStringSubmatch(path)
+	if m == nil {
+		return path
+	}
+	return strings.ToUpper(m[1]) + `:\` + strings.ReplaceAll(strings.TrimPrefix(m[2], "/"), "/", `\`)
+}

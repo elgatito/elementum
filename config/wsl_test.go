@@ -38,3 +38,16 @@ func TestSplitKodiDir(t *testing.T) {
 		}
 	}
 }
+
+func TestWSLToWindowsPath(t *testing.T) {
+	for in, want := range map[string]string{
+		"/mnt/c/Users/denis/AppData/x.png": `C:\Users\denis\AppData\x.png`,
+		"/mnt/d":                           `D:\`,
+		"/home/me/x.png":                   "/home/me/x.png",
+		"/mnt/cc/x":                        "/mnt/cc/x",
+	} {
+		if got := wslToWindowsPath(in); got != want {
+			t.Errorf("%s: %q, want %q", in, got, want)
+		}
+	}
+}
