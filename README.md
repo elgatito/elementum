@@ -46,7 +46,7 @@ The contract lives in `api/json/openapi.yaml`; regenerate its Go bindings with `
 
 - Swagger UI: `/api/docs`. The OpenAPI spec (the contract, with examples): `/api/openapi.yaml`.
 - **Auth:** HTTP Basic with the existing `-localLogin` / `-localPassword` credentials (the ones the Kodi routes use). With no credentials set, the API is open. Failures are JSON `401` without a `WWW-Authenticate` header, so browsers show no login popup. Errors are always `{"error": {"code", "message"}}`.
-- **CORS:** every origin is allowed (`Access-Control-Allow-Origin: *`, `GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS`), and `X-UI-Epoch` is exposed.
+- **CORS:** every origin may call the JSON API (`GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS`), and `X-UI-Epoch` is exposed. The other routes send no CORS headers and refuse cross-site browser requests.
 - **Signed stream links:** `GET /api/stream/{id}/{file_index}` serves the media bytes (with Range) and is authorized by the link itself, not by Basic auth: the link carries an expiry and an HMAC-SHA256 signature made with a per-process key. Use the `stream_url` of the playback session as is. Expired, tampered or stopped-session links get `403`.
 
 ## Endpoint groups
@@ -130,7 +130,7 @@ By default Elementum reads its settings from Kodi. With `-configPath=<file>` (or
 ## Security
 
 - Set a login (`-localLogin` / `-localPassword`) on any network you do not fully trust. Without credentials anyone who can reach the port can use it.
-- CORS allows any origin (`*`) on all Elementum routes, not just `/api` (for example `/shutdown` and `/playuri`).
+- Browsers may call the JSON API (`/api`) from any origin (CORS), as apps need. The other routes (Kodi's and the Web UI) refuse requests a browser makes for another web site (`Sec-Fetch-Site: cross-site`, or an `Origin` of another host), so a page you visit cannot trigger `/shutdown` or `/playuri` through your browser.
 - `/files/` has no login at all.
 - UI notifications sent to HTTP clients can contain file paths or URLs from error messages.
 - The settings file holds tokens and passwords: keep it private (it is created `0600`), and do not share it.

@@ -1,8 +1,11 @@
 package api
 
 import (
+	"cmp"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -47,9 +50,17 @@ var logFormatter = func(param gin.LogFormatterParams) string {
 	)
 }
 
-// CORS allows all external source to request data from Elementum
+// isAPI reports whether a path is the JSON API's, the interface meant for other apps.
+func isAPI(path string) bool { return path == "/api" || strings.HasPrefix(path, "/api/") }
+
+// CORS lets browsers call the JSON API from any origin: apps such as the TV app have their own. The other
+// routes are for Kodi and the Web UI (same origin), which need none.
 func CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if !isAPI(c.Request.URL.Path) {
+			c.Next()
+			return
+		}
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Credentials", "true")
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
@@ -63,6 +74,37 @@ func CORS() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+// SameSite refuses requests to the Kodi and Web UI routes that a browser makes on behalf of another web
+// site, such as a page on the internet loading http://<elementum>/shutdown in an image. The Web UI's own
+// requests are same-origin, and Kodi, players and scripts send no such headers, so they all pass.
+func SameSite() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if isAPI(c.Request.URL.Path) || !crossSite(c.Request) {
+			c.Next()
+			return
+		}
+		log.Warningf("Refused a request to %s made by another web site (%s)", c.Request.URL.Path, cmp.Or(c.Request.Header.Get("Origin"), c.Request.Referer(), "unknown"))
+		c.AbortWithStatus(http.StatusForbidden)
+	}
+}
+
+// crossSite reports whether a browser made the request for a page of another site. Browsers tell it with
+// Sec-Fetch-Site; older ones only with an Origin of another host.
+func crossSite(r *http.Request) bool {
+	switch r.Header.Get("Sec-Fetch-Site") {
+	case "cross-site":
+		return true
+	case "same-origin", "same-site", "none": // "none": typed in or a bookmark
+		return false
+	}
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return false
+	}
+	u, err := url.Parse(origin)
+	return err != nil || u.Host != r.Host // "null" (a sandboxed or local file page) has no host
 }
 
 // Auth middleware allows all external source to request data from Elementum
@@ -94,6 +136,7 @@ func Routes(s *bittorrent.Service, shutdown func(code int), fileLogger io.Writer
 		SkipPaths: []string{"/torrents/list", "/notification"},
 	}))
 	r.Use(CORS())
+	r.Use(SameSite())
 	r.Use(Auth())
 
 	gin.SetMode(gin.ReleaseMode)
