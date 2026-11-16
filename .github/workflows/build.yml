@@ -37,6 +37,30 @@ jobs:
           go generate ./api/json/...
           git diff --exit-code -- api/json/ || { echo "::error::Run 'go generate ./api/json/...' and commit the result"; exit 1; }
 
+      # Elementum embeds copies of files from the add-on and Burst, so it has them without the add-on
+      - name: Checkout the add-on
+        uses: actions/checkout@v7
+        with:
+          repository: elgatito/plugin.video.elementum
+          path: upstream/plugin.video.elementum
+
+      - name: Checkout Burst
+        uses: actions/checkout@v7
+        with:
+          repository: elgatito/script.elementum.burst
+          path: upstream/script.elementum.burst
+
+      - name: Check copies of the add-on's and Burst's files
+        run: |
+          addon=upstream/plugin.video.elementum burst=upstream/script.elementum.burst failed=
+          cmp -s "$addon/resources/settings.xml" config/default_settings.xml || { echo "::error::config/default_settings.xml differs from the add-on's settings.xml: run 'ELEMENTUM_ADDON_PATH=<addon> go generate ./config'"; failed=1; }
+          for po in "$addon"/resources/language/resource.language.*/strings.po; do
+            lang=$(basename "$(dirname "$po")"); lang=${lang#resource.language.}
+            zcat "ui/strings/$lang.po.gz" 2>/dev/null | cmp -s - "$po" || { echo "::error::ui/strings/$lang.po.gz differs from the add-on's strings: run 'ELEMENTUM_ADDON_PATH=<addon> go generate ./ui'"; failed=1; }
+          done
+          cmp -s "$burst/burst/providers/providers.json" providers/burst/providers.json || { echo "::error::providers/burst/providers.json differs from Burst's: run 'ELEMENTUM_BURST_PATH=<burst> go generate ./providers/burst'"; failed=1; }
+          [ -z "$failed" ]
+
   test:
     name: Test
     runs-on: ubuntu-latest
