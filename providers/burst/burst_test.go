@@ -332,7 +332,7 @@ func benchmarkPage(b *testing.B, parser string) {
 	d := Definition{"name": "Bench", "parser": p}
 	b.SetBytes(int64(len(content)))
 	for b.Loop() {
-		if got := fromPage("bench", d, content); len(got) != 300 {
+		if got := fromPage("bench", d, content, false); len(got) != 300 {
 			b.Fatalf("%d results", len(got))
 		}
 	}
@@ -672,5 +672,15 @@ func TestUserFiles(t *testing.T) {
 	write("providers.json", `{broken`)
 	if defs = Load(dir); len(defs) < 80 {
 		t.Errorf("broken providers.json: %d providers", len(defs))
+	}
+}
+
+// The parser debug option only logs: the results are the same.
+func TestParserDebug(t *testing.T) {
+	d := Definition{"name": "Debug", "parser": map[string]any{"row": spec(t, `[{"tag":"tr","all":true,"start":2}]`), "name": spec(t, `{"tag":"a","nth":2}`),
+		"torrent": spec(t, `{"tag":"a","nth":2,"attr":"href"}`), "seeds": spec(t, `{"tag":"td","nth":3}`), "size": spec(t, `{"op":"regex","pattern":"x(y)","group":1,"arg":"z"}`)}}
+	quiet, logged := fromPage("debug", d, page, false), fromPage("debug", d, page, true)
+	if !reflect.DeepEqual(quiet, logged) {
+		t.Errorf("debug changed the results: %+v / %+v", quiet, logged)
 	}
 }

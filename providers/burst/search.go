@@ -239,7 +239,7 @@ func searchProvider(ctx context.Context, id string, d Definition, set Settings, 
 		if d.flag("is_api") {
 			found = fromAPI(id, d, content, q.Languages)
 		} else {
-			found = fromPage(id, d, content)
+			found = fromPage(id, d, content, opts.on("use_debug_parser"))
 			if d.flag("subpage") {
 				found = s.subpages(ctx, found)
 			}
@@ -498,7 +498,16 @@ func linkOnPage(d Definition, content string) string {
 }
 
 // fromPage reads the results of an HTML page with the definition's parser specs.
-func fromPage(id string, d Definition, content string) []Result {
+//
+// With debug (the use_debug_parser option) it logs the page, how many rows the row spec matched, and what
+// every field gave or why a row was dropped: what a definition is fixed with.
+func fromPage(id string, d Definition, content string, debug bool) []Result {
+	debugf := func(format string, args ...any) {
+		if debug {
+			log.Infof("[%s] Parser debug | "+format, append([]any{id}, args...)...)
+		}
+	}
+	debugf("page of %d bytes: %s", len(content), strings.NewReplacer("\r", "", "\n", "").Replace(content))
 	dom, err := html.Parse(strings.NewReader(content))
 	if err != nil {
 		log.Warningf("[%s] could not parse the page: %s", id, err)
@@ -514,7 +523,9 @@ func fromPage(id string, d Definition, content string) []Result {
 		return v
 	}
 	var results []Result
-	for _, row := range follow(dom, parser["row"]) {
+	rows := follow(dom, parser["row"])
+	debugf("row %v matched %d rows", parser["row"], len(rows))
+	for n, row := range rows {
 		if row.FirstChild == nil {
 			continue
 		}
@@ -522,6 +533,7 @@ func fromPage(id string, d Definition, content string) []Result {
 			defer func() {
 				if r := recover(); r != nil {
 					log.Debugf("[%s] skipping a row: %v", id, r)
+					debugf("row %d dropped: %v", n+1, r)
 				}
 			}()
 			r := Result{Name: field("name", row), URI: field("torrent", row), InfoHash: field("infohash", row), Size: cleanSize(field("size", row)),
@@ -535,6 +547,7 @@ func fromPage(id string, d Definition, content string) []Result {
 			if r.URI != "" && !strings.HasPrefix(r.URI, "magnet") && !strings.HasPrefix(r.URI, "http") {
 				r.URI = d.str("root_url") + r.URI
 			}
+			debugf("row %d: name %q, torrent %q, infohash %q, size %q, seeds %d, peers %d", n+1, r.Name, r.URI, r.InfoHash, r.Size, r.Seeds, r.Peers)
 			results = append(results, r)
 		}()
 	}

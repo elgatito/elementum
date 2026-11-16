@@ -70,6 +70,8 @@ var Options = []Option{
 	{ID: "block", Group: "Keywords", Label: "Block", Default: ""},
 	{ID: "require", Group: "Keywords", Label: "Require", Default: ""},
 
+	{ID: "use_debug_parser", Group: "For Developers", Label: "Log debug messages for parsing", Default: false},
+
 	{ID: "cookie_sync_enabled", Group: "Cookie sync", Label: "Enable Cookie sync", Default: false},
 	{ID: "cookie_sync_token", Group: "Cookie sync", Label: "GitHub token", Default: ""},
 	{ID: "cookie_sync_user", Group: "Cookie sync", Label: "GitHub user", Default: ""},
