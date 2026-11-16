@@ -57,36 +57,159 @@ func BuiltinSettings(ctx *gin.Context) {
 			groups = append(groups, o.Group)
 		}
 	}
-	type entry struct {
-		label string
-		run   func() error
-	}
 	for {
-		menu := []entry{
-			{d.t("Public providers"), func() error { return d.chooseProviders(false) }},
-			{d.t("Private providers (need an account)"), func() error { return d.chooseProviders(true) }},
-			{d.t("Logins, mirrors and cookies"), d.editLogins},
+		menu := []menuEntry{
+			{d.t("Public providers"), d.enabledNames(false), func() error { return d.chooseProviders(false) }},
+			{d.t("Private providers (need an account)"), d.enabledNames(true), func() error { return d.chooseProviders(true) }},
+			{d.t("Logins, mirrors and cookies"), "", d.editLogins},
 		}
 		for _, g := range groups {
-			menu = append(menu, entry{d.t(g), func() error { return d.editOptions(g) }})
+			if g == "Cookie sync" {
+				continue // its own menu, below
+			}
+			menu = append(menu, menuEntry{d.t(g), d.summary(g), func() error { return d.editOptions(g) }})
 		}
-		menu = append(menu, entry{d.t("Connect GitHub and select Gist"), d.connectGitHub})
-		if burst.LoadGeneral(dir).Get("cookie_sync_token") != "" {
-			menu = append(menu, entry{d.t("Select another Gist"), d.selectGist})
-		}
+		menu = append(menu, menuEntry{"[B]" + d.t("Cookie sync") + "[/B]", d.cookieSyncSummary(), d.cookieSync})
 		if burst.HasBurstSettings(providers.BurstSettingsPath()) {
-			menu = append(menu, entry{d.t("Import settings from the Burst add-on"), d.importBurst})
+			menu = append(menu, menuEntry{d.t("Import settings from the Burst add-on"), "", d.importBurst})
 		}
-		labels := make([]string, len(menu))
-		for i, e := range menu {
-			labels[i] = e.label
-		}
-		choice := xbmcHost.ListDialog(d.title(""), labels...)
+		choice := d.pick(d.title(""), menu)
 		if choice < 0 {
 			ctx.String(200, "")
 			return
 		}
 		failed(menu[choice].run())
+	}
+}
+
+// menuEntry is a line of a menu: what it opens, with its current state below it.
+type menuEntry struct {
+	label, state string
+	run          func() error
+}
+
+func (d builtinDialog) pick(title string, menu []menuEntry) int {
+	items := make([]xbmc.DetailItem, len(menu))
+	for i, e := range menu {
+		items[i] = xbmc.DetailItem{Label: e.label, Label2: e.state}
+	}
+	return d.h.ListDialogDetails(title, items, -1)
+}
+
+// shorten keeps a summary to what fits on the line of a dialog.
+func shorten(parts []string) string {
+	s := strings.Join(parts, " · ")
+	if r := []rune(s); len(r) > 110 {
+		return string(r[:107]) + "..."
+	}
+	return s
+}
+
+// enabledNames lists the providers of a kind that searches use now, and the private ones switched on
+// without a login.
+func (d builtinDialog) enabledNames(private bool) string {
+	var names []string
+	for _, st := range burst.List(d.dir) {
+		if st.Private != private || !st.Enabled || st.Unusable != "" {
+			continue
+		}
+		if st.NeedsLogin {
+			names = append(names, st.Name+" ([COLOR FF999900]"+d.t("no login yet")+"[/COLOR])")
+		} else {
+			names = append(names, st.Name)
+		}
+	}
+	return shorten(names)
+}
+
+// summary is the state of an option group: the switches that are on and the values.
+func (d builtinDialog) summary(group string) string {
+	general := burst.LoadGeneral(d.dir)
+	var parts []string
+	for _, o := range burst.Options {
+		if o.Group != group || o.Prefix != "" || o.Secret() {
+			continue
+		}
+		switch v := general.Get(o.ID).(type) {
+		case bool:
+			if v {
+				parts = append(parts, d.t(o.Label))
+			}
+		case float64:
+			value := fmt.Sprint(v)
+			if int(v) >= 0 && int(v) < len(o.Choices) {
+				value = d.t(o.Choices[int(v)])
+			}
+			parts = append(parts, d.t(o.Label)+": "+value)
+		case string:
+			if v != "" {
+				parts = append(parts, d.t(o.Label)+": "+v)
+			}
+		}
+	}
+	return shorten(parts)
+}
+
+func (d builtinDialog) yesNo(on bool) string {
+	if on {
+		return ui.Translate(d.lang, "LOCALIZE[30413]")
+	}
+	return ui.Translate(d.lang, "LOCALIZE[30414]")
+}
+
+func (d builtinDialog) cookieSyncSummary() string {
+	general := burst.LoadGeneral(d.dir)
+	parts := []string{d.yesNo(general.Get("cookie_sync_enabled") == true)}
+	if user, _ := general.Get("cookie_sync_user").(string); user != "" {
+		parts = append(parts, "GitHub: "+user)
+	}
+	if gist, _ := general.Get("cookie_sync_gist_id").(string); gist != "" {
+		parts = append(parts, "Gist: "+gist[:min(len(gist), 8)])
+	}
+	return shorten(parts)
+}
+
+// cookieSync is the menu of the cookie sync: switch it on, sign in to GitHub, choose the gist, and the
+// password and the name of the cookies file.
+func (d builtinDialog) cookieSync() error {
+	for {
+		general := burst.LoadGeneral(d.dir)
+		text := func(id string) string { s, _ := general.Get(id).(string); return s }
+		mark := ""
+		if text("cookie_sync_password") != "" {
+			mark = d.t("(set)")
+		}
+		enabled := general.Get("cookie_sync_enabled") == true
+		menu := []menuEntry{
+			{d.t("Enable Cookie sync"), d.yesNo(enabled), func() error { return burst.SaveOption(d.dir, "cookie_sync_enabled", !enabled) }},
+			{d.t("Connect GitHub and select Gist"), text("cookie_sync_user"), d.connectGitHub},
+		}
+		if text("cookie_sync_token") != "" {
+			menu = append(menu, menuEntry{d.t("Select another Gist"), text("cookie_sync_gist_id"), d.selectGist})
+		}
+		menu = append(menu,
+			menuEntry{d.t("Encryption password (optional)"), mark, func() error {
+				password := d.h.Keyboard("", d.t("Encryption password (optional)"), true)
+				if password == "" {
+					return nil // cancelled: the stored one stays
+				}
+				return burst.SaveOption(d.dir, "cookie_sync_password", password)
+			}},
+			menuEntry{d.t("File name (optional)"), text("cookie_sync_filename"), func() error {
+				name := d.h.Keyboard(text("cookie_sync_filename"), d.t("File name (optional)"), false)
+				if name == "" {
+					return nil // cancelled; the name is needed
+				}
+				return burst.SaveOption(d.dir, "cookie_sync_filename", name)
+			}},
+		)
+		choice := d.pick(d.title(d.t("Cookie sync")), menu)
+		if choice < 0 {
+			return nil
+		}
+		if err := menu[choice].run(); err != nil {
+			return err
+		}
 	}
 }
 
