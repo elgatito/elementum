@@ -150,6 +150,12 @@ func BeginAuth(id string) (current func() bool) {
 
 // StartDeviceAuth requests a code and polls for the token in background; success or failure is notified when polling ends.
 func StartDeviceAuth(p Provider, f DeviceFlow) (*DeviceCode, error) {
+	code, _, err := startDeviceAuth(p, f)
+	return code, err
+}
+
+// startDeviceAuth is StartDeviceAuth that also tells when polling has ended: true when the login succeeded.
+func startDeviceAuth(p Provider, f DeviceFlow) (*DeviceCode, <-chan bool, error) {
 	current := BeginAuth(p.ID())
 	code, err := f.RequestCode()
 	if err == nil && (code == nil || code.DeviceCode == "") {
@@ -158,36 +164,79 @@ func StartDeviceAuth(p Provider, f DeviceFlow) (*DeviceCode, error) {
 	if err != nil {
 		log.Errorf("Could not get authorization code from %s: %s", p.Name(), err)
 		authStrings(p).toast(authStrings(p).Failed, p)
-		return nil, err
+		return nil, nil, err
 	}
 	log.Noticef("Got %s code for %s: %s", p.Name(), code.VerificationURL, code.UserCode)
 
-	go pollDeviceToken(p, f, code, current)
-	return code, nil
+	done := make(chan bool, 1)
+	go func() { done <- pollDeviceToken(p, f, code, current) }()
+	return code, done, nil
 }
 
-// RunDeviceAuth shows the device code to the user and polls for the token in background.
-// It returns after the dialog is closed; success or failure is notified when polling ends.
+var errAuthCanceled = errors.New("Authentication canceled")
+
+// RunDeviceAuth shows the device code to the user and polls for the token in background. The instructions
+// stay on screen until the login ends: Kodi closes them by itself when it succeeded or failed, so there
+// is nothing to confirm; Cancel stops the login. Success or failure is notified as well.
 func RunDeviceAuth(p Provider, f DeviceFlow) error {
-	code, err := StartDeviceAuth(p, f)
+	code, done, err := startDeviceAuth(p, f)
 	if err != nil {
 		return err
 	}
-
-	if xbmcHost, _ := xbmc.GetLocalXBMCHost(); xbmcHost != nil {
-		str := authStrings(p)
-		args := []any{p.Name(), code.VerificationURL, code.UserCode}
-		if str.NoName {
-			args = args[1:]
-		}
-		if !xbmcHost.Dialog(xbmcHost.GetLocalizedString(str.Title), fmt.Sprintf(xbmcHost.GetLocalizedString(str.Steps), args...)) {
-			return errors.New("Authentication canceled")
-		}
+	xbmcHost, _ := xbmc.GetLocalXBMCHost()
+	if xbmcHost == nil {
+		return nil
 	}
-	return nil
+	str := authStrings(p)
+	args := []any{p.Name(), code.VerificationURL, code.UserCode}
+	if str.NoName {
+		args = args[1:]
+	}
+	title, message := xbmcHost.GetLocalizedString(str.Title), fmt.Sprintf(xbmcHost.GetLocalizedString(str.Steps), args...)
+	dialog := xbmcHost.NewDialogProgress(title, message, "", "")
+	if dialog == nil { // an add-on that could not open it: the dialog to confirm, as before
+		if !xbmcHost.Dialog(title, message) {
+			return errAuthCanceled
+		}
+		return nil
+	}
+	defer dialog.Close()
+	return waitForLogin(p.ID(), done, dialog, time.Duration(max(code.ExpiresIn, 60))*time.Second, message)
 }
 
-func pollDeviceToken(p Provider, f DeviceFlow, code *DeviceCode, current func() bool) {
+// loginDialog is what waitForLogin needs of Kodi's progress dialog.
+type loginDialog interface {
+	Update(percent int, line1, line2, line3 string)
+	IsCanceled() bool
+}
+
+// waitForLogin keeps the instructions up, with the time left on the code as the bar, until polling ends
+// or the user cancels; a cancel stops the polling.
+func waitForLogin(id string, done <-chan bool, dialog loginDialog, lifetime time.Duration, message string) error {
+	started := time.Now()
+	tick := time.NewTicker(500 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		select {
+		case ok := <-done:
+			if !ok {
+				return errors.New("Authentication failed")
+			}
+			return nil
+		case <-tick.C:
+			if dialog.IsCanceled() {
+				BeginAuth(id) // the poller of this login sees it is no longer the latest and stops
+				return errAuthCanceled
+			}
+			left := 100 - int(time.Since(started)*100/lifetime)
+			dialog.Update(max(left, 0), message, "", "")
+		}
+	}
+}
+
+// pollDeviceToken polls until the user approved the code, it expired or failed, or a newer login replaced
+// this one. It returns true when the credentials were saved.
+func pollDeviceToken(p Provider, f DeviceFlow, code *DeviceCode, current func() bool) bool {
 	interval := max(time.Duration(code.Interval)*time.Second, minPollInterval)
 	deadline := time.Now().Add(time.Duration(max(code.ExpiresIn, 60)) * time.Second)
 	closer := broadcast.Closer.C()
@@ -195,16 +244,16 @@ func pollDeviceToken(p Provider, f DeviceFlow, code *DeviceCode, current func() 
 	for time.Now().Before(deadline) {
 		select {
 		case <-closer:
-			return
+			return false
 		case <-time.After(interval):
 		}
 
 		if !current() { // replaced by a newer login
-			return
+			return false
 		}
 		token, err := f.PollToken(code)
 		if !current() {
-			return
+			return false
 		}
 		if errors.Is(err, ErrSlowDown) {
 			interval += 5 * time.Second
@@ -214,12 +263,12 @@ func pollDeviceToken(p Provider, f DeviceFlow, code *DeviceCode, current func() 
 		} else if err != nil {
 			log.Warningf("%s authorization failed: %s", p.Name(), err)
 			authStrings(p).toast(authStrings(p).Failed, p)
-			return
+			return false
 		}
 
 		if token == nil || token.AccessToken == "" {
 			authStrings(p).toast(authStrings(p).Failed, p)
-			return
+			return false
 		}
 		c := &config.TrackerCredentials{
 			Token:        token.AccessToken,
@@ -228,7 +277,7 @@ func pollDeviceToken(p Provider, f DeviceFlow, code *DeviceCode, current func() 
 		}
 		c.Username, err = f.Username(token.AccessToken)
 		if !current() {
-			return
+			return false
 		}
 		if err == nil && strings.TrimSpace(c.Username) == "" {
 			err = errors.New("empty username")
@@ -236,22 +285,23 @@ func pollDeviceToken(p Provider, f DeviceFlow, code *DeviceCode, current func() 
 		if err != nil {
 			log.Warningf("Could not get %s username: %s", p.Name(), err)
 			authStrings(p).toast(authStrings(p).Failed, p)
-			return
+			return false
 		}
 
 		authCommitMu.Lock()
 		defer authCommitMu.Unlock()
 		if !current() {
-			return
+			return false
 		}
 		ClearState(p.ID())
 		saveCredentials(p, c, false)
 		LoggedIn(p.ID())
 		authStrings(p).toast(authStrings(p).Authorized, p)
-		return
+		return true
 	}
 
 	authStrings(p).toast(authStrings(p).Failed, p)
+	return false
 }
 
 func expiry(t *Token) int64 {

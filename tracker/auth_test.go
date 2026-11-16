@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -74,8 +75,8 @@ func readAuthFile(t *testing.T, path string) string {
 	}
 	return string(b)
 }
-func runAuth(f *fakeFlow, current func() bool) {
-	pollDeviceToken(fakeProvider{}, f, &DeviceCode{ExpiresIn: 60}, current)
+func runAuth(f *fakeFlow, current func() bool) bool {
+	return pollDeviceToken(fakeProvider{}, f, &DeviceCode{ExpiresIn: 60}, current)
 }
 func waitAuth(t *testing.T, done <-chan struct{}) {
 	t.Helper()
@@ -144,7 +145,9 @@ func TestLoginFailsWithoutUsername(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			path := setupAuth(t)
 			stored, creds, before := readAuthFile(t, path), *Credentials(fakeProvider{}.ID()), Logins(fakeProvider{}.ID())
-			runAuth(&fakeFlow{user: func(string) (string, error) { return tc.user, tc.err }}, BeginAuth(fakeProvider{}.ID()))
+			if runAuth(&fakeFlow{user: func(string) (string, error) { return tc.user, tc.err }}, BeginAuth(fakeProvider{}.ID())) {
+				t.Error("a failed login reported success")
+			}
 			if *Credentials(fakeProvider{}.ID()) != creds || readAuthFile(t, path) != stored || Logins(fakeProvider{}.ID()) != before {
 				t.Fatal("failed identity lookup must preserve stored credentials and the login counter")
 			}
@@ -176,13 +179,19 @@ func TestLoginSupersededInFlight(t *testing.T) {
 				return "superseded-user", nil
 			}
 			current := BeginAuth(fakeProvider{}.ID())
-			go func() { defer close(done); runAuth(f, current) }()
+			var stale bool
+			go func() { defer close(done); stale = runAuth(f, current) }()
 			waitAuth(t, entered)
 			before := Logins(fakeProvider{}.ID())
-			runAuth(&fakeFlow{}, BeginAuth(fakeProvider{}.ID()))
+			if !runAuth(&fakeFlow{}, BeginAuth(fakeProvider{}.ID())) {
+				t.Error("a successful login reported failure")
+			}
 			stored := readAuthFile(t, path)
 			close(release)
 			waitAuth(t, done)
+			if stale {
+				t.Error("a superseded login reported success")
+			}
 			if Credentials(fakeProvider{}.ID()).Token != "new" || readAuthFile(t, path) != stored || Logins(fakeProvider{}.ID()) != before+1 {
 				t.Fatal("superseded in-flight login overwrote the newer login")
 			}
@@ -291,5 +300,45 @@ func TestRefreshFailurePreservesCredentials(t *testing.T) {
 				t.Fatal("failed refresh changed credentials")
 			}
 		})
+	}
+}
+
+type fakeLoginDialog struct {
+	canceled atomic.Bool
+	updates  atomic.Int32
+}
+
+func (d *fakeLoginDialog) Update(int, string, string, string) { d.updates.Add(1) }
+func (d *fakeLoginDialog) IsCanceled() bool                   { return d.canceled.Load() }
+
+func TestWaitForLogin(t *testing.T) {
+	// the login ends while the instructions are up: nothing to confirm
+	done := make(chan bool, 1)
+	done <- true
+	if err := waitForLogin("x", done, &fakeLoginDialog{}, time.Minute, "m"); err != nil {
+		t.Errorf("success: %v", err)
+	}
+	done <- false
+	if err := waitForLogin("x", done, &fakeLoginDialog{}, time.Minute, "m"); err == nil {
+		t.Error("a failed login returned no error")
+	}
+
+	// a cancel makes this login stale, so its poller stops
+	current := BeginAuth("cancel-test")
+	d := &fakeLoginDialog{}
+	d.canceled.Store(true)
+	if err := waitForLogin("cancel-test", make(chan bool), d, time.Minute, "m"); err != errAuthCanceled {
+		t.Errorf("cancel: %v", err)
+	}
+	if current() {
+		t.Error("the poller of a canceled login would go on")
+	}
+
+	// the bar follows the time left while waiting
+	d = &fakeLoginDialog{}
+	slow := make(chan bool, 1)
+	go func() { time.Sleep(1200 * time.Millisecond); slow <- true }()
+	if err := waitForLogin("x", slow, d, time.Minute, "m"); err != nil || d.updates.Load() == 0 {
+		t.Errorf("waiting: %v, %d updates", err, d.updates.Load())
 	}
 }
