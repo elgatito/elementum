@@ -100,7 +100,12 @@ func SaveOption(dir, id string, value any) error {
 		if fmt.Sprintf("%T", value) != fmt.Sprintf("%T", o.Default) {
 			return fmt.Errorf("%s must be a %T", id, o.Default)
 		}
-		return change(dir, func(f *file) { f.General[id] = value })
+		return change(dir, func(f *file) {
+			f.General[id] = value
+			if id == "cookie_sync_gist_id" {
+				delete(f.General, "cookie_sync_info") // the description of another gist
+			}
+		})
 	}
 	return fmt.Errorf("unknown option %s", id)
 }

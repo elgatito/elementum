@@ -74,7 +74,8 @@ var Options = []Option{
 	{ID: "cookie_sync_token", Group: "Cookie sync", Label: "GitHub token", Default: ""},
 	{ID: "cookie_sync_user", Group: "Cookie sync", Label: "GitHub user", Default: ""},
 	{ID: "cookie_sync_password", Group: "Cookie sync", Label: "Encryption password (optional)", Default: ""},
-	{ID: "cookie_sync_gist_id", Group: "Cookie sync", Label: "Active Gist", Default: ""},
+	{ID: "cookie_sync_info", Group: "Cookie sync", Label: "Active Gist", Default: ""}, // its description, as Burst keeps it
+	{ID: "cookie_sync_gist_id", Group: "Cookie sync", Label: "Gist ID", Default: ""},
 	{ID: "cookie_sync_filename", Group: "Cookie sync", Label: "File name (optional)", Default: "kevast-gist-default.json"},
 }
 

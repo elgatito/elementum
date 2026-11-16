@@ -161,16 +161,23 @@ func (d builtinDialog) cookieSyncSummary() string {
 	general := burst.LoadGeneral(d.dir)
 	parts := []string{d.yesNo(general.Get("cookie_sync_enabled") == true)}
 	if user, _ := general.Get("cookie_sync_user").(string); user != "" {
-		parts = append(parts, "GitHub: "+user)
+		parts = append(parts, d.t("GitHub user")+": "+user)
 	}
-	if gist, _ := general.Get("cookie_sync_gist_id").(string); gist != "" {
-		parts = append(parts, "Gist: "+gist[:min(len(gist), 8)])
+	if gist := d.activeGist(general); gist != "" {
+		parts = append(parts, d.t("Active Gist")+": "+gist)
 	}
 	return shorten(parts)
 }
 
-// cookieSync is the menu of the cookie sync: switch it on, sign in to GitHub, choose the gist, and the
-// password and the name of the cookies file.
+// activeGist is the gist the cookie sync uses, as described when it was chosen, else its id.
+func (d builtinDialog) activeGist(general burst.General) string {
+	info, _ := general.Get("cookie_sync_info").(string)
+	id, _ := general.Get("cookie_sync_gist_id").(string)
+	return cmp.Or(info, id)
+}
+
+// cookieSync is the menu of the cookie sync: switch it on, the GitHub account, the gist, and the password
+// and the name of the cookies file.
 func (d builtinDialog) cookieSync() error {
 	for {
 		general := burst.LoadGeneral(d.dir)
@@ -180,12 +187,14 @@ func (d builtinDialog) cookieSync() error {
 			mark = d.t("(set)")
 		}
 		enabled := general.Get("cookie_sync_enabled") == true
-		menu := []menuEntry{
-			{d.t("Enable Cookie sync"), d.yesNo(enabled), func() error { return burst.SaveOption(d.dir, "cookie_sync_enabled", !enabled) }},
-			{d.t("Connect GitHub and select Gist"), text("cookie_sync_user"), d.connectGitHub},
+		menu := []menuEntry{{d.t("Enable Cookie sync"), d.yesNo(enabled), func() error { return burst.SaveOption(d.dir, "cookie_sync_enabled", !enabled) }}}
+		if user := text("cookie_sync_user"); user == "" {
+			menu = append(menu, menuEntry{d.t("Connect GitHub and select Gist"), "", d.connectGitHub})
+		} else { // choosing it signs in again, as to another account
+			menu = append(menu, menuEntry{d.t("GitHub user"), user, d.connectGitHub})
 		}
 		if text("cookie_sync_token") != "" {
-			menu = append(menu, menuEntry{d.t("Select another Gist"), text("cookie_sync_gist_id"), d.selectGist})
+			menu = append(menu, menuEntry{d.t("Active Gist"), d.activeGist(general), d.selectGist})
 		}
 		menu = append(menu,
 			menuEntry{d.t("Encryption password (optional)"), mark, func() error {
@@ -249,7 +258,7 @@ func (d builtinDialog) selectGist() error {
 		}
 	}
 	if i := d.h.ListDialogDetails(d.title(d.t("Select Gist with cookies")), items, current); i >= 0 {
-		return burst.SelectGist(d.dir, gists[i].ID)
+		return burst.SelectGist(d.dir, gists[i].ID, gists[i].Description)
 	}
 	return nil
 }

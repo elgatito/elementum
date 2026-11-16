@@ -145,14 +145,6 @@ func gistContent(ctx context.Context, id, token, filename string) (string, error
 	return "", nil
 }
 
-// findGist returns the most recently updated gist that has the cookies file, "" when there is none.
-func findGist(ctx context.Context, token, filename string) string {
-	if found := gistsWithFile(ctx, token, filename); len(found) > 0 {
-		return found[0].ID
-	}
-	return ""
-}
-
 // gistsWithFile returns the gists that have the cookies file, most recently updated first.
 func gistsWithFile(ctx context.Context, token, filename string) []gist {
 	var found []gist
@@ -226,9 +218,20 @@ func countCookies(content, password string) (cookies, sites int) {
 	return cookies, sites
 }
 
+// GistInfo is how a gist is shown: its description and id, as Burst shows the active gist.
+func GistInfo(description, id string) string {
+	if description == "" {
+		return id
+	}
+	return description + " (" + id + ")"
+}
+
 // SelectGist makes the cookie sync use a gist from now on.
-func SelectGist(dir, id string) error {
+func SelectGist(dir, id, description string) error {
 	if err := SaveOption(dir, "cookie_sync_gist_id", id); err != nil {
+		return err
+	}
+	if err := SaveOption(dir, "cookie_sync_info", GistInfo(description, id)); err != nil {
 		return err
 	}
 	syncState.mu.Lock()
@@ -257,9 +260,11 @@ func (s *cookieSync) pull(ctx context.Context, dir string, opts General) error {
 		content, err = gistContent(ctx, id, token, filename)
 	}
 	if content == "" { // not set, or gone: the latest gist with the file
-		if id = findGist(ctx, token, filename); id != "" {
+		if found := gistsWithFile(ctx, token, filename); len(found) > 0 {
+			id = found[0].ID
 			if content, err = gistContent(ctx, id, token, filename); content != "" && dir != "" {
 				_ = SaveOption(dir, "cookie_sync_gist_id", id)
+				_ = SaveOption(dir, "cookie_sync_info", GistInfo(found[0].Description, id))
 			}
 		}
 	}

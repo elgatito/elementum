@@ -352,8 +352,12 @@ func TestListGists(t *testing.T) {
 	if err != nil || len(gists) != 2 || gists[0].ID != "NEW" || gists[0].Description != "Browser" || gists[0].Cookies != 5 || gists[0].Sites != 2 {
 		t.Fatalf("%+v %v", gists, err)
 	}
-	if err := SelectGist(dir, "OLD"); err != nil || LoadGeneral(dir).raw("cookie_sync_gist_id") != "OLD" {
-		t.Errorf("select: %v", err)
+	if err := SelectGist(dir, "OLD", "old"); err != nil || LoadGeneral(dir).raw("cookie_sync_gist_id") != "OLD" || LoadGeneral(dir).raw("cookie_sync_info") != "old (OLD)" {
+		t.Errorf("select: %v %v", err, LoadGeneral(dir))
+	}
+	// a gist set by id alone (the API) drops the description of the one before
+	if err := SaveOption(dir, "cookie_sync_gist_id", "NEW"); err != nil || LoadGeneral(dir).raw("cookie_sync_info") != "" {
+		t.Errorf("stale description: %v", LoadGeneral(dir))
 	}
 	// a wrong password: the gist is listed, its cookies are not counted
 	_ = SaveOption(dir, "cookie_sync_password", "wrong")

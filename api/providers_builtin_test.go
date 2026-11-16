@@ -35,7 +35,8 @@ func TestBuiltinMenuState(t *testing.T) {
 	}
 	_ = burst.SaveOption(d.dir, "cookie_sync_token", "SECRET")
 	_ = burst.SaveOption(d.dir, "cookie_sync_user", "octocat")
-	if got := d.cookieSyncSummary(); !strings.Contains(got, "octocat") || strings.Contains(got, "SECRET") {
+	_ = burst.SelectGist(d.dir, "5610124e92f038bccfa1f399480969e4", "Browser cookies")
+	if got := d.cookieSyncSummary(); !strings.Contains(got, "GitHub user: octocat") || !strings.Contains(got, "Active Gist: Browser cookies (5610124e92f038bccfa1f399480969e4)") || strings.Contains(got, "SECRET") {
 		t.Errorf("cookie sync: %q", got)
 	}
 	if got := shorten([]string{strings.Repeat("x", 200)}); len([]rune(got)) != 110 {
