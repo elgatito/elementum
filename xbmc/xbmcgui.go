@@ -277,6 +277,9 @@ func (h *XBMCHost) ListDialogWithOptions(autoclose, preselect int, title string,
 // DialogMultiSelect returns selected indexes, or nil if the dialog was canceled
 func (h *XBMCHost) DialogMultiSelect(title string, items []string, preselect []int) []int {
 	var retVal []int
+	if preselect == nil {
+		preselect = []int{} // null is refused by Kodi's multiselect
+	}
 	h.executeJSONRPCEx("Dialog_MultiSelect", &retVal, Args{title, items, preselect})
 	return retVal
 }
@@ -382,6 +385,9 @@ func (h *XBMCHost) ListDialogDetails(title string, items []DetailItem, preselect
 // cancelled.
 func (h *XBMCHost) DialogMultiSelectDetails(title string, items []DetailItem, preselect []int) []int {
 	var retVal []int
+	if preselect == nil {
+		preselect = []int{} // null is refused by Kodi's multiselect
+	}
 	if err := h.executeJSONRPCEx("Dialog_MultiSelect_Details", &retVal, Args{title, detailArgs(items), preselect}); err != nil {
 		return h.DialogMultiSelect(title, plainLines(items), preselect)
 	}
