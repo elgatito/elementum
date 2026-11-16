@@ -111,9 +111,10 @@ func github(ctx context.Context, method, target, token string, body any) ([]byte
 }
 
 type gist struct {
-	ID      string `json:"id"`
-	Updated string `json:"updated_at"`
-	Files   map[string]struct {
+	ID          string `json:"id"`
+	Description string `json:"description"`
+	Updated     string `json:"updated_at"`
+	Files       map[string]struct {
 		Filename  string `json:"filename"`
 		Content   string `json:"content"`
 		Truncated bool   `json:"truncated"`
@@ -146,6 +147,14 @@ func gistContent(ctx context.Context, id, token, filename string) (string, error
 
 // findGist returns the most recently updated gist that has the cookies file, "" when there is none.
 func findGist(ctx context.Context, token, filename string) string {
+	if found := gistsWithFile(ctx, token, filename); len(found) > 0 {
+		return found[0].ID
+	}
+	return ""
+}
+
+// gistsWithFile returns the gists that have the cookies file, most recently updated first.
+func gistsWithFile(ctx context.Context, token, filename string) []gist {
 	var found []gist
 	for page := 1; page <= 10; page++ { // the list is paged
 		b, err := github(ctx, http.MethodGet, fmt.Sprintf("%s?per_page=100&page=%d", GistAPI, page), token, nil)
@@ -161,11 +170,71 @@ func findGist(ctx context.Context, token, filename string) string {
 			}
 		}
 	}
-	if len(found) == 0 {
-		return ""
-	}
 	sort.Slice(found, func(i, j int) bool { return found[i].Updated > found[j].Updated })
-	return found[0].ID
+	return found
+}
+
+// Gist is a gist with the cookies file, for the user to choose the one to sync with.
+type Gist struct {
+	ID, Description string
+	Updated         string // as GitHub gives it, "2026-11-15T17:20:00Z"
+	Cookies, Sites  int    // both 0 when the file could not be read, as with a wrong password
+}
+
+// ListGists returns the gists of the signed-in GitHub account that have the cookies file, most recently
+// updated first, with how many cookies of how many sites each holds.
+func ListGists(ctx context.Context, dir string) ([]Gist, error) {
+	opts := LoadGeneral(dir)
+	token, password, filename := opts.raw("cookie_sync_token"), opts.raw("cookie_sync_password"), opts.raw("cookie_sync_filename")
+	if token == "" {
+		return nil, errors.New("GitHub is not connected")
+	}
+	var out []Gist
+	for _, g := range gistsWithFile(ctx, token, filename) {
+		item := Gist{ID: g.ID, Description: g.Description, Updated: g.Updated}
+		if content, err := gistContent(ctx, g.ID, token, filename); err == nil {
+			item.Cookies, item.Sites = countCookies(content, password)
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
+// countCookies counts the cookies and the sites of a cookies file.
+func countCookies(content, password string) (cookies, sites int) {
+	var data map[string]any
+	if json.Unmarshal([]byte(content), &data) != nil {
+		return 0, 0
+	}
+	for domain, v := range data {
+		if strings.HasPrefix(domain, "__") || domain == "userAgent" {
+			continue
+		}
+		text, _ := v.(string)
+		if password != "" {
+			var err error
+			if text, err = aesDecode(text, password); err != nil {
+				continue
+			}
+		}
+		var list []any
+		if json.Unmarshal([]byte(text), &list) == nil {
+			cookies += len(list)
+			sites++
+		}
+	}
+	return cookies, sites
+}
+
+// SelectGist makes the cookie sync use a gist from now on.
+func SelectGist(dir, id string) error {
+	if err := SaveOption(dir, "cookie_sync_gist_id", id); err != nil {
+		return err
+	}
+	syncState.mu.Lock()
+	syncState.at = time.Time{} // read it on the next search
+	syncState.mu.Unlock()
+	return nil
 }
 
 // pull reads the gist into the jar, when the sync is on and was not read a moment ago. The gist's

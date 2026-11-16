@@ -56,6 +56,23 @@ func ProvidersDir() string {
 
 var importMu sync.Mutex
 
+// BurstSettingsPath is the settings file of the Burst add-on: Kodi keeps every add-on's settings next to
+// each other in addon_data. "" without a profile.
+func BurstSettingsPath() string {
+	dir := ProvidersDir()
+	if dir == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(filepath.Dir(dir)), "script.elementum.burst", "settings.xml")
+}
+
+// ImportBurstSettings takes over the settings of the Burst add-on and tells Kodi how it went.
+func ImportBurstSettings(xbmcHost *xbmc.XBMCHost) {
+	if enabled, imported := burst.ImportBurst(ProvidersDir(), BurstSettingsPath()); imported {
+		xbmcHost.Notify("Elementum", fmt.Sprintf(ui.Text(ui.LanguageOf(xbmcHost), "Burst settings imported, %d providers enabled"), enabled), config.AddonIcon())
+	}
+}
+
 // OfferBurstImport asks in Kodi, on the first run of the built-in search, whether to take over the
 // settings of the Burst add-on: enabled providers, logins, mirrors, filters and the cookie sync. The
 // answer is final (closing the dialog counts as no): afterwards the built-in search has its own settings
@@ -67,9 +84,7 @@ func OfferBurstImport(xbmcHost *xbmc.XBMCHost) {
 	}
 	importMu.Lock() // two searches at once must not ask twice
 	defer importMu.Unlock()
-	// Kodi keeps every add-on's settings next to each other in addon_data.
-	burstSettings := filepath.Join(filepath.Dir(filepath.Dir(dir)), "script.elementum.burst", "settings.xml")
-	if !burst.CanImportBurst(dir, burstSettings) {
+	if !burst.CanImportBurst(dir, BurstSettingsPath()) {
 		return
 	}
 	lang := ui.LanguageOf(xbmcHost)
@@ -79,9 +94,7 @@ func OfferBurstImport(xbmcHost *xbmc.XBMCHost) {
 		}
 		return
 	}
-	if enabled, imported := burst.ImportBurst(dir, burstSettings); imported {
-		xbmcHost.Notify("Elementum", fmt.Sprintf(ui.Text(lang, "Burst settings imported, %d providers enabled"), enabled), config.AddonIcon())
-	}
+	ImportBurstSettings(xbmcHost)
 }
 
 // search runs the built-in search. A search that is not silent shows its progress in Kodi, when the
@@ -116,6 +129,9 @@ func (b builtinSearcher) search(q burst.Query, silent bool) []*bittorrent.Torren
 		log.Errorf("Failed to encode built-in results: %s", err)
 	} else if err := json.Unmarshal(b, &torrents); err != nil {
 		log.Errorf("Failed to decode built-in results: %s", err)
+	}
+	for _, t := range torrents {
+		t.Icon = config.KodiPath(t.Icon) // Kodi on Windows does not open the /mnt/c/... of Elementum in WSL
 	}
 	return torrents
 }

@@ -214,16 +214,34 @@ func TestImportBurst(t *testing.T) {
 	if CanImportBurst(dir, filepath.Join(t.TempDir(), "missing.xml")) || !CanImportBurst(dir, burstSettings) {
 		t.Error("CanImportBurst is wrong before the import")
 	}
+	// settings made before the question existed (a settings dialog of an older build) do not stop it,
+	// and what Burst does not set stays
+	on := true
+	if err := SaveSettings(dir, "toloka", Settings{Username: "mine", Password: "pw", Cookies: "a=b", Enabled: &on}); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveSettings(dir, "rutracker", Settings{Cookies: "sid=1", Username: "old"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := SaveOption(dir, "cookie_sync_user", "octocat"); err != nil {
+		t.Fatal(err)
+	}
+	if !CanImportBurst(dir, burstSettings) {
+		t.Error("not offered for settings made before the question")
+	}
 	enabled, imported := ImportBurst(dir, burstSettings)
 	if !imported || enabled != 2 {
 		t.Fatalf("imported %v, %d enabled", imported, enabled)
 	}
 	set, general := LoadSettings(dir), LoadGeneral(dir)
-	if r := set["rutracker"]; r.Username != "me" || r.Password != "secret" || r.Alias != "http://mirror.example" || r.Contains != "shows" || !*r.Enabled {
+	if r := set["rutracker"]; r.Username != "me" || r.Password != "secret" || r.Alias != "http://mirror.example" || r.Contains != "shows" || !*r.Enabled || r.Cookies != "sid=1" {
 		t.Errorf("rutracker: %+v", r)
 	}
 	if *set["yts"].Enabled || general.num("max_results") != 15 || !general.on("filter_cam") || general.text("accept") != "remux" || general.raw("cookie_sync_token") != "TokenWithCase" {
 		t.Errorf("yts %+v, general %v", set["yts"], general)
+	}
+	if set["toloka"].Username != "mine" || set["toloka"].Cookies != "a=b" || general.raw("cookie_sync_user") != "octocat" {
+		t.Errorf("settings Burst does not have were lost: %+v %v", set["toloka"], general)
 	}
 	if ids := Enabled(Load(dir), set, "episode"); !contains(ids, "rutor") || !contains(ids, "rutracker") || contains(ids, "yts") {
 		t.Errorf("enabled: %v", ids)
@@ -236,9 +254,9 @@ func TestImportBurst(t *testing.T) {
 	if CanImportBurst(dir, burstSettings) {
 		t.Error("offered again after the import")
 	}
-	// only on the first run: the settings file is there now
-	if _, again := ImportBurst(dir, burstSettings); again {
-		t.Error("imported twice")
+	// asked once, but it can always be made again from the settings
+	if _, again := ImportBurst(dir, burstSettings); !again {
+		t.Error("an import asked for again did not run")
 	}
 }
 
@@ -290,5 +308,56 @@ func TestDeviceLogin(t *testing.T) {
 	cancel()
 	if err := FinishDeviceLogin(ctx, dir, code); err != context.Canceled {
 		t.Errorf("cancelled login: %v", err)
+	}
+}
+
+func TestListGists(t *testing.T) {
+	const password, filename = "pw", "kevast-gist-default.json"
+	cookies := func(n int) string {
+		list := make([]map[string]string, n)
+		for i := range list {
+			list[i] = map[string]string{"name": fmt.Sprint("c", i), "value": "v"}
+		}
+		b, _ := json.Marshal(list)
+		return aesEncode(string(b), password)
+	}
+	content, _ := json.Marshal(map[string]string{"a.org": cookies(2), "b.org": cookies(3), "__userAgent": aesEncode("UA", password)})
+	file := map[string]any{"filename": filename, "content": string(content)}
+	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/" && r.URL.Query().Get("page") == "1":
+			json.NewEncoder(w).Encode([]any{
+				map[string]any{"id": "OLD", "description": "old", "updated_at": "2025-01-01T00:00:00Z", "files": map[string]any{filename: file}},
+				map[string]any{"id": "NEW", "description": "Browser", "updated_at": "2026-11-15T17:20:00Z", "files": map[string]any{filename: file}},
+				map[string]any{"id": "OTHER", "files": map[string]any{"notes.txt": map[string]any{"filename": "notes.txt"}}},
+			})
+		case r.URL.Path == "/":
+			fmt.Fprint(w, "[]")
+		default:
+			json.NewEncoder(w).Encode(map[string]any{"id": strings.TrimPrefix(r.URL.Path, "/"), "files": map[string]any{filename: file}})
+		}
+	}))
+	defer hub.Close()
+	old := GistAPI
+	GistAPI = hub.URL
+	t.Cleanup(func() { GistAPI = old; syncState = cookieSync{} })
+
+	dir := t.TempDir()
+	if _, err := ListGists(context.Background(), dir); err == nil {
+		t.Error("listed without a token")
+	}
+	_ = SaveOption(dir, "cookie_sync_token", "T")
+	_ = SaveOption(dir, "cookie_sync_password", password)
+	gists, err := ListGists(context.Background(), dir)
+	if err != nil || len(gists) != 2 || gists[0].ID != "NEW" || gists[0].Description != "Browser" || gists[0].Cookies != 5 || gists[0].Sites != 2 {
+		t.Fatalf("%+v %v", gists, err)
+	}
+	if err := SelectGist(dir, "OLD"); err != nil || LoadGeneral(dir).raw("cookie_sync_gist_id") != "OLD" {
+		t.Errorf("select: %v", err)
+	}
+	// a wrong password: the gist is listed, its cookies are not counted
+	_ = SaveOption(dir, "cookie_sync_password", "wrong")
+	if gists, _ = ListGists(context.Background(), dir); len(gists) != 2 || gists[0].Cookies != 0 {
+		t.Errorf("wrong password: %+v", gists)
 	}
 }

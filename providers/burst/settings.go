@@ -31,6 +31,9 @@ const settingsFile = "settings.json"
 type file struct {
 	General   General             `json:"general,omitempty"`
 	Providers map[string]Settings `json:"providers,omitempty"`
+	// BurstImport is the answer to the question whether to import the Burst add-on's settings:
+	// "imported" or "declined"; "" when it was not asked yet.
+	BurstImport string `json:"burst_import,omitempty"`
 }
 
 func readFile(dir string) file {
