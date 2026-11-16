@@ -538,6 +538,23 @@ type CastMember struct {
 	TmdbId int `json:"tmdb_id"`
 }
 
+// CookieSyncGist defines model for CookieSyncGist.
+type CookieSyncGist struct {
+	// Cookies 0 when the file could not be read, as with a wrong password.
+	Cookies     int    `json:"cookies"`
+	Description string `json:"description"`
+	Id          string `json:"id"`
+
+	// Selected The gist the cookie sync uses.
+	Selected bool `json:"selected"`
+	Sites    int  `json:"sites"`
+
+	// UpdatedAt As GitHub gives it.
+	//
+	// Example: 2026-11-15T17:20:00Z
+	UpdatedAt string `json:"updated_at"`
+}
+
 // CrewMember defines model for CrewMember.
 type CrewMember struct {
 	// Department Example: Directing
@@ -1826,6 +1843,9 @@ type ServerInterface interface {
 	// ListProviders Trackers of the built-in torrent search, with the user's settings
 	// (GET /providers)
 	ListProviders(c *gin.Context)
+	// ListCookieSyncGists The gists of the connected GitHub account that hold the cookies file
+	// (GET /providers/cookie-sync/gists)
+	ListCookieSyncGists(c *gin.Context)
 	// StartCookieSyncLogin Sign in to GitHub for the cookie sync, with a device code
 	// (POST /providers/cookie-sync/login)
 	StartCookieSyncLogin(c *gin.Context)
@@ -2399,6 +2419,19 @@ func (siw *ServerInterfaceWrapper) ListProviders(c *gin.Context) {
 	}
 
 	siw.Handler.ListProviders(c)
+}
+
+// ListCookieSyncGists operation middleware
+func (siw *ServerInterfaceWrapper) ListCookieSyncGists(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.ListCookieSyncGists(c)
 }
 
 // StartCookieSyncLogin operation middleware
@@ -3445,6 +3478,7 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.GET(options.BaseURL+"/providers", wrapper.ListProviders)
 	router.GET(options.BaseURL+"/providers/options", wrapper.ListProviderOptions)
 	router.PUT(options.BaseURL+"/providers/options/:id", wrapper.UpdateProviderOption)
+	router.GET(options.BaseURL+"/providers/cookie-sync/gists", wrapper.ListCookieSyncGists)
 	router.POST(options.BaseURL+"/providers/cookie-sync/login", wrapper.StartCookieSyncLogin)
 	router.PUT(options.BaseURL+"/providers/:id", wrapper.UpdateProvider)
 	router.GET(options.BaseURL+"/people/:tmdb_id", wrapper.GetPerson)

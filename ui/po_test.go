@@ -24,7 +24,7 @@ func TestTranslate(t *testing.T) {
 		{"de", "LOCALIZE[30287];;Matrix", "Matrix zur Bibliothek hinzugefügt"},
 		{"de-DE", "LOCALIZE[30204]", "Keine \"Ergebnisse\""},
 		{"en", "LOCALIZE[30287];;Matrix", "Matrix added to the library"},
-		{"de", "LOCALIZE[30684];;3;;4", "Library updated: 3 movies, 4 shows"}, // missing in de: English, multi-line msgstr
+		{"en", "LOCALIZE[30684];;3;;4", "Library updated: 3 movies, 4 shows"}, // multi-line msgstr; the add-on's file wins over the binary
 		{"de", "LOCALIZE[30999]", "Only in English"},
 		{"xx", "LOCALIZE[30204]", "No results"},      // unknown language: English
 		{"de", "LOCALIZE[39999]", "LOCALIZE[39999]"}, // unknown id: as given
@@ -71,9 +71,9 @@ func TestText(t *testing.T) {
 			t.Errorf("%s: %q, want %q", lang, got, want)
 		}
 	}
-	// a text the strings do not have, and one that is not in the table at all, stay English
-	if got := Text("de", "Filtering"); got != "Filtering" {
-		t.Errorf("untranslated: %q", got)
+	// a text the add-on's files lack comes from the binary (an add-on older than the binary)
+	if got := Text("de", "Filtering"); got != "Filterung" {
+		t.Errorf("filled from the binary: %q", got)
 	}
 	if got := Text("de", "Not a known text"); got != "Not a known text" {
 		t.Errorf("unknown: %q", got)

@@ -102,6 +102,8 @@ func TestProviders(t *testing.T) {
 			_, _ = w.Write([]byte(`{"access_token":"TOKEN"}`))
 		case "/user":
 			_, _ = w.Write([]byte(`{"login":"octocat"}`))
+		case "/gists":
+			_, _ = w.Write([]byte(`[]`))
 		}
 	}))
 	defer hub.Close()
@@ -119,6 +121,9 @@ func TestProviders(t *testing.T) {
 			t.Fatal("the token was not stored")
 		}
 		time.Sleep(50 * time.Millisecond)
+	}
+	if w, _ := call(http.MethodGet, "/api/providers/cookie-sync/gists", ""); w.Code != http.StatusOK || w.Body.String() != "[]" {
+		t.Errorf("gists: %d %s", w.Code, w.Body)
 	}
 	if w, _ := call(http.MethodGet, "/api/providers/options", ""); strings.Contains(w.Body.String(), `"TOKEN"`) {
 		t.Error("the token is returned by the API")

@@ -702,6 +702,30 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         default: { $ref: "#/components/responses/Error" }
 
+  /providers/cookie-sync/gists:
+    get:
+      tags: [providers]
+      operationId: listCookieSyncGists
+      summary: The gists of the connected GitHub account that hold the cookies file
+      description: |
+        Most recently updated first. Choose one with `PUT /providers/options/cookie_sync_gist_id`;
+        without a choice the most recently updated one is used.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/CookieSyncGist" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409":
+          description: GitHub is not connected (`tracker_not_authorized`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        default: { $ref: "#/components/responses/Error" }
+
   /providers/cookie-sync/login:
     post:
       tags: [providers]
@@ -1545,6 +1569,16 @@ components:
           description: "For a number option with named values: the names of 0, 1, 2 ... in the requested language."
         value: { description: "The current value: a boolean, number or text. A token or password is only shown as set (`********`) or empty." }
         default: { description: The value when the user has not set one. }
+    CookieSyncGist:
+      type: object
+      required: [id, description, updated_at, cookies, sites, selected]
+      properties:
+        id: { type: string }
+        description: { type: string }
+        updated_at: { type: string, description: As GitHub gives it., example: "2026-11-15T17:20:00Z" }
+        cookies: { type: integer, description: "0 when the file could not be read, as with a wrong password." }
+        sites: { type: integer }
+        selected: { type: boolean, description: The gist the cookie sync uses. }
     DeviceLoginCode:
       type: object
       required: [user_code, verification_url, expires_in, interval]

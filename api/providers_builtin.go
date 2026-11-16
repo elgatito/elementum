@@ -1,6 +1,7 @@
 package api
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"strconv"
@@ -56,55 +57,103 @@ func BuiltinSettings(ctx *gin.Context) {
 			groups = append(groups, o.Group)
 		}
 	}
-	menu := []string{d.t("Public providers"), d.t("Private providers (need an account)"), d.t("Logins, mirrors and cookies")}
-	for _, g := range groups {
-		menu = append(menu, d.t(g))
+	type entry struct {
+		label string
+		run   func() error
 	}
-	menu = append(menu, d.t("Connect GitHub and select Gist"))
 	for {
-		choice := xbmcHost.ListDialog(d.title(""), menu...)
-		switch {
-		case choice < 0:
+		menu := []entry{
+			{d.t("Public providers"), func() error { return d.chooseProviders(false) }},
+			{d.t("Private providers (need an account)"), func() error { return d.chooseProviders(true) }},
+			{d.t("Logins, mirrors and cookies"), d.editLogins},
+		}
+		for _, g := range groups {
+			menu = append(menu, entry{d.t(g), func() error { return d.editOptions(g) }})
+		}
+		menu = append(menu, entry{d.t("Connect GitHub and select Gist"), d.connectGitHub})
+		if burst.LoadGeneral(dir).Get("cookie_sync_token") != "" {
+			menu = append(menu, entry{d.t("Select another Gist"), d.selectGist})
+		}
+		if burst.HasBurstSettings(providers.BurstSettingsPath()) {
+			menu = append(menu, entry{d.t("Import settings from the Burst add-on"), d.importBurst})
+		}
+		labels := make([]string, len(menu))
+		for i, e := range menu {
+			labels[i] = e.label
+		}
+		choice := xbmcHost.ListDialog(d.title(""), labels...)
+		if choice < 0 {
 			ctx.String(200, "")
 			return
-		case choice <= 1:
-			failed(d.chooseProviders(choice == 1))
-		case choice == 2:
-			failed(d.editLogins())
-		case choice == len(menu)-1:
-			failed(d.connectGitHub())
-		default:
-			failed(d.editOptions(groups[choice-3]))
+		}
+		failed(menu[choice].run())
+	}
+}
+
+// icon is a provider's icon as Kodi can open it.
+func (d builtinDialog) icon(id string) string { return config.KodiPath(burst.Icon(d.dir, id)) }
+
+// importBurst takes over the Burst add-on's settings, after asking.
+func (d builtinDialog) importBurst() error {
+	if d.h.DialogConfirmNonTimed("Elementum", d.t("Import settings of the Burst add-on into the built-in search?")) {
+		providers.ImportBurstSettings(d.h)
+	}
+	return nil
+}
+
+// selectGist lists the gists with the cookies file and makes the cookie sync use the chosen one.
+func (d builtinDialog) selectGist() error {
+	gists, err := burst.ListGists(context.Background(), d.dir)
+	if err != nil {
+		return err
+	}
+	general := burst.LoadGeneral(d.dir)
+	if len(gists) == 0 {
+		d.h.Notify("Elementum", fmt.Sprintf(d.t("No Gists with %s file found"), general.Get("cookie_sync_filename")), config.AddonIcon())
+		return nil
+	}
+	items := make([]xbmc.DetailItem, len(gists))
+	current := 0
+	for i, g := range gists {
+		updated := strings.ReplaceAll(g.Updated, "T", " ")
+		updated = updated[:min(len(updated), 16)]
+		items[i] = xbmc.DetailItem{
+			Label:  cmp.Or(g.Description, g.ID),
+			Label2: fmt.Sprintf("ID: %s | %s | %s", g.ID, fmt.Sprintf(d.t("%d cookies for %d sites"), g.Cookies, g.Sites), updated),
+		}
+		if g.ID == general.Get("cookie_sync_gist_id") {
+			current = i
 		}
 	}
+	if i := d.h.ListDialogDetails(d.title(d.t("Select Gist with cookies")), items, current); i >= 0 {
+		return burst.SelectGist(d.dir, gists[i].ID)
+	}
+	return nil
 }
 
 // chooseProviders switches the public or the private providers on and off in one multi-select list.
 func (d builtinDialog) chooseProviders(private bool) error {
 	var list []burst.Status
-	var labels []string
+	var items []xbmc.DetailItem
 	var on []int
 	for _, st := range burst.List(d.dir) {
 		if st.Unusable != "" || st.Private != private {
 			continue
 		}
-		label := st.Name
-		if len(st.Languages) > 0 {
-			label += " [" + strings.Join(st.Languages, ", ") + "]"
-		}
+		label2 := strings.Join(st.Languages, ", ")
 		if st.NeedsLogin {
-			label += " - [COLOR FF999900]" + d.t("no login yet") + "[/COLOR]"
+			label2 += " - [COLOR FF999900]" + d.t("no login yet") + "[/COLOR]"
 		}
 		if st.Enabled {
 			on = append(on, len(list))
 		}
-		list, labels = append(list, st), append(labels, label)
+		list, items = append(list, st), append(items, xbmc.DetailItem{Label: st.Name, Label2: label2, Icon: d.icon(st.ID)})
 	}
 	kind := d.t("Public providers")
 	if private {
 		kind = d.t("Private providers (need an account)")
 	}
-	chosen := d.h.DialogMultiSelect(d.title(kind), labels, on)
+	chosen := d.h.DialogMultiSelectDetails(d.title(kind), items, on)
 	if chosen == nil { // cancelled
 		return nil
 	}
@@ -130,18 +179,14 @@ func (d builtinDialog) chooseProviders(private bool) error {
 func (d builtinDialog) editLogins() error {
 	for {
 		var list []burst.Status
-		var labels []string
+		var items []xbmc.DetailItem
 		for _, st := range burst.List(d.dir) {
 			if st.Unusable != "" || !(st.Enabled || st.Private) {
 				continue
 			}
-			label := st.Name
-			if st.Username != "" {
-				label += " - " + st.Username
-			}
-			list, labels = append(list, st), append(labels, label)
+			list, items = append(list, st), append(items, xbmc.DetailItem{Label: st.Name, Label2: st.Username, Icon: d.icon(st.ID)})
 		}
-		i := d.h.ListDialog(d.title(d.t("Logins, mirrors and cookies")), labels...)
+		i := d.h.ListDialogDetails(d.title(d.t("Logins, mirrors and cookies")), items, -1)
 		if i < 0 {
 			return nil
 		}
@@ -153,16 +198,19 @@ func (d builtinDialog) editLogins() error {
 			return ""
 		}
 		contains := map[string]string{"": d.t("All"), "movies": d.t("Movies"), "shows": d.t("Shows")}
-		fields := []string{
-			d.t("Username") + ": " + set.Username,
-			d.t("Password") + " " + mark(set.Password != ""),
-			d.t("Passkey") + " " + mark(set.Passkey != ""),
-			d.t("Domain Alias [Optional]") + ": " + set.Alias,
-			d.t("Contains only") + ": " + contains[set.Contains],
-			d.t("Browser cookies") + " " + mark(set.Cookies != ""),
-			d.t("User Agent") + ": " + set.UserAgent,
+		fields := []xbmc.DetailItem{
+			{Label: d.t("Username"), Label2: set.Username},
+			{Label: d.t("Password"), Label2: mark(set.Password != "")},
+			{Label: d.t("Passkey"), Label2: mark(set.Passkey != "")},
+			{Label: d.t("Domain Alias [Optional]"), Label2: set.Alias},
+			{Label: d.t("Contains only"), Label2: contains[set.Contains]},
+			{Label: d.t("Browser cookies"), Label2: mark(set.Cookies != "")},
+			{Label: d.t("User Agent"), Label2: set.UserAgent},
 		}
-		switch d.h.ListDialog(list[i].Name, fields...) {
+		for n := range fields {
+			fields[n].Icon = d.icon(list[i].ID)
+		}
+		switch d.h.ListDialogDetails(list[i].Name, fields, -1) {
 		case 0:
 			set.Username = d.h.Keyboard(set.Username, d.t("Username"), false)
 		case 1:
@@ -236,7 +284,7 @@ func (d builtinDialog) editOptions(group string) error {
 	}
 	for len(values) > 0 {
 		general = burst.LoadGeneral(d.dir)
-		var labels []string
+		var items []xbmc.DetailItem
 		for _, o := range values {
 			shown := fmt.Sprint(general.Get(o.ID))
 			if n, isNumber := general.Get(o.ID).(float64); isNumber && int(n) >= 0 && int(n) < len(o.Choices) {
@@ -245,9 +293,9 @@ func (d builtinDialog) editOptions(group string) error {
 			if o.Secret() && shown != "" {
 				shown = d.t("(set)")
 			}
-			labels = append(labels, d.label(o)+": "+shown)
+			items = append(items, xbmc.DetailItem{Label: d.label(o), Label2: shown})
 		}
-		i := d.h.ListDialog(d.title(d.t(group)), labels...)
+		i := d.h.ListDialogDetails(d.title(d.t(group)), items, -1)
 		if i < 0 {
 			break
 		}
@@ -286,18 +334,28 @@ func (d builtinDialog) editOptions(group string) error {
 	return nil
 }
 
-// connectGitHub signs in to GitHub for the cookie sync: Kodi shows the page and the code to enter on
-// any device, until the user has done so, cancels, or the code expires.
+// connectGitHub signs in to GitHub for the cookie sync, then lets the user choose the gist.
 func (d builtinDialog) connectGitHub() error {
+	connected, err := d.waitForGitHub()
+	if err != nil || !connected {
+		return err
+	}
+	d.h.Notify("Elementum", d.t("GitHub is connected"), config.AddonIcon())
+	return d.selectGist()
+}
+
+// waitForGitHub shows the page and the code to enter on any device until the user has done so (true),
+// cancels or the code expires.
+func (d builtinDialog) waitForGitHub() (bool, error) {
 	code, err := burst.StartDeviceLogin(context.Background())
 	if err != nil {
-		return err
+		return false, err
 	}
 	// the text has Kodi's [B] and [CR], which the dialog shows as bold and a line break
 	message := fmt.Sprintf(d.t("Open [B]%s[/B] on any device and enter the code:[CR][B]%s[/B]"), code.VerificationURL, code.UserCode)
 	dialog := d.h.NewDialogProgress(d.title(d.t("Cookie sync")), message, "", "")
 	if dialog == nil {
-		return nil
+		return false, nil
 	}
 	defer dialog.Close()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -308,13 +366,10 @@ func (d builtinDialog) connectGitHub() error {
 	for {
 		select {
 		case err := <-done:
-			if err == nil {
-				d.h.Notify("Elementum", d.t("GitHub is connected"), config.AddonIcon())
-			}
-			return err
+			return err == nil, err
 		case <-time.After(500 * time.Millisecond):
 			if dialog.IsCanceled() {
-				return nil // the deferred cancel stops the waiting
+				return false, nil // the deferred cancel stops the waiting
 			}
 			left := 100 - int(time.Since(started).Seconds()*100/float64(max(code.ExpiresIn, 1)))
 			dialog.Update(max(left, 0), message, "", "")

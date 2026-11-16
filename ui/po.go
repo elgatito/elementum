@@ -154,8 +154,8 @@ func embedded(lang string) map[int]string {
 	return parsePO(string(b))
 }
 
-// stringsFor finds the strings of a language ("de", "de-DE"), or nil. The add-on's own files win when
-// its folder is there (they may be newer than the binary); else the strings built into the binary are used.
+// stringsFor finds the strings of a language ("de", "de-DE"), or nil: the strings built into the binary,
+// with the add-on's own files over them when its folder is there.
 // Kodi names the dirs resource.language.de_de.
 func stringsFor(lang string) map[int]string {
 	dir := stringsDir()
@@ -166,11 +166,20 @@ func stringsFor(lang string) map[int]string {
 	if ok {
 		return m
 	}
+	// The add-on's own files win (they may be newer than the binary); the built-in strings fill what they
+	// lack, as the texts of an add-on older than the binary.
+	m = embedded(lang)
 	if dir != "" {
-		m = findStrings(dir, lang)
-	}
-	if m == nil {
-		m = embedded(lang)
+		if own := findStrings(dir, lang); own != nil {
+			merged := make(map[int]string, len(m)+len(own))
+			for id, t := range m {
+				merged[id] = t
+			}
+			for id, t := range own {
+				merged[id] = t
+			}
+			m = merged
+		}
 	}
 	langMu.Lock()
 	if len(langCache) < maxLangCache {

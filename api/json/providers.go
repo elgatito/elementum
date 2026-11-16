@@ -129,6 +129,27 @@ func (Server) ListProviderOptions(c *gin.Context, p ListProviderOptionsParams) {
 	c.JSON(http.StatusOK, out)
 }
 
+// ListCookieSyncGists lists the gists to choose for the cookie sync.
+func (Server) ListCookieSyncGists(c *gin.Context) {
+	dir := providers.ProvidersDir()
+	if burst.LoadGeneral(dir).Get("cookie_sync_token") == "" {
+		fail(c, failed(http.StatusConflict, ErrorCodeTrackerNotAuthorized, "GitHub is not connected"))
+		return
+	}
+	gists, err := burst.ListGists(c.Request.Context(), dir)
+	if err != nil {
+		log.Warningf("Listing gists: %v", err)
+		fail(c, failed(http.StatusBadGateway, ErrorCodeInternalError, "GitHub could not be reached"))
+		return
+	}
+	selected := burst.LoadGeneral(dir).Get("cookie_sync_gist_id")
+	out := make([]CookieSyncGist, 0, len(gists))
+	for _, g := range gists {
+		out = append(out, CookieSyncGist{Id: g.ID, Description: g.Description, UpdatedAt: g.Updated, Cookies: g.Cookies, Sites: g.Sites, Selected: g.ID == selected})
+	}
+	c.JSON(http.StatusOK, out)
+}
+
 // StartCookieSyncLogin starts GitHub's device login and waits for its end in the background.
 func (Server) StartCookieSyncLogin(c *gin.Context) {
 	dir := providers.ProvidersDir()
