@@ -1,6 +1,7 @@
 package bittorrent
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -26,6 +27,8 @@ type TorrentFS struct {
 	http.Dir
 	s      *Service
 	isHead bool
+	// ctx is done when the client of the request closes the connection
+	ctx context.Context
 }
 
 // TorrentFSEntry ...
@@ -57,11 +60,12 @@ type PieceRange struct {
 }
 
 // NewTorrentFS ...
-func NewTorrentFS(service *Service, method string) *TorrentFS {
+func NewTorrentFS(service *Service, r *http.Request) *TorrentFS {
 	return &TorrentFS{
 		s:      service,
 		Dir:    http.Dir(service.config.DownloadPath),
-		isHead: method == "HEAD",
+		isHead: r.Method == "HEAD",
+		ctx:    r.Context(),
 	}
 }
 
@@ -321,6 +325,9 @@ func (tf *TorrentFSEntry) waitForPiece(piece int) error {
 		case <-removed:
 			log.Warningf("Unable to wait for piece %d as file was closed", piece)
 			return errors.New("File was closed")
+		case <-tf.tfs.ctx.Done():
+			log.Warningf("Unable to wait for piece %d as the client closed the connection", piece)
+			return tf.tfs.ctx.Err()
 		case <-pieceRefreshTicker.C:
 			continue
 		}

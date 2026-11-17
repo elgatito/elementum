@@ -402,7 +402,7 @@ func streamURL(host, id string, fileIndex int, exp int64) string {
 }
 
 // streamFS is the file system GetStream serves from: the torrents, as for /files/.
-var streamFS = func(method string) http.FileSystem { return bittorrent.NewTorrentFS(sessions.bts, method) }
+var streamFS = func(r *http.Request) http.FileSystem { return bittorrent.NewTorrentFS(sessions.bts, r) }
 
 // videoTypes are set explicitly: Go's MIME table lacks most video types and sniffing calls Matroska "video/webm".
 var videoTypes = map[string]string{
@@ -432,7 +432,7 @@ func (Server) GetStream(c *gin.Context, id SessionIdParam, fileIndex int, p GetS
 	c.Header("Connection", "close") // as /files/
 	r := c.Request.Clone(c.Request.Context())
 	r.URL.Path, r.URL.RawPath = "/"+filepath.ToSlash(path), ""
-	http.FileServer(streamFS(r.Method)).ServeHTTP(c.Writer, r)
+	http.FileServer(streamFS(r)).ServeHTTP(c.Writer, r)
 }
 
 var torrentFileName = regexp.MustCompile(`^[0-9a-f]{40}\.torrent$`)

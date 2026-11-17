@@ -254,7 +254,7 @@ func TestStreamLink(t *testing.T) {
 	os.MkdirAll(filepath.Join(dir, "Big Buck Bunny"), 0o755)
 	os.WriteFile(filepath.Join(dir, "Big Buck Bunny", "bbb.mkv"), []byte("0123456789"), 0o644)
 	oldFS := streamFS
-	streamFS = func(string) http.FileSystem { return http.Dir(dir) }
+	streamFS = func(*http.Request) http.FileSystem { return http.Dir(dir) }
 	t.Cleanup(func() { streamFS = oldFS })
 
 	// Basic auth is on, the stream must not need it.
