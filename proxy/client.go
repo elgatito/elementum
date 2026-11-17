@@ -42,7 +42,10 @@ var (
 // Reload applies proxy configuration: DNS resolvers, the direct client
 // upstream proxy and the internal proxy server lifecycle.
 func Reload() {
-	reloadDNS()
+	// Building DoH resolvers can block on system DNS lookups, so skip it when they are not used.
+	if config.Get().InternalDNSEnabled {
+		reloadDNS()
+	}
 
 	directTransport.Proxy = nil
 	if config.Get().ProxyUseHTTP {
