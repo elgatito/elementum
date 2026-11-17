@@ -75,6 +75,7 @@ type Player struct {
 	xbmcHost             *xbmc.XBMCHost
 	dialogProgress       *xbmc.DialogProgress
 	overlayStatus        *xbmc.OverlayStatus
+	kodiItem             *xbmc.PlayerItemInfo // Kodi's library item while it played our file, see isPlayingOwnFile
 	next                 NextEpisode
 	scrobble             bool
 	overlayStatusEnabled bool
@@ -847,7 +848,23 @@ func (btp *Player) isPlayingOwnFile() bool {
 		// Unknown answer (RPC error), keep relying on IsPlaying only
 		return true
 	}
-	return isFileURL(playing, btp.PlayURL())
+	if isFileURL(playing, btp.PlayURL()) {
+		if btp.kodiItem == nil {
+			btp.kodiItem = btp.playingKodiItem()
+		}
+		return true
+	}
+	// A library update of the playing item (e.g. VideoLibrary.SetMovieDetails from the tracker sync)
+	// makes Kodi report the item's library path instead of our URL, but the item keeps its database id.
+	return btp.kodiItem != nil && btp.kodiItem.Info.ID > 0 && sameKodiItem(btp.playingKodiItem(), btp.kodiItem)
+}
+
+func (btp *Player) playingKodiItem() *xbmc.PlayerItemInfo {
+	return btp.xbmcHost.PlayerGetItem(btp.xbmcHost.PlayerGetActive())
+}
+
+func sameKodiItem(a, b *xbmc.PlayerItemInfo) bool {
+	return a != nil && b != nil && a.Info == b.Info
 }
 
 // isFileURL reports whether Kodi's playing URL points to the given encoded /files/ path.
