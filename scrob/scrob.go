@@ -167,7 +167,15 @@ func (p *Provider) request(method, path string, params url.Values, body, result 
 		header.Set("Content-Type", "application/json")
 		req.Payload = bytes.NewBuffer(b)
 	}
-	return req.Do()
+	err := req.Do()
+	// Scrob's web front end lets only API keys through to most of the API and redirects device tokens to its login page.
+	if strings.HasPrefix(req.ResponseHeader.Get("Content-Type"), "text/html") {
+		if config.Get().ScrobAPIKey == "" {
+			return errors.New("Scrob accepts only its API key here: set the API key in the Scrob settings")
+		}
+		return errors.New("Scrob returned a web page instead of data: check the Scrob address")
+	}
+	return err
 }
 
 // stamp reads Scrob timestamps: ISO 8601 in UTC, usually without a zone.

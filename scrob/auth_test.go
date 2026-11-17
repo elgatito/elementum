@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -39,5 +40,34 @@ func TestUsername(t *testing.T) {
 				t.Fatalf("username=%q, err=%v", got, err)
 			}
 		})
+	}
+}
+
+// TestLoginPageRedirect covers Scrob's web front end redirecting a device token to its HTML login page (#1217).
+func TestLoginPageRedirect(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/login" {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte("<!DOCTYPE html><html></html>"))
+	}))
+	defer srv.Close()
+	c := config.Get()
+	oldAPI, oldURL, oldKey, oldCreds := reqapi.ScrobAPI, c.ScrobURL, c.ScrobAPIKey, c.TrackerCredentials
+	reqapi.ScrobAPI = &reqapi.API{Ident: reqapi.ScrobIdent, RateLimiter: util.NewRateLimiter(100, time.Second, 1)}
+	c.ScrobURL, c.ScrobAPIKey = srv.URL, ""
+	c.TrackerCredentials = map[string]*config.TrackerCredentials{"scrob": {Token: "device-token"}}
+	defer func() {
+		reqapi.ScrobAPI, c.ScrobURL, c.ScrobAPIKey, c.TrackerCredentials = oldAPI, oldURL, oldKey, oldCreds
+	}()
+
+	if _, err := NewProvider().Progress(false); err == nil || !strings.Contains(err.Error(), "API key") {
+		t.Fatalf("device token: err=%v", err)
+	}
+	c.ScrobAPIKey = "key"
+	if _, err := NewProvider().Progress(false); err == nil || !strings.Contains(err.Error(), "address") {
+		t.Fatalf("API key: err=%v", err)
 	}
 }
